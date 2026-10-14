@@ -422,6 +422,61 @@ static void TestClipChain(void)
     mtwnDestroyContext(f.context);
 }
 
+// The procedures' edges at a rate of 0 and at the ends (Level 1), found
+// by mutants.
+static void TestEdges(void)
+{
+    // A binding to the slot past the last is refused.
+    Fixture f = Make(false, 8);
+    mtwnBinding past = mtwnBind(1, f.target);
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = f.clip;
+    def.bindings = &past;
+    def.bindingCount = 1;
+    mtwnPlayerId refused;
+    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorInvalid,
+          "a binding past the clip's slots refused");
+    // At a rate of 0 a player is never finished, at 0 or anywhere.
+    mtwnPlayerId still = Player(&f, true, 0.0);
+    Update(&f, 0.0);
+    mtwnPlayerState state;
+    CHECK(mtwnPlayer_GetState(f.context, still, &state) == mtwn_success &&
+              state.state == mtwn_playRunning && state.currentTime == 0.0,
+          "running at 0, held");
+    // Paused at 0.5, its rate set to 0 and played: the time stays.
+    mtwnPlayerId held = Player(&f, true, 1.0);
+    Update(&f, 0.5);
+    Update(&f, 1.0);
+    CHECK(mtwnPlayer_Pause(f.context, held) == mtwn_success &&
+              mtwnPlayer_SetRate(f.context, held, 0.0) == mtwn_success &&
+              mtwnPlayer_Play(f.context, held) == mtwn_success,
+          "paused, rate 0, played");
+    Update(&f, 1.5);
+    Update(&f, 2.5);
+    CHECK(mtwnPlayer_GetState(f.context, held, &state) == mtwn_success && state.currentTime == 0.5,
+          "a play at rate 0 keeps the time held");
+    // Backwards and finished at 0, a play rewinds to the end.
+    mtwnPlayerId back = Player(&f, true, -1.0);
+    Update(&f, 3.0);
+    Update(&f, 6.0);
+    CHECK(mtwnPlayer_GetState(f.context, back, &state) == mtwn_success &&
+              state.currentTime == 0.0 && state.state == mtwn_playFinished,
+          "finished backwards at 0");
+    CHECK(mtwnPlayer_Play(f.context, back) == mtwn_success &&
+              mtwnPlayer_GetState(f.context, back, &state) == mtwn_success &&
+              state.currentTime == state.duration,
+          "played again from the end");
+    mtwnDestroyContext(f.context);
+    // Idle at a rate of 0 on an endless clip, a pause seeks to 0.
+    f = Make(true, 8);
+    mtwnPlayerId idle = Player(&f, false, 0.0);
+    CHECK(mtwnPlayer_Pause(f.context, idle) == mtwn_success &&
+              mtwnPlayer_GetState(f.context, idle, &state) == mtwn_success &&
+              state.state == mtwn_playPaused && state.currentTime == 0.0,
+          "an idle endless player at rate 0 paused at 0");
+    mtwnDestroyContext(f.context);
+}
+
 // A running player's pending rate is applied by its next update, the old
 // rate running until then; by a finish, at once (Level 1).
 static void TestPendingRates(void)
@@ -493,6 +548,7 @@ int main(void)
 {
     TestRateLimit();
     TestPendingRates();
+    TestEdges();
     TestPlayPause();
     TestSeeks();
     TestFinishReverse();
