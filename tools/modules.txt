@@ -13,7 +13,8 @@ decay: elementary
 color: elementary
 rotation: elementary
 signal: elementary
-timing:
+timing: timing_internal
+timing_internal:
 allocator:
 fpenv:
 pool:
@@ -27,3 +28,4 @@ clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
 clip_sample: context_internal pool runs
+crossing: timing_internal

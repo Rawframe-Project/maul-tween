@@ -59,7 +59,7 @@ Adds a track: copies its keyframes into the clip, makes the track there (mtwnMak
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip, const mtwnClipTimelineDef* def, mtwnNode* nodeOut);
 ```
-Adds a timeline: a group of children taking its transformed time. Its end in its parent follows its children as they arrive when its duration is theirs; children already placed after it keep their starts.  @param context  The context. @param clip     The clip, not finished. @param def      The def: a timeline of the clip as parent, a position as for tracks, a timing mtwnValidateTiming accepts with a monotonic easing (mtwnIsEasingMonotonic). @param nodeOut  Receives the node, or 0 on failure. @return As mtwnClip_AddTrack. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Adds a timeline: a group of children taking its transformed time. Its end in its parent follows its children as they arrive when its duration is theirs; children already placed after it keep their starts.  @param context  The context. @param clip     The clip, not finished. @param def      The def: a timeline of the clip as parent, a position as for tracks, a timing mtwnValidateTiming accepts with a monotonic easing (mtwnIsEasingMonotonic). @param nodeOut  Receives the node, or 0 on failure. @return As mtwnClip_AddTrack; mtwn_errorLimit also for a timeline past MTWN_MAX_CLIP_DEPTH. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, mtwnPosition position, uint32_t key, mtwnNode* nodeOut);

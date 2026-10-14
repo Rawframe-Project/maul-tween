@@ -379,7 +379,8 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     {
         return mtwn_errorInvalid;
     }
-    if (!HasRoom(clip))
+    node.depth = (uint8_t)(NodeAt(clip, def->parent)->depth + 1);
+    if (!HasRoom(clip) || node.depth > MTWN_MAX_CLIP_DEPTH)
     {
         return mtwn_errorLimit;
     }

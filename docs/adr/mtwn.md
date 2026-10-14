@@ -41,3 +41,4 @@ are listed in [README.md](README.md).
 | [mtwn-0034](mtwn-0034-timelines.md) | Timelines: nested groups, labels and marks as nodes | Accepted |
 | [mtwn-0035](mtwn-0035-players.md) | Players: Web Animations' procedures on the host's clock | Accepted |
 | [mtwn-0036](mtwn-0036-clip-sampling.md) | Clips sampled into targets | Accepted |
+| [mtwn-0037](mtwn-0037-crossings.md) | Crossings: exact counts through every ancestor's iterations | Accepted |

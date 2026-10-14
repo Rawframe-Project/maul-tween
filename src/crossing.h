@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Crossings (record mtwn-0037): how many times a sweep of a player's time
+// passes a point deep in a clip, exactly, through every ancestor's
+// iterations, without visiting them one by one.
+//
+// Each timeline's child time runs along a path: its iterations in the
+// order its rate takes them, each from its start to its end. The points
+// of a path are positions on it; a point below is crossed once each time
+// the path covers it, an iteration's two ends both covered. The count of
+// points a level has covered by a local time is worked out from the level
+// below at one moving point plus constants each level keeps, so a count
+// costs a walk down the chain.
+
+#ifndef MAUL_TWEEN_SRC_CROSSING_H
+#define MAUL_TWEEN_SRC_CROSSING_H
+
+#include "maul-tween/clip.h"
+#include "maul-tween/timing.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+
+// Crossings of a leaf: moving the same way as the coordinate counted in,
+// and the other way.
+typedef struct mtwnCrossings
+{
+    double same;
+    double opposite;
+} mtwnCrossings;
+
+// What is counted, in the deepest level's child time: an instant there,
+// or the iteration starts of a node beginning there (its iterations
+// after the first, Level 1's current iteration changing).
+typedef uint8_t mtwnLeafKind;
+enum
+{
+    mtwn_leafInstant = 0,
+    mtwn_leafIterations = 1,
+};
+
+typedef struct mtwnLeaf
+{
+    // The instant, or the node's start.
+    double at;
+    // The node's timing, its duration resolved, for iterations.
+    mtwnTiming timing;
+    mtwnLeafKind kind;
+    uint8_t reserved[7];
+} mtwnLeaf;
+
+// A timeline on the way down: its timing, its duration resolved, its
+// start in its parent's child time, and what the preparation keeps.
+typedef struct mtwnLevel
+{
+    mtwnTiming timing;
+    double start;
+    // Filled by mtwnPrepareLevels.
+    double activeDuration;
+    double firstIteration;
+    double firstProgress;
+    double lastIteration;
+    double lastProgress;
+    // The coverage of the traversal's first iteration, of full forward
+    // and reversed ones, and of the last, relative to the local time.
+    mtwnCrossings cover[4];
+    // Below at the iteration starts' child times (the first's, a forward
+    // one's, a reversed one's), closed and strict.
+    mtwnCrossings startBelow[3][2];
+    // Below at the single point a zero-length level has.
+    mtwnCrossings point;
+} mtwnLevel;
+
+// Prepares the levels, outermost first, for counting the leaf: each keeps
+// counts of the levels below it.
+void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf);
+
+// Counts the leaf's crossings as the outermost level's parent time sweeps
+// from 'from' to 'to': (from, to] forwards, [to, from) backwards, closed
+// at 'from' too when asked (a sweep from no time). The result's same is
+// the crossings with the leaf moving forwards.
+mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                 double from, double to, bool fromClosed);
+
+// The time of the first (or last) crossing in a sweep that has one: the
+// time t nearest 'from' (or 'to') such that the sweep to t (from t)
+// counts one.
+double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
+                        double to, bool fromClosed, bool last);
+
+#endif

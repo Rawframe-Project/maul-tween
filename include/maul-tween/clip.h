@@ -309,6 +309,10 @@ extern "C"
                                                          const mtwnClipTrackDef* def,
                                                          mtwnNode* nodeOut);
 
+// The deepest a timeline nests below the root: a child of the root is at
+// depth 1.
+#define MTWN_MAX_CLIP_DEPTH 32u
+
     /// Adds a timeline: a group of children taking its transformed time.
     /// Its end in its parent follows its children as they arrive when its
     /// duration is theirs; children already placed after it keep their
@@ -320,7 +324,8 @@ extern "C"
     ///                 as for tracks, a timing mtwnValidateTiming accepts
     ///                 with a monotonic easing (mtwnIsEasingMonotonic).
     /// @param nodeOut  Receives the node, or 0 on failure.
-    /// @return As mtwnClip_AddTrack.
+    /// @return As mtwnClip_AddTrack; mtwn_errorLimit also for a timeline
+    ///         past MTWN_MAX_CLIP_DEPTH.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,

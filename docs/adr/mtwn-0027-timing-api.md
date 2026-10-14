@@ -20,11 +20,16 @@ Level 1's terms leave room.
   are NaN; times are seconds in double.
 - Level 1's steps as written. Level 2's rate divides the active
   duration and scales the overall progress, from the far end when
-  negative, which needs a finite active duration (refused otherwise).
+  negative, which needs a finite active duration (refused otherwise);
+  a negative rate begins the iterations at their end, so the end holds
+  at the active start (and before it, filling backwards) as it holds
+  at the active end for a positive rate. The overall progress is kept
+  within the iteration start and its end against rounding.
   The before flag takes "going forwards" as the iteration running
   forwards exactly when the rate is positive.
-- A repeat delay r, above 0 with a finite duration d above 0, gives
-  each iteration but the last d + r of active time; inside a delay the
+- A repeat delay r, above 0 with a finite duration d above 0, follows
+  each iteration boundary the iterations cross, `ceil(s + n) -
+  floor(s) - 1` of them for an iteration start s; inside a delay the
   progress holds at its iteration's end. Without one the arithmetic is
   Level 1's exactly.
 - A reverse iteration eases with time running back, `ease(1 - p)`, the

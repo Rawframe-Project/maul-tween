@@ -90,7 +90,8 @@ def compute(t, local, backwards):
     if d == 0 or n == 0:
         repeated = 0.0
     elif repeat and n != INF:
-        repeated = n * d + (ceil(n) - 1) * r
+        # One delay at each iteration boundary the path crosses.
+        repeated = n * d + (ceil(start + n) - math.floor(start) - 1) * r
     else:
         repeated = n * d
     active_duration = repeated / abs(rate)
@@ -122,8 +123,12 @@ def compute(t, local, backwards):
     # Calculating the overall progress.
     in_repeat = False
     held = 0.0
+    # A negative effect rate begins the iterations at their end (Level 2).
+    at_start = (phase == BEFORE) if rate > 0 else (phase == AFTER)
+    at_end = (phase in (ACTIVE, AFTER) and active == active_duration) if rate > 0 else \
+        (phase in (BEFORE, ACTIVE) and active == 0)
     if d == 0:
-        overall = (0.0 if phase == BEFORE else n) + start
+        overall = (0.0 if at_start else n) + start
     else:
         scaled = (active - active_duration) * rate if rate < 0 else active * rate
         if repeat:
@@ -141,12 +146,14 @@ def compute(t, local, backwards):
             overall = k + (within / d if within < d else 1.0)
         else:
             overall = scaled / d + start
+    # Rounding keeps to the iterations: the active interval's ends are the
+    # iteration start and its end exactly.
+    overall = min(max(overall, start), start + n)
     result["overall"] = overall
     result["inRepeat"] = 1 if in_repeat else 0
     # Calculating the simple iteration progress.
     simple = math.fmod(start, 1.0) if overall == INF else math.fmod(overall, 1.0)
-    if in_repeat or (simple == 0 and phase in (ACTIVE, AFTER) and active == active_duration
-                     and n != 0):
+    if in_repeat or (simple == 0 and at_end and n != 0):
         simple = 1.0
     result["simple"] = simple
     # Calculating the current iteration index.

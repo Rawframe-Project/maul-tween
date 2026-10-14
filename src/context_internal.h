@@ -132,7 +132,9 @@ typedef struct mtwnClipNode
     uint32_t key;
     mtwnNodeKind kind;
     bool autoDuration;
-    uint8_t reserved[2];
+    // Timelines above it below the root; the root's is 0.
+    uint8_t depth;
+    uint8_t reserved;
 } mtwnClipNode;
 
 // A clip, in the context's pool; its storage is a block of its own.

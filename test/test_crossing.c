@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Crossings (record mtwn-0037): exact counts at the sweep's ends, through
+// repeats, reversed and alternate iterations, negative rates and repeat
+// delays, a stall over an endless fast repeat counted, not walked; and
+// random nested levels against an oracle that samples the timing itself,
+// splitting the sweep wherever any level changes iteration or phase and
+// counting only within the pieces where nothing jumps.
+
+#include "crossing.h"
+#include "test_harness.h"
+
+#include "maul-tween/easing.h"
+
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+static mtwnTiming Timing(double duration, double iterations)
+{
+    mtwnTiming timing = mtwnDefaultTiming();
+    timing.duration = duration;
+    timing.iterations = iterations;
+    timing.fill = mtwn_fillBoth;
+    return timing;
+}
+
+static mtwnLeaf Instant(double at)
+{
+    mtwnLeaf leaf;
+    memset(&leaf, 0, sizeof leaf);
+    leaf.at = at;
+    leaf.kind = mtwn_leafInstant;
+    return leaf;
+}
+
+static mtwnCrossings Count(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
+                           double to)
+{
+    mtwnPrepareLevels(levels, count, leaf);
+    return mtwnCountCrossings(levels, count, leaf, from, to, false);
+}
+
+static double Total(mtwnCrossings c)
+{
+    return c.same + c.opposite;
+}
+
+static void TestEnds(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(2.0, 1.0);
+    mtwnLeaf mark = Instant(1.0);
+    CHECK(Total(Count(level, 1, &mark, 0.0, 1.0)) == 1.0, "forwards, at the sweep's end: crossed");
+    CHECK(Total(Count(level, 1, &mark, 1.0, 2.0)) == 0.0, "and not again from it");
+    mtwnCrossings back = Count(level, 1, &mark, 2.0, 1.0);
+    CHECK(back.same == 0.0 && back.opposite == 1.0, "backwards, at the sweep's end: crossed, back");
+    CHECK(Total(Count(level, 1, &mark, 1.0, 0.0)) == 0.0, "and not again from it");
+    CHECK(Total(mtwnCountCrossings(level, 1, &mark, 1.0, 1.0, true)) == 1.0 &&
+              Total(mtwnCountCrossings(level, 1, &mark, 1.0, 1.0, false)) == 0.0,
+          "a sweep from no time takes its own point");
+    // No levels: the leaf in the sweep's own time.
+    mtwnLeaf zero = Instant(0.0);
+    CHECK(Total(Count(level, 0, &zero, -1.0, 0.0)) == 1.0, "no levels");
+}
+
+static void TestRepeats(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(1.0, 3.0);
+    mtwnLeaf start = Instant(0.0);
+    mtwnLeaf end = Instant(1.0);
+    mtwnLeaf mid = Instant(0.5);
+    CHECK(Total(Count(level, 1, &start, -1.0, 5.0)) == 3.0, "each iteration's start");
+    CHECK(Total(Count(level, 1, &end, -1.0, 5.0)) == 3.0, "each iteration's end");
+    CHECK(Total(Count(level, 1, &start, 0.0, 3.0)) == 2.0,
+          "the first start at the sweep's open end");
+    CHECK(Total(Count(level, 1, &end, 0.0, 2.0)) == 2.0, "an end and a start at 1 and 2");
+    CHECK(Total(Count(level, 1, &start, 1.0, 2.0)) == 1.0 &&
+              Total(Count(level, 1, &end, 1.0, 2.0)) == 1.0,
+          "at a shared time both are reached together");
+    CHECK(mtwnFindCrossing(level, 1, &mid, 0.0, 3.0, false, false) == 0.5 &&
+              mtwnFindCrossing(level, 1, &mid, 0.0, 3.0, false, true) == 2.5,
+          "the first and last crossings' times");
+    level[0].timing.direction = mtwn_directionAlternate;
+    level[0].timing.iterations = 4.0;
+    mtwnLeaf quarter = Instant(0.25);
+    mtwnCrossings c = Count(level, 1, &quarter, 0.0, 4.0);
+    CHECK(c.same == 2.0 && c.opposite == 2.0, "alternate: two forwards, two back");
+    // An hour's stall over a 10 ms endless repeat.
+    level[0].timing = Timing(0.01, HUGE_VAL);
+    mtwnLeaf inside = Instant(0.005);
+    CHECK(Total(Count(level, 1, &inside, 0.0, 3600.0)) == 360000.0, "counted, not walked");
+}
+
+static void TestDelaysAndRates(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(1.0, 2.0);
+    level[0].timing.repeatDelay = 0.5;
+    mtwnLeaf end = Instant(1.0);
+    mtwnLeaf start = Instant(0.0);
+    CHECK(Total(Count(level, 1, &end, 0.0, 1.0)) == 1.0, "the end at the delay's start");
+    CHECK(Total(Count(level, 1, &end, 1.0, 2.5)) == 1.0, "the last end");
+    CHECK(Total(Count(level, 1, &start, 1.0, 1.5)) == 1.0, "the next start at the delay's end");
+    CHECK(Total(Count(level, 1, &start, 1.5, 3.0)) == 0.0, "and not after");
+    CHECK(Total(Count(level, 1, &start, 1.2, 1.4)) == 0.0, "nothing within the delay");
+    // A rate of -1 runs the iterations from the last back.
+    level[0].timing = Timing(1.0, 2.0);
+    level[0].timing.playbackRate = -1.0;
+    mtwnLeaf quarter = Instant(0.25);
+    mtwnCrossings c = Count(level, 1, &quarter, -1.0, 3.0);
+    CHECK(c.same == 0.0 && c.opposite == 2.0, "crossed twice, going back");
+    double first = mtwnFindCrossing(level, 1, &quarter, -1.0, 3.0, false, false);
+    CHECK(fabs(first - 0.75) <= 2e-16, "first at 0.75, where the computed path reaches it");
+}
+
+static void TestIterations(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(3.0, 2.0);
+    mtwnLeaf node;
+    memset(&node, 0, sizeof node);
+    node.kind = mtwn_leafIterations;
+    node.timing = Timing(1.0, 3.0);
+    node.at = 0.0;
+    CHECK(Total(Count(level, 0, &node, -1.0, 2.0)) == 2.0, "two iteration starts, at 1 and 2");
+    CHECK(Total(Count(level, 0, &node, -1.0, 1.0)) == 1.0 &&
+              Total(Count(level, 0, &node, 1.0, 1.5)) == 0.0,
+          "the one at the sweep's end once");
+    CHECK(Total(Count(level, 1, &node, -1.0, 7.0)) == 4.0, "twice in a timeline repeated twice");
+    mtwnCrossings back = Count(level, 1, &node, 7.0, -1.0);
+    CHECK(back.same == 0.0 && back.opposite == 4.0, "backwards");
+}
+
+// The oracle: each level's state from the timing itself.
+typedef struct State
+{
+    double iteration[MTWN_MAX_CLIP_DEPTH + 1];
+    int phase[MTWN_MAX_CLIP_DEPTH + 1];
+    double value;
+} State;
+
+static State Eval(const mtwnLevel* levels, uint32_t count, double t)
+{
+    State state;
+    memset(&state, 0, sizeof state);
+    double x = t - levels[0].start;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        mtwnTimingResult r;
+        mtwnComputeTiming(&levels[i].timing, x, false, &r);
+        state.iteration[i] = r.iteration;
+        state.phase[i] = (int)r.phase;
+        double child = isinf(levels[i].timing.duration)
+                           ? (r.forwards ? r.activeTime * levels[i].timing.playbackRate : HUGE_VAL)
+                           : r.transformedProgress * levels[i].timing.duration;
+        double next = i + 1 < count ? levels[i + 1].start : 0.0;
+        x = child - next;
+    }
+    state.value = x;
+    return state;
+}
+
+static bool Same(const State* a, const State* b, uint32_t count)
+{
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        if (a->iteration[i] != b->iteration[i] || a->phase[i] != b->phase[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The iteration a node beginning at a child time is in, at a value of
+// that child time.
+static double NodeIteration(const mtwnLeaf* leaf, double value)
+{
+    mtwnTimingResult r;
+    mtwnComputeTiming(&leaf->timing, value - leaf->at, false, &r);
+    return r.iteration;
+}
+
+static void Oracle(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double t1,
+                   double t2, int depth, mtwnCrossings* sum)
+{
+    double at = leaf->at;
+    State a = Eval(levels, count, t1);
+    State b = Eval(levels, count, t2);
+    bool same = Same(&a, &b, count);
+    if (same && leaf->kind == mtwn_leafIterations)
+    {
+        double from = NodeIteration(leaf, a.value);
+        double to = NodeIteration(leaf, b.value);
+        if (from == to)
+        {
+            return;
+        }
+        if (fabs(t2 - t1) < 1e-11 || depth > 200)
+        {
+            // An iteration start, its node moving as its parent's time does.
+            *(b.value > a.value ? &sum->same : &sum->opposite) += fabs(to - from);
+            return;
+        }
+    }
+    else if (same)
+    {
+        bool forwards = b.value > a.value;
+        double lo = forwards ? a.value : b.value;
+        double hi = forwards ? b.value : a.value;
+        if (lo < at && at < hi)
+        {
+            *(forwards ? &sum->same : &sum->opposite) += 1.0;
+        }
+        return;
+    }
+    if (fabs(t2 - t1) < 1e-11 || depth > 200)
+    {
+        return;
+    }
+    double mid = t1 + (t2 - t1) / 2.0;
+    Oracle(levels, count, leaf, t1, mid, depth + 1, sum);
+    Oracle(levels, count, leaf, mid, t2, depth + 1, sum);
+}
+
+static uint64_t s_seed = 0x9E3779B97F4A7C15u;
+
+static double Random(void)
+{
+    s_seed ^= s_seed << 13;
+    s_seed ^= s_seed >> 7;
+    s_seed ^= s_seed << 17;
+    return (double)(s_seed >> 11) / 9007199254740992.0;
+}
+
+static double Pick(const double* values, int count)
+{
+    return values[(int)(Random() * count) % count];
+}
+
+static mtwnTiming RandomTiming(void)
+{
+    static const double durations[] = {0.75, 1.0, 1.6};
+    static const double iterations[] = {1.0, 2.0, 2.5, 3.7};
+    static const double starts[] = {0.0, 0.0, 0.3};
+    static const double delays[] = {0.0, 0.0, 0.4};
+    static const double rates[] = {1.0, 2.0, 0.5, -1.0};
+    mtwnTiming timing = Timing(Pick(durations, 3), Pick(iterations, 4));
+    timing.iterationStart = Pick(starts, 3);
+    timing.repeatDelay = Pick(delays, 3);
+    timing.delay = Random() * 0.5;
+    timing.playbackRate = Pick(rates, 4);
+    timing.direction = (mtwnDirection)(int)(Random() * 4.0);
+    timing.alternateEasing = (uint8_t)(Random() < 0.5 ? 0 : 1);
+    if (Random() < 0.5)
+    {
+        CHECK(mtwnMakePowerEasing(mtwn_easeInOut, 2.0, &timing.easing) == mtwn_success, "eased");
+    }
+    return timing;
+}
+
+static void TestOracle(void)
+{
+    int mismatches = 0;
+    for (int trial = 0; trial < 3000; ++trial)
+    {
+        mtwnLevel levels[3];
+        memset(levels, 0, sizeof levels);
+        uint32_t count = 1 + (uint32_t)(Random() * 3.0) % 3;
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            levels[i].timing = RandomTiming();
+            levels[i].start = i == 0 ? 0.0 : Random() * 0.6;
+        }
+        mtwnLeaf leaf = Instant(Random() * levels[count - 1].timing.duration);
+        if (trial % 3 == 2)
+        {
+            // A node's iteration starts, its timing positive in rate.
+            leaf.kind = mtwn_leafIterations;
+            leaf.timing = RandomTiming();
+            leaf.timing.delay = 0.0;
+            leaf.timing.duration = leaf.timing.duration * 0.25;
+        }
+        mtwnPrepareLevels(levels, count, &leaf);
+        mtwnTimingResult root;
+        mtwnComputeTiming(&levels[0].timing, 0.0, false, &root);
+        double span = root.endTime + 1.0;
+        for (int sweep = 0; sweep < 12; ++sweep)
+        {
+            double t1 = Random() * span - 0.5;
+            double t2 = Random() * span - 0.5;
+            mtwnCrossings exact = mtwnCountCrossings(levels, count, &leaf, t1, t2, false);
+            mtwnCrossings oracle = {0.0, 0.0};
+            Oracle(levels, count, &leaf, t1, t2, 0, &oracle);
+            if (exact.same != oracle.same || exact.opposite != oracle.opposite)
+            {
+                if (mismatches++ < 5)
+                {
+                    printf("trial %d sweep %d: depth %u, %g to %g: %g/%g, oracle %g/%g\n", trial,
+                           sweep, count, t1, t2, exact.same, exact.opposite, oracle.same,
+                           oracle.opposite);
+                    if (leaf.kind == mtwn_leafIterations)
+                    {
+                        const mtwnTiming* t = &leaf.timing;
+                        printf("  node: d %g n %g s %g r %g rate %g dir %d\n", t->duration,
+                               t->iterations, t->iterationStart, t->repeatDelay, t->playbackRate,
+                               (int)t->direction);
+                    }
+                    for (uint32_t i = 0; i < count; ++i)
+                    {
+                        const mtwnTiming* t = &levels[i].timing;
+                        printf("  level %u start %g: d %g n %g s %g r %g delay %g rate %g dir %d "
+                               "alt %d eased %d; leaf %g\n",
+                               i, levels[i].start, t->duration, t->iterations, t->iterationStart,
+                               t->repeatDelay, t->delay, t->playbackRate, (int)t->direction,
+                               (int)t->alternateEasing, (int)t->easing.kind, leaf.at);
+                    }
+                }
+            }
+        }
+    }
+    CHECK(mismatches == 0, "random nested levels agree with the sampled oracle");
+}
+
+int main(void)
+{
+    TestEnds();
+    TestRepeats();
+    TestDelaysAndRates();
+    TestIterations();
+    TestOracle();
+    return s_failures == 0 ? 0 : 1;
+}

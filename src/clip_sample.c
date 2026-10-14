@@ -53,8 +53,8 @@ void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play)
 }
 
 // The time a timeline gives its children: its transformed progress times
-// its iteration duration; with an infinite duration, its active time going
-// forwards, its end going backwards. NaN when it has no effect.
+// its iteration duration; with an infinite duration, its active time at its
+// rate going forwards, its end going backwards. NaN when it has no effect.
 static double ChildTime(const mtwnTiming* timing, double local, bool backwards, bool* forwards)
 {
     mtwnTimingResult result;
@@ -69,7 +69,7 @@ static double ChildTime(const mtwnTiming* timing, double local, bool backwards, 
     }
     if (isinf(timing->duration))
     {
-        return result.forwards ? result.activeTime : HUGE_VAL;
+        return result.forwards ? result.activeTime * timing->playbackRate : HUGE_VAL;
     }
     return result.transformedProgress * timing->duration;
 }

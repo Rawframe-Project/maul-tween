@@ -277,8 +277,10 @@ static void TestEndlessTimeline(void)
 {
     World w = MakeWorld();
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.timing.playbackRate = 2.0;
     mtwnNode endless = 0;
-    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &endless) == mtwn_success, "a timeline");
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &endless) == mtwn_success,
+          "a timeline at twice the rate");
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
@@ -295,9 +297,9 @@ static void TestEndlessTimeline(void)
     CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
     mtwnPlayerId p = Play(&w, w.target, true, 1.0);
     Update(&w, 0.0);
-    Update(&w, 100.25);
+    Update(&w, 100.125);
     CHECK(Near((double)Read(&w, w.target).value.x, 0.25, 1e-6) && mtwnPlayer_IsValid(w.context, p),
-          "an endless timeline passes its active time on");
+          "an endless timeline passes its active time on, at its rate");
     mtwnDestroyContext(w.context);
 }
 

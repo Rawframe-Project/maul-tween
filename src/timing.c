@@ -10,6 +10,8 @@
 
 #include "maul-tween/timing.h"
 
+#include "timing_internal.h"
+
 #include <math.h>
 #include <stdbool.h>
 
@@ -45,7 +47,7 @@ mtwnResult mtwnValidateTiming(const mtwnTiming* timing)
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
 
-static bool HasRepeatDelay(const mtwnTiming* timing)
+bool mtwnHasRepeatDelay(const mtwnTiming* timing)
 {
     return timing->repeatDelay > 0.0 && timing->duration > 0.0 && isfinite(timing->duration);
 }
@@ -61,9 +63,11 @@ static double ActiveDuration(const mtwnTiming* timing)
     if (d != 0.0 && n != 0.0)
     {
         repeated = n * d;
-        if (HasRepeatDelay(timing))
+        if (mtwnHasRepeatDelay(timing))
         {
-            repeated += (ceil(n) - 1.0) * timing->repeatDelay;
+            // One delay at each iteration boundary the path crosses.
+            double s = timing->iterationStart;
+            repeated += (ceil(s + n) - floor(s) - 1.0) * timing->repeatDelay;
         }
     }
     return repeated / fabs(timing->playbackRate);
@@ -124,10 +128,12 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     double active = result->activeDuration;
     if (d == 0.0)
     {
-        return (result->phase == mtwn_phaseBefore ? 0.0 : n) + start;
+        // A negative rate begins the iterations at their end (Level 2).
+        mtwnPhase first = timing->playbackRate > 0.0 ? mtwn_phaseBefore : mtwn_phaseAfter;
+        return (result->phase == first ? 0.0 : n) + start;
     }
     double scaled = ScaledTime(timing, result->activeTime, active);
-    if (!HasRepeatDelay(timing))
+    if (!mtwnHasRepeatDelay(timing))
     {
         return scaled / d + start;
     }
@@ -147,7 +153,7 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
 }
 
 // Whether a current iteration runs forwards.
-static bool IterationForwards(mtwnDirection direction, double iteration)
+bool mtwnIterationForwards(mtwnDirection direction, double iteration)
 {
     switch (direction)
     {
@@ -165,6 +171,31 @@ static bool IterationForwards(mtwnDirection direction, double iteration)
         return fmod(d, 2.0) == 0.0;
     }
     }
+}
+
+// The simple iteration progress, the overall progress first kept to the
+// iterations against rounding (the active interval's ends are the
+// iteration start and its end exactly), holding an iteration's end where
+// the active interval ends on one.
+static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
+{
+    double start = timing->iterationStart;
+    double ends = start + timing->iterations;
+    double overall = result->overallProgress;
+    overall = overall > ends ? ends : (overall < start ? start : overall);
+    result->overallProgress = overall;
+    double simple = isinf(overall) ? fmod(start, 1.0) : fmod(overall, 1.0);
+    // The iterations' end: the active end, or for a negative rate (which
+    // begins there, Level 2) the active start.
+    bool atEnd =
+        timing->playbackRate > 0.0
+            ? result->phase != mtwn_phaseBefore && result->activeTime == result->activeDuration
+            : result->phase != mtwn_phaseAfter && result->activeTime == 0.0;
+    if (result->inRepeatDelay || (simple == 0.0 && atEnd && timing->iterations != 0.0))
+    {
+        simple = 1.0;
+    }
+    return simple;
 }
 
 void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
@@ -193,18 +224,10 @@ void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backward
         return;
     }
     double n = timing->iterations;
-    double start = timing->iterationStart;
     double held = 0.0;
     result.overallProgress = OverallProgress(timing, &result, &held);
-    // The simple iteration progress, holding an iteration's end where the
-    // active interval ends on one.
+    double simple = SimpleProgress(timing, &result);
     double overall = result.overallProgress;
-    double simple = isinf(overall) ? fmod(start, 1.0) : fmod(overall, 1.0);
-    if (result.inRepeatDelay || (simple == 0.0 && result.phase != mtwn_phaseBefore &&
-                                 result.activeTime == active && n != 0.0))
-    {
-        simple = 1.0;
-    }
     result.simpleProgress = simple;
     // The current iteration.
     if (result.inRepeatDelay)
@@ -220,7 +243,7 @@ void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backward
         result.iteration = simple == 1.0 ? floor(overall) - 1.0 : floor(overall);
     }
     // The directed and transformed progress.
-    bool forwards = IterationForwards(timing->direction, result.iteration);
+    bool forwards = mtwnIterationForwards(timing->direction, result.iteration);
     result.forwards = forwards;
     result.directedProgress = forwards ? simple : 1.0 - simple;
     bool goingForwards = forwards == (timing->playbackRate > 0.0);

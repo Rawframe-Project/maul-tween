@@ -46,6 +46,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/clip_sample.c
     src/color.c
     src/context.c
+    src/crossing.c
     src/css_easing.c
     src/decay.c
     src/easing.c
@@ -90,6 +91,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(clip WHITEBOX)
     maul_add_test(player WHITEBOX)
     maul_add_test(clip_play)
+    maul_add_test(crossing WHITEBOX)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

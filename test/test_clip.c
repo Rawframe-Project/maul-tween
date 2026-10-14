@@ -590,6 +590,33 @@ static void TestEndless(void)
     mtwnDestroyContext(context);
 }
 
+static void TestDepth(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = 64;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    mtwnNode parent = MTWN_ROOT_NODE;
+    bool nested = true;
+    for (uint32_t depth = 1; depth <= MTWN_MAX_CLIP_DEPTH; ++depth)
+    {
+        group.parent = parent;
+        nested = nested && mtwnClip_AddTimeline(context, clip, &group, &parent) == mtwn_success;
+    }
+    CHECK(nested, "timelines nest to the deepest");
+    group.parent = parent;
+    mtwnNode deeper;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &deeper) == mtwn_errorLimit && deeper == 0,
+          "and no deeper");
+    CHECK(mtwnClip_AddMark(context, clip, parent, At(mtwn_positionAbsolute, 0.0), 1, &deeper) ==
+              mtwn_success,
+          "though instants go in the deepest");
+    mtwnDestroyContext(context);
+}
+
 static void TestTimelineRefusals(void)
 {
     Counter counter = {0};
@@ -706,6 +733,7 @@ int main(void)
     TestTimelines();
     TestNesting();
     TestEndless();
+    TestDepth();
     TestTimelineRefusals();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;
