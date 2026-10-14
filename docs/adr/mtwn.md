@@ -28,3 +28,4 @@ are listed in [README.md](README.md).
 | [mtwn-0021](mtwn-0021-easing-api.md) | The easing API: one value type, makers that validate, a mode for every kind | Accepted |
 | [mtwn-0022](mtwn-0022-sampling.md) | Sampling: even tables, and linear() fitted to a tolerance | Accepted |
 | [mtwn-0023](mtwn-0023-spring-api.md) | Springs as a motion matrix; decay and rubber band | Accepted |
+| [mtwn-0024](mtwn-0024-color-api.md) | Colors as CSS Color 4 interpolates them | Accepted |

@@ -86,6 +86,30 @@ double mtwnEase(const mtwnEasing* easing, double progress, bool before);
 ```
 Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner's curves, springs and host functions see progress clamped to 0 to 1. The modes reflect the curve, and the before flag reaches it where it samples progress unreflected.  @param easing    An easing made by this library. @param progress  The progress, finite. @param before    Whether the timing is in its before phase; it moves only curves that jump at their start. @return The eased progress: exactly 0 at 0 and 1 at 1 for Penner's curves, springs, linear and cubic bezier; what CSS defines for steps and linear(). @par Thread safety Safe from any thread.
 
+## `interpolate.h`
+
+Interpolation of values that are not plain numbers (records mtwn-0014, mtwn-0015 and mtwn-0024): colors in a named space as CSS Color 4 interpolates them.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, mtwnHueMethod hue, mtwnColorMix* mixOut);
+```
+Makes the interpolation between two colors in a space, following CSS Color 4: a powerless OkLCh hue (chroma at most 0.000004) takes the other color's, the hues are fixed up by the method, and the colors are premultiplied, the hue excepted.  @param from    The color at progress 0: finite, alpha from 0 to 1. @param to      The color at progress 1, likewise. @param space   The space to interpolate in. @param hue     The hue method, read for OkLCh only. @param mixOut  Receives the mix. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown space or method, or a color outside the above. @par Thread safety Safe from any thread.
+
+```c
+mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress);
+```
+Samples a mix: its colors exactly at 0 and 1, between them the premultiplied coordinates interpolated and divided by the interpolated alpha, or kept as they are where that alpha is 0 or below. Progress outside 0 to 1 extends the line, with alpha clamped to 0 to 1; the channels are not clamped.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The color. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordinatesOut[4]);
+```
+Converts a color to a space's coordinates and its alpha, for a host that springs or composes in the space.  @param color           Finite, alpha from 0 to 1. @param space           The space. @param coordinatesOut  Receives the three coordinates and the alpha; an OkLCh hue in degrees from 0 to 360, NaN where it is powerless. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown space or a color outside the above. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space, mtwnColor* colorOut);
+```
+Converts a space's coordinates and an alpha back to a color.  @param coordinates  The three coordinates and the alpha; a NaN OkLCh hue counts as 0, as CSS's missing hue does. @param space        The space. @param colorOut     Receives the color, alpha clamped to 0 to 1. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown space, or a coordinate or alpha not finite, a NaN hue excepted. @par Thread safety Safe from any thread.
+
 ## `sample.h`
 
 Sampling (record mtwn-0022): an easing turned into points in caller memory, as an even table for a GPU or a host lookup, or as the points of a CSS linear() fitted to a tolerance. Nothing is allocated.
@@ -176,4 +200,4 @@ The inverse of mtwnRubberBand: the drag that moves content an offset past a limi
 
 ---
 
-31 functions across 4 headers.
+35 functions across 5 headers.
