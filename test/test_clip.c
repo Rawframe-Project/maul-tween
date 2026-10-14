@@ -23,12 +23,17 @@ typedef struct Counter
     int allocations;
     int frees;
     uint64_t live;
+    bool fail;
 } Counter;
 
 static void* CountAlloc(size_t size, size_t alignment, void* context)
 {
     (void)alignment;
     Counter* counter = context;
+    if (counter->fail)
+    {
+        return NULL;
+    }
     ++counter->allocations;
     counter->live += size;
     return malloc(size);
@@ -95,6 +100,19 @@ static void TestStorage(void)
           "a second would pass the clip storage, nothing allocated");
     CHECK(mtwnContext_GetMisuseCount(context) == 0, "a limit is not misuse");
     mtwnDestroyContext(context);
+    // A failed allocation gives its slot back; a used clip is busy.
+    counter = (Counter){0};
+    context = Make(&counter, 1, 1 << 20);
+    counter.fail = true;
+    CHECK(mtwnCreateClip(context, &def, &a) == mtwn_errorCapacity && a.index1 == 0,
+          "the allocator fails");
+    counter.fail = false;
+    CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "the only slot still free");
+    mtwnClipAt(context, a.index1)->users = 1;
+    CHECK(mtwnDestroyClip(context, a) == mtwn_errorBusy && mtwnClip_IsValid(context, a),
+          "a clip a player uses is busy");
+    mtwnClipAt(context, a.index1)->users = 0;
+    mtwnDestroyContext(context);
 }
 
 static void TestPositions(void)
@@ -143,7 +161,14 @@ static void TestPositions(void)
     double duration = 0.0;
     CHECK(mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && duration == 3.75,
           "the root lasts to its latest child's end");
-    // The last child: -0.5 + 0.25 + 3 + 0.5 = 3.25, inside 3.75.
+    // The last child: -0.5 + 0.25 + 3 + 0.5 = 3.25, inside 3.75; alone it
+    // makes the root's end.
+    mtwnClipId timed;
+    CHECK(mtwnCreateClip(context, &clipDef, &timed) == mtwn_success, "another clip");
+    CHECK(mtwnClip_AddTrack(context, timed, &def, &nodes[0]) == mtwn_success &&
+              mtwnClip_Finish(context, timed) == mtwn_success &&
+              mtwnClip_GetDuration(context, timed, &duration) == mtwn_success && duration == 3.25,
+          "a child's delay, iterations and end delay make its end");
     CHECK(mtwnClip_GetTrack(context, clip, nodes[4], &track) == mtwn_success &&
               track.timing.iterations == 3.0 && track.slot == 1,
           "its timing and slot");
@@ -159,7 +184,7 @@ static void TestTracks(void)
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     double pi = 3.141592653589793;
     mtwnKeyframe angles[3] = {Key(0.0, (float)(350 * pi / 180)), Key(0.5, (float)(10 * pi / 180)),
-                              Key(1.0, (float)(30 * pi / 180))};
+                              Key(1.0, (float)(70 * pi / 180))};
     mtwnKeyframe given[3];
     memcpy(given, angles, sizeof angles);
     mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
@@ -184,6 +209,9 @@ static void TestTracks(void)
         same &= memcmp(&a, &b, sizeof a) == 0;
     }
     CHECK(same, "the clip's track samples as the values layer's");
+    mtwnVec4 half = mtwnSampleTrack(&track.track, 0.5);
+    CHECK(fabs((double)half.x - (350 + 40) * pi / 180) <= 1e-5,
+          "at constant speed: half of 80 degrees, not the keyframe at 0.5");
     CHECK(mtwnClip_GetTrack(context, clip, MTWN_ROOT_NODE, &track) == mtwn_errorInvalid,
           "the root is no track");
     CHECK(mtwnClip_GetTrack(context, clip, 9, &track) == mtwn_errorInvalid, "no such node");
@@ -229,6 +257,12 @@ static void TestRefusals(void)
     def.slot = 0;
     def.position.kind = 9;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a position kind");
+    def.position.kind = mtwn_positionAbsolute;
+    def.slot = 2;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a slot past it");
+    def.slot = 0;
+    def.position.kind = 9;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a position kind");
     def.position = (mtwnPosition){(double)NAN, mtwn_positionAbsolute, {0}};
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a NaN offset");
     def.position = (mtwnPosition){0.0, mtwn_positionAbsolute, {0}};
@@ -248,10 +282,39 @@ static void TestRefusals(void)
     def.version = MTWN_ABI_VERSION + 1;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorVersion, "a version");
     def.version = MTWN_ABI_VERSION;
-    CHECK(mtwnContext_GetMisuseCount(context) == misuse + 9, "each counted");
+    CHECK(mtwnContext_GetMisuseCount(context) == misuse + 11, "each counted");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "then it fits");
-    def.slot = 1;
+    def.parent = node;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid,
+          "a track is no parent");
+    mtwnDestroyContext(context);
+    // Filled to its node capacity, every track intact.
+    counter = (Counter){0};
+    context = Make(&counter, 4, 1 << 20);
+    clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = 3;
+    clipDef.keyframeCapacity = 64;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip of 3 nodes");
+    def = mtwnDefaultClipTrackDef();
+    def.keyframes = keys;
+    def.keyframeCount = 2;
+    mtwnNode filled[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        keys[1].value.x = (float)(i + 1);
+        CHECK(mtwnClip_AddTrack(context, clip, &def, &filled[i]) == mtwn_success, "added");
+    }
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorLimit, "the nodes full");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    int intact = 1;
+    for (int i = 0; i < 3; ++i)
+    {
+        mtwnClipTrack track;
+        intact &= mtwnClip_GetTrack(context, clip, filled[i], &track) == mtwn_success &&
+                  mtwnSampleTrack(&track.track, 1.0).x == (float)(i + 1);
+    }
+    CHECK(intact, "every track intact, the storage holding them all");
+    keys[1].value.x = 1.0f;
     mtwnDestroyContext(context);
     // The keyframes and a slot's kind.
     counter = (Counter){0};
