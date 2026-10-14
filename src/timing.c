@@ -61,7 +61,7 @@ static double ActiveDuration(const mtwnTiming* timing)
     if (d != 0.0 && n != 0.0)
     {
         repeated = n * d;
-        if (HasRepeatDelay(timing) && isfinite(n))
+        if (HasRepeatDelay(timing))
         {
             repeated += (ceil(n) - 1.0) * timing->repeatDelay;
         }
@@ -137,7 +137,7 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     double within = position - k * cycle;
     // Past an iteration's end lies its repeat delay, but none follows the
     // last: there the end hold applies.
-    bool last = isfinite(n) && k + 1.0 >= ceil(start + n);
+    bool last = k + 1.0 >= start + n;
     if (within >= d && !last)
     {
         result->inRepeatDelay = true;
