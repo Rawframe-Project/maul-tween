@@ -721,6 +721,49 @@ static void TestReplacedVelocity(void)
     mtwnDestroyContext(context);
 }
 
+// The update's integer powers, by every mode, give the easing's values: a
+// transition of a number from 0 to 1 over a second, at sixteenths.
+static void TestPowerModes(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    uint32_t wrong = 0;
+    uint64_t now = 0;
+    for (uint32_t mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
+    {
+        for (uint32_t n = 2; n <= 5; ++n)
+        {
+            mtwnTargetId x;
+            CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+                  "a target");
+            mtwnTransitionDef def = mtwnDefaultTransitionDef();
+            def.target = x;
+            def.value = (mtwnVec4){1.0f, 0, 0, 0};
+            def.duration = 1.0;
+            CHECK(mtwnMakePowerEasing((mtwnEaseMode)mode, (double)n, &def.easing) == mtwn_success,
+                  "a power");
+            mtwnPlayerId player;
+            CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
+                      mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success,
+                  "started");
+            for (uint32_t k = 1; k < 16; ++k)
+            {
+                CHECK(mtwnUpdate(context, now + k * (s_second / 16), NULL, 0, NULL) == mtwn_success,
+                      "an update");
+                mtwnTargetState state;
+                CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success, "read");
+                double expected = mtwnEase(&def.easing, k / 16.0, false);
+                wrong += fabs((double)state.value.x - expected) <= 1e-6 ? 0u : 1u;
+            }
+            now += 2 * s_second;
+            CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "ended");
+        }
+    }
+    CHECK(wrong == 0, "every mode's power as the easing gives it");
+    mtwnDestroyContext(context);
+}
+
 static void TestStartVelocity(void)
 {
     // A spring started with a velocity reports it at its first update,
@@ -945,6 +988,7 @@ static void TestReversalEdges(void)
 int main(void)
 {
     TestReversal();
+    TestPowerModes();
     TestReversalEdges();
     TestReversalSignedZero();
     TestStartVelocity();

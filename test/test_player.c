@@ -422,6 +422,37 @@ static void TestClipChain(void)
     mtwnDestroyContext(f.context);
 }
 
+// A running player's pending rate is applied by its next update, the old
+// rate running until then; by a finish, at once (Level 1).
+static void TestPendingRates(void)
+{
+    Fixture f = Make(false, 8);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    Update(&f, 0.0);
+    Update(&f, 0.5);
+    CHECK(mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success, "a rate of 0, pending");
+    mtwnPlayerState state;
+    Update(&f, 0.75);
+    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.rate == 0.0 &&
+              state.currentTime == 0.75,
+          "the old rate ran to the update, the time held there");
+    Update(&f, 1.5);
+    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.currentTime == 0.75 &&
+              state.state == mtwn_playRunning,
+          "held, running");
+    CHECK(mtwnPlayer_SetRate(f.context, p, 2.0) == mtwn_success, "a rate of 2, pending");
+    Update(&f, 2.0);
+    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.currentTime == 0.75 &&
+              state.rate == 2.0,
+          "moving again from the time held");
+    CHECK(mtwnPlayer_SetRate(f.context, p, 4.0) == mtwn_success &&
+              mtwnPlayer_Finish(f.context, p) == mtwn_success &&
+              mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.rate == 4.0 &&
+              state.currentTime == state.duration && state.state == mtwn_playFinished,
+          "a finish applies the pending rate at once, at the end");
+    mtwnDestroyContext(f.context);
+}
+
 // A rate past MTWN_RATE_LIMIT in size is refused as misuse, the player
 // unchanged (record mtwn-0046).
 static void TestRateLimit(void)
@@ -461,6 +492,7 @@ static void TestRateLimit(void)
 int main(void)
 {
     TestRateLimit();
+    TestPendingRates();
     TestPlayPause();
     TestSeeks();
     TestFinishReverse();

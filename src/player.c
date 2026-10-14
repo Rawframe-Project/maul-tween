@@ -237,7 +237,11 @@ static mtwnResult Finish(mtwnClipPlay* play, double now, double end)
 static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
 {
     bool moving = !isnan(play->startTime) && isnan(play->holdTime);
-    if (moving)
+    // Running at a rate of 0, its time held, it is running all the same:
+    // its new rate waits for the next update too.
+    bool held = !play->pending && !isnan(play->startTime) && play->rate == 0.0 &&
+                StateOf(play, now, end) == mtwn_playRunning;
+    if (moving || held)
     {
         play->pendingRate = rate;
         return;
