@@ -12,3 +12,4 @@ decay: elementary
 color: elementary
 rotation: elementary
 signal: elementary
+timing:

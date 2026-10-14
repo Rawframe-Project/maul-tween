@@ -49,6 +49,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/sample.c
     src/signal.c
     src/spring.c
+    src/timing.c
     src/elementary.c
     src/elementary_float.c)
 maul_configure_library(maul-tween)
@@ -69,6 +70,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(color)
     maul_add_test(rotation)
     maul_add_test(signal)
+    maul_add_test(timing)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

@@ -243,6 +243,25 @@ double mtwnRubberBandInverse(double offset, double dimension, double coefficient
 ```
 The inverse of mtwnRubberBand: the drag that moves content an offset past a limit, d o / (c (d - o)).  @param offset       The distance moved, signed. @param dimension    The view's size along it. @param coefficient  c, 0.55 on iOS. @return The drag; infinite, signed, for an offset of at least the dimension; 0 for a dimension or coefficient not above 0 or NaN. @par Thread safety Safe from any thread.
 
+## `timing.h`
+
+Timing (records mtwn-0012 and mtwn-0027): Web Animations Level 1's calculation of a node's phase, iteration and progress from its local time, with Level 2's effect playback rate, a repeat delay between iterations and a choice of how reverse iterations ease.
+
+```c
+mtwnTiming mtwnDefaultTiming(void);
+```
+Returns Web Animations' default timing: no delays, fill none, one iteration from 0, a duration of 0, normal direction, linear easing, no repeat delay, time running back in reverse iterations, rate 1.  @return The timing. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnValidateTiming(const mtwnTiming* timing);
+```
+Checks a timing: delays finite, iteration start finite and from 0, iterations and duration from 0 (infinity allowed, NaN not), repeat delay finite and from 0, playback rate finite and not 0 (negative only with a finite active duration, whose end a backward play starts from), every enumeration known.  @param timing  The timing. @return mtwn_success; mtwn_errorInvalid for a null pointer or a timing outside the above. @par Thread safety Safe from any thread.
+
+```c
+void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards, mtwnTimingResult* resultOut);
+```
+Computes a node's timing at a local time, by Web Animations' steps.  @param timing     A timing mtwnValidateTiming accepts. @param localTime  The node's local time, seconds, finite. @param backwards  Whether the time is running backwards (the playing animation's rate is negative), which moves the active interval's boundaries. @param resultOut  Receives the result. @par Thread safety Safe from any thread.
+
 ---
 
-44 functions across 5 headers.
+47 functions across 6 headers.

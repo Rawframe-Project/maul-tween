@@ -31,3 +31,4 @@ are listed in [README.md](README.md).
 | [mtwn-0024](mtwn-0024-color-api.md) | Colors as CSS Color 4 interpolates them | Accepted |
 | [mtwn-0025](mtwn-0025-angle-rotation-api.md) | Angles with CSS's hue methods; rotations by Kahan-angle slerp | Accepted |
 | [mtwn-0026](mtwn-0026-integers-discrete-punch-shake.md) | Integers, discrete values, punch and shake as values | Accepted |
+| [mtwn-0027](mtwn-0027-timing-api.md) | The timing API: Web Animations' steps, rate, repeat delay | Accepted |
