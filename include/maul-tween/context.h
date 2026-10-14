@@ -19,6 +19,13 @@ extern "C"
     // A context. Made by mtwnCreateContext.
     typedef struct mtwnContext mtwnContext;
 
+    // A target the context holds, by a generation-checked id; zero is null.
+    typedef struct mtwnTargetId
+    {
+        uint32_t index1;
+        uint32_t generation;
+    } mtwnTargetId;
+
     // The most of each count a def may name, and the most clip storage.
 #define MTWN_MAX_COUNT        16777216u
 #define MTWN_MAX_CLIP_STORAGE 2147483648u
@@ -114,6 +121,30 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
+
+    /// Advances every player to the host's time: transitions sample their
+    /// curves, write their targets and end. Reports the targets whose value
+    /// or base changed since the last report, in the order they changed;
+    /// a target appears once.
+    ///
+    /// @param context          The context.
+    /// @param timeNs           The host's time in nanoseconds, never less
+    ///                         than the last update's.
+    /// @param changedOut       Receives the first changedCapacity changed
+    ///                         targets; NULL only with a capacity of 0.
+    /// @param changedCapacity  Its length.
+    /// @param changedTotalOut  Receives how many targets changed, which may
+    ///                         exceed the capacity; those past it are left
+    ///                         out of the report only. May be NULL.
+    /// @return mtwn_success; mtwn_errorInvalid for a null context, a null
+    ///         array with a capacity, or a time before the last update's,
+    ///         nothing advanced.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs,
+                                                  mtwnTargetId* changedOut,
+                                                  uint32_t changedCapacity,
+                                                  uint32_t* changedTotalOut);
 
 #ifdef __cplusplus
 }

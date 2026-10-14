@@ -33,3 +33,4 @@ are listed in [README.md](README.md).
 | [mtwn-0026](mtwn-0026-integers-discrete-punch-shake.md) | Integers, discrete values, punch and shake as values | Accepted |
 | [mtwn-0027](mtwn-0027-timing-api.md) | The timing API: Web Animations' steps, rate, repeat delay | Accepted |
 | [mtwn-0028](mtwn-0028-context-targets.md) | The context in one block; targets of nine kinds, stored as given | Accepted |
+| [mtwn-0029](mtwn-0029-transitions-update.md) | Transitions with easings, the update, the floating-point guard | Accepted |

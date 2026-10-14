@@ -19,13 +19,6 @@ extern "C"
 {
 #endif
 
-    // A target, by a generation-checked id; zero is null.
-    typedef struct mtwnTargetId
-    {
-        uint32_t index1;
-        uint32_t generation;
-    } mtwnTargetId;
-
     // What a target's value is, which fixes the channels it uses and how it
     // is interpolated and composed.
     typedef uint8_t mtwnValueKind;

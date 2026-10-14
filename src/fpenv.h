@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The floating-point environment every computation of the library runs
+// in (records mtwn-0007 and mtwn-0029): round to nearest, denormals
+// kept, no traps. A host may run its threads with flush-to-zero,
+// denormals-are-zero or another rounding mode; each public call that
+// computes floats enters this environment and leaves the host's as it
+// found it.
+//
+// Compilers treat floating-point arithmetic as free of side effects (the
+// build uses -fno-trapping-math), so they may move it across the writes
+// to the control register. A public call therefore does no arithmetic of
+// its own between entering and leaving: it calls a worker marked
+// MTWN_NOINLINE, whose body cannot move out of the call.
+
+#ifndef MAUL_TWEEN_SRC_FPENV_H
+#define MAUL_TWEEN_SRC_FPENV_H
+
+#include <stdint.h>
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#define MTWN_NOINLINE __declspec(noinline)
+#else
+#define MTWN_NOINLINE __attribute__((noinline))
+#endif
+
+// The host's control register, saved on entry.
+typedef struct mtwnFloatEnv
+{
+    uint64_t saved;
+} mtwnFloatEnv;
+
+// Saves the thread's floating-point control register into env and sets
+// round to nearest, denormals kept and every exception masked, writing
+// the register only when that changes it.
+void mtwnFloatEnvEnter(mtwnFloatEnv* env);
+
+// Restores the control register mtwnFloatEnvEnter saved, writing it only
+// when it differs.
+void mtwnFloatEnvLeave(const mtwnFloatEnv* env);
+
+// The thread's control register as it is: MXCSR on x86, FPCR on AArch64,
+// 0 on WebAssembly. For tests and diagnostics.
+uint64_t mtwnFloatControlRead(void);
+
+// Sets the thread's control register to value; nothing on WebAssembly. For
+// tests, which play a host with another setting.
+void mtwnFloatControlWrite(uint64_t value);
+
+#endif // MAUL_TWEEN_SRC_FPENV_H

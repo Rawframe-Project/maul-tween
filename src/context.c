@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The context: the def checked, the context and its pools allocated in
-// one block through the host's allocator, and freed in one call (records
-// mtwn-0006 and mtwn-0028).
+// The context: the def checked, the context, its pools and its list of
+// changed targets allocated in one block through the host's allocator,
+// and freed in one call (records mtwn-0006, mtwn-0028 and mtwn-0029).
 
 #include "allocator.h"
 #include "context_internal.h"
@@ -13,7 +13,8 @@
 
 static_assert(sizeof(mtwnTargetSlot) == 64, "a target slot is 64 bytes");
 
-// The block's alignment: what the C library's malloc serves.
+// The block's alignment: what the C library's malloc serves, and what
+// every part of the block starts on.
 static const size_t s_blockAlignment = alignof(max_align_t);
 
 static bool IsCount(uint32_t count)
@@ -38,15 +39,44 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
 
-// The block: the context, then its target slots.
-static bool BlockBytes(const mtwnContextDef* def, uint64_t* bytesOut)
+// Where each part of the block starts, and its size.
+typedef struct Layout
 {
-    uint64_t targets = 0;
-    uint64_t total = 0;
-    bool overflow = ckd_mul(&targets, (uint64_t)def->targetCapacity, sizeof(mtwnTargetSlot)) ||
-                    ckd_add(&total, (uint64_t)sizeof(mtwnContext), targets) || total > SIZE_MAX;
-    *bytesOut = total;
-    return !overflow;
+    uint64_t targets;
+    uint64_t players;
+    uint64_t changed;
+    uint64_t bytes;
+} Layout;
+
+// Adds count elements of size bytes at the end, aligned; false on
+// overflow.
+static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offsetOut)
+{
+    uint64_t bytes = 0;
+    uint64_t start = 0;
+    uint64_t align = s_blockAlignment - 1;
+    if (ckd_add(&start, *end, align) || ckd_mul(&bytes, count, size))
+    {
+        return false;
+    }
+    start &= ~align;
+    *offsetOut = start;
+    return !ckd_add(end, start, bytes);
+}
+
+static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
+{
+    uint64_t end = sizeof(mtwnContext);
+    bool placed = Place(&end, def->targetCapacity, sizeof(mtwnTargetSlot), &layout->targets) &&
+                  Place(&end, def->playerCapacity, sizeof(mtwnPlayerSlot), &layout->players) &&
+                  Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed);
+    layout->bytes = end;
+    return placed && end <= SIZE_MAX;
+}
+
+static mtwnPool MakePool(unsigned char* slots, uint32_t stride, uint32_t capacity)
+{
+    return (mtwnPool){slots, stride, capacity, 0, 0, 0};
 }
 
 mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut)
@@ -65,22 +95,26 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     {
         return checked;
     }
-    uint64_t bytes = 0;
-    if (!BlockBytes(def, &bytes))
+    Layout layout = {0};
+    if (!PlanBlock(def, &layout))
     {
         return mtwn_errorCapacity;
     }
-    unsigned char* block = mtwnAllocate(&def->allocator, (size_t)bytes, s_blockAlignment);
+    unsigned char* block = mtwnAllocate(&def->allocator, (size_t)layout.bytes, s_blockAlignment);
     if (block == NULL)
     {
         return mtwn_errorCapacity;
     }
-    memset(block, 0, (size_t)bytes);
+    memset(block, 0, (size_t)layout.bytes);
     mtwnContext* context = (mtwnContext*)block;
     context->allocator = def->allocator;
     context->def = *def;
-    context->blockBytes = bytes;
-    context->targets = (mtwnTargetSlot*)(block + sizeof(mtwnContext));
+    context->blockBytes = layout.bytes;
+    context->targets =
+        MakePool(block + layout.targets, sizeof(mtwnTargetSlot), def->targetCapacity);
+    context->players =
+        MakePool(block + layout.players, sizeof(mtwnPlayerSlot), def->playerCapacity);
+    context->changed = (uint32_t*)(block + layout.changed);
     *contextOut = context;
     return mtwn_success;
 }

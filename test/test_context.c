@@ -183,7 +183,7 @@ static void TestRetire(void)
     mtwnTargetId a;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &a) == mtwn_success, "made");
     CHECK(mtwnDestroyTarget(context, a) == mtwn_success, "freed");
-    context->targets[0].generation = UINT32_MAX - 1;
+    mtwnTargetAt(context, 1)->header.generation = UINT32_MAX - 1;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &a) == mtwn_success && a.index1 == 1 &&
               a.generation == UINT32_MAX,
           "the last generation");
@@ -243,7 +243,7 @@ static void TestValues(void)
               mtwnTarget_GetValue(context, id, &value) == mtwn_success && value.y == 1.0f &&
               value.w == 0.0f,
           "a target no animation writes shows its base at once");
-    CHECK((context->targets[id.index1 - 1].flags & MTWN_TARGET_CHANGED) != 0,
+    CHECK((mtwnTargetAt(context, id.index1)->header.flags & MTWN_TARGET_CHANGED) != 0,
           "and is marked for the next report");
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, given, NULL) == mtwn_errorInvalid,
           "null out");

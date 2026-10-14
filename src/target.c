@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Targets in the context's pool (records mtwn-0004 and mtwn-0028). Ids
-// are a 1-based index and a generation from 1; a slot whose
-// generation would wrap is retired. Values are stored as given and
+// Targets in the context's pool (records mtwn-0004, mtwn-0028 and
+// mtwn-0029). Values are stored as given and
 // checked by their bits, so these calls do no floating-point arithmetic
 // and give the same result in any floating-point environment.
 
 #include "context_internal.h"
 
 #include <string.h>
-
-// The channels each kind uses.
-static const uint8_t s_channels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1};
 
 static bool IsKind(mtwnValueKind kind)
 {
@@ -38,12 +34,10 @@ static bool IsZeroBits(float value)
     return (Bits(value) & 0x7FFFFFFFu) == 0;
 }
 
-// The value with the kind's channels kept and the others 0, or false when
-// the kind refuses it.
-static bool Accept(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out)
+bool mtwnAcceptValue(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out)
 {
     float channels[4] = {value.x, value.y, value.z, value.w};
-    uint8_t used = s_channels[kind];
+    uint8_t used = mtwnKindChannels(kind);
     bool zero = true;
     for (uint8_t i = 0; i < 4; ++i)
     {
@@ -69,13 +63,7 @@ static bool Accept(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out)
 // The live slot an id names, or NULL.
 static mtwnTargetSlot* Find(const mtwnContext* context, mtwnTargetId target)
 {
-    if (target.index1 == 0 || target.index1 > context->targetHigh)
-    {
-        return NULL;
-    }
-    mtwnTargetSlot* slot = &context->targets[target.index1 - 1];
-    bool alive = (slot->flags & MTWN_TARGET_ALIVE) != 0;
-    return alive && slot->generation == target.generation ? slot : NULL;
+    return (mtwnTargetSlot*)mtwnPoolFind(&context->targets, target.index1, target.generation);
 }
 
 mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
@@ -86,7 +74,7 @@ mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 v
         return mtwn_errorInvalid;
     }
     mtwnVec4 accepted = {0};
-    if (targetOut == NULL || !IsKind(kind) || !Accept(kind, value, &accepted))
+    if (targetOut == NULL || !IsKind(kind) || !mtwnAcceptValue(kind, value, &accepted))
     {
         if (targetOut != NULL)
         {
@@ -96,29 +84,16 @@ mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 v
         return mtwn_errorInvalid;
     }
     *targetOut = (mtwnTargetId){0, 0};
-    uint32_t index1 = context->targetFree;
-    if (index1 != 0)
-    {
-        context->targetFree = context->targets[index1 - 1].nextFree;
-    }
-    else if (context->targetHigh < context->def.targetCapacity)
-    {
-        index1 = ++context->targetHigh;
-    }
-    else
+    uint32_t index1 = mtwnPoolAcquire(&context->targets);
+    if (index1 == 0)
     {
         return mtwn_errorLimit;
     }
-    mtwnTargetSlot* slot = &context->targets[index1 - 1];
-    uint32_t generation = slot->generation + 1;
-    *slot = (mtwnTargetSlot){0};
+    mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
     slot->base = accepted;
     slot->value = accepted;
-    slot->generation = generation;
     slot->kind = kind;
-    slot->flags = MTWN_TARGET_ALIVE;
-    ++context->targetsAlive;
-    *targetOut = (mtwnTargetId){index1, generation};
+    *targetOut = (mtwnTargetId){index1, slot->header.generation};
     return mtwn_success;
 }
 
@@ -134,15 +109,24 @@ mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
         ++context->misuse;
         return mtwn_errorStale;
     }
-    slot->flags = 0;
-    --context->targetsAlive;
-    // A slot whose generation is at its end is retired: its id can never
-    // come back.
-    if (slot->generation != UINT32_MAX)
+    if (slot->header.link != 0)
     {
-        slot->nextFree = context->targetFree;
-        context->targetFree = target.index1;
+        mtwnEndTransition(context, slot->header.link);
     }
+    // A target on the list of changed targets leaves it.
+    if ((slot->header.flags & MTWN_TARGET_CHANGED) != 0)
+    {
+        uint32_t kept = 0;
+        for (uint32_t i = 0; i < context->changedCount; ++i)
+        {
+            if (context->changed[i] != target.index1)
+            {
+                context->changed[kept++] = context->changed[i];
+            }
+        }
+        context->changedCount = kept;
+    }
+    mtwnPoolRelease(&context->targets, target.index1);
     return mtwn_success;
 }
 
@@ -176,14 +160,18 @@ mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec
         return resolved;
     }
     mtwnVec4 accepted = {0};
-    if (!Accept(slot->kind, value, &accepted))
+    if (!mtwnAcceptValue(slot->kind, value, &accepted))
     {
         ++context->misuse;
         return mtwn_errorInvalid;
     }
     slot->base = accepted;
-    slot->value = accepted;
-    slot->flags |= MTWN_TARGET_CHANGED;
+    // A target no transition writes shows its base at once.
+    if (slot->header.link == 0)
+    {
+        slot->value = accepted;
+    }
+    mtwnMarkChanged(context, target.index1);
     return mtwn_success;
 }
 

@@ -46,6 +46,11 @@ uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
 ```
 Returns the size of the block the context holds everything in.  @param context  The context. @return Bytes. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut, uint32_t changedCapacity, uint32_t* changedTotalOut);
+```
+Advances every player to the host's time: transitions sample their curves, write their targets and end. Reports the targets whose value or base changed since the last report, in the order they changed; a target appears once.  @param context          The context. @param timeNs           The host's time in nanoseconds, never less than the last update's. @param changedOut       Receives the first changedCapacity changed targets; NULL only with a capacity of 0. @param changedCapacity  Its length. @param changedTotalOut  Receives how many targets changed, which may exceed the capacity; those past it are left out of the report only. May be NULL. @return mtwn_success; mtwn_errorInvalid for a null context, a null array with a capacity, or a time before the last update's, nothing advanced. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
 ## `easing.h`
 
 Easing: curves that map a timing's progress to eased progress (record mtwn-0011). An easing is a value made by a function that validates it and sampled by mtwnEase with no status to check: Penner's families, which land exactly on 0 and 1, and CSS Easing Level 2 entire. Every kind has the same four modes.
@@ -183,6 +188,20 @@ Makes a shake.  @param frequency  Lattice points a second, finite and above 0: h
 double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds);
 ```
 Samples a shake for one channel: a factor from -1 to 1, each channel its own noise; exactly 0 at 0, at the duration and outside them.  @param shake    A shake made by this library. @param channel  Which channel, any value. @param seconds  The time since its start. @return The factor. @par Thread safety Safe from any thread.
+
+## `player.h`
+
+Players (records mtwn-0004 and mtwn-0029): what writes targets. A transition is a player; a player ends by committing its last value into its targets' base values and is then freed, its id stale.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player);
+```
+Stops a player without committing: its targets show their base values again at once.  @param context  The context. @param player   The player. @return mtwn_success; mtwn_errorInvalid for a null context; mtwn_errorStale for an id that names no live player, as one that ended does. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+bool mtwnPlayer_IsValid(const mtwnContext* context, mtwnPlayerId player);
+```
+Tells whether an id names a live player: one that has not ended, been replaced or been destroyed. Not counted as misuse.  @param context  The context, or NULL. @param player   The id. @return Whether the player is alive. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ## `sample.h`
 
@@ -330,6 +349,20 @@ void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backward
 ```
 Computes a node's timing at a local time, by Web Animations' steps.  @param timing     A timing mtwnValidateTiming accepts. @param localTime  The node's local time, seconds, finite. @param backwards  Whether the time is running backwards (the playing animation's rate is negative), which moves the active interval's boundaries. @param resultOut  Receives the result. @par Thread safety Safe from any thread.
 
+## `transition.h`
+
+Transitions (records mtwn-0004 and mtwn-0029): the short path, one call that animates a target from its current value to another. A new transition on a target replaces the one running there, starting from the value it had reached.
+
+```c
+static inline mtwnTransitionDef mtwnDefaultTransitionDef(void);
+```
+Makes a transition def: no target, a duration of 0.25 seconds, no delay, CSS's ease, colors in Oklab with the shorter hue, angles the shorter way, rotations the shortest. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def, mtwnPlayerId* playerOut);
+```
+Starts a transition: from the target's current value, at the next update, to the def's value. It replaces the transition running on the target, whose id goes stale. During the delay the start holds; at its end the end value becomes the target's base value, its velocity 0, and the transition is freed.  @param context    The context. @param def        The def. @param playerOut  Receives the transition's player id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, an end value the target's kind refuses, a delay or duration outside the above, an unknown color space, hue method or rotation path, a color with alpha outside 0 to 1, or the longest way between equal rotations; mtwn_errorVersion for a def built against another major or minor version; mtwn_errorStale for a target that is not alive; mtwn_errorLimit when the context holds its capacity of players. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
 ---
 
-59 functions across 8 headers.
+64 functions across 10 headers.
