@@ -143,7 +143,7 @@ double mtwnExp2(double x)
 }
 
 // The natural logarithm of a finite x above 0, as a pair: *lowOut
-// carries what the returned double cannot.
+// carries what the returned double cannot, a few ulps of it at most.
 static double LogPair(double x, double* lowOut)
 {
     int e = 0;
@@ -184,12 +184,12 @@ static double LogPair(double x, double* lowOut)
     double totalLow = 0.0;
     double total = TwoSum(k * MTWN_LN2_HI, head, &totalLow);
     // The term is too large to round with the low parts, so it joins the
-    // high part exactly too; the pair is then renormalized, its low part
-    // under half an ulp of its high part, as the exponential expects.
+    // high part exactly too; what is left is a few ulps of the high part
+    // at most, which the exponential takes as a low part.
     double withTermLow = 0.0;
     double withTerm = TwoSum(total, term, &withTermLow);
-    double rest = (totalLow + withTermLow) + (headLow + (termLow - squareLow) + k * MTWN_LN2_LO);
-    return TwoSum(withTerm, rest, lowOut);
+    *lowOut = (totalLow + withTermLow) + (headLow + (termLow - squareLow) + k * MTWN_LN2_LO);
+    return withTerm;
 }
 
 double mtwnLog(double x)
@@ -227,11 +227,12 @@ double mtwnCbrt(double x)
     }
     m = ldexp(m, rest);
     e -= rest;
-    // Four steps of Halley's iteration from a line through the range take
-    // the relative error from 13 percent below 1e-24; then one Newton step
-    // from the residual m - y^3, computed exactly, rounds y once.
+    // Three steps of Halley's iteration, which cubes the relative error,
+    // take it from 13 percent at a line through the range to about 1e-20;
+    // then one Newton step from the residual m - y^3, computed exactly,
+    // squares it and rounds y once.
     double y = 0.6 + 0.25 * m;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         double cube = y * y * y;
         y = y * (cube + 2.0 * m) / (2.0 * cube + m);
