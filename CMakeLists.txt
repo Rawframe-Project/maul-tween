@@ -56,6 +56,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/rotation.c
     src/path.c
     src/player.c
+    src/player_slot.c
     src/pool.c
     src/runs.c
     src/sample.c
@@ -67,6 +68,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/update.c
     src/elementary.c
     src/event.c
+    src/sweep.c
     src/elementary_float.c)
 maul_configure_library(maul-tween)
 # The exactly rounded functions the library takes from libm

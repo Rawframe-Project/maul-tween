@@ -338,11 +338,10 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     double now = (double)timeNs / 1e9;
     double before = (double)beforeNs / 1e9;
     uint32_t queued = context->eventCount;
-    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
+    // Set when the first clip's player is made (record mtwn-0047).
+    if (context->clipUpdate != NULL)
     {
-        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        mtwnMarkUnwritten(context, &slot->play);
-        index1 = slot->play.nextClip;
+        context->clipUpdate->begin(context);
     }
     // In creation order, the composite order; a player may free itself.
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)
@@ -353,20 +352,17 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
         {
             Advance(context, index1, timeNs);
         }
-        else if (mtwnAdvancePlayer(context, index1, before, now))
+        else if (context->clipUpdate != NULL)
         {
-            mtwnResetUnwritten(context, &slot->play);
-            mtwnFreePlayer(context, index1);
+            // Set whenever a clip's player exists.
+            context->clipUpdate->advance(context, index1, before, now);
         }
         index1 = later;
     }
     mtwnSortEvents(context, queued);
-    // A target no clip's player wrote shows its base.
-    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
+    if (context->clipUpdate != NULL)
     {
-        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        mtwnResetUnwritten(context, &slot->play);
-        index1 = slot->play.nextClip;
+        context->clipUpdate->end(context);
     }
 }
 

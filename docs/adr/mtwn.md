@@ -51,3 +51,4 @@ are listed in [README.md](README.md).
 | [mtwn-0044](mtwn-0044-defaults-sized-together.md) | The defaults, sized together | Accepted |
 | [mtwn-0045](mtwn-0045-css-reversal.md) | Shortened reversals, as CSS Transitions shortens them | Accepted |
 | [mtwn-0046](mtwn-0046-randomized-invariants.md) | Randomized invariants, and what they found | Accepted |
+| [mtwn-0047](mtwn-0047-transitions-link-alone.md) | A program of transitions links no clip code | Accepted |

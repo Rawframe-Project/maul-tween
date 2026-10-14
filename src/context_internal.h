@@ -249,6 +249,9 @@ struct mtwnContext
     uint32_t lastPlayer;
     // The first of the clips' players, 0 for none.
     uint32_t firstClipPlayer;
+    // The clips' players' part of an update, set by the first clip's
+    // player made, NULL before (record mtwn-0047).
+    const struct mtwnClipUpdate* clipUpdate;
     // The players' bindings.
     mtwnRuns bindings;
 
@@ -287,6 +290,12 @@ static inline mtwnPlayerSlot* mtwnPlayerAt(const mtwnContext* context, uint32_t 
     return (mtwnPlayerSlot*)mtwnPoolAt(&context->players, index1);
 }
 
+// A player's id from its slot.
+static inline mtwnPlayerId mtwnPlayerIdAt(const mtwnContext* context, uint32_t index1)
+{
+    return (mtwnPlayerId){index1, mtwnPlayerAt(context, index1)->header.generation};
+}
+
 // The channels a kind uses.
 static inline uint8_t mtwnKindChannels(mtwnValueKind kind)
 {
@@ -320,10 +329,21 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player);
 // Ends a target's transition: frees the player and unlinks the target.
 void mtwnEndTransition(mtwnContext* context, uint32_t player);
 
-// Advances a clip's player from the last update's host time to this one's,
-// records what it crossed and samples it; true when it has finished and is
-// not kept, to be freed (src/player.c).
-bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, double now);
+// The clips' players' part of an update (src/player.c), reached only
+// through the context, so that a host that makes no clip's player links
+// none of the players, clip sampling, composition, paths or crossings
+// (record mtwn-0047).
+typedef struct mtwnClipUpdate
+{
+    // Before the players: their targets marked unwritten.
+    void (*begin)(mtwnContext* context);
+    // A clip's player advanced from the last update's host time to this
+    // one's, what it crossed recorded and it sampled; freed when it has
+    // finished and is not kept.
+    void (*advance)(mtwnContext* context, uint32_t player, double before, double now);
+    // After them: a target no clip's player wrote shows its base.
+    void (*end)(mtwnContext* context);
+} mtwnClipUpdate;
 
 // Writes a target's value and velocity, marking it changed when its value
 // changed and written in this update (src/update.c).

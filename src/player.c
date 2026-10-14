@@ -13,81 +13,6 @@
 
 #include <math.h>
 
-uint32_t mtwnTakePlayer(mtwnContext* context, uint8_t type)
-{
-    uint32_t index1 = mtwnPoolAcquire(&context->players);
-    if (index1 == 0)
-    {
-        return 0;
-    }
-    mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-    slot->type = type;
-
-    slot->earlier = context->lastPlayer;
-    if (context->lastPlayer != 0)
-    {
-        mtwnPlayerAt(context, context->lastPlayer)->later = index1;
-    }
-    else
-    {
-        context->firstPlayer = index1;
-    }
-    context->lastPlayer = index1;
-    if (type == MTWN_PLAYER_CLIP)
-    {
-        slot->play.nextClip = context->firstClipPlayer;
-        if (context->firstClipPlayer != 0)
-        {
-            mtwnPlayerAt(context, context->firstClipPlayer)->play.previousClip = index1;
-        }
-        context->firstClipPlayer = index1;
-    }
-    return index1;
-}
-
-void mtwnFreePlayer(mtwnContext* context, uint32_t player)
-{
-    mtwnPlayerSlot* slot = mtwnPlayerAt(context, player);
-    if (slot->earlier != 0)
-    {
-        mtwnPlayerAt(context, slot->earlier)->later = slot->later;
-    }
-    else
-    {
-        context->firstPlayer = slot->later;
-    }
-    if (slot->later != 0)
-    {
-        mtwnPlayerAt(context, slot->later)->earlier = slot->earlier;
-    }
-    else
-    {
-        context->lastPlayer = slot->earlier;
-    }
-    if (slot->type == MTWN_PLAYER_CLIP)
-    {
-        const mtwnClipPlay* play = &slot->play;
-        if (play->previousClip != 0)
-        {
-            mtwnPlayerAt(context, play->previousClip)->play.nextClip = play->nextClip;
-        }
-        else
-        {
-            context->firstClipPlayer = play->nextClip;
-        }
-        if (play->nextClip != 0)
-        {
-            mtwnPlayerAt(context, play->nextClip)->play.previousClip = play->previousClip;
-        }
-        if (slot->play.bindingCount > 0)
-        {
-            mtwnGiveRun(&context->bindings, slot->play.bindingStart, slot->play.bindingCount);
-        }
-        --mtwnClipAt(context, slot->play.clip.index1)->users;
-    }
-    mtwnPoolRelease(&context->players, player);
-}
-
 static mtwnPlayerSlot* FindPlayer(const mtwnContext* context, mtwnPlayerId player)
 {
     return (mtwnPlayerSlot*)mtwnPoolFind(&context->players, player.index1, player.generation);
@@ -326,7 +251,7 @@ static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
     }
 }
 
-bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, double now)
+static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, double now)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double end = EffectEnd(context, play);
@@ -423,6 +348,37 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
     return result;
 }
 
+static void BeginClips(mtwnContext* context)
+{
+    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
+    {
+        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+        mtwnMarkUnwritten(context, &slot->play);
+        index1 = slot->play.nextClip;
+    }
+}
+
+static void AdvanceClip(mtwnContext* context, uint32_t player, double before, double now)
+{
+    if (AdvancePlayer(context, player, before, now))
+    {
+        mtwnResetUnwritten(context, &mtwnPlayerAt(context, player)->play);
+        mtwnFreePlayer(context, player);
+    }
+}
+
+static void EndClips(mtwnContext* context)
+{
+    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
+    {
+        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+        mtwnResetUnwritten(context, &slot->play);
+        index1 = slot->play.nextClip;
+    }
+}
+
+static const mtwnClipUpdate s_clipUpdate = {BeginClips, AdvanceClip, EndClips};
+
 static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                                mtwnPlayerId* playerOut)
 {
@@ -480,6 +436,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                            .bindingCount = clip->slotCount,
                            .keep = def->keep};
     ++clip->users;
+    context->clipUpdate = &s_clipUpdate;
     if (def->play)
     {
         (void)Play(play, Now(context), EffectEnd(context, play));
