@@ -102,16 +102,14 @@ static const double s_cosTaylor[8] = {
     0x1.ae7f3e733b81fp-45,
     -0x1.6827863b97d97p-53,
 };
-// (-1)^n / (2n + 1) for n from 1 to 8: arctangent for |u| <= 1/16.
-static const double s_atanSeries[8] = {
+// (-1)^n / (2n + 1) for n from 1 to 6: arctangent for |u| <= 1/16.
+static const double s_atanSeries[6] = {
     -0x1.5555555555555p-2,
     0x1.999999999999ap-3,
     -0x1.2492492492492p-3,
     0x1.c71c71c71c71cp-4,
     -0x1.745d1745d1746p-4,
     0x1.3b13b13b13b14p-4,
-    -0x1.1111111111111p-4,
-    0x1.e1e1e1e1e1e1ep-5,
 };
 // atan(k / 8) for k from 0 to 8.
 static const double s_atanEighths[9] = {

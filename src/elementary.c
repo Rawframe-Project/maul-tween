@@ -12,9 +12,10 @@
 // doubles, and sum their Taylor series to degrees 17 and 18. The
 // arctangent reduces to z in [0, 1], then to u = (z - c) / (1 + z c)
 // with c the nearest multiple of 1/8, |u| <= 1/16, and sums its series
-// to u^17 onto atan(c). In each, the leading terms are added exactly as
-// pairs of doubles (Knuth's two-sum, Dekker's product) and the result is
-// rounded once, so the error stays near half an ulp.
+// to u^13, whose remainder is under 1e-18 relative, onto atan(c). In
+// each, the leading terms are added exactly as pairs of doubles (Knuth's
+// two-sum, Dekker's product) and the result is rounded once, so the
+// error stays near half an ulp.
 
 #include "elementary.h"
 
@@ -265,7 +266,7 @@ static double ArctanPair(double z, double zLow, double* lowOut)
     // zLow moves atan by zLow / (1 + z^2) to first order.
     uLow += zLow / (1.0 + z * z);
     double v = u * u;
-    double tail = u * v * Polynomial(s_atanSeries, 8, v);
+    double tail = u * v * Polynomial(s_atanSeries, 6, v);
     int i = (int)index;
     double sumLow = 0.0;
     double sum = TwoSum(s_atanEighths[i], u, &sumLow);
