@@ -684,8 +684,46 @@ static void TestFloatEnvironment(void)
     CHECK(plain == hostile, "the same bits under the host's flush-to-zero and rounding");
 }
 
+static void TestReplacedVelocity(void)
+{
+    // An eased transition's velocity is computed when read; replaced
+    // before the next update, the target keeps the one it had.
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = x;
+    def.value = (mtwnVec4){10.0f, 0, 0, 0};
+    def.duration = 1.0;
+    CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &def.easing) == mtwn_success, "quad out");
+    mtwnPlayerId first;
+    CHECK(mtwnStartTransition(context, &def, &first) == mtwn_success, "a transition");
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success, "a quarter in");
+    mtwnTargetState before;
+    CHECK(mtwnTarget_GetState(context, x, &before) == mtwn_success && before.velocity.x > 14.0f,
+          "moving at about 15 a second");
+    // Replaced by a spring to elsewhere, which inherits that velocity.
+    def.spec = mtwn_transitionSpring;
+    def.value = (mtwnVec4){-5.0f, 0, 0, 0};
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
+    mtwnPlayerId second;
+    CHECK(mtwnStartTransition(context, &def, &second) == mtwn_success, "replaced");
+    mtwnTargetState after;
+    CHECK(mtwnTarget_GetState(context, x, &after) == mtwn_success, "read");
+    CHECK(after.velocity.x == before.velocity.x && after.value.x == before.value.x,
+          "the velocity it had, until the next update");
+    CHECK(mtwnPlayerAt(context, second.index1)->velocity[0] == (double)before.velocity.x,
+          "and the spring starts from it");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
+    TestReplacedVelocity();
     TestScalar();
     TestDelayAndEasing();
     TestInterruption();

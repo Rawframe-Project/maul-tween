@@ -349,6 +349,79 @@ static void TestOrder(void)
     mtwnDestroyContext(f.context);
 }
 
+// Whether the chain of clips' players holds exactly the live ones, each
+// linked back to the one before it.
+static bool ChainHolds(const mtwnContext* context, const mtwnPlayerId* players, const bool* live,
+                       uint32_t count)
+{
+    uint32_t seen = 0;
+    uint32_t previous = 0;
+    for (uint32_t i = context->firstClipPlayer; i != 0 && seen <= count;
+         i = mtwnPlayerAt(context, i)->play.nextClip)
+    {
+        const mtwnPlayerSlot* slot = mtwnPlayerAt(context, i);
+        bool known = false;
+        for (uint32_t k = 0; k < count; ++k)
+        {
+            known = known || (live[k] && players[k].index1 == i);
+        }
+        if (!known || slot->type != MTWN_PLAYER_CLIP || slot->play.previousClip != previous)
+        {
+            return false;
+        }
+        previous = i;
+        ++seen;
+    }
+    uint32_t alive = 0;
+    for (uint32_t k = 0; k < count; ++k)
+    {
+        alive += live[k] ? 1u : 0u;
+    }
+    return seen == alive;
+}
+
+static void TestClipChain(void)
+{
+    // Clips' players among transitions, freed from the chain's middle, its
+    // head and its end in turn, and made again: the chain the update walks
+    // holds the live ones only, its links both ways right.
+    Fixture f = Make(false, 64);
+    enum
+    {
+        COUNT = 5
+    };
+    mtwnPlayerId players[COUNT];
+    bool live[COUNT];
+    mtwnTargetId others[COUNT];
+    for (uint32_t k = 0; k < COUNT; ++k)
+    {
+        players[k] = Player(&f, true, 1.0);
+        live[k] = true;
+        CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &others[k]) ==
+                  mtwn_success,
+              "a target");
+        mtwnTransitionDef def = mtwnDefaultTransitionDef();
+        def.target = others[k];
+        def.value = (mtwnVec4){1.0f, 0, 0, 0};
+        mtwnPlayerId transition;
+        CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
+    }
+    CHECK(ChainHolds(f.context, players, live, COUNT), "all five chained");
+    static const uint32_t order[COUNT] = {2, 4, 0, 3, 1};
+    for (uint32_t k = 0; k < COUNT; ++k)
+    {
+        CHECK(mtwnDestroyPlayer(f.context, players[order[k]]) == mtwn_success, "one freed");
+        live[order[k]] = false;
+        CHECK(ChainHolds(f.context, players, live, COUNT), "the chain after it");
+        Update(&f, 0.1 * (double)(k + 1));
+    }
+    CHECK(f.context->firstClipPlayer == 0, "none left");
+    players[0] = Player(&f, true, 1.0);
+    live[0] = true;
+    CHECK(ChainHolds(f.context, players, live, COUNT), "one again");
+    mtwnDestroyContext(f.context);
+}
+
 int main(void)
 {
     TestPlayPause();
@@ -358,5 +431,6 @@ int main(void)
     TestBindings();
     TestRuns();
     TestOrder();
+    TestClipChain();
     return s_failures == 0 ? 0 : 1;
 }

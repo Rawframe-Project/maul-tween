@@ -382,6 +382,97 @@ static void TestOverflow(void)
     mtwnDestroyContext(w.context);
 }
 
+static void TestIterationStart(void)
+{
+    // One iteration from half way through: the iteration changes half
+    // way, an iteration record, though its count is 1.
+    World w = MakeWorld(16);
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    track.timing.iterationStart = 0.5;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    mtwnEvent e[8];
+    (void)Read(&w, e, 8);
+    Update(&w, 0.25);
+    CHECK(Read(&w, e, 8) == 0, "nothing before its iteration changes");
+    Update(&w, 0.75);
+    CHECK(Read(&w, e, 8) == 1 && Is(&e[0], mtwn_eventIteration, node, 0.5, false) &&
+              e[0].firstIteration == 1.0,
+          "its iteration 1 begins half way");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestBoundaryPlay(void)
+{
+    // From a random clip that once lost a record: a timeline sized by its
+    // track, three iterations after a delay, the track's end its
+    // iteration's end. A player running backwards starts at the clip's
+    // end, where the timeline's overall progress rounds to 3 while still
+    // active: its iteration reads 3 at child time 0, yet the place is the
+    // third iteration's end, where the track ends. Its end is passed,
+    // backwards: a start record.
+    World w = MakeWorld(16);
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.position = At(0.30538823604583737);
+    group.autoDuration = true;
+    group.timing.delay = 0.19598060846328735;
+    group.timing.iterations = 3.0;
+    group.timing.fill = mtwn_fillBoth;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &timeline) == mtwn_success, "a timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = timeline;
+    track.position = At(0.51963862180709841);
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.64215481877326963;
+    track.timing.iterations = 3.0;
+    track.timing.direction = mtwn_directionAlternateReverse;
+    track.timing.fill = mtwn_fillBackwards;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    // Played at a host time of 10.192 s, as the random clip was: the play
+    // resolves its start time there, and its first time lands one ulp
+    // short of the clip's end.
+    mtwnBinding binding = mtwnBind(0, w.target);
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = w.clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    def.keep = true;
+    def.play = false;
+    def.rate = -1.6416786193847657;
+    mtwnPlayerId p = {0, 0};
+    CHECK(mtwnCreatePlayer(w.context, &def, &p) == mtwn_success, "a player");
+    Update(&w, 10.179);
+    CHECK(mtwnPlayer_Play(w.context, p) == mtwn_success, "played from its start, so its end");
+    Update(&w, 10.192);
+    mtwnEvent e[8];
+    uint32_t n = Read(&w, e, 8);
+    bool started = false;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        started = started || (e[i].kind == mtwn_eventStart && e[i].node == node && e[i].backwards);
+    }
+    CHECK(started, "the track's end passed backwards at the boundary");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestOrder(void)
 {
     World w = MakeWorld(16);
@@ -415,6 +506,8 @@ int main(void)
     TestTransitions();
     TestQueue();
     TestOverflow();
+    TestIterationStart();
+    TestBoundaryPlay();
     TestOrder();
     return s_failures == 0 ? 0 : 1;
 }
