@@ -79,6 +79,10 @@ static void TestDiscrete(void)
           "a linear segment flips at an eased 1/2");
     CHECK(mtwnSampleTrack(&track, 0.99).x == 9.0f && mtwnSampleTrack(&track, 1.0).x == 2.0f,
           "a step holds to its end");
+    keys[0].easing = mtwnLinearEasing();
+    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_success &&
+              mtwnSampleTrack(&track, 0.25).x == 9.0f,
+          "at exactly 1/2 the end, as Web Animations steps it");
     keys[0].kind = mtwn_segmentBezier;
     CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_errorInvalid,
           "no Bezier for discrete values");
@@ -204,6 +208,43 @@ static void TestRotations(void)
     CHECK(mtwnMakeTrack(&def, big, 2, NULL, bigMixes, &track) == mtwn_success &&
               mtwnSampleTrack(&track, 0.5).w == 1.0f && mtwnSampleTrack(&track, 1.0).z == 1.0f,
           "a step's rotations normalized");
+    // Bezier controls flip with their keyframe; the longest path flips
+    // nothing, and takes equal rotations on a spline, which no slerp uses.
+    mtwnKeyframe curved[2] = {Key(0.0, a, mtwn_segmentBezier),
+                              Key(1.0, negatedB, mtwn_segmentLinear)};
+    curved[0].out = a;
+    curved[1].in = negatedB;
+    mtwnSegmentMix curvedMixes[1];
+    def = mtwnDefaultTrackDef(mtwn_valueRotation);
+    CHECK(mtwnMakeTrack(&def, curved, 2, NULL, curvedMixes, &track) == mtwn_success &&
+              Same(curved[1].value, b) && Same(curved[1].in, b),
+          "a Bezier rotation's controls flip with it");
+    mtwnKeyframe far[2] = {Key(0.0, a, mtwn_segmentCatmullRom),
+                           Key(1.0, negatedB, mtwn_segmentLinear)};
+    def.rotationPath = mtwn_rotationLongest;
+    CHECK(mtwnMakeTrack(&def, far, 2, NULL, curvedMixes, &track) == mtwn_success &&
+              Same(far[1].value, negatedB),
+          "the longest path flips nothing");
+    mtwnKeyframe equal[2] = {Key(0.0, a, mtwn_segmentCatmullRom), Key(1.0, a, mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, equal, 2, NULL, curvedMixes, &track) == mtwn_success,
+          "equal rotations the long way on a spline, which turns no slerp");
+    // An easing at 1 inside a spline segment: the end keyframe, normalized.
+    mtwnVec4 odd = {0.1f, -0.7f, 0.3f, 0.6f};
+    mtwnKeyframe early[3] = {Key(0.0, a, mtwn_segmentCatmullRom), Key(0.5, odd, mtwn_segmentLinear),
+                             Key(1.0, c, mtwn_segmentLinear)};
+    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &early[0].easing) == mtwn_success, "steps(1, start)");
+    def = mtwnDefaultTrackDef(mtwn_valueRotation);
+    mtwnSegmentMix earlyMixes[2];
+    CHECK(mtwnMakeTrack(&def, early, 3, NULL, earlyMixes, &track) == mtwn_success, "made");
+    double ox = (double)odd.x;
+    double oy = (double)odd.y;
+    double oz = (double)odd.z;
+    double ow = (double)odd.w;
+    double n = sqrt(ox * ox + oy * oy + oz * oz + ow * ow);
+    mtwnVec4 end = mtwnSampleTrack(&track, 0.25);
+    CHECK(end.x == (float)((double)odd.x / n) && end.y == (float)((double)odd.y / n) &&
+              end.z == (float)((double)odd.z / n) && end.w == (float)((double)odd.w / n),
+          "exactly the end keyframe normalized");
     // A refused track leaves its keyframes as they were.
     mtwnKeyframe still[2] = {Key(0.0, a, mtwn_segmentLinear), Key(1.0, a, mtwn_segmentLinear)};
     def.rotationPath = mtwn_rotationLongest;
@@ -233,6 +274,10 @@ static void TestRefusals(void)
     def.rotationPath = 2;
     mtwnSegmentMix mixes[1];
     CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_errorInvalid, "a path");
+    keys[0].kind = mtwn_segmentStep;
+    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+          "a path, though only steps, which make no mix");
+    keys[0].kind = mtwn_segmentLinear;
     def = mtwnDefaultTrackDef(mtwn_valueScalar);
     CHECK(mtwnMakeTrack(NULL, keys, 2, NULL, NULL, &track) == mtwn_errorInvalid, "no def");
     CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, NULL) == mtwn_errorInvalid, "no out");
