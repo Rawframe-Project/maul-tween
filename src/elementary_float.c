@@ -6,8 +6,9 @@
 // high part has 16 bits, and sums its Taylor series to degree 7, whose
 // remainder is under 6e-9 relative there; the logarithm writes
 // x = 2^k m with m in [sqrt(1/2), sqrt(2)) and sums the atanh series of
-// s = (m - 1) / (m + 1) to s^11. The leading terms are added exactly as
-// pairs of floats, so the result is rounded once.
+// s = (m - 1) / (m + 1) to s^9, whose remainder is under 0.05 ulp. The
+// leading terms are added exactly as pairs of floats, so the result is
+// rounded once.
 
 #include "elementary_float.h"
 
@@ -149,7 +150,7 @@ float mtwnLogF(float x)
     float back = TwoProductF(s, denominator, &backLow);
     float sLow = ((f - back) - backLow - s * denominatorLow) / denominator;
     float z = s * s;
-    float r = z * PolynomialF(s_logSeriesF, 5, z);
+    float r = z * PolynomialF(s_logSeriesF, 4, z);
     // f - f^2/2 + s (f^2/2 + R), the leading terms as exact pairs.
     float squareLow = 0.0f;
     float halfSquare = 0.5f * TwoProductF(f, f, &squareLow);

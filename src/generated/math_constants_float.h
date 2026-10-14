@@ -58,13 +58,12 @@ static const float s_exp2TaylorF[7] = {
     0x1.430912p-13f,
     0x1.ffcbfcp-17f,
 };
-// 2 / (2n + 1) for n from 1 to 5: the atanh series of the logarithm.
-static const float s_logSeriesF[5] = {
+// 2 / (2n + 1) for n from 1 to 4: the atanh series of the logarithm.
+static const float s_logSeriesF[4] = {
     0x1.555556p-1f,
     0x1.99999ap-2f,
     0x1.24924ap-2f,
     0x1.c71c72p-3f,
-    0x1.745d18p-3f,
 };
 // (-1)^n / (2n + 1)! for n from 1 to 4: sine for |r| <= pi / 4.
 static const float s_sinTaylorF[4] = {
