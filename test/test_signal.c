@@ -57,6 +57,11 @@ static void TestIntegers(void)
               mtwnMixInteger(0, INT64_MIN, 2.0) == INT64_MIN,
           "clamped past the type's range");
     CHECK(mtwnMixInteger(10, 20, -0.5) == 5, "extended below 0");
+    int64_t odd = ((int64_t)1 << 60) + 1;
+    CHECK(mtwnMixInteger(odd, 5, 0.0) == odd && mtwnMixInteger(5, odd, 1.0) == odd,
+          "ends past 2^53, which double cannot hold, exactly");
+    CHECK(mtwnMixInteger(0, INT64_MIN, 0.75) == -3 * ((int64_t)1 << 61),
+          "large values short of the range are not clamped");
     CHECK(mtwnMixInteger(1, 2, (double)NAN) == 1, "NaN progress keeps the start");
 }
 
@@ -74,6 +79,8 @@ static void TestPunch(void)
     CHECK(mtwnSamplePunch(&punch, 0.0) == 0.0 && mtwnSamplePunch(&punch, 0.8) == 0.0 &&
               mtwnSamplePunch(&punch, -1.0) == 0.0 && mtwnSamplePunch(&punch, 5.0) == 0.0,
           "0 at its ends and outside");
+    CHECK(mtwnSamplePunch(&punch, HUGE_VAL) == 0.0 && mtwnSamplePunch(&punch, (double)NAN) == 0.0,
+          "0 at an infinite or NaN time, not the sine's NaN");
     double worst = 0.0;
     double largest = 0.0;
     for (int k = 1; k < 8000; ++k)
