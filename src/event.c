@@ -214,9 +214,13 @@ static mtwnLeaf InstantAt(double at)
     return leaf;
 }
 
-// The margin Missed leaves: the child times it compares are worked out
-// by other arithmetic than the crossings' exact positions, and may differ
-// from them by rounding, far below this.
+// The margin Missed leaves. The child times it compares are worked out by
+// the operations the exact count uses on the same operands (the parent's
+// time less the node's start, scaled / d + s and its integer part, the
+// easing times the duration), so they are its values bit for bit, and the
+// rounding of large operands is common to both (record mtwn-0042: the
+// differential agrees at times to 10^15 s). The margin, relative, keeps
+// Missed off the exact count's special cases at an iteration's ends.
 static const double s_missedMargin = 1e-6;
 
 // Whether the sweep certainly left the parent's child time short of the
