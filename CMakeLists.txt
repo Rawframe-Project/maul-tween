@@ -49,6 +49,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/easing.c
     src/fpenv.c
     src/rotation.c
+    src/path.c
     src/pool.c
     src/sample.c
     src/signal.c
@@ -80,6 +81,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(timing)
     maul_add_test(context WHITEBOX)
     maul_add_test(transition WHITEBOX)
+    maul_add_test(path)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

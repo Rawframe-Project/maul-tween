@@ -189,6 +189,20 @@ double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
 ```
 Samples a shake for one channel: a factor from -1 to 1, each channel its own noise; exactly 0 at 0, at the duration and outside them.  @param shake    A shake made by this library. @param channel  Which channel, any value. @param seconds  The time since its start. @return The factor. @par Thread safety Safe from any thread.
 
+## `path.h`
+
+Paths (records mtwn-0016 and mtwn-0031): keyframe curves of one to four channels, segment by segment linear, step, cubic Bezier or Catmull-Rom (centripetal by default), timed by their keyframes or traveled at constant speed by arc length. A path references the caller's keyframes and lengths and allocates nothing.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakePath(const mtwnKeyframe* keyframes, uint32_t count, uint8_t channels, double alpha, double* lengthsOut, mtwnPath* pathOut);
+```
+Makes a path. With lengths it travels at constant speed: the cumulative arc length at each keyframe is measured into them, and a progress is a share of the whole length, the keyframes' offsets and easings no longer timing it.  @param keyframes  At least 2: offsets finite, not decreasing, the first 0 and the last 1; values finite in the path's channels, and Bezier controls too; known kinds. @param count      The number of keyframes. @param channels   From 1 to 4. @param alpha      Catmull-Rom's knot exponent from 0 to 1: 0.5 centripetal (no cusps or self-intersections within a segment), 0 uniform, 1 chordal. @param lengthsOut Count doubles for constant speed, or NULL. Every segment but the last keyframe's then may not be a step, which has no length to travel. @param pathOut    Receives the path. @return mtwn_success; mtwn_errorInvalid for a null pointer or an argument outside the above. @par Thread safety Safe from any thread; the lengths are used by one thread at a time.
+
+```c
+void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4]);
+```
+Samples a path: the segment a progress falls in (the last keyframe at or below it; past the ends the first or last segment extended), its local progress eased by the segment's easing, then its kind; or at constant speed the point at that share of the length.  @param path        A path made by this library. @param progress    The progress, finite. @param valueOut    Receives the path's channels, 0 past them. @param tangentOut  Receives the segment's derivative by its own parameter there, not normalized, for orienting along the path; may be NULL. @par Thread safety Safe from any thread.
+
 ## `player.h`
 
 Players (records mtwn-0004 and mtwn-0029): what writes targets. A transition is a player; a player ends by committing its last value into its targets' base values and is then freed, its id stale.
@@ -365,4 +379,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-64 functions across 10 headers.
+66 functions across 11 headers.
