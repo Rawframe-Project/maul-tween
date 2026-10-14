@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The base of the Maul Tween API: the library version, the export and
-// attribute macros, and the result codes every fallible function
-// returns.
+// attribute macros, the result codes every fallible function returns,
+// the allocator a context takes and the four-channel value targets
+// hold.
 
 #ifndef MAUL_TWEEN_BASE_H
 #define MAUL_TWEEN_BASE_H
@@ -20,6 +21,10 @@ extern "C"
 #define MTWN_VERSION_MAJOR 0
 #define MTWN_VERSION_MINOR 0
 #define MTWN_VERSION_PATCH 1
+
+// The major and minor version in one number: a def built against
+// headers of another major or minor version is refused.
+#define MTWN_ABI_VERSION (((uint32_t)MTWN_VERSION_MAJOR << 16) | (uint32_t)MTWN_VERSION_MINOR)
 
 // MTWN_API marks the public functions: dllexport or dllimport in a
 // shared Windows build (maul_tween_EXPORTS is defined while building
@@ -87,6 +92,26 @@ extern "C"
         uint16_t minor;
         uint16_t patch;
     } mtwnVersion;
+
+    // The allocator a context takes in its def and keeps for its lifetime.
+    // Alignment is a power of two. A zeroed allocator means the C library's
+    // functions, which serve alignments up to that of max_align_t.
+    typedef struct mtwnAllocator
+    {
+        void* (*alloc)(size_t size, size_t alignment, void* context);
+        void (*free)(void* memory, size_t size, size_t alignment, void* context);
+        void* context;
+    } mtwnAllocator;
+
+    // A value of up to four channels, binary32: what a target holds. Its
+    // kind says which channels it uses and what they mean.
+    typedef struct mtwnVec4
+    {
+        float x;
+        float y;
+        float z;
+        float w;
+    } mtwnVec4;
 
     /// Returns the version of the library that was linked, which may differ
     /// from the MTWN_VERSION macros a program was compiled with.

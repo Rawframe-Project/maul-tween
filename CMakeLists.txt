@@ -40,8 +40,10 @@ else()
     set(MAUL_LIBRARY_KIND STATIC)
 endif()
 add_library(maul-tween ${MAUL_LIBRARY_KIND}
+    src/allocator.c
     src/base.c
     src/color.c
+    src/context.c
     src/css_easing.c
     src/decay.c
     src/easing.c
@@ -49,6 +51,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/sample.c
     src/signal.c
     src/spring.c
+    src/target.c
     src/timing.c
     src/elementary.c
     src/elementary_float.c)
@@ -71,6 +74,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(rotation)
     maul_add_test(signal)
     maul_add_test(timing)
+    maul_add_test(context WHITEBOX)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

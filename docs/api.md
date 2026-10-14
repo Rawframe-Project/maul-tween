@@ -5,7 +5,7 @@ are the source of truth; this file mirrors them.
 
 ## `base.h`
 
-The base of the Maul Tween API: the library version, the export and attribute macros, and the result codes every fallible function returns.
+The base of the Maul Tween API: the library version, the export and attribute macros, the result codes every fallible function returns, the allocator a context takes and the four-channel value targets hold.
 
 ```c
 mtwnVersion mtwnGetVersion(void);
@@ -16,6 +16,35 @@ Returns the version of the library that was linked, which may differ from the MT
 const char* mtwnResultName(mtwnResult result);
 ```
 Returns the name of a result code, for diagnostics.  @param result  Any value; an unknown one is named as such. @return A static, NUL-terminated string such as "mtwn_errorCapacity". @par Thread safety Safe from any thread.
+
+## `context.h`
+
+The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, clips and players, made from a def that names every capacity and allocated in one block through the host's allocator. Nothing allocates after creation.
+
+```c
+static inline mtwnContextDef mtwnDefaultContextDef(void);
+```
+Makes a context def for a medium host: 1024 targets, 256 players, 64 clips, 256 events and 64 KiB of clip storage, the C library's allocator. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut);
+```
+Makes a context: checks the def and allocates everything the context holds in one block.  @param def         The def. @param contextOut  Receives the context, or NULL on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, an allocator with one function of the two, or a capacity past its maximum; mtwn_errorVersion for a def built against another major or minor version, before anything else in it is read; mtwn_errorCapacity when the allocator fails or the block's size does not fit. @par Thread safety Safe from any thread.
+
+```c
+void mtwnDestroyContext(mtwnContext* context);
+```
+Destroys a context and everything it holds.  @param context  The context, or NULL. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
+```
+Returns how many calls against the context were refused for an invalid argument or a stale id since it was made.  @param context  The context. @return The count. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
+```
+Returns the size of the block the context holds everything in.  @param context  The context. @return Bytes. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ## `easing.h`
 
@@ -243,6 +272,45 @@ double mtwnRubberBandInverse(double offset, double dimension, double coefficient
 ```
 The inverse of mtwnRubberBand: the drag that moves content an offset past a limit, d o / (c (d - o)).  @param offset       The distance moved, signed. @param dimension    The view's size along it. @param coefficient  c, 0.55 on iOS. @return The drag; infinite, signed, for an offset of at least the dimension; 0 for a dimension or coefficient not above 0 or NaN. @par Thread safety Safe from any thread.
 
+## `target.h`
+
+Targets (records mtwn-0004 and mtwn-0028): one animated value of a fixed kind, holding the host's base value, the current value animations compose over it and its velocity. Animations write targets; the host reads them by id.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value, mtwnTargetId* targetOut);
+```
+Makes a target holding a value as its base and current value, at rest. Channels past the kind's are stored as 0.  @param context   The context. @param kind      The kind. @param value     The value: finite in the kind's channels, and for a rotation not all zero. Stored as given. @param targetOut Receives the target's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, an unknown kind or a value outside the above; mtwn_errorLimit when the context holds its capacity of targets. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target);
+```
+Destroys a target; its id and every copy of it become stale.  @param context  The context. @param target   The target. @return mtwn_success; mtwn_errorInvalid for a null context; mtwn_errorStale for an id that names no live target. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+bool mtwnTarget_IsValid(const mtwnContext* context, mtwnTargetId target);
+```
+Tells whether an id names a live target. Not counted as misuse.  @param context  The context, or NULL. @param target   The id. @return Whether the target is alive. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec4 value);
+```
+Sets a target's base value, the value animations compose over. A target no animation writes shows it at once; the next update reports the target as changed.  @param context  The context. @param target   The target. @param value    The value, as for mtwnCreateTarget. @return mtwn_success; mtwn_errorInvalid for a null context or a value its kind refuses; mtwn_errorStale for an id that names no live target. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut);
+```
+Reads a target's current value.  @param context   The context. @param target    The target. @param valueOut  Receives the value, zero on failure. @return mtwn_success; mtwn_errorInvalid for a null argument; mtwn_errorStale for an id that names no live target. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTargetState* stateOut);
+```
+Reads all of a target: kind, base value, current value and velocity.  @param context   The context. @param target    The target. @param stateOut  Receives the state, zero on failure. @return As mtwnTarget_GetValue. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count, mtwnVec4* valuesOut);
+```
+Reads many targets' current values, in the order of their ids.  @param context    The context. @param targets    The ids; NULL only with a count of 0. @param count      How many. @param valuesOut  Receives count values, zero for an id that names no live target. @return mtwn_success; mtwn_errorInvalid for a null argument; mtwn_errorStale when any id names no live target, each such id counted as misuse, the others read. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
 ## `timing.h`
 
 Timing (records mtwn-0012 and mtwn-0027): Web Animations Level 1's calculation of a node's phase, iteration and progress from its local time, with Level 2's effect playback rate, a repeat delay between iterations and a choice of how reverse iterations ease.
@@ -264,4 +332,4 @@ Computes a node's timing at a local time, by Web Animations' steps.  @param timi
 
 ---
 
-47 functions across 6 headers.
+59 functions across 8 headers.

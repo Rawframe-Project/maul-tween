@@ -32,3 +32,4 @@ are listed in [README.md](README.md).
 | [mtwn-0025](mtwn-0025-angle-rotation-api.md) | Angles with CSS's hue methods; rotations by Kahan-angle slerp | Accepted |
 | [mtwn-0026](mtwn-0026-integers-discrete-punch-shake.md) | Integers, discrete values, punch and shake as values | Accepted |
 | [mtwn-0027](mtwn-0027-timing-api.md) | The timing API: Web Animations' steps, rate, repeat delay | Accepted |
+| [mtwn-0028](mtwn-0028-context-targets.md) | The context in one block; targets of nine kinds, stored as given | Accepted |
