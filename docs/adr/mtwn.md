@@ -23,7 +23,7 @@ are listed in [README.md](README.md).
 | [mtwn-0016](mtwn-0016-tracks-and-paths.md) | Keyframe tracks, centripetal Catmull-Rom, constant speed | Accepted |
 | [mtwn-0017](mtwn-0017-punch-and-shake.md) | Punch and shake from a seed | Accepted |
 | [mtwn-0018](mtwn-0018-api-shape.md) | The API shape | Accepted |
-| [mtwn-0019](mtwn-0019-performance-and-size.md) | Performance and size targets | Accepted |
+| [mtwn-0019](mtwn-0019-performance-and-size.md) | Performance and size targets | Superseded by mtwn-0043 |
 | [mtwn-0020](mtwn-0020-proof.md) | Every part is checked against an independent reference | Accepted |
 | [mtwn-0021](mtwn-0021-easing-api.md) | The easing API: one value type, makers that validate, a mode for every kind | Accepted |
 | [mtwn-0022](mtwn-0022-sampling.md) | Sampling: even tables, and linear() fitted to a tolerance | Accepted |
@@ -47,3 +47,4 @@ are listed in [README.md](README.md).
 | [mtwn-0040](mtwn-0040-incremental-tracks.md) | Incremental tracks: each iteration moves on | Accepted |
 | [mtwn-0041](mtwn-0041-growing-a-context.md) | Growing a context, when the host asks | Accepted |
 | [mtwn-0042](mtwn-0042-the-update-hot-path.md) | The update's hot path, the same bits | Accepted |
+| [mtwn-0043](mtwn-0043-targets-measured.md) | Performance and size targets, measured | Accepted |

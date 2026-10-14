@@ -1,6 +1,6 @@
 # mtwn-0019. Performance and size targets
 
-Status: Accepted
+Status: Superseded by mtwn-0043
 
 ## Context
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Timings against the library's targets (record mtwn-0042), on the task
+// Timings against the library's targets (record mtwn-0043), on the task
 // its rivals were measured with: 64,000 transitions of a number from 0 to
 // 100 over a second with a quadratic ease out. Creates them all, then
 // updates them at 16 ms steps, the best of 50 updates, without and with
