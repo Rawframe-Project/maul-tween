@@ -280,8 +280,25 @@ static void TestReadMany(void)
     mtwnDestroyContext(context);
 }
 
+// Reading targets with what it needs missing is misuse, counted; with no
+// context, refused (found by mutants).
+static void TestReadRefusals(void)
+{
+    mtwnContext* context = Make(2);
+    mtwnVec4 values[1];
+    mtwnTargetId ids[1] = {{0, 0}};
+    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    CHECK(mtwnReadTargets(context, NULL, 1, values) == mtwn_errorInvalid &&
+              mtwnReadTargets(context, ids, 1, NULL) == mtwn_errorInvalid &&
+              mtwnContext_GetMisuseCount(context) == misuse + 2,
+          "no ids or no room: misuse, counted");
+    CHECK(mtwnReadTargets(NULL, ids, 1, values) == mtwn_errorInvalid, "no context refused");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
+    TestReadRefusals();
     TestCreate();
     TestDefRefusals();
     TestIds();

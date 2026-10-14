@@ -248,8 +248,28 @@ static void TestGrowFreeSlots(void)
     mtwnDestroyContext(context);
 }
 
+// A def that keeps some capacities as they are and grows others is taken,
+// each capacity at least the context's (found by mutants).
+static void TestGrowSome(void)
+{
+    Budget budget = {0};
+    mtwnContextDef def = Small(&budget);
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnContextDef more = def;
+    more.playerCapacity = 4;
+    CHECK(mtwnGrowContext(&context, &more) == mtwn_success,
+          "players grown, every other capacity kept");
+    mtwnContextDef fewer = more;
+    fewer.targetCapacity = 1;
+    CHECK(mtwnGrowContext(&context, &fewer) == mtwn_errorInvalid, "fewer targets refused");
+    mtwnDestroyContext(context);
+    CHECK(budget.blocks == 0 && budget.held == 0, "all given back");
+}
+
 int main(void)
 {
+    TestGrowSome();
     TestGrow();
     TestGrowFreeSlots();
     return s_failures == 0 ? 0 : 1;
