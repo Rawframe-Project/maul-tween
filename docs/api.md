@@ -199,6 +199,25 @@ double mtwnEase(const mtwnEasing* easing, double progress, bool before);
 ```
 Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner's curves, springs and host functions see progress clamped to 0 to 1. The modes reflect the curve, and the before flag reaches it where it samples progress unreflected.  @param easing    An easing made by this library. @param progress  The progress, finite. @param before    Whether the timing is in its before phase; it moves only curves that jump at their start. @return The eased progress: exactly 0 at 0 and 1 at 1 for Penner's curves, springs, linear and cubic bezier; what CSS defines for steps and linear(). @par Thread safety Safe from any thread.
 
+## `event.h`
+
+Events (records mtwn-0004, mtwn-0013 and mtwn-0038): records in the context's bounded queue, never callbacks. Each update appends what its players crossed, at most one record per player, node or mark, kind and direction, with the count of crossings, ordered by the time of the first crossing, then the players' creation order, then the clip's order; the host reads them when it likes.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity, uint32_t* countOut);
+```
+Takes the oldest records off the queue, as many as fit.  @param context    The context. @param eventsOut  Receives the records; NULL only with a capacity of 0. @param capacity   Its length. @param countOut   Receives how many were taken. @return mtwn_success; mtwn_errorInvalid for a null context or countOut, or a null array with a capacity. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+uint32_t mtwnContext_GetEventCount(const mtwnContext* context);
+```
+Returns how many records waited in the queue, not yet taken.  @param context  The context. @return The count; 0 for a null context. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+uint64_t mtwnContext_GetDroppedEvents(const mtwnContext* context);
+```
+Returns how many records were dropped since the context was made, each arriving at a full queue (its capacity is the context def's eventCapacity).  @param context  The context. @return The count; 0 for a null context. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
 ## `interpolate.h`
 
 Interpolation of values that are not plain numbers (records mtwn-0014, mtwn-0015, mtwn-0016, mtwn-0017, mtwn-0024 to mtwn-0026): colors in a named space as CSS Color 4 interpolates them, angles with CSS's hue methods, rotations by slerp, integers and discrete values, and punch and shake, the signals a host adds to a value.
@@ -329,17 +348,22 @@ Reverses a clip's player: negates its rate, keeping its current time, and plays 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Finish(mtwnContext* context, mtwnPlayerId player);
 ```
-Finishes a clip's player: its current time goes to the end of its playback direction, the clip's end forwards, 0 backwards.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play; mtwn_errorState also for a rate of 0 or an infinite clip played forwards. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Finishes a clip's player: its current time goes to the end of its playback direction, the clip's end forwards, 0 backwards, crossing what lies before it, its records at once.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play; mtwn_errorState also for a rate of 0 or an infinite clip played forwards. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player);
 ```
-Cancels a clip's player: it becomes idle, without effect, and is kept, to be played again.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Cancels a clip's player: it becomes idle, without effect, and is kept, to be played again; a cancel record says so if it had a time.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player, double seconds);
 ```
-Seeks a clip's player to a current time.  @param context  The context. @param player   A clip's player. @param seconds  The time into the clip, finite. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a time not finite. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Seeks a clip's player to a current time, jumping: what lies between is not crossed, and a seek record says so (mtwnPlayer_Sweep crosses it). Seeks by progress and label jump too.  @param context  The context. @param player   A clip's player. @param seconds  The time into the clip, finite. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a time not finite. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Sweep(mtwnContext* context, mtwnPlayerId player, double seconds);
+```
+Seeks a clip's player to a time crossing everything between, as an update sweeping there would: its records come at once, at the last update's time. A seek otherwise jumps, leaving a seek record.  @param context  The context. @param player   A clip's player. @param seconds  The time into the clip, finite. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context, mtwnPlayerId player, double progress);
@@ -533,4 +557,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-96 functions across 12 headers.
+100 functions across 13 headers.

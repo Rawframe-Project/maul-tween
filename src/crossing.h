@@ -83,10 +83,23 @@ void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf);
 mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
                                  double from, double to, bool fromClosed);
 
-// The time of the first (or last) crossing in a sweep that has one: the
-// time t nearest 'from' (or 'to') such that the sweep to t (from t)
-// counts one.
+// Which crossings a search counts.
+typedef uint8_t mtwnCrossingWay;
+enum
+{
+    mtwn_crossingEither = 0,
+    mtwn_crossingForwards = 1,
+    mtwn_crossingBackwards = 2,
+};
+
+// The time of the first (or last) crossing, of a way, in a sweep that has
+// one: the time t nearest 'from' (or 'to') such that the sweep to t (from
+// t) counts one.
 double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
-                        double to, bool fromClosed, bool last);
+                        double to, bool fromClosed, bool last, mtwnCrossingWay way);
+
+// The iteration the last level is in at a time of the outermost level's
+// parent, each level filling both ways.
+double mtwnIterationAt(const mtwnLevel* levels, uint32_t count, double t);
 
 #endif

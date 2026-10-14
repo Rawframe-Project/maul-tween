@@ -162,7 +162,7 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
     mtwnNodeTime* times = clip->times;
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
-    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, {0}};
+    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, {0}};
     TimelineTimes(&clip->nodes[0], &player, moving, &times[0]);
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {

@@ -549,19 +549,21 @@ mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count, const 
     return (mtwnCrossings){sum.opposite, sum.same};
 }
 
-static double Total(mtwnCrossings c)
+static double Of(mtwnCrossings c, mtwnCrossingWay way)
 {
-    return c.same + c.opposite;
+    return way == mtwn_crossingForwards    ? c.same
+           : way == mtwn_crossingBackwards ? c.opposite
+                                           : c.same + c.opposite;
 }
 
 double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
-                        double to, bool fromClosed, bool last)
+                        double to, bool fromClosed, bool last, mtwnCrossingWay way)
 {
     double lo = from;
     double hi = to;
     if (!last)
     {
-        if (fromClosed && Total(mtwnCountCrossings(levels, count, leaf, from, from, true)) >= 1.0)
+        if (fromClosed && Of(mtwnCountCrossings(levels, count, leaf, from, from, true), way) >= 1.0)
         {
             return from;
         }
@@ -574,11 +576,11 @@ double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf*
                 return hi;
             }
             bool found =
-                Total(mtwnCountCrossings(levels, count, leaf, from, mid, fromClosed)) >= 1.0;
+                Of(mtwnCountCrossings(levels, count, leaf, from, mid, fromClosed), way) >= 1.0;
             *(found ? &hi : &lo) = mid;
         }
     }
-    if (Total(mtwnCountCrossings(levels, count, leaf, to, to, true)) >= 1.0)
+    if (Of(mtwnCountCrossings(levels, count, leaf, to, to, true), way) >= 1.0)
     {
         return to;
     }
@@ -590,7 +592,32 @@ double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf*
         {
             return lo;
         }
-        bool found = Total(mtwnCountCrossings(levels, count, leaf, mid, to, true)) >= 1.0;
+        bool found = Of(mtwnCountCrossings(levels, count, leaf, mid, to, true), way) >= 1.0;
         *(found ? &lo : &hi) = mid;
     }
+}
+
+double mtwnIterationAt(const mtwnLevel* levels, uint32_t count, double t)
+{
+    double x = t - levels[0].start;
+    double iteration = 0.0;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        mtwnTiming timing = levels[i].timing;
+        timing.fill = mtwn_fillBoth;
+        mtwnTimingResult result;
+        mtwnComputeTiming(&timing, x, false, &result);
+        iteration = result.iteration;
+        double child = 0.0;
+        if (isinf(timing.duration))
+        {
+            child = result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL;
+        }
+        else
+        {
+            child = result.transformedProgress * timing.duration;
+        }
+        x = child - NextStart(levels, count, i);
+    }
+    return iteration;
 }

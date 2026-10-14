@@ -47,6 +47,9 @@ typedef struct Layout
     uint64_t players;
     uint64_t clips;
     uint64_t bindings;
+    uint64_t events;
+    uint64_t eventOrder;
+    uint64_t levels;
     uint64_t changed;
     uint64_t bytes;
 } Layout;
@@ -74,6 +77,9 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
                   Place(&end, def->playerCapacity, sizeof(mtwnPlayerSlot), &layout->players) &&
                   Place(&end, def->clipCapacity, sizeof(mtwnClipSlot), &layout->clips) &&
                   Place(&end, def->bindingCapacity, sizeof(mtwnTargetId), &layout->bindings) &&
+                  Place(&end, def->eventCapacity, sizeof(mtwnEvent), &layout->events) &&
+                  Place(&end, def->eventCapacity, sizeof(mtwnEventOrder), &layout->eventOrder) &&
+                  Place(&end, MTWN_MAX_CLIP_DEPTH + 2u, sizeof(mtwnLevel), &layout->levels) &&
                   Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed);
     layout->bytes = end;
     return placed && end <= SIZE_MAX;
@@ -122,6 +128,9 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     context->clips = MakePool(block + layout.clips, sizeof(mtwnClipSlot), def->clipCapacity);
     context->bindings =
         mtwnMakeRuns((mtwnTargetId*)(block + layout.bindings), def->bindingCapacity);
+    context->events = (mtwnEvent*)(block + layout.events);
+    context->eventOrder = (mtwnEventOrder*)(block + layout.eventOrder);
+    context->levels = (mtwnLevel*)(block + layout.levels);
     context->changed = (uint32_t*)(block + layout.changed);
     *contextOut = context;
     return mtwn_success;

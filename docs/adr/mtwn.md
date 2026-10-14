@@ -42,3 +42,4 @@ are listed in [README.md](README.md).
 | [mtwn-0035](mtwn-0035-players.md) | Players: Web Animations' procedures on the host's clock | Accepted |
 | [mtwn-0036](mtwn-0036-clip-sampling.md) | Clips sampled into targets | Accepted |
 | [mtwn-0037](mtwn-0037-crossings.md) | Crossings: exact counts through every ancestor's iterations | Accepted |
+| [mtwn-0038](mtwn-0038-events.md) | Events: counted records of every crossing, in the context's queue | Accepted |

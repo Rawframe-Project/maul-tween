@@ -83,8 +83,8 @@ static void TestRepeats(void)
     CHECK(Total(Count(level, 1, &start, 1.0, 2.0)) == 1.0 &&
               Total(Count(level, 1, &end, 1.0, 2.0)) == 1.0,
           "at a shared time both are reached together");
-    CHECK(mtwnFindCrossing(level, 1, &mid, 0.0, 3.0, false, false) == 0.5 &&
-              mtwnFindCrossing(level, 1, &mid, 0.0, 3.0, false, true) == 2.5,
+    CHECK(mtwnFindCrossing(level, 1, &mid, 0.0, 3.0, false, false, mtwn_crossingEither) == 0.5 &&
+              mtwnFindCrossing(level, 1, &mid, 0.0, 3.0, false, true, mtwn_crossingEither) == 2.5,
           "the first and last crossings' times");
     level[0].timing.direction = mtwn_directionAlternate;
     level[0].timing.iterations = 4.0;
@@ -116,7 +116,8 @@ static void TestDelaysAndRates(void)
     mtwnLeaf quarter = Instant(0.25);
     mtwnCrossings c = Count(level, 1, &quarter, -1.0, 3.0);
     CHECK(c.same == 0.0 && c.opposite == 2.0, "crossed twice, going back");
-    double first = mtwnFindCrossing(level, 1, &quarter, -1.0, 3.0, false, false);
+    double first =
+        mtwnFindCrossing(level, 1, &quarter, -1.0, 3.0, false, false, mtwn_crossingEither);
     CHECK(fabs(first - 0.75) <= 2e-16, "first at 0.75, where the computed path reaches it");
 }
 

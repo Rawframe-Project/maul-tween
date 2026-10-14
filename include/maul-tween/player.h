@@ -167,7 +167,8 @@ extern "C"
                                                           mtwnPlayerId player);
 
     /// Finishes a clip's player: its current time goes to the end of its
-    /// playback direction, the clip's end forwards, 0 backwards.
+    /// playback direction, the clip's end forwards, 0 backwards, crossing
+    /// what lies before it, its records at once.
     ///
     /// @param context  The context.
     /// @param player   A clip's player.
@@ -178,7 +179,7 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Finish(mtwnContext* context, mtwnPlayerId player);
 
     /// Cancels a clip's player: it becomes idle, without effect, and is
-    /// kept, to be played again.
+    /// kept, to be played again; a cancel record says so if it had a time.
     ///
     /// @param context  The context.
     /// @param player   A clip's player.
@@ -187,7 +188,9 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player);
 
-    /// Seeks a clip's player to a current time.
+    /// Seeks a clip's player to a current time, jumping: what lies between
+    /// is not crossed, and a seek record says so (mtwnPlayer_Sweep crosses
+    /// it). Seeks by progress and label jump too.
     ///
     /// @param context  The context.
     /// @param player   A clip's player.
@@ -198,6 +201,19 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player,
                                                        double seconds);
+
+    /// Seeks a clip's player to a time crossing everything between, as an
+    /// update sweeping there would: its records come at once, at the last
+    /// update's time. A seek otherwise jumps, leaving a seek record.
+    ///
+    /// @param context  The context.
+    /// @param player   A clip's player.
+    /// @param seconds  The time into the clip, finite.
+    /// @return As mtwnPlayer_Seek.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Sweep(mtwnContext* context, mtwnPlayerId player,
+                                                        double seconds);
 
     /// Seeks a clip's player to a share of its clip's duration.
     ///

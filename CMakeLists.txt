@@ -64,6 +64,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/transition.c
     src/update.c
     src/elementary.c
+    src/event.c
     src/elementary_float.c)
 maul_configure_library(maul-tween)
 # The exactly rounded functions the library takes from libm
@@ -92,6 +93,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(player WHITEBOX)
     maul_add_test(clip_play)
     maul_add_test(crossing WHITEBOX)
+    maul_add_test(event)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

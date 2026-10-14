@@ -22,6 +22,7 @@ uint32_t mtwnTakePlayer(mtwnContext* context, uint8_t type)
     }
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     slot->type = type;
+    slot->sequence = context->nextSequence++;
     slot->earlier = context->lastPlayer;
     if (context->lastPlayer != 0)
     {
@@ -216,7 +217,10 @@ static mtwnResult Play(mtwnClipPlay* play, double now, double end)
     }
     if (!isnan(seek))
     {
+        // A rewind starts afresh: the next sweep takes its point.
         play->holdTime = seek;
+        play->swept = (double)NAN;
+        play->sweptWay = 0;
     }
     if (!isnan(play->holdTime))
     {
@@ -300,7 +304,7 @@ static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
     }
 }
 
-bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now)
+bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, double now)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double end = EffectEnd(context, play);
@@ -337,8 +341,10 @@ bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now)
     mtwnPlayState state = StateOf(play, now, end);
     if (state == mtwn_playIdle)
     {
+        play->swept = (double)NAN;
         return false;
     }
+    mtwnSweepEvents(context, player, CurrentTime(play, now), before, now);
     // Only a running player moves; one not kept commits its end and goes.
     bool done = state == mtwn_playFinished && !play->keep;
     double rate = state == mtwn_playRunning ? play->rate : 0.0;
@@ -434,6 +440,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                            .previousTime = (double)NAN,
                            .rate = def->rate,
                            .pendingRate = (double)NAN,
+                           .swept = (double)NAN,
                            .bindingStart = start,
                            .bindingCount = clip->slotCount,
                            .keep = def->keep};
@@ -524,12 +531,44 @@ typedef enum Control
     s_seek,
     s_seekProgress,
     s_seekLabel,
+    s_sweep,
     s_setRate,
 } Control;
 
-static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, mtwnClipPlay* play,
+// A seek jumped: nothing between is crossed, and a record says so.
+static void Jumped(mtwnContext* context, uint32_t player, double now)
+{
+    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    play->swept = CurrentTime(play, now);
+    play->sweptWay = 0;
+    if (!isnan(play->swept))
+    {
+        mtwnPlayerEvent(context, player, mtwn_eventSeek, now, play->swept);
+    }
+}
+
+// A seek that sweeps: what lies between the time it leaves and the time it
+// reaches is crossed now, at the last update's time.
+static void Swept(mtwnContext* context, uint32_t player, double before, double now)
+{
+    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    play->swept = before;
+    double after = CurrentTime(play, now);
+    if (!isnan(after))
+    {
+        uint32_t queued = context->eventCount;
+        mtwnSweepEvents(context, player, after, now, now);
+        mtwnSortEvents(context, queued);
+    }
+}
+
+static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control, double argument,
+                          uint32_t key);
+
+static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, uint32_t player,
                                               Control control, double argument, uint32_t key)
 {
+    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double now = Now(context);
     double end = EffectEnd(context, play);
     switch (control)
@@ -552,43 +591,78 @@ static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, mtwnClipPlay
         return result;
     }
     case s_finish:
-        return Finish(play, now, end);
+    {
+        // Finishing runs to the end, crossing what lies before it.
+        double before = CurrentTime(play, now);
+        mtwnResult result = Finish(play, now, end);
+        if (result == mtwn_success)
+        {
+            Swept(context, player, before, now);
+        }
+        return result;
+    }
     case s_cancel:
+        if (!isnan(CurrentTime(play, now)))
+        {
+            mtwnPlayerEvent(context, player, mtwn_eventCancel, now, CurrentTime(play, now));
+        }
+        play->swept = (double)NAN;
         ApplyPendingRate(play);
         play->pending = false;
         play->holdTime = (double)NAN;
         play->startTime = (double)NAN;
         play->previousTime = (double)NAN;
         return mtwn_success;
-    case s_seekProgress:
-        if (!isfinite(end))
-        {
-            return mtwn_errorState;
-        }
-        SetCurrent(play, now, end, argument * end);
-        return mtwn_success;
-    case s_seekLabel:
-    {
-        const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-        for (uint32_t child = clip->nodes[0].firstChild; child != 0;
-             child = clip->nodes[child - 1].nextSibling)
-        {
-            const mtwnClipNode* node = &clip->nodes[child - 1];
-            if (node->kind == mtwn_nodeLabel && node->key == key)
-            {
-                SetCurrent(play, now, end, node->start);
-                return mtwn_success;
-            }
-        }
-        return mtwn_errorInvalid;
-    }
     case s_setRate:
         SetRate(play, now, end, argument);
         return mtwn_success;
     default:
-        SetCurrent(play, now, end, argument);
-        return mtwn_success;
+        return Seeking(context, player, control, argument, key);
     }
+}
+
+// The seeks: to a time, a share, a root label, or sweeping to a time.
+static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control, double argument,
+                          uint32_t key)
+{
+    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    double now = Now(context);
+    double end = EffectEnd(context, play);
+    double target = argument;
+    if (control == s_seekProgress)
+    {
+        if (!isfinite(end))
+        {
+            return mtwn_errorState;
+        }
+        target = argument * end;
+    }
+    else if (control == s_seekLabel)
+    {
+        const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
+        uint32_t child = clip->nodes[0].firstChild;
+        while (child != 0 && !(clip->nodes[child - 1].kind == mtwn_nodeLabel &&
+                               clip->nodes[child - 1].key == key))
+        {
+            child = clip->nodes[child - 1].nextSibling;
+        }
+        if (child == 0)
+        {
+            return mtwn_errorInvalid;
+        }
+        target = clip->nodes[child - 1].start;
+    }
+    double before = CurrentTime(play, now);
+    SetCurrent(play, now, end, target);
+    if (control == s_sweep && !isnan(before))
+    {
+        Swept(context, player, before, now);
+    }
+    else
+    {
+        Jumped(context, player, now);
+    }
+    return mtwn_success;
 }
 
 static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control control, double argument,
@@ -607,14 +681,15 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
     {
         return Misuse(context, mtwn_errorState);
     }
-    if ((control == s_seek || control == s_seekProgress || control == s_setRate) &&
+    if ((control == s_seek || control == s_seekProgress || control == s_setRate ||
+         control == s_sweep) &&
         !isfinite(argument))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);
-    mtwnResult result = ControlWorker(context, &slot->play, control, argument, key);
+    mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
     mtwnFloatEnvLeave(&env);
     return result == mtwn_success ? result : Misuse(context, result);
 }
@@ -647,6 +722,11 @@ mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player)
 mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player, double seconds)
 {
     return Apply(context, player, s_seek, seconds, 0);
+}
+
+mtwnResult mtwnPlayer_Sweep(mtwnContext* context, mtwnPlayerId player, double seconds)
+{
+    return Apply(context, player, s_sweep, seconds, 0);
 }
 
 mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context, mtwnPlayerId player, double progress)

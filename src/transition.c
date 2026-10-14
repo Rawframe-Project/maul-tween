@@ -192,6 +192,11 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     // The transition it replaces frees its slot first.
     if (target->header.link != 0)
     {
+        mtwnPlayerSlot* replaced = mtwnPlayerAt(context, target->header.link);
+        double now = (double)context->lastTimeNs / 1e9;
+        double since =
+            replaced->started ? now - (double)replaced->startNs / 1e9 - replaced->delay : 0.0;
+        mtwnPlayerEvent(context, target->header.link, mtwn_eventCancel, now, since);
         mtwnEndTransition(context, target->header.link);
     }
     uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_TRANSITION);
@@ -202,6 +207,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     prepared.header = slot->header;
     prepared.type = slot->type;
+    prepared.sequence = slot->sequence;
     prepared.earlier = slot->earlier;
     prepared.later = slot->later;
     prepared.header.link = def->target.index1;

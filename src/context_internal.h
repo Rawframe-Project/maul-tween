@@ -8,12 +8,14 @@
 #ifndef MAUL_TWEEN_SRC_CONTEXT_INTERNAL_H
 #define MAUL_TWEEN_SRC_CONTEXT_INTERNAL_H
 
+#include "crossing.h"
 #include "pool.h"
 #include "runs.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/context.h"
 #include "maul-tween/easing.h"
+#include "maul-tween/event.h"
 #include "maul-tween/interpolate.h"
 #include "maul-tween/target.h"
 #include "maul-tween/transition.h"
@@ -53,13 +55,19 @@ typedef struct mtwnClipPlay
     // A rate waiting for the next update, NaN for none: until then the old
     // rate runs, and from it the new one, the current time kept.
     double pendingRate;
+    // The time its events have swept to, NaN for none (idle, or not yet
+    // updated since it played): the next sweep starts there.
+    double swept;
     // Its bindings: one target per slot of the clip, from start.
     uint32_t bindingStart;
     uint32_t bindingCount;
     // Waiting for the next update's time to start.
     bool pending;
     bool keep;
-    uint8_t reserved[6];
+    // The way the last sweep went: 1 forwards, -1 backwards, 0 none (or a
+    // jump since). A sweep turning back takes its start again.
+    int8_t sweptWay;
+    uint8_t reserved[5];
 } mtwnClipPlay;
 
 // A player: a transition or a clip's player. A transition's header link
@@ -68,7 +76,11 @@ typedef struct mtwnPlayerSlot
 {
     mtwnSlotHeader header;
     uint8_t type;
-    uint8_t reserved2[3];
+    // Whether a transition's delay has ended, its start recorded.
+    bool begun;
+    uint8_t reserved2[2];
+    // Its place in creation order, for ordering records.
+    uint64_t sequence;
     // The players before and after it in creation order, 0 for none.
     uint32_t earlier;
     uint32_t later;
@@ -139,14 +151,25 @@ typedef struct mtwnClipNode
 
 // A clip, in the context's pool; its storage is a block of its own.
 // A node's time during a sample: the time it gives its children now and
-// a moment ago (for the velocity), and whether time runs backwards in it.
+// a moment ago (for the velocity), and whether time runs backwards in it;
+// during a sweep of events, at the sweep's end and start.
 typedef struct mtwnNodeTime
 {
     double now;
     double before;
     bool backwards;
-    uint8_t reserved[7];
+    // For events: whether it and every timeline above it stayed in one
+    // iteration over the sweep, so its child time moved one way.
+    bool steady;
+    uint8_t reserved[6];
 } mtwnNodeTime;
+
+// What orders a record after its time.
+typedef struct mtwnEventOrder
+{
+    uint64_t sequence;
+    double along;
+} mtwnEventOrder;
 
 typedef struct mtwnClipSlot
 {
@@ -189,6 +212,19 @@ struct mtwnContext
     uint32_t lastPlayer;
     // The players' bindings.
     mtwnRuns bindings;
+    // The next player's place in creation order.
+    uint64_t nextSequence;
+    // The event queue: a ring of def.eventCapacity records, the oldest at
+    // head; and those dropped at a full queue.
+    mtwnEvent* events;
+    // Beside each record, what orders it after its time: its player's
+    // creation order and its place along its sweep.
+    mtwnEventOrder* eventOrder;
+    uint32_t eventHead;
+    uint32_t eventCount;
+    uint64_t droppedEvents;
+    // Scratch for counting crossings: a chain of timelines and the node.
+    mtwnLevel* levels;
     // The bytes the live clips' blocks hold.
     uint64_t clipStorageUsed;
     // The index1 of each target changed since the last report, in order.
@@ -244,9 +280,10 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player);
 // Ends a target's transition: frees the player and unlinks the target.
 void mtwnEndTransition(mtwnContext* context, uint32_t player);
 
-// Advances a clip's player to the host's time and samples it; true when it
-// has finished and is not kept, to be freed (src/player.c).
-bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now);
+// Advances a clip's player from the last update's host time to this one's,
+// records what it crossed and samples it; true when it has finished and is
+// not kept, to be freed (src/player.c).
+bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, double now);
 
 // Writes a target's value and velocity, marking it changed when its value
 // changed and written in this update (src/update.c).
@@ -254,6 +291,25 @@ void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwn
 
 // The live target a player's binding names, 0 for none.
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot);
+
+// Appends a record, with its order after its time, dropping it at a full
+// queue (src/event.c).
+void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, mtwnEventOrder order);
+
+// Sorts the records appended since the queue held count, by time, then
+// creation order, then the place along the sweep, then the order made.
+void mtwnSortEvents(mtwnContext* context, uint32_t count);
+
+// Records what a clip's player's time crossed sweeping from its swept
+// time to 'to', the host's time running from hostFrom to hostTo; a sweep
+// from no time takes 'to' itself.
+void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double hostFrom,
+                     double hostTo);
+
+// Records a player's event of the player itself: a seek, a cancel, a
+// transition's start or end.
+void mtwnPlayerEvent(mtwnContext* context, uint32_t player, mtwnEventKind kind, double hostTime,
+                     double clipTime);
 
 // Samples a clip's player's tree at its current time into its targets:
 // rate is how fast its time moves (0 when held), backwards its playback

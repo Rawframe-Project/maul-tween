@@ -136,8 +136,16 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         slot->startNs = timeNs;
     }
     double t = (double)(timeNs - slot->startNs) / 1e9 - slot->delay;
+    double begin = (double)slot->startNs / 1e9 + slot->delay;
+    if (t >= 0.0 && !slot->begun)
+    {
+        // Its delay has ended: its start, at that time.
+        slot->begun = true;
+        mtwnPlayerEvent(context, index1, mtwn_eventStart, begin, 0.0);
+    }
     if (t >= slot->endTime)
     {
+        mtwnPlayerEvent(context, index1, mtwn_eventEnd, begin + slot->endTime, slot->endTime);
         // The end: committed as the base, and the transition freed.
         mtwnTargetSlot* written = mtwnTargetAt(context, target);
         written->base = slot->to;
@@ -181,9 +189,11 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
                     (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
 }
 
-static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t timeNs)
+static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, uint64_t timeNs)
 {
     double now = (double)timeNs / 1e9;
+    double before = (double)beforeNs / 1e9;
+    uint32_t queued = context->eventCount;
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
@@ -202,13 +212,14 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t timeNs)
         {
             Advance(context, index1, timeNs);
         }
-        else if (mtwnAdvancePlayer(context, index1, now))
+        else if (mtwnAdvancePlayer(context, index1, before, now))
         {
             mtwnResetUnwritten(context, &slot->play);
             mtwnFreePlayer(context, index1);
         }
         index1 = later;
     }
+    mtwnSortEvents(context, queued);
     // A target no clip's player wrote shows its base.
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)
     {
@@ -234,10 +245,11 @@ mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* chang
         ++context->misuse;
         return mtwn_errorInvalid;
     }
+    uint64_t beforeNs = context->lastTimeNs;
     context->lastTimeNs = timeNs;
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);
-    UpdateWorker(context, timeNs);
+    UpdateWorker(context, beforeNs, timeNs);
     mtwnFloatEnvLeave(&env);
     for (uint32_t i = 0; i < context->changedCount; ++i)
     {

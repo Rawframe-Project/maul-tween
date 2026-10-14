@@ -38,8 +38,8 @@ transitions advanced by an update that guards the floating-point
 environment; keyframe paths, Catmull-Rom or Bezier, at constant speed
 if asked, and tracks of every value kind over them; clips holding
 tracks on nested timelines with labels and marks; players controlling
-clips by Web Animations' procedures. The library has
-96 public functions.
+clips by Web Animations' procedures; events as counted records in a
+bounded queue. The library has 100 public functions.
 
 ## Building
 
