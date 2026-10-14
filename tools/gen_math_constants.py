@@ -256,8 +256,8 @@ def lines_float():
           "1 / n! for n from 2 to 7: e^r for |r| <= ln 2 / 2.")
     table("s_exp2TaylorF", [to_float(ln2 ** n / factorial(n)) for n in range(1, 8)],
           "(ln 2)^n / n! for n from 1 to 7: 2^f for |f| <= 1/2.")
-    table("s_logSeriesF", [to_float(D(2) / (2 * n + 1)) for n in range(1, 7)],
-          "2 / (2n + 1) for n from 1 to 6: the atanh series of the logarithm.")
+    table("s_logSeriesF", [to_float(D(2) / (2 * n + 1)) for n in range(1, 6)],
+          "2 / (2n + 1) for n from 1 to 5: the atanh series of the logarithm.")
     two_thirds = to_float(D(2) / 3)
     const("MTWN_TWO_THIRDS_LO_F", to_float(D(2) / 3 - exact(two_thirds)),
           "2/3 minus s_logSeriesF[0], for the series' leading term as a pair.")

@@ -296,10 +296,11 @@ static void TestPowSpecialValues(void)
 
 static void TestPowWithinOneUlp(void)
 {
-    // |y ln x| up to 8, the range the curves raise in, and up to 32.
-    static const float limits[] = {8.0f, 32.0f};
-    static const double bounds[] = {0.7, 0.7};
-    for (int l = 0; l < 2; ++l)
+    // |y ln x| up to 8 and 32 within 1 ulp, and over the whole range,
+    // where the logarithm's remaining error shows most.
+    static const float limits[] = {8.0f, 32.0f, 88.0f};
+    static const double bounds[] = {0.7, 0.7, 1.25};
+    for (int l = 0; l < 3; ++l)
     {
         uint64_t state = 41;
         double worst = 0.0;

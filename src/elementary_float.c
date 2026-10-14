@@ -6,7 +6,7 @@
 // high part has 16 bits, and sums its Taylor series to degree 7, whose
 // remainder is under 6e-9 relative there; the logarithm writes
 // x = 2^k m with m in [sqrt(1/2), sqrt(2)) and sums the atanh series of
-// s = (m - 1) / (m + 1) to s^13, whose remainder is under 2^-39
+// s = (m - 1) / (m + 1) to s^11, whose remainder is under 2^-34
 // relative, as pow needs: it multiplies the logarithm's error by
 // |y ln x|.
 // Sine and cosine reduce by pi / 2 held in seven parts, six of 8 bits
@@ -167,7 +167,7 @@ static float LogPairF(float x, float* lowOut)
     rLow += s_logSeriesF[0] * zLow + MTWN_TWO_THIRDS_LO_F * z;
     // The higher terms are 2 percent of R, too large for its low part.
     float higherLow = 0.0f;
-    r = TwoSumF(r, z * z * PolynomialF(s_logSeriesF + 1, 5, z), &higherLow);
+    r = TwoSumF(r, z * z * PolynomialF(s_logSeriesF + 1, 4, z), &higherLow);
     rLow += higherLow;
     // f - f^2/2 + s (f^2/2 + R), the leading terms as exact pairs.
     float squareLow = 0.0f;

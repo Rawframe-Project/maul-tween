@@ -29,9 +29,10 @@ float mtwnLogF(float x);
 // where the root is a float; 0, infinity and NaN return themselves.
 float mtwnCbrtF(float x);
 
-// x to the y for x >= 0, within 1 ulp while |y ln x| <= 32, past which
-// the error grows with |y ln x|. C's values where x or y is 0, 1 or
-// infinite; NaN for a negative x.
+// x to the y for x >= 0, within 1 ulp while |y ln x| <= 64 and 1.2 ulp
+// over the whole range; exact where the power is a float the
+// logarithm's pair resolves, as 2^k and 10^k for k up to 10. C's values
+// where x or y is 0, 1 or infinite; NaN for a negative x.
 float mtwnPowF(float x, float y);
 
 // The sine and cosine of x together, each within 1 ulp for |x| up to

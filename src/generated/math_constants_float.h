@@ -63,14 +63,13 @@ static const float s_exp2TaylorF[7] = {
     0x1.430912p-13f,
     0x1.ffcbfcp-17f,
 };
-// 2 / (2n + 1) for n from 1 to 6: the atanh series of the logarithm.
-static const float s_logSeriesF[6] = {
+// 2 / (2n + 1) for n from 1 to 5: the atanh series of the logarithm.
+static const float s_logSeriesF[5] = {
     0x1.555556p-1f,
     0x1.99999ap-2f,
     0x1.24924ap-2f,
     0x1.c71c72p-3f,
     0x1.745d18p-3f,
-    0x1.3b13b2p-3f,
 };
 // 2/3 minus s_logSeriesF[0], for the series' leading term as a pair.
 #define MTWN_TWO_THIRDS_LO_F -0x1.555556p-26f
