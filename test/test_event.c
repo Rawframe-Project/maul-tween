@@ -102,6 +102,9 @@ static void TestPlayed(void)
     mtwnNode mark = 0;
     CHECK(mtwnClip_AddMark(w.context, w.clip, MTWN_ROOT_NODE, At(2.0), 9, &mark) == mtwn_success,
           "a mark at 2");
+    mtwnNode label = 0;
+    CHECK(mtwnClip_AddLabel(w.context, w.clip, MTWN_ROOT_NODE, At(1.0), 4, &label) == mtwn_success,
+          "a label at 1, which gives nothing");
     CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
     mtwnPlayerId p = Play(&w, false, 1.0);
     mtwnEvent e[16];
@@ -165,6 +168,9 @@ static void TestBackwards(void)
     CHECK(n == 1 && Is(&e[0], mtwn_eventEnd, MTWN_ROOT_NODE, 2.0, true) &&
               mtwnPlayer_IsValid(w.context, p),
           "and the clip at 0, kept");
+    CHECK(mtwnPlayer_Seek(w.context, p, 1.0) == mtwn_success && Read(&w, e, 16) == 1 &&
+              e[0].kind == mtwn_eventSeek && e[0].backwards,
+          "a backward player's seek, backwards");
     mtwnDestroyContext(w.context);
 }
 
@@ -204,6 +210,57 @@ static void TestSeeks(void)
     CHECK(n == 1 && e[0].kind == mtwn_eventCancel, "a cancel record");
     CHECK(mtwnPlayer_Cancel(w.context, p) == mtwn_success && Read(&w, e, 16) == 0,
           "an idle player's cancel makes none");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestRewindAndRates(void)
+{
+    World w = MakeWorld(16);
+    mtwnNode mark = 0;
+    AddTrack(&w, 0.0, 4.0, 1.0);
+    CHECK(mtwnClip_AddMark(w.context, w.clip, MTWN_ROOT_NODE, At(1.0), 1, &mark) == mtwn_success,
+          "a mark at 1");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, true, 2.0);
+    mtwnEvent e[16];
+    Update(&w, 0.0);
+    Read(&w, e, 16);
+    // The rate set now waits for the next update; the old one ran till then.
+    CHECK(mtwnPlayer_SetRate(w.context, p, 1.0) == mtwn_success, "slower, pending");
+    Update(&w, 1.0);
+    uint32_t n = Read(&w, e, 16);
+    CHECK(n == 1 && e[0].kind == mtwn_eventMark && fabs(e[0].hostTime - 0.5) <= 1e-12,
+          "the mark crossed at 0.5, at the rate that ran");
+    Update(&w, 10.0);
+    Read(&w, e, 16);
+    CHECK(mtwnPlayer_Play(w.context, p) == mtwn_success, "played again from its end");
+    Update(&w, 11.0);
+    n = Read(&w, e, 16);
+    CHECK(n == 2 && e[0].kind == mtwn_eventStart && !e[0].backwards &&
+              e[0].node == MTWN_ROOT_NODE && e[1].kind == mtwn_eventStart && !e[1].backwards,
+          "rewound: it starts afresh, nothing crossed back");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestSameTime(void)
+{
+    World w = MakeWorld(16);
+    mtwnNode mark = 0;
+    AddTrack(&w, 0.0, 4.0, 1.0);
+    CHECK(mtwnClip_AddMark(w.context, w.clip, MTWN_ROOT_NODE, At(1.0), 1, &mark) == mtwn_success,
+          "a mark at 1");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId first = Play(&w, true, 1.0);
+    mtwnEvent e[16];
+    Update(&w, 0.0);
+    Read(&w, e, 16);
+    mtwnPlayerId second = Play(&w, true, 1.0);
+    // At 1 the first crosses its mark as the second starts.
+    Update(&w, 1.0);
+    uint32_t n = Read(&w, e, 16);
+    CHECK(n == 3 && e[0].player.index1 == first.index1 && e[0].kind == mtwn_eventMark &&
+              e[1].player.index1 == second.index1 && e[1].kind == mtwn_eventStart,
+          "one time: the first player's records first, whatever their place");
     mtwnDestroyContext(w.context);
 }
 
@@ -286,6 +343,8 @@ int main(void)
     TestStall();
     TestBackwards();
     TestSeeks();
+    TestRewindAndRates();
+    TestSameTime();
     TestTransitions();
     TestQueue();
     TestOrder();

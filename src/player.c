@@ -22,7 +22,7 @@ uint32_t mtwnTakePlayer(mtwnContext* context, uint8_t type)
     }
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     slot->type = type;
-    slot->sequence = context->nextSequence++;
+
     slot->earlier = context->lastPlayer;
     if (context->lastPlayer != 0)
     {
@@ -308,6 +308,9 @@ bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, dou
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double end = EffectEnd(context, play);
+    // The rate its time ran at since the last update, 0 if it was held.
+    double ranAt =
+        !play->pending && !isnan(play->startTime) && isnan(play->holdTime) ? play->rate : 0.0;
     if (!isnan(play->pendingRate) && !play->pending)
     {
         // The old rate ran until now; the new one runs from the time reached.
@@ -341,10 +344,9 @@ bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, dou
     mtwnPlayState state = StateOf(play, now, end);
     if (state == mtwn_playIdle)
     {
-        play->swept = (double)NAN;
         return false;
     }
-    mtwnSweepEvents(context, player, CurrentTime(play, now), before, now);
+    mtwnSweepEvents(context, player, CurrentTime(play, now), ranAt, before, now);
     // Only a running player moves; one not kept commits its end and goes.
     bool done = state == mtwn_playFinished && !play->keep;
     double rate = state == mtwn_playRunning ? play->rate : 0.0;
@@ -557,7 +559,7 @@ static void Swept(mtwnContext* context, uint32_t player, double before, double n
     if (!isnan(after))
     {
         uint32_t queued = context->eventCount;
-        mtwnSweepEvents(context, player, after, now, now);
+        mtwnSweepEvents(context, player, after, 0.0, now, now);
         mtwnSortEvents(context, queued);
     }
 }

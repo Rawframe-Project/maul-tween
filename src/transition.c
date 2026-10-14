@@ -207,7 +207,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     prepared.header = slot->header;
     prepared.type = slot->type;
-    prepared.sequence = slot->sequence;
+
     prepared.earlier = slot->earlier;
     prepared.later = slot->later;
     prepared.header.link = def->target.index1;

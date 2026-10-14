@@ -17,7 +17,7 @@
 
 #include <math.h>
 
-void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, mtwnEventOrder order)
+void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
 {
     uint32_t capacity = context->def.eventCapacity;
     if (context->eventCount == capacity)
@@ -27,7 +27,7 @@ void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, mtwnEventOrder 
     }
     uint32_t at = (context->eventHead + context->eventCount) % capacity;
     context->events[at] = *event;
-    context->eventOrder[at] = order;
+    context->eventAlong[at] = along;
     ++context->eventCount;
 }
 
@@ -36,19 +36,16 @@ static uint32_t SlotOf(const mtwnContext* context, uint32_t i)
     return (context->eventHead + i) % context->def.eventCapacity;
 }
 
-// Whether a record comes before another: by time, then its player's
-// creation order, then its place along its sweep.
-static bool Before(const mtwnEvent* a, mtwnEventOrder oa, const mtwnEvent* b, mtwnEventOrder ob)
+// Whether a record comes before another: by time, then, for one player,
+// by its place along the sweep. Records are made in the players' creation
+// order, which the stable sort keeps among players.
+static bool Before(const mtwnEvent* a, double alongA, const mtwnEvent* b, double alongB)
 {
     if (a->hostTime != b->hostTime)
     {
         return a->hostTime < b->hostTime;
     }
-    if (oa.sequence != ob.sequence)
-    {
-        return oa.sequence < ob.sequence;
-    }
-    return oa.along < ob.along;
+    return a->player.index1 == b->player.index1 && alongA < alongB;
 }
 
 static mtwnEvent* EventAt(mtwnContext* context, uint32_t i)
@@ -59,11 +56,11 @@ static mtwnEvent* EventAt(mtwnContext* context, uint32_t i)
 void mtwnSortEvents(mtwnContext* context, uint32_t count)
 {
     // Insertion, stable: records of one place keep the order they were made.
-    mtwnEventOrder* orders = context->eventOrder;
+    double* orders = context->eventAlong;
     for (uint32_t i = count + 1; i < context->eventCount; ++i)
     {
         mtwnEvent moving = *EventAt(context, i);
-        mtwnEventOrder order = orders[SlotOf(context, i)];
+        double order = orders[SlotOf(context, i)];
         uint32_t j = i;
         while (j > count &&
                Before(&moving, order, EventAt(context, j - 1), orders[SlotOf(context, j - 1)]))
@@ -94,7 +91,7 @@ void mtwnPlayerEvent(mtwnContext* context, uint32_t player, mtwnEventKind kind, 
     event.node = slot->type == MTWN_PLAYER_CLIP ? MTWN_ROOT_NODE : 0;
     event.kind = kind;
     event.backwards = slot->type == MTWN_PLAYER_CLIP && slot->play.rate < 0.0;
-    mtwnPushEvent(context, &event, (mtwnEventOrder){slot->sequence, 0.0});
+    mtwnPushEvent(context, &event, 0.0);
 }
 
 // A sweep in progress: its player, its ends, and the host's times.
@@ -110,19 +107,21 @@ typedef struct Sweep
     bool fromClosed;
     double hostFrom;
     double hostTo;
+    // The rate the player's time ran at since hostFrom.
+    double rate;
 } Sweep;
 
-// The host's time a player's time was reached at: by its start time while
-// it runs, within the sweep's host times; the sweep's end otherwise.
+// The host's time a player's time was reached at: from the sweep's start
+// at the rate that ran since (which the sweep runs with), not past the
+// sweep's end; the sweep's end when no time passed or none ran.
 static double HostAt(const Sweep* sweep, double t)
 {
-    const mtwnClipPlay* play = sweep->play;
-    if (isnan(play->startTime) || play->rate == 0.0)
+    if (sweep->fromNone || sweep->hostTo == sweep->hostFrom || sweep->rate == 0.0)
     {
         return sweep->hostTo;
     }
-    double host = play->startTime + t / play->rate;
-    host = host < sweep->hostFrom ? sweep->hostFrom : host;
+    double host = sweep->hostFrom + (t - sweep->from) / sweep->rate;
+
     return host > sweep->hostTo ? sweep->hostTo : host;
 }
 
@@ -175,8 +174,7 @@ static void Record(const Sweep* sweep, uint32_t count, uint32_t iterationLevels,
         event.backwards = way != 0;
         // Its place along the sweep: how far from the sweep's start.
         double along = fabs(first - sweep->from);
-        uint64_t sequence = mtwnPlayerAt(sweep->context, sweep->player)->sequence;
-        mtwnPushEvent(sweep->context, &event, (mtwnEventOrder){sequence, along});
+        mtwnPushEvent(sweep->context, &event, along);
     }
 }
 
@@ -272,7 +270,7 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
     out->steady = parent->steady && iterations[0] == iterations[1];
 }
 
-void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double hostFrom,
+void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double rate, double hostFrom,
                      double hostTo)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
@@ -288,7 +286,7 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ho
     play->sweptWay = way;
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     Sweep sweep = {context,  player, play, fromNone ? to : from, to, fromNone, fromNone || turning,
-                   hostFrom, hostTo};
+                   hostFrom, hostTo, rate};
     // The player's time is the root's parent's, and moves one way.
     mtwnNodeTime top = {to, sweep.from, false, true, {0}};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)

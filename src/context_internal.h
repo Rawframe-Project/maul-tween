@@ -79,8 +79,7 @@ typedef struct mtwnPlayerSlot
     // Whether a transition's delay has ended, its start recorded.
     bool begun;
     uint8_t reserved2[2];
-    // Its place in creation order, for ordering records.
-    uint64_t sequence;
+
     // The players before and after it in creation order, 0 for none.
     uint32_t earlier;
     uint32_t later;
@@ -164,13 +163,6 @@ typedef struct mtwnNodeTime
     uint8_t reserved[6];
 } mtwnNodeTime;
 
-// What orders a record after its time.
-typedef struct mtwnEventOrder
-{
-    uint64_t sequence;
-    double along;
-} mtwnEventOrder;
-
 typedef struct mtwnClipSlot
 {
     mtwnSlotHeader header;
@@ -212,14 +204,13 @@ struct mtwnContext
     uint32_t lastPlayer;
     // The players' bindings.
     mtwnRuns bindings;
-    // The next player's place in creation order.
-    uint64_t nextSequence;
+
     // The event queue: a ring of def.eventCapacity records, the oldest at
     // head; and those dropped at a full queue.
     mtwnEvent* events;
-    // Beside each record, what orders it after its time: its player's
-    // creation order and its place along its sweep.
-    mtwnEventOrder* eventOrder;
+    // Beside each record, its place along its sweep, which orders one
+    // player's records of one time.
+    double* eventAlong;
     uint32_t eventHead;
     uint32_t eventCount;
     uint64_t droppedEvents;
@@ -292,18 +283,18 @@ void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwn
 // The live target a player's binding names, 0 for none.
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot);
 
-// Appends a record, with its order after its time, dropping it at a full
+// Appends a record, with its place along its sweep, dropping it at a full
 // queue (src/event.c).
-void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, mtwnEventOrder order);
+void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along);
 
-// Sorts the records appended since the queue held count, by time, then
-// creation order, then the place along the sweep, then the order made.
+// Sorts the records appended since the queue held count, by time, then a
+// player's by their place along its sweep, keeping the order made.
 void mtwnSortEvents(mtwnContext* context, uint32_t count);
 
 // Records what a clip's player's time crossed sweeping from its swept
-// time to 'to', the host's time running from hostFrom to hostTo; a sweep
-// from no time takes 'to' itself.
-void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double hostFrom,
+// time to 'to' at a rate, the host's time running from hostFrom to hostTo;
+// a sweep from no time takes 'to' itself.
+void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double rate, double hostFrom,
                      double hostTo);
 
 // Records a player's event of the player itself: a seek, a cancel, a
