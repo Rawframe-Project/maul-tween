@@ -66,6 +66,8 @@ static mtwnVec4 Color(mtwnComposite composite, double weight, mtwnVec4 under, mt
         out[i] = a[i] + weight * (composed - a[i]);
     }
     out[3] = out[3] > 1.0 ? 1.0 : out[3];
+    // Back to straight alpha; a color of alpha 0 has channels 0, as CSS
+    // gives a fully transparent premultiplied mix.
     for (int i = 0; i < 3; ++i)
     {
         out[i] = out[3] > 0.0 ? out[i] / out[3] : 0.0;
@@ -96,17 +98,28 @@ static mtwnQuat Multiply(mtwnQuat a, mtwnQuat b)
     return (mtwnQuat){(float)(x / norm), (float)(y / norm), (float)(z / norm), (float)(w / norm)};
 }
 
+// The slerp from one rotation toward another by a weight, along the
+// shortest arc; the far one itself at full weight.
+static mtwnQuat Toward(mtwnQuat from, mtwnQuat to, double weight)
+{
+    mtwnRotationMix mix;
+    if (weight < 1.0 && mtwnMakeRotationMix(from, to, mtwn_rotationShortest, &mix) == mtwn_success)
+    {
+        return mtwnMixRotation(&mix, weight);
+    }
+    return to;
+}
+
+// Replace slerps from the underlying rotation toward the effect; add
+// slerps from no rotation toward the effect, then turns the underlying by
+// that, the effect in the underlying's frame.
 static mtwnVec4 Rotation(mtwnComposite composite, double weight, mtwnVec4 under, mtwnVec4 effect)
 {
     mtwnQuat a = {under.x, under.y, under.z, under.w};
     mtwnQuat b = {effect.x, effect.y, effect.z, effect.w};
-    mtwnQuat composed = composite == mtwn_compositeAdd ? Multiply(a, b) : b;
-    mtwnRotationMix mix;
-    if (weight < 1.0 &&
-        mtwnMakeRotationMix(a, composed, mtwn_rotationShortest, &mix) == mtwn_success)
-    {
-        composed = mtwnMixRotation(&mix, weight);
-    }
+    mtwnQuat composed = composite == mtwn_compositeAdd
+                            ? Multiply(a, Toward((mtwnQuat){0.0f, 0.0f, 0.0f, 1.0f}, b, weight))
+                            : Toward(a, b, weight);
     return (mtwnVec4){composed.x, composed.y, composed.z, composed.w};
 }
 

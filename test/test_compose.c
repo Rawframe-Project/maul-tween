@@ -73,6 +73,26 @@ static void TestKinds(void)
     CHECK(Near((double)r.value.x, 0.5) && Near((double)r.value.y, 0.5) &&
               Near((double)r.value.z, 0.5) && Near((double)r.value.w, 0.5),
           "the underlying times the effect, in that order");
+    // Add by a weight: the slerp from no rotation toward the effect, then
+    // multiplied in. A quarter turn about z plus a half turn at half
+    // weight is a half turn; at full weight three quarters.
+    mtwnMoving halfTurn = Still(0, 0, 1.0f, 0);
+    r = mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 0.5, quarter, halfTurn);
+    CHECK(Near(fabs((double)r.value.z), 1.0) && Near((double)r.value.w, 0.0),
+          "a quarter turn plus half of a half turn: a half turn");
+    r = mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 0.0, quarter, halfTurn);
+    CHECK(r.value.z == quarter.value.z && r.value.w == quarter.value.w,
+          "at weight 0, the underlying");
+    r = mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 1.0, quarter, halfTurn);
+    double sign = r.value.z < 0.0f ? -1.0 : 1.0;
+    CHECK(Near(sign * (double)r.value.z, sin(3.0 * s_pi / 8.0 * 2.0)) &&
+              Near(sign * (double)r.value.w, cos(3.0 * s_pi / 8.0 * 2.0)),
+          "at weight 1, three quarters of a turn");
+    // Colors mixed to alpha 0 have channels 0.
+    r = mtwnCompose(mtwn_valueColor, mtwn_compositeReplace, 1.0, Still(1.0f, 1.0f, 1.0f, 1.0f),
+                    Still(0.8f, 0.4f, 0.2f, 0.0f));
+    CHECK(r.value.x == 0.0f && r.value.y == 0.0f && r.value.z == 0.0f && r.value.w == 0.0f,
+          "a clear color's channels are 0");
     // A discrete value is not additive and steps at half.
     r = mtwnCompose(mtwn_valueDiscrete, mtwn_compositeAdd, 1.0, Still(3, 0, 0, 0),
                     Still(4, 0, 0, 0));

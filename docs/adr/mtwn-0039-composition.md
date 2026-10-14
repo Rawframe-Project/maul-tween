@@ -25,8 +25,11 @@ which Web Animations leaves to its host.
   add layer never compounds on its own last frame.
 - Numbers, vectors and angles add and mix per channel; an integer
   composes unrounded and rounds once; colors add and mix premultiplied
-  by alpha, alpha clamped to 1; rotations add as the underlying times
-  the effect and mix by slerp along the shortest arc; a discrete value
+  by alpha, alpha clamped to 1, and a result of alpha 0 has color
+  channels 0, as CSS gives; a rotation replaced slerps from the
+  underlying toward the effect by the weight, and one added slerps from
+  no rotation toward the effect by the weight, then turns the
+  underlying by that (the effect in the underlying's frame); a discrete value
   is not additive and steps at half its weight. Velocities compose per
   channel.
 - A finished player not kept commits the composited value, what lies

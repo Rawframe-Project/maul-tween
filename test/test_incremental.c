@@ -187,6 +187,31 @@ static void TestRotations(void)
     mtwnDestroyContext(w.context);
 }
 
+static void TestLargeCount(void)
+{
+    // A step of 0.1 rad about z, endless: half way through iteration 10^6
+    // the turn is the closed form, the step's angle times 10^6.5, computed
+    // from the axis and angle, not by repeated products.
+    World w = MakeWorld(mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value = (mtwnVec4){0, 0, 0, 1.0f};
+    keys[1].value = (mtwnVec4){0, 0, (float)sin(0.05), (float)cos(0.05)};
+    mtwnClipTrackDef track = Incremental(mtwn_valueRotation, keys, HUGE_VAL);
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    mtwnTargetState state = At(&w, 1e6 + 0.5);
+    double step = 2.0 * atan2((double)keys[1].value.z, (double)keys[1].value.w);
+    double half = step * (1e6 + 0.5) / 2.0;
+    double sign = (double)state.value.z * sin(half) < 0.0 ? -1.0 : 1.0;
+    CHECK(Near(sign * (double)state.value.z, sin(half), 2e-6) &&
+              Near(sign * (double)state.value.w, cos(half), 2e-6),
+          "iteration 10^6 at the closed form");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestRefused(void)
 {
     World w = MakeWorld(mtwn_valueScalar, (mtwnVec4){0});
@@ -208,6 +233,7 @@ int main(void)
     TestNumbers();
     TestCounting();
     TestRotations();
+    TestLargeCount();
     TestRefused();
     return s_failures == 0 ? 0 : 1;
 }

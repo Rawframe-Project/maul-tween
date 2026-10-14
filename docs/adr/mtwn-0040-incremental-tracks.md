@@ -18,7 +18,8 @@ move or spin should go on from where it ended.
   first keyframe, where Level 2's final value would jump unless the
   track starts at zero.
 - A rotation turns by the rotation from its first keyframe to its
-  last, k times, before its own path.
+  last, k times, before its own path: the power is its axis with its
+  angle times k, not k products, so iteration 10^6 does not drift.
 - Numbers, vectors, angles, integers (rounded once, after) and
   rotations; colors and discrete values are refused.
 - Velocity is measured on the moved path, so it runs on across a
