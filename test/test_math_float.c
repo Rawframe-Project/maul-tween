@@ -235,7 +235,7 @@ static void TestAtan2WithinOneUlp(void)
         double error = UlpError(mtwnAtan2F(y, x), atan2((double)y, (double)x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= 0.55, "atan2 within 0.55 ulp");
+    CHECK(worst <= 0.505, "atan2 within 0.505 ulp, all but correctly rounded");
 }
 
 int main(void)
