@@ -88,7 +88,7 @@ Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner
 
 ## `interpolate.h`
 
-Interpolation of values that are not plain numbers (records mtwn-0014, mtwn-0015, mtwn-0024 and mtwn-0025): colors in a named space as CSS Color 4 interpolates them, angles with CSS's hue methods, and rotations by slerp.
+Interpolation of values that are not plain numbers (records mtwn-0014, mtwn-0015, mtwn-0016, mtwn-0017, mtwn-0024 to mtwn-0026): colors in a named space as CSS Color 4 interpolates them, angles with CSS's hue methods, rotations by slerp, integers and discrete values, and punch and shake, the signals a host adds to a value.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, mtwnHueMethod hue, mtwnColorMix* mixOut);
@@ -124,6 +124,36 @@ Makes the spherical interpolation between two rotations, at constant angular spe
 mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
 ```
 Samples a rotation mix: its rotations normalized exactly at 0 and 1 (the second negated when the path needed it), between and beyond them slerp, of unit length to a float's rounding.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The rotation. @par Thread safety Safe from any thread.
+
+```c
+int64_t mtwnMixInteger(int64_t from, int64_t to, double progress);
+```
+Interpolates an integer: the interpolation in double, rounded to nearest with ties away from zero, so it passes through every integer between. Exact at the ends, and between them for values within 2^53.  @param from      The value at progress 0. @param to        The value at progress 1. @param progress  The progress, finite; outside 0 to 1 extends, clamped to the type's range. @return The value. @par Thread safety Safe from any thread.
+
+```c
+uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress);
+```
+Interpolates a discrete value the host indexes (an enumeration, a flag): from below progress 1/2, to from it, as Web Animations steps values it cannot interpolate.  @param from      The value at progress 0. @param to        The value at progress 1. @param progress  The progress. @return from or to. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakePunch(double frequency, double duration, double exponent, mtwnPunch* punchOut);
+```
+Makes a punch.  @param frequency  Cycles a second, finite and above 0 (DOTween's vibrato over the duration). @param duration   Seconds, finite and above 0. @param exponent   The envelope's, finite and above 0: 1 fades linearly, above 1 sooner, below 1 later. @param punchOut   Receives the punch. @return mtwn_success; mtwn_errorInvalid for a null pointer or a parameter outside the above. @par Thread safety Safe from any thread.
+
+```c
+double mtwnSamplePunch(const mtwnPunch* punch, double seconds);
+```
+Samples a punch: a factor from -1 to 1 the host scales by each channel's amplitude and adds to the value; exactly 0 at 0, at the duration and outside them.  @param punch    A punch made by this library. @param seconds  The time since its start. @return The factor. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeShake(double frequency, double duration, double exponent, uint64_t seed, mtwnShake* shakeOut);
+```
+Makes a shake.  @param frequency  Lattice points a second, finite and above 0: how often the noise changes direction. @param duration   Seconds, finite and above 0. @param exponent   The envelope's, finite and above 0. @param seed       Any value; the same seed shakes the same way. @param shakeOut   Receives the shake. @return mtwn_success; mtwn_errorInvalid for a null pointer or a parameter outside the above. @par Thread safety Safe from any thread.
+
+```c
+double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds);
+```
+Samples a shake for one channel: a factor from -1 to 1, each channel its own noise; exactly 0 at 0, at the duration and outside them.  @param shake    A shake made by this library. @param channel  Which channel, any value. @param seconds  The time since its start. @return The factor. @par Thread safety Safe from any thread.
 
 ## `sample.h`
 
@@ -215,4 +245,4 @@ The inverse of mtwnRubberBand: the drag that moves content an offset past a limi
 
 ---
 
-38 functions across 5 headers.
+44 functions across 5 headers.

@@ -17,3 +17,4 @@ fabsf
 fmodf
 sqrt
 ceil
+round

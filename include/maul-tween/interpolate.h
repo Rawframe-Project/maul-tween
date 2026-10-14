@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Interpolation of values that are not plain numbers (records mtwn-0014,
-// mtwn-0015, mtwn-0024 and mtwn-0025): colors in a named space as CSS
-// Color 4 interpolates them, angles with CSS's hue methods, and
-// rotations by slerp.
+// mtwn-0015, mtwn-0016, mtwn-0017, mtwn-0024 to mtwn-0026): colors in a
+// named space as CSS Color 4 interpolates them, angles with CSS's hue
+// methods, rotations by slerp, integers and discrete values, and punch
+// and shake, the signals a host adds to a value.
 
 #ifndef MAUL_TWEEN_INTERPOLATE_H
 #define MAUL_TWEEN_INTERPOLATE_H
@@ -220,6 +221,104 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_API mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
+
+    /// Interpolates an integer: the interpolation in double, rounded to
+    /// nearest with ties away from zero, so it passes through every integer
+    /// between. Exact at the ends, and between them for values within 2^53.
+    ///
+    /// @param from      The value at progress 0.
+    /// @param to        The value at progress 1.
+    /// @param progress  The progress, finite; outside 0 to 1 extends,
+    ///                  clamped to the type's range.
+    /// @return The value.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API int64_t mtwnMixInteger(int64_t from, int64_t to, double progress);
+
+    /// Interpolates a discrete value the host indexes (an enumeration, a
+    /// flag): from below progress 1/2, to from it, as Web Animations
+    /// steps values it cannot interpolate.
+    ///
+    /// @param from      The value at progress 0.
+    /// @param to        The value at progress 1.
+    /// @param progress  The progress.
+    /// @return from or to.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress);
+
+    // A punch: a sine fading out over a duration, sin(2 pi f t) (1 - t /
+    // duration)^exponent. Make one with mtwnMakePunch.
+    typedef struct mtwnPunch
+    {
+        double frequency;
+        double duration;
+        double exponent;
+    } mtwnPunch;
+
+    // A shake: gradient noise fading out over the same envelope, the same
+    // for a seed on every platform. Make one with mtwnMakeShake.
+    typedef struct mtwnShake
+    {
+        double frequency;
+        double duration;
+        double exponent;
+        uint64_t seed;
+    } mtwnShake;
+
+    /// Makes a punch.
+    ///
+    /// @param frequency  Cycles a second, finite and above 0 (DOTween's
+    ///                   vibrato over the duration).
+    /// @param duration   Seconds, finite and above 0.
+    /// @param exponent   The envelope's, finite and above 0: 1 fades
+    ///                   linearly, above 1 sooner, below 1 later.
+    /// @param punchOut   Receives the punch.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
+    ///         parameter outside the above.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakePunch(double frequency, double duration,
+                                                     double exponent, mtwnPunch* punchOut);
+
+    /// Samples a punch: a factor from -1 to 1 the host scales by each
+    /// channel's amplitude and adds to the value; exactly 0 at 0, at the
+    /// duration and outside them.
+    ///
+    /// @param punch    A punch made by this library.
+    /// @param seconds  The time since its start.
+    /// @return The factor.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API double mtwnSamplePunch(const mtwnPunch* punch, double seconds);
+
+    /// Makes a shake.
+    ///
+    /// @param frequency  Lattice points a second, finite and above 0: how
+    ///                   often the noise changes direction.
+    /// @param duration   Seconds, finite and above 0.
+    /// @param exponent   The envelope's, finite and above 0.
+    /// @param seed       Any value; the same seed shakes the same way.
+    /// @param shakeOut   Receives the shake.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
+    ///         parameter outside the above.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeShake(double frequency, double duration,
+                                                     double exponent, uint64_t seed,
+                                                     mtwnShake* shakeOut);
+
+    /// Samples a shake for one channel: a factor from -1 to 1, each
+    /// channel its own noise; exactly 0 at 0, at the duration and outside
+    /// them.
+    ///
+    /// @param shake    A shake made by this library.
+    /// @param channel  Which channel, any value.
+    /// @param seconds  The time since its start.
+    /// @return The factor.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds);
 
 #ifdef __cplusplus
 }
