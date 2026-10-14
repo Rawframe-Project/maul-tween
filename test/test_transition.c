@@ -721,8 +721,48 @@ static void TestReplacedVelocity(void)
     mtwnDestroyContext(context);
 }
 
+static void TestStartVelocity(void)
+{
+    // A spring started with a velocity reports it at its first update,
+    // so a second replacement before the next one inherits it too.
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = x;
+    def.value = (mtwnVec4){1.0f, 0, 0, 0};
+    def.spec = mtwn_transitionSpring;
+    def.velocity = (mtwnVec4){5.0f, 0, 0, 0};
+    def.velocitySource = mtwn_velocityGiven;
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
+    mtwnPlayerId player;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung at 5 a second");
+    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success, "its first update");
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success && state.value.x == 0.0f &&
+              state.velocity.x == 5.0f,
+          "at its start, moving at 5");
+    def.velocitySource = mtwn_velocityInherit;
+    def.value = (mtwnVec4){2.0f, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "replaced at once");
+    CHECK(mtwnPlayerAt(context, player.index1)->velocity[0] == 5.0,
+          "the replacement keeps the fling");
+    // A delay holds the start at rest until it ends.
+    def.delay = 0.5;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a delayed one");
+    CHECK(mtwnUpdate(context, s_second + s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "in its delay");
+    CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success && state.velocity.x == 0.0f,
+          "at rest in the delay");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
+    TestStartVelocity();
     TestReplacedVelocity();
     TestScalar();
     TestDelayAndEasing();

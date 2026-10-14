@@ -30,6 +30,9 @@ settling bounds of record mtwn-0023.
 - Discrete values take only easings; colors and rotations no decay.
 - An angle's end moves by its method's turns once, when started, and
   that end is committed, so no transition jumps by a turn at its end.
+- A delay holds the start at rest; when it ends, a spring or decay of
+  numbers begins with its start velocity, reported from that instant,
+  so a replacement made before the next update inherits it.
 
 ## Consequences
 

@@ -234,6 +234,23 @@ void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwn
     WriteTarget(context, index1, value, velocity);
 }
 
+// Writes an eased transition of numbers' value at t, its velocity left
+// to be computed when read.
+static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_t target, double t)
+{
+    double now[4];
+    EasedValue(slot, t, now);
+    if (slot->kind == mtwn_valueInteger)
+    {
+        now[0] = round(now[0]);
+    }
+    mtwnTargetSlot* written = mtwnTargetAt(context, target);
+    written->header.flags =
+        (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
+    WriteValue(context, target,
+               (mtwnVec4){(float)now[0], (float)now[1], (float)now[2], (float)now[3]});
+}
+
 static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
 {
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
@@ -261,7 +278,11 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         mtwnEndTransition(context, index1);
         return;
     }
-    if (t <= 0.0)
+    // The delay holds the start at rest. At its end a spring or decay of
+    // numbers begins with its start velocity; the others have no last
+    // millisecond yet, so no velocity.
+    bool analytic = slot->spec != mtwn_transitionEasing && !mtwnIsPathKind(slot->kind);
+    if (t < 0.0 || (t == 0.0 && !analytic))
     {
         WriteTarget(context, target, slot->from, (mtwnVec4){0});
         return;
@@ -270,17 +291,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     double speed[4];
     if (IsEasedNumbers(slot))
     {
-        // Its value now, its velocity when read.
-        EasedValue(slot, t, now);
-        if (slot->kind == mtwn_valueInteger)
-        {
-            now[0] = round(now[0]);
-        }
-        mtwnTargetSlot* written = mtwnTargetAt(context, target);
-        written->header.flags =
-            (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
-        WriteValue(context, target,
-                   (mtwnVec4){(float)now[0], (float)now[1], (float)now[2], (float)now[3]});
+        WriteEased(context, slot, target, t);
         return;
     }
     if (!Sample(slot, t, now, speed))
