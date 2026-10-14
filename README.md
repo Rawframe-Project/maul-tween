@@ -29,8 +29,8 @@ platform.
 
 Not released. The design is decided; the curves come first, and
 the easings are in: Penner's families and CSS Easing Level 2, in four
-modes, with even tables and fitted CSS linear() points. The library
-has 17 public functions.
+modes, with even tables and fitted CSS linear() points; springs in
+closed form. The library has 23 public functions.
 
 ## Building
 

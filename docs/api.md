@@ -98,8 +98,42 @@ Samples an easing evenly over progress 0 to 1: valuesOut[i] is the eased progres
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance, mtwnLinearPoint* pointsOut, uint32_t capacity, uint32_t* countOut);
 ```
-Fits CSS linear() points to an easing over progress 0 to 1: their interpolation is within tolerance of the eased progress at 32 probes inside every segment, the points lying on the curve, the first at 0 and the last at 1. A segment narrower than 2^-24 is kept as it is, so a host function's jump costs points and may stay over the tolerance within 2^-24 of it. Steps are refused: CSS writes them as steps().  @param easing     An easing made by this library, not steps. @param tolerance  The largest error allowed, finite and above 0. @param pointsOut  Receives the points, with their inputs; may be NULL when capacity is 0. @param capacity   The number of points pointsOut holds. @param countOut   Receives the number of points the fit has, also when they do not fit. @return mtwn_success; mtwn_errorCapacity when more than capacity points are needed, the contents of pointsOut then unspecified; mtwn_errorInvalid for a null easing or countOut, a NULL pointsOut with a capacity, steps or a tolerance outside the above. @par Thread safety Safe from any thread.
+Fits CSS linear() points to an easing over progress 0 to 1: their interpolation is within the tolerance of the eased progress at every probe, 32 inside each segment, and is not proven so between them; the points lie on the curve, the first at 0 and the last at 1. A segment narrower than 2^-24 is kept as it is, so a host function's jump costs points and may stay over the tolerance within 2^-24 of it. Steps are refused: CSS writes them as steps().  @param easing     An easing made by this library, not steps. @param tolerance  The largest error allowed, finite and above 0. @param pointsOut  Receives the points, with their inputs; may be NULL when capacity is 0. @param capacity   The number of points pointsOut holds. @param countOut   Receives the number of points the fit has, also when they do not fit. @return mtwn_success; mtwn_errorCapacity when more than capacity points are needed, the contents of pointsOut then unspecified; mtwn_errorInvalid for a null easing or countOut, a NULL pointsOut with a capacity, steps or a tolerance outside the above. @par Thread safety Safe from any thread.
+
+## `spring.h`
+
+Springs (records mtwn-0010 and mtwn-0023): a damped spring pulling a value to its target, solved in closed form from where it starts, so the same times give the same values at every frame rate. A start is an offset from the target and a velocity, in the value's units (per second); a retarget keeps the velocity and changes the offset.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpring(double stiffness, double damping, double mass, mtwnSpring* springOut);
+```
+Makes a spring from its physical parameters: natural frequency sqrt(stiffness / mass), damping ratio damping / (2 sqrt(stiffness mass)).  @param stiffness  Finite and above 0. @param damping    Finite and at least 0. @param mass       Finite and above 0. @param springOut  Receives the spring. @return mtwn_success; mtwn_errorInvalid for a null pointer or a parameter outside the above or giving a frequency outside the finite range above 0. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringFromFrequency(double hertz, double dampingRatio, mtwnSpring* springOut);
+```
+Makes a spring from its natural frequency in hertz and its damping ratio: 1 is critical, below it overshoots, 0 never settles.  @param hertz         Finite and above 0. @param dampingRatio  Finite and at least 0. @param springOut     Receives the spring. @return mtwn_success; mtwn_errorInvalid for a null pointer or a parameter outside the above. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringFromDuration(double duration, double bounce, mtwnSpring* springOut);
+```
+Makes a spring from Apple's perceptual duration and bounce, as SwiftUI, Motion and anime.js map them: natural frequency 2 pi / duration, damping ratio 1 - bounce for a bounce from 0, 1 / (1 + bounce) below it.  @param duration   Seconds, finite and above 0. @param bounce     Above -1 and at most 1: 0 is critical, 1 never settles, below 0 is overdamped. @param springOut  Receives the spring. @return mtwn_success; mtwn_errorInvalid for a null pointer or a parameter outside the above. @par Thread safety Safe from any thread.
+
+```c
+mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds);
+```
+Computes how a spring moves any start over a time, for applying to every channel of a value.  @param spring   A spring made by this library. @param seconds  The time since the start, at least 0; infinity gives the rest, all four zero when the spring is damped. @return The motion. @par Thread safety Safe from any thread.
+
+```c
+void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity, double seconds, double* offsetOut, double* velocityOut);
+```
+Samples a spring from a start.  @param spring       A spring made by this library. @param offset       The start's offset from the target. @param velocity     The start's velocity, per second. @param seconds      The time since the start, at least 0. @param offsetOut    Receives the offset then; may be NULL. @param velocityOut  Receives the velocity then; may be NULL. @par Thread safety Safe from any thread.
+
+```c
+double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity, double offsetTolerance, double velocityTolerance);
+```
+Returns the time after which a spring from a start stays within both tolerances of its target and of rest, by bounds on its offset and velocity that never end it early; the host then snaps it to the target.  @param spring             A spring made by this library. @param offset             The start's offset from the target. @param velocity           The start's velocity, per second. @param offsetTolerance    How far from the target is at rest, above 0. @param velocityTolerance  How fast is at rest, per second, above 0. @return Seconds from the start: 0 when it starts within both; infinity for an undamped spring that does not, or a tolerance not above 0. @par Thread safety Safe from any thread.
 
 ---
 
-17 functions across 3 headers.
+23 functions across 4 headers.

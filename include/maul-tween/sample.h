@@ -30,12 +30,11 @@ extern "C"
                                                         float* valuesOut);
 
     /// Fits CSS linear() points to an easing over progress 0 to 1: their
-    /// interpolation is within tolerance of the eased progress at 32 probes
-    /// inside every segment, the points lying on the curve, the first at 0
-    /// and the last at 1. A segment narrower than 2^-24 is kept as it is,
-    /// so a host function's jump costs points and may stay over the
-    /// tolerance within 2^-24 of it. Steps are refused: CSS writes them as
-    /// steps().
+    /// interpolation is within the tolerance of the eased progress at every
+    /// probe, 32 inside each segment, and is not proven so between them;
+    /// the points lie on the curve, the first at 0 and the last at 1. A segment narrower than 2^-24
+    /// is kept as it is, so a host function's jump costs points and may stay over the tolerance
+    /// within 2^-24 of it. Steps are refused: CSS writes them as steps().
     ///
     /// @param easing     An easing made by this library, not steps.
     /// @param tolerance  The largest error allowed, finite and above 0.

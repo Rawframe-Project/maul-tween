@@ -27,3 +27,4 @@ are listed in [README.md](README.md).
 | [mtwn-0020](mtwn-0020-proof.md) | Every part is checked against an independent reference | Accepted |
 | [mtwn-0021](mtwn-0021-easing-api.md) | The easing API: one value type, makers that validate, a mode for every kind | Accepted |
 | [mtwn-0022](mtwn-0022-sampling.md) | Sampling: even tables, and linear() fitted to a tolerance | Accepted |
+| [mtwn-0023](mtwn-0023-spring-api.md) | Springs as a motion matrix; decay and rubber band | Accepted |
