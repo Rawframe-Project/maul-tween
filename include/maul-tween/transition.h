@@ -84,7 +84,14 @@ extern "C"
         mtwnRotationPath rotationPath;
         mtwnTransitionSpec spec;
         mtwnVelocitySource velocitySource;
-        uint8_t reserved[2];
+        // For an easing: whether a reversal is shortened as CSS Transitions
+        // shortens one. When this transition replaces an eased one and its
+        // end, as given, is where that one would return to (its reversing-
+        // adjusted start), its duration is scaled by the share of the way
+        // the other covered, eased: a hover left half way takes half the
+        // time back.
+        bool reverses;
+        uint8_t reserved;
     } mtwnTransitionDef;
 
 // The cookie mtwnDefaultTransitionDef sets and mtwnStartTransition checks.

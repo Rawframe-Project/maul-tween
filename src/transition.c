@@ -15,6 +15,7 @@
 #include "spring_internal.h"
 
 #include <math.h>
+#include <string.h>
 
 static mtwnColor ToColor(mtwnVec4 value)
 {
@@ -88,6 +89,16 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
         out->velocity[1] = out->velocity[2] = out->velocity[3] = 0.0;
     }
     return true;
+}
+
+// Whether two values are the same bits.
+static bool Same(mtwnVec4 a, mtwnVec4 b)
+{
+    uint32_t x[4];
+    uint32_t y[4];
+    memcpy(x, &a, sizeof x);
+    memcpy(y, &b, sizeof y);
+    return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3];
 }
 
 // The time after the delay a spring or decay ends, and a decay's end.
@@ -189,6 +200,39 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     }
 }
 
+// CSS Transitions' reversal: an eased transition starts where the one it
+// replaces would return to, unless it reverses that one, ending where it
+// began: then its duration shrinks by the share of the way that one
+// covered, eased (record mtwn-0045).
+static void Reverse(const mtwnContext* context, const mtwnTransitionDef* def,
+                    const mtwnTargetSlot* target, mtwnPlayerSlot* out)
+{
+    if (out->spec != mtwn_transitionEasing)
+    {
+        return;
+    }
+    out->reversingStart = out->from;
+    out->shortening = 1.0;
+    if (!def->reverses || target->header.link == 0)
+    {
+        return;
+    }
+    const mtwnPlayerSlot* running = mtwnPlayerAt(context, target->header.link);
+    mtwnVec4 end = {0};
+    if (running->spec != mtwn_transitionEasing ||
+        !mtwnAcceptValue(target->kind, def->value, &end) || !Same(end, running->reversingStart))
+    {
+        return;
+    }
+    double share = mtwnEasedProgress(context, target->header.link) * running->shortening +
+                   (1.0 - running->shortening);
+    double factor = fabs(share) < 1.0 ? fabs(share) : 1.0;
+    out->reversingStart = running->to;
+    out->shortening = factor;
+    out->duration *= factor;
+    out->endTime = out->duration;
+}
+
 static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTransitionDef* def,
                                             mtwnPlayerId* playerOut)
 {
@@ -207,6 +251,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
         ++context->misuse;
         return result;
     }
+    Reverse(context, def, target, &prepared);
     // The transition it replaces frees its slot first.
     if (target->header.link != 0)
     {

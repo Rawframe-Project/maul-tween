@@ -175,6 +175,9 @@ sprung = mtwnStartTransition(context, &settle, &settling);
 A delay holds the start; colors move through their color space,
 rotations along their arc, angles by their method. At its end a
 transition commits its value as the target's base and frees itself.
+An eased transition with `reverses` set is shortened when it reverses
+one still running, as CSS Transitions shortens it: a hover left a
+quarter of the way in returns in a quarter of the time.
 
 ## The update
 

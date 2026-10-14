@@ -49,3 +49,4 @@ are listed in [README.md](README.md).
 | [mtwn-0042](mtwn-0042-the-update-hot-path.md) | The update's hot path, the same bits | Accepted |
 | [mtwn-0043](mtwn-0043-targets-measured.md) | Performance and size targets, measured | Accepted |
 | [mtwn-0044](mtwn-0044-defaults-sized-together.md) | The defaults, sized together | Accepted |
+| [mtwn-0045](mtwn-0045-css-reversal.md) | Shortened reversals, as CSS Transitions shortens them | Accepted |

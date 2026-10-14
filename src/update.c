@@ -213,6 +213,13 @@ mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
     return velocity;
 }
 
+double mtwnEasedProgress(const mtwnContext* context, uint32_t player)
+{
+    const mtwnPlayerSlot* slot = mtwnPlayerAt(context, player);
+    double t = slot->started ? Elapsed(slot, context->lastTimeNs) : -1.0;
+    return t < 0.0 ? 0.0 : Eased(slot, t / slot->duration);
+}
+
 void mtwnSettleVelocity(mtwnContext* context, uint32_t index1)
 {
     mtwnTargetSlot* target = mtwnTargetAt(context, index1);

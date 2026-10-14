@@ -760,8 +760,84 @@ static void TestStartVelocity(void)
     mtwnDestroyContext(context);
 }
 
+// Starts an eased transition of x to a value over a duration, CSS's
+// reversal asked for or not; returns its slot.
+static mtwnPlayerSlot* Toward(mtwnContext* context, mtwnTargetId x, float value, double seconds,
+                              const mtwnEasing* easing, bool reverses)
+{
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = x;
+    def.value = (mtwnVec4){value, 0, 0, 0};
+    def.duration = seconds;
+    def.easing = *easing;
+    def.reverses = reverses;
+    mtwnPlayerId player;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a transition");
+    return mtwnPlayerAt(context, player.index1);
+}
+
+static void TestReversal(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    mtwnEasing linear = mtwnLinearEasing();
+    // 0 to 1 over a second, left a quarter of the way: back in a quarter.
+    (void)Toward(context, x, 1.0f, 1.0, &linear, true);
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success, "a quarter");
+    mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
+    CHECK(back->duration == 0.25 && back->shortening == 0.25 && back->reversingStart.x == 1.0f,
+          "the way back shortened to a quarter");
+    // Half way back, forward again: the share of the way is CSS's, from
+    // the shortened reversal, 0.5 x 0.25 + 0.75.
+    CHECK(mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, s_second * 3 / 8, NULL, 0, NULL) == mtwn_success,
+          "half way back");
+    mtwnPlayerSlot* again = Toward(context, x, 1.0f, 1.0, &linear, true);
+    CHECK(again->duration == 0.875 && again->reversingStart.x == 0.0f,
+          "forward again over seven eighths");
+    // Not a reversal: another end, or the reversal not asked for.
+    mtwnPlayerSlot* elsewhere = Toward(context, x, 0.5f, 1.0, &linear, true);
+    CHECK(elsewhere->duration == 1.0 && elsewhere->shortening == 1.0,
+          "another end takes its whole duration");
+    CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success, "moving");
+    mtwnPlayerSlot* unasked = Toward(context, x, 1.0f, 1.0, &linear, false);
+    CHECK(unasked->duration == 1.0, "a reversal not asked for takes its whole duration");
+    mtwnDestroyContext(context);
+
+    // The share is of the eased way: a quadratic out a quarter of the
+    // time in has gone 1 - 0.75^2 of the way.
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    mtwnEasing quadOut;
+    CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &quadOut) == mtwn_success, "quad out");
+    (void)Toward(context, x, 1.0f, 1.0, &quadOut, true);
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "a quarter of the time");
+    back = Toward(context, x, 0.0f, 1.0, &quadOut, true);
+    CHECK(back->duration == 0.4375, "back over the share of the way gone");
+    // A spring does not shorten, nor shorten the eased one after it.
+    mtwnTransitionDef spring = mtwnDefaultTransitionDef();
+    spring.target = x;
+    spring.spec = mtwn_transitionSpring;
+    spring.reverses = true;
+    mtwnPlayerId sprung;
+    CHECK(mtwnStartTransition(context, &spring, &sprung) == mtwn_success, "a spring");
+    CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success, "springing");
+    mtwnPlayerSlot* after = Toward(context, x, 0.0f, 1.0, &quadOut, true);
+    CHECK(after->duration == 1.0, "an easing after a spring takes its whole duration");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
+    TestReversal();
     TestStartVelocity();
     TestReplacedVelocity();
     TestScalar();

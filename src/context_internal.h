@@ -126,9 +126,19 @@ typedef struct mtwnPlayerSlot
                 mtwnDecay decay;
             };
             mtwnTargetId target;
-            // The start velocity per channel; for a color or rotation, in
-            // progress in the first.
-            double velocity[4];
+            union
+            {
+                // For a spring or decay: the start velocity per channel;
+                // for a color or rotation, in progress in the first.
+                double velocity[4];
+                // For an easing: CSS Transitions' reversing-adjusted start
+                // value and reversing shortening factor (record mtwn-0045).
+                struct
+                {
+                    mtwnVec4 reversingStart;
+                    double shortening;
+                };
+            };
             union
             {
                 mtwnColorMix color;
@@ -323,6 +333,10 @@ void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwn
 // last update's time, in the library's floating-point environment
 // (src/update.c).
 mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1);
+
+// An eased transition's progress through its easing at the last update's
+// time: 0 before it starts (src/update.c).
+double mtwnEasedProgress(const mtwnContext* context, uint32_t player);
 
 // Stores a lazy target's velocity in it, before its transition goes.
 void mtwnSettleVelocity(mtwnContext* context, uint32_t index1);
