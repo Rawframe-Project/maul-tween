@@ -10,3 +10,4 @@ spring_easing:
 spring: elementary spring_easing
 decay: elementary
 color: elementary
+rotation: elementary

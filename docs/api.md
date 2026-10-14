@@ -88,7 +88,7 @@ Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner
 
 ## `interpolate.h`
 
-Interpolation of values that are not plain numbers (records mtwn-0014, mtwn-0015 and mtwn-0024): colors in a named space as CSS Color 4 interpolates them.
+Interpolation of values that are not plain numbers (records mtwn-0014, mtwn-0015, mtwn-0024 and mtwn-0025): colors in a named space as CSS Color 4 interpolates them, angles with CSS's hue methods, and rotations by slerp.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, mtwnHueMethod hue, mtwnColorMix* mixOut);
@@ -109,6 +109,21 @@ Converts a color to a space's coordinates and its alpha, for a host that springs
 MTWN_NODISCARD MTWN_API mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space, mtwnColor* colorOut);
 ```
 Converts a space's coordinates and an alpha back to a color.  @param coordinates  The three coordinates and the alpha; a NaN OkLCh hue counts as 0, as CSS's missing hue does. @param space        The space. @param colorOut     Receives the color, alpha clamped to 0 to 1. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown space, or a coordinate or alpha not finite, a NaN hue excepted. @par Thread safety Safe from any thread.
+
+```c
+double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress);
+```
+Interpolates an angle in radians: the end at progress 1 is moved by whole turns as the method asks, then the two are interpolated linearly. At 0 the result is from exactly, and at 1 to exactly when no turn was added.  @param from      The angle at progress 0, finite. @param to        The angle at progress 1, finite. @param method    The method; an unknown one is raw. @param progress  The progress, finite; outside 0 to 1 extends. @return The angle. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to, mtwnRotationPath path, mtwnRotationMix* mixOut);
+```
+Makes the spherical interpolation between two rotations, at constant angular speed, the shortest way or the longest.  @param from    The rotation at progress 0: finite, not zero; it is normalized. @param to      The rotation at progress 1, likewise. @param path    Which way. @param mixOut  Receives the mix. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown path, a rotation outside the above, or the longest way between rotations so close (|q0 + q1| under 1e-6 once the path's sign is taken) that it turns a full circle about no defined axis. @par Thread safety Safe from any thread.
+
+```c
+mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
+```
+Samples a rotation mix: its rotations exactly at 0 and 1 (the second negated when the path needed it), between and beyond them slerp, normalized.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The rotation. @par Thread safety Safe from any thread.
 
 ## `sample.h`
 
@@ -200,4 +215,4 @@ The inverse of mtwnRubberBand: the drag that moves content an offset past a limi
 
 ---
 
-35 functions across 5 headers.
+38 functions across 5 headers.

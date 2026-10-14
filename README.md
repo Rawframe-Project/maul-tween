@@ -31,7 +31,8 @@ Not released. The design is decided; the curves come first, and
 the easings are in: Penner's families and CSS Easing Level 2, in four
 modes, with even tables and fitted CSS linear() points; springs in
 closed form, as easings too, decay and the rubber band; colors as CSS
-Color 4 interpolates them. The library has 35 public functions.
+Color 4 interpolates them; angles and rotations. The library has
+38 public functions.
 
 ## Building
 

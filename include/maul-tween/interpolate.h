@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Interpolation of values that are not plain numbers (records mtwn-0014,
-// mtwn-0015 and mtwn-0024): colors in a named space as CSS Color 4
-// interpolates them.
+// mtwn-0015, mtwn-0024 and mtwn-0025): colors in a named space as CSS
+// Color 4 interpolates them, angles with CSS's hue methods, and
+// rotations by slerp.
 
 #ifndef MAUL_TWEEN_INTERPOLATE_H
 #define MAUL_TWEEN_INTERPOLATE_H
@@ -127,6 +128,98 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnColorFromSpace(const double coordinates[4],
                                                           mtwnColorSpace space,
                                                           mtwnColor* colorOut);
+
+    // How an angle interpolates: raw, or by CSS's hue methods with a
+    // period of a full turn.
+    typedef uint8_t mtwnAngleMethod;
+    enum
+    {
+        // As given, turns kept: 0 to 4 pi turns twice.
+        mtwn_angleRaw = 0,
+        // The shorter arc, at most half a turn.
+        mtwn_angleShorter = 1,
+        // The longer arc; a full turn between equal angles.
+        mtwn_angleLonger = 2,
+        // Always increasing, less than a turn.
+        mtwn_angleIncreasing = 3,
+        // Always decreasing, less than a turn.
+        mtwn_angleDecreasing = 4,
+    };
+
+    /// Interpolates an angle in radians: the end at progress 1 is moved by
+    /// whole turns as the method asks, then the two are interpolated
+    /// linearly. At 0 the result is from exactly, and at 1 to exactly
+    /// when no turn was added.
+    ///
+    /// @param from      The angle at progress 0, finite.
+    /// @param to        The angle at progress 1, finite.
+    /// @param method    The method; an unknown one is raw.
+    /// @param progress  The progress, finite; outside 0 to 1 extends.
+    /// @return The angle.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress);
+
+    // A rotation as a unit quaternion (x, y, z, w): the axis times the sine
+    // of half the angle, then its cosine. q and -q are the same rotation.
+    typedef struct mtwnQuat
+    {
+        float x;
+        float y;
+        float z;
+        float w;
+    } mtwnQuat;
+
+    // Which way a rotation turns between its ends.
+    typedef uint8_t mtwnRotationPath;
+    enum
+    {
+        // The shorter way, at most half a turn.
+        mtwn_rotationShortest = 0,
+        // The other way, the rest of the turn.
+        mtwn_rotationLongest = 1,
+    };
+
+    // Two rotations ready to interpolate. Make one with
+    // mtwnMakeRotationMix; its fields are the library's.
+    typedef struct mtwnRotationMix
+    {
+        double from[4];
+        double to[4];
+        double angle;
+        mtwnQuat fromRotation;
+        mtwnQuat toRotation;
+    } mtwnRotationMix;
+
+    /// Makes the spherical interpolation between two rotations, at constant
+    /// angular speed, the shortest way or the longest.
+    ///
+    /// @param from    The rotation at progress 0: finite, not zero; it is
+    ///                normalized.
+    /// @param to      The rotation at progress 1, likewise.
+    /// @param path    Which way.
+    /// @param mixOut  Receives the mix.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
+    ///         unknown path, a rotation outside the above, or the longest
+    ///         way between rotations so close (|q0 + q1| under 1e-6 once
+    ///         the path's sign is taken) that it turns a full circle about
+    ///         no defined axis.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to,
+                                                           mtwnRotationPath path,
+                                                           mtwnRotationMix* mixOut);
+
+    /// Samples a rotation mix: its rotations exactly at 0 and 1 (the second
+    /// negated when the path needed it), between and beyond them slerp,
+    /// normalized.
+    ///
+    /// @param mix       A mix made by this library.
+    /// @param progress  The progress, finite.
+    /// @return The rotation.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
 
 #ifdef __cplusplus
 }

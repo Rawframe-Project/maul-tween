@@ -16,3 +16,4 @@ copysignf
 fabsf
 fmodf
 sqrt
+ceil

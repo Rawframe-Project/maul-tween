@@ -45,6 +45,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/css_easing.c
     src/decay.c
     src/easing.c
+    src/rotation.c
     src/sample.c
     src/spring.c
     src/elementary.c
@@ -65,6 +66,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(spring)
     maul_add_test(decay)
     maul_add_test(color)
+    maul_add_test(rotation)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
