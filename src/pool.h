@@ -35,7 +35,6 @@ typedef struct mtwnPool
     uint32_t high;
     // The first free slot below high, as index1, 0 when none.
     uint32_t free;
-    uint32_t alive;
 } mtwnPool;
 
 // The slot at index1, which is from 1 to the capacity.

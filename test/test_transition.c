@@ -93,7 +93,7 @@ static void TestScalar(void)
     CHECK(state.value.x == 10.0f && state.base.x == 10.0f && state.velocity.x == 0.0f,
           "the end committed as the base, at rest");
     CHECK(!mtwnPlayer_IsValid(context, player), "and the transition freed");
-    CHECK(context->players.alive == 0, "its slot back in the pool");
+    CHECK(context->players.free == player.index1, "its slot back in the pool, first to reuse");
     mtwnDestroyContext(context);
 }
 

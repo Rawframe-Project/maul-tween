@@ -87,7 +87,7 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
 
 static mtwnPool MakePool(unsigned char* slots, uint32_t stride, uint32_t capacity)
 {
-    return (mtwnPool){slots, stride, capacity, 0, 0, 0};
+    return (mtwnPool){slots, stride, capacity, 0, 0};
 }
 
 mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut)
@@ -158,7 +158,6 @@ static void MovePool(mtwnPool* to, const mtwnPool* from)
     memcpy(to->slots, from->slots, (size_t)from->high * from->stride);
     to->high = from->high;
     to->free = from->free;
-    to->alive = from->alive;
 }
 
 // Moves what a context holds into a new block laid out for a larger def.
@@ -181,14 +180,14 @@ static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* bl
     {
         mtwnGiveRun(&to->bindings, had, def->bindingCapacity - had);
     }
-    // The queue's records in order, from the start of the new ring.
+    // The queue's records in order, from the start of the new ring (their
+    // places along their sweeps ordered them when made, and are done).
     to->events = (mtwnEvent*)(block + layout->events);
     to->eventAlong = (double*)(block + layout->eventAlong);
     for (uint32_t i = 0; i < from->eventCount; ++i)
     {
         uint32_t at = (from->eventHead + i) % from->def.eventCapacity;
         to->events[i] = from->events[at];
-        to->eventAlong[i] = from->eventAlong[at];
     }
     to->eventHead = 0;
     to->levels = (mtwnLevel*)(block + layout->levels);

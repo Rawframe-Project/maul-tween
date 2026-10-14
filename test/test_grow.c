@@ -134,8 +134,16 @@ static void TestGrow(void)
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(context, &move, &transition) == mtwn_success, "a transition");
     Update(context, 0.0);
+    // One record read before growing: the ring starts part way round.
+    mtwnEvent first;
+    uint32_t taken = 0;
+    CHECK(mtwnReadEvents(context, &first, 1, &taken, NULL) == mtwn_success && taken == 1,
+          "the first record read");
     Update(context, 1.0);
-    CHECK(mtwnContext_GetEventCount(context) == 3, "three records queued");
+    CHECK(mtwnContext_GetEventCount(context) == 2, "two records queued");
+    // A change made between updates waits in the changed list.
+    CHECK(mtwnDestroyPlayer(context, transition) == mtwn_success, "the transition stopped");
+    CHECK(mtwnStartTransition(context, &move, &transition) == mtwn_success, "and started again");
     uint64_t before = mtwnContext_GetMemoryBytes(context);
     mtwnContext* old = context;
     // Refusals change nothing.
@@ -147,6 +155,16 @@ static void TestGrow(void)
     other.allocator = (mtwnAllocator){0};
     CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old,
           "nor another allocator");
+    Budget elsewhere = {0};
+    other.allocator = (mtwnAllocator){Alloc, Free, &elsewhere};
+    CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old,
+          "nor the same functions with another context");
+    other = def;
+    other.clipStorageBytes = def.clipStorageBytes / 2;
+    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old &&
+              mtwnContext_GetMisuseCount(context) == misuse + 1,
+          "nor less clip storage, the refusal counted");
     CHECK(mtwnGrowContext(&context, NULL) == mtwn_errorInvalid &&
               mtwnGrowContext(NULL, &def) == mtwn_errorInvalid,
           "nor null arguments");
@@ -165,24 +183,38 @@ static void TestGrow(void)
           "grown: one context block and the clip's");
     CHECK(mtwnContext_GetMemoryBytes(context) > before, "holding more");
     // Every id carries over, and what plays plays on.
-    CHECK(ValueOf(context, a) == 1.0f && ValueOf(context, b) == 1.0f, "the values carried");
+    CHECK(ValueOf(context, a) == 1.0f && ValueOf(context, b) == 0.0f, "the values carried");
     CHECK(mtwnPlayer_IsValid(context, player) && mtwnPlayer_IsValid(context, transition),
           "the players' ids carried");
-    Update(context, 2.0);
-    CHECK(ValueOf(context, a) == 2.0f && ValueOf(context, b) == 2.0f, "and they play on");
+    mtwnTargetId changed[4];
+    uint32_t total = 0;
+    CHECK(mtwnUpdate(context, 2000000000u, changed, 4, &total) == mtwn_success && total == 2 &&
+              changed[0].index1 == b.index1 && changed[1].index1 == a.index1,
+          "the change made before growing reported, then the clip's");
+    CHECK(ValueOf(context, a) == 2.0f && ValueOf(context, b) == 0.0f, "and they play on");
     mtwnEvent e[8];
     uint32_t n = 0;
+    // Queued before: the track's start and the first transition's; after,
+    // the second transition's start.
     CHECK(mtwnReadEvents(context, e, 8, &n, NULL) == mtwn_success && n == 3 &&
-              e[0].kind == mtwn_eventStart && e[0].player.index1 == player.index1,
+              e[0].kind == mtwn_eventStart && e[0].node == MTWN_ROOT_NODE + 1 &&
+              e[0].player.index1 == player.index1 && e[1].kind == mtwn_eventStart &&
+              e[1].node == 0 && e[2].kind == mtwn_eventStart && e[2].node == 0 &&
+              e[2].player.index1 == transition.index1,
           "the queued records carried, in order");
     // The new room is there.
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &c) == mtwn_success,
           "a third target");
-    mtwnBinding more[2] = {mtwnBind(0, c), mtwnBind(0, c)};
-    playerDef.bindings = more;
+    mtwnBinding more = mtwnBind(0, c);
+    playerDef.bindings = &more;
     playerDef.bindingCount = 1;
-    mtwnPlayerId second;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &second) == mtwn_success, "a second clip player");
+    mtwnPlayerId players[3];
+    bool made = true;
+    for (int i = 0; i < 3; ++i)
+    {
+        made = made && mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success;
+    }
+    CHECK(made, "three more clip players: the bindings' new room used");
     // Freed slots are reused first, as before growing.
     CHECK(mtwnDestroyTarget(context, c) == mtwn_success, "c freed");
     mtwnTargetId again;

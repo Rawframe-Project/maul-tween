@@ -39,7 +39,6 @@ uint32_t mtwnPoolAcquire(mtwnPool* pool)
     memset(slot, 0, pool->stride);
     slot->generation = generation;
     slot->flags = MTWN_SLOT_ALIVE;
-    ++pool->alive;
     return index1;
 }
 
@@ -47,7 +46,6 @@ void mtwnPoolRelease(mtwnPool* pool, uint32_t index1)
 {
     mtwnSlotHeader* slot = mtwnPoolAt(pool, index1);
     slot->flags = 0;
-    --pool->alive;
     // A slot whose generation is at its end is retired: its ids can never
     // come back.
     if (slot->generation != UINT32_MAX)
