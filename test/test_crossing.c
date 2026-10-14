@@ -378,9 +378,16 @@ static mtwnTiming RandomTiming(void)
     timing.playbackRate = Pick(rates, 4);
     timing.direction = (mtwnDirection)(int)(Random() * 4.0);
     timing.alternateEasing = (uint8_t)(Random() < 0.5 ? 0 : 1);
-    if (Random() < 0.5)
+    // A symmetric easing and one that is not: a reversed iteration runs
+    // its shape back or repeats it, which only the latter tells apart.
+    double easing = Random();
+    if (easing < 0.33)
     {
         CHECK(mtwnMakePowerEasing(mtwn_easeInOut, 2.0, &timing.easing) == mtwn_success, "eased");
+    }
+    else if (easing < 0.66)
+    {
+        CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &timing.easing) == mtwn_success, "eased in");
     }
     return timing;
 }
