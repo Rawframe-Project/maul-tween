@@ -68,7 +68,6 @@ struct mtwnContext
     // The index1 of each target changed since the last report, in order.
     uint32_t* changed;
     uint32_t changedCount;
-    bool updated;
 };
 
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)

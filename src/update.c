@@ -144,13 +144,12 @@ mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* chang
     {
         return mtwn_errorInvalid;
     }
-    if ((changedOut == NULL && changedCapacity != 0) ||
-        (context->updated && timeNs < context->lastTimeNs))
+    // The first update may come at any time: none is below 0.
+    if ((changedOut == NULL && changedCapacity != 0) || timeNs < context->lastTimeNs)
     {
         ++context->misuse;
         return mtwn_errorInvalid;
     }
-    context->updated = true;
     context->lastTimeNs = timeNs;
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);

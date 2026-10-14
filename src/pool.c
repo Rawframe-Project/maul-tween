@@ -47,7 +47,6 @@ void mtwnPoolRelease(mtwnPool* pool, uint32_t index1)
 {
     mtwnSlotHeader* slot = mtwnPoolAt(pool, index1);
     slot->flags = 0;
-    slot->link = 0;
     --pool->alive;
     // A slot whose generation is at its end is retired: its ids can never
     // come back.

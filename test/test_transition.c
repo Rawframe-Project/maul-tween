@@ -215,6 +215,57 @@ static void TestKinds(void)
     mtwnDestroyContext(context);
 }
 
+static void TestExactness(void)
+{
+    mtwnContext* context = Make(4, 4);
+    // An easing at 1 before the end gives the end exactly, and the end
+    // that only commits the base is reported.
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0.1f, 0, 0, 0});
+    mtwnTransitionDef def = Linear(x, (mtwnVec4){0.7f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &def.easing) == mtwn_success, "steps(1, start)");
+    Start(context, &def);
+    Update(context, 0);
+    Update(context, s_second / 2);
+    CHECK(State(context, x).value.x == 0.7f, "the end value exactly, mid-way");
+    mtwnTargetId far = Target(context, mtwn_valueVec2, (mtwnVec4){1e30f, -1e-30f, 0, 0});
+    def.target = far;
+    def.value = (mtwnVec4){1e-30f, 1e30f, 0, 0};
+    Start(context, &def);
+    mtwnTargetId changed[1];
+    uint32_t total = 0;
+    Update(context, s_second / 2 + 1);
+    Update(context, s_second / 2 + 2);
+    CHECK(State(context, far).value.x == 1e-30f && State(context, far).value.y == 1e30f,
+          "even between ends thirty orders apart");
+    CHECK(mtwnUpdate(context, s_second, changed, 1, &total) == mtwn_success && total == 1 &&
+              State(context, x).base.x == 0.7f,
+          "the commit of the base alone is a change");
+    // Inside the first millisecond velocity spans from the start.
+    mtwnTargetId y = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    def = Linear(y, (mtwnVec4){1.0f, 0, 0, 0}, 0.002);
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &def.easing) == mtwn_success, "quad in");
+    Start(context, &def);
+    Update(context, 2 * s_second);
+    Update(context, 2 * s_second + 500000);
+    CHECK(State(context, y).value.x == 0.0625f &&
+              fabsf(State(context, y).velocity.x - 125.0f) <= 1e-3f,
+          "0.0625 in half a millisecond: 125 a second");
+    // Negative ties round away from zero.
+    mtwnTargetId n = Target(context, mtwn_valueInteger, (mtwnVec4){0});
+    def = Linear(n, (mtwnVec4){-3.0f, 0, 0, 0}, 1.0);
+    Start(context, &def);
+    Update(context, 3 * s_second);
+    Update(context, 3 * s_second + s_second / 2);
+    CHECK(State(context, n).value.x == -2.0f, "-1.5 rounds to -2");
+    // A slot reused leaves nothing of the target before it.
+    CHECK(fabsf(State(context, n).velocity.x + 3.0f) <= 1e-3f, "moving");
+    CHECK(mtwnDestroyTarget(context, n) == mtwn_success, "destroyed while moving");
+    mtwnTargetId fresh = Target(context, mtwn_valueScalar, (mtwnVec4){5.0f, 0, 0, 0});
+    CHECK(fresh.index1 == n.index1 && State(context, fresh).velocity.x == 0.0f,
+          "its slot's next target starts at rest");
+    mtwnDestroyContext(context);
+}
+
 static void TestRefusals(void)
 {
     mtwnContext* context = Make(4, 1);
@@ -389,6 +440,7 @@ int main(void)
     TestDelayAndEasing();
     TestInterruption();
     TestKinds();
+    TestExactness();
     TestRefusals();
     TestUpdateReport();
     TestFloatEnvironment();
