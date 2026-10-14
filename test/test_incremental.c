@@ -1,0 +1,194 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Incremental tracks (record mtwn-0040): each iteration moves on by the
+// last keyframe minus the first, continuous at the boundaries, counted
+// from the iteration start as Web Animations Level 2 counts; integers;
+// rotations turning on; colors and discrete values refused.
+
+#include "test_harness.h"
+
+#include "maul-tween/player.h"
+#include "maul-tween/target.h"
+
+#include <math.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef struct World
+{
+    mtwnContext* context;
+    mtwnClipId clip;
+    mtwnTargetId target;
+} World;
+
+static World MakeWorld(mtwnValueKind kind, mtwnVec4 base)
+{
+    World w = {0};
+    mtwnContextDef def = mtwnDefaultContextDef();
+    CHECK(mtwnCreateContext(&def, &w.context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateClip(w.context, &clipDef, &w.clip) == mtwn_success, "a clip");
+    CHECK(mtwnCreateTarget(w.context, kind, base, &w.target) == mtwn_success, "a target");
+    return w;
+}
+
+static mtwnClipTrackDef Incremental(mtwnValueKind kind, mtwnKeyframe* keys, double iterations)
+{
+    keys[0].offset = 0.0;
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.track.kind = kind;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    track.timing.iterations = iterations;
+    track.timing.fill = mtwn_fillForwards;
+    track.incremental = true;
+    return track;
+}
+
+static void Play(World* w)
+{
+    mtwnBinding binding = mtwnBind(0, w->target);
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = w->clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    def.keep = true;
+    mtwnPlayerId p;
+    CHECK(mtwnCreatePlayer(w->context, &def, &p) == mtwn_success, "a player");
+    CHECK(mtwnUpdate(w->context, 0, NULL, 0, NULL) == mtwn_success, "started");
+}
+
+static mtwnTargetState At(World* w, double seconds)
+{
+    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+          "updated");
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(w->context, w->target, &state) == mtwn_success, "read");
+    return state;
+}
+
+static bool Near(double a, double b, double tolerance)
+{
+    return fabs(a - b) <= tolerance;
+}
+
+static void TestNumbers(void)
+{
+    World w = MakeWorld(mtwn_valueVec2, (mtwnVec4){0});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value = (mtwnVec4){2.0f, 10.0f, 0, 0};
+    keys[1].value = (mtwnVec4){3.0f, 8.0f, 0, 0};
+    mtwnClipTrackDef track = Incremental(mtwn_valueVec2, keys, 3.0);
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    mtwnTargetState s = At(&w, 0.5);
+    CHECK(Near((double)s.value.x, 2.5, 1e-6) && Near((double)s.value.y, 9.0, 1e-6),
+          "the first iteration as it is");
+    s = At(&w, 1.5);
+    CHECK(Near((double)s.value.x, 3.5, 1e-6) && Near((double)s.value.y, 7.0, 1e-6),
+          "the second moved on by (1, -2)");
+    s = At(&w, 2.0005);
+    CHECK(Near((double)s.velocity.x, 1.0, 1e-3) && Near((double)s.velocity.y, -2.0, 1e-3),
+          "continuous across the boundary: the velocity unbroken");
+    s = At(&w, 9.0);
+    CHECK(Near((double)s.value.x, 5.0, 1e-6) && Near((double)s.value.y, 4.0, 1e-6),
+          "filled at the third's end");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestCounting(void)
+{
+    // An iteration start of 1 counts from 1, as Level 2 does.
+    World w = MakeWorld(mtwn_valueScalar, (mtwnVec4){0});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].value.x = 1.0f;
+    mtwnClipTrackDef track = Incremental(mtwn_valueScalar, keys, 2.0);
+    track.timing.iterationStart = 1.0;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    CHECK(Near((double)At(&w, 0.5).value.x, 1.5, 1e-6), "from iteration 1");
+    mtwnDestroyContext(w.context);
+    // Alternate: the reversed iteration runs back, moved on as it goes.
+    w = MakeWorld(mtwn_valueScalar, (mtwnVec4){0});
+    track = Incremental(mtwn_valueScalar, keys, 2.0);
+    track.timing.direction = mtwn_directionAlternate;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    CHECK(Near((double)At(&w, 1.25).value.x, 1.75, 1e-6), "back from 1, plus 1");
+    mtwnDestroyContext(w.context);
+    // Integers move on unrounded and round once.
+    w = MakeWorld(mtwn_valueInteger, (mtwnVec4){0});
+    memset(keys, 0, sizeof keys);
+    keys[1].value.x = 3.0f;
+    track = Incremental(mtwn_valueInteger, keys, 3.0);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    CHECK(At(&w, 2.5).value.x == 8.0f, "two iterations of 3 and half of one: 7.5, rounded 8");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestRotations(void)
+{
+    // Quarter turns about z, three times over: half way through the second,
+    // three eighths of a turn.
+    World w = MakeWorld(mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    float s = (float)sin(3.14159265358979323846 / 4.0);
+    float c = (float)cos(3.14159265358979323846 / 4.0);
+    keys[0].value = (mtwnVec4){0, 0, 0, 1.0f};
+    keys[1].value = (mtwnVec4){0, 0, s, c};
+    mtwnClipTrackDef track = Incremental(mtwn_valueRotation, keys, 3.0);
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    mtwnTargetState state = At(&w, 1.5);
+    double half = 3.0 * 3.14159265358979323846 / 8.0;
+    CHECK(Near((double)state.value.z, sin(half), 1e-6) &&
+              Near((double)state.value.w, cos(half), 1e-6),
+          "turned on past the first quarter");
+    state = At(&w, 9.0);
+    double end = 3.0 * 3.14159265358979323846 / 4.0;
+    CHECK(Near((double)state.value.z, sin(end), 1e-6) &&
+              Near((double)state.value.w, cos(end), 1e-6),
+          "three quarters at the end");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestRefused(void)
+{
+    World w = MakeWorld(mtwn_valueScalar, (mtwnVec4){0});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value.w = keys[1].value.w = 1.0f;
+    mtwnNode node;
+    mtwnClipTrackDef track = Incremental(mtwn_valueColor, keys, 2.0);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_errorInvalid,
+          "a color does not move on");
+    track = Incremental(mtwn_valueDiscrete, keys, 2.0);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_errorInvalid,
+          "nor a discrete value");
+    mtwnDestroyContext(w.context);
+}
+
+int main(void)
+{
+    TestNumbers();
+    TestCounting();
+    TestRotations();
+    TestRefused();
+    return s_failures == 0 ? 0 : 1;
+}

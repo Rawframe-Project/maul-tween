@@ -44,3 +44,4 @@ are listed in [README.md](README.md).
 | [mtwn-0037](mtwn-0037-crossings.md) | Crossings: exact counts through every ancestor's iterations | Accepted |
 | [mtwn-0038](mtwn-0038-events.md) | Events: counted records of every crossing, in the context's queue | Accepted |
 | [mtwn-0039](mtwn-0039-composition.md) | Composition: replace and add with weights | Accepted |
+| [mtwn-0040](mtwn-0040-incremental-tracks.md) | Incremental tracks: each iteration moves on | Accepted |

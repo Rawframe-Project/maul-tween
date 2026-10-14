@@ -309,6 +309,38 @@ static uint32_t Attach(mtwnClipSlot* clip, const mtwnClipNode* node)
     return index1;
 }
 
+// An incremental track's step per iteration, from its keyframes as made
+// (angles unwrapped, rotations on their path): the last minus the first,
+// or for a rotation the turn from the first to the last.
+static mtwnVec4 Step(mtwnValueKind kind, mtwnVec4 first, mtwnVec4 last)
+{
+    if (kind != mtwn_valueRotation)
+    {
+        return (mtwnVec4){
+            (float)((double)last.x - (double)first.x), (float)((double)last.y - (double)first.y),
+            (float)((double)last.z - (double)first.z), (float)((double)last.w - (double)first.w)};
+    }
+    // last times first's inverse (its conjugate, first being unit).
+    double ax = (double)last.x;
+    double ay = (double)last.y;
+    double az = (double)last.z;
+    double aw = (double)last.w;
+    double bx = -(double)first.x;
+    double by = -(double)first.y;
+    double bz = -(double)first.z;
+    double bw = (double)first.w;
+    double x = aw * bx + ax * bw + ay * bz - az * by;
+    double y = aw * by - ax * bz + ay * bw + az * bx;
+    double z = aw * bz + ax * by - ay * bx + az * bw;
+    double w = aw * bw - ax * bx - ay * by - az * bz;
+    double norm = sqrt(x * x + y * y + z * z + w * w);
+    if (!(norm > 0.0))
+    {
+        return (mtwnVec4){0.0f, 0.0f, 0.0f, 1.0f};
+    }
+    return (mtwnVec4){(float)(x / norm), (float)(y / norm), (float)(z / norm), (float)(w / norm)};
+}
+
 // What the def asks of the clip, before anything in the clip changes.
 static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* def)
 {
@@ -318,8 +350,10 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
         uint8_t kind = clip->slotKinds[def->slot];
         slot = kind == 0 || kind == def->track.kind + 1;
     }
+    bool incremental = !def->incremental || (def->track.kind != mtwn_valueColor &&
+                                             def->track.kind != mtwn_valueDiscrete);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) || !slot ||
-        def->keyframes == NULL || mtwnValidateTiming(&def->timing) != mtwn_success)
+        !incremental || def->keyframes == NULL || mtwnValidateTiming(&def->timing) != mtwn_success)
     {
         return mtwn_errorInvalid;
     }
@@ -355,6 +389,12 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     node.parent = def->parent;
     node.slot = def->slot;
     node.kind = mtwn_nodeTrack;
+    node.incremental = def->incremental;
+    if (def->incremental && def->keyframeCount > 0)
+    {
+        node.step =
+            Step(def->track.kind, keyframes[0].value, keyframes[def->keyframeCount - 1].value);
+    }
     if (!Raise(clip, def->parent, node.end, false))
     {
         return mtwn_errorInvalid;

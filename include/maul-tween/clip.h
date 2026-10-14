@@ -142,7 +142,13 @@ extern "C"
         // Whether it travels at constant speed (numbers, vectors, angles,
         // integers).
         bool constantSpeed;
-        uint8_t reserved[3];
+        // Whether each iteration moves on from the last (Web Animations
+        // Level 2's iteration accumulate, as DOTween's incremental loops
+        // do): iteration k adds k times its last keyframe minus its first,
+        // a rotation turns by the rotation from first to last k times.
+        // Numbers, vectors, angles, integers and rotations.
+        bool incremental;
+        uint8_t reserved[2];
     } mtwnClipTrackDef;
 
 // The cookie mtwnDefaultClipTrackDef sets and mtwnClip_AddTrack checks.

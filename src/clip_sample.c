@@ -10,6 +10,7 @@
 
 #include "compose.h"
 #include "context_internal.h"
+#include "elementary.h"
 
 #include "maul-tween/path.h"
 
@@ -75,16 +76,61 @@ static double ChildTime(const mtwnTiming* timing, double local, bool backwards, 
     return result.transformedProgress * timing->duration;
 }
 
-// A track's progress at a local time, NaN when it has no effect.
-static double TrackProgress(const mtwnClipNode* node, double local, bool backwards)
+// A track's progress at a local time, NaN when it has no effect, and its
+// current iteration.
+static double TrackProgress(const mtwnClipNode* node, double local, bool backwards,
+                            double* iterationOut)
 {
+    *iterationOut = 0.0;
     if (isnan(local))
     {
         return (double)NAN;
     }
     mtwnTimingResult result;
     mtwnComputeTiming(&node->timing, local, backwards, &result);
+    *iterationOut = result.iteration;
     return result.transformedProgress;
+}
+
+// A unit rotation turned k times: its angle times k about its axis.
+static mtwnVec4 Power(mtwnVec4 q, double k)
+{
+    double x = (double)q.x;
+    double y = (double)q.y;
+    double z = (double)q.z;
+    double w = (double)q.w;
+    double sine = sqrt(x * x + y * y + z * z);
+    if (!(sine > 0.0))
+    {
+        return (mtwnVec4){0.0f, 0.0f, 0.0f, 1.0f};
+    }
+    double half = mtwnAtan2(sine, w) * k;
+    double sinHalf = 0.0;
+    double cosHalf = 0.0;
+    mtwnSinCos(half, &sinHalf, &cosHalf);
+    double s = sinHalf / sine;
+    return (mtwnVec4){(float)(x * s), (float)(y * s), (float)(z * s), (float)cosHalf};
+}
+
+// An incremental track's value at an iteration: moved on k steps.
+static mtwnVec4 Moved(const mtwnClipNode* node, mtwnVec4 value, double k)
+{
+    if (!node->incremental || k == 0.0)
+    {
+        return value;
+    }
+    if (node->track.kind == mtwn_valueRotation)
+    {
+        mtwnVec4 turn = Power(node->step, k);
+        mtwnMoving under = {turn, {0.0f, 0.0f, 0.0f, 0.0f}};
+        mtwnMoving over = {value, {0.0f, 0.0f, 0.0f, 0.0f}};
+        // The turn so far, then the iteration's own path in its frame.
+        return mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 1.0, under, over).value;
+    }
+    return (mtwnVec4){(float)((double)value.x + k * (double)node->step.x),
+                      (float)((double)value.y + k * (double)node->step.y),
+                      (float)((double)value.z + k * (double)node->step.z),
+                      (float)((double)value.w + k * (double)node->step.w)};
 }
 
 // A track's value, an integer's unrounded for its velocity.
@@ -106,18 +152,21 @@ static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t 
                        const mtwnBound* bound, double weight, const mtwnNodeTime* parent,
                        bool moving, bool commit)
 {
-    double progress = TrackProgress(node, parent->now - node->start, parent->backwards);
+    double iteration = 0.0;
+    double progress = TrackProgress(node, parent->now - node->start, parent->backwards, &iteration);
     if (isnan(progress))
     {
         return;
     }
-    mtwnVec4 value = Unrounded(&node->track, progress);
+    mtwnVec4 value = Moved(node, Unrounded(&node->track, progress), iteration);
     float velocity[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    double earlier =
-        moving ? TrackProgress(node, parent->before - node->start, parent->backwards) : (double)NAN;
+    double earlierIteration = 0.0;
+    double earlier = moving ? TrackProgress(node, parent->before - node->start, parent->backwards,
+                                            &earlierIteration)
+                            : (double)NAN;
     if (!isnan(earlier) && node->track.kind != mtwn_valueDiscrete)
     {
-        mtwnVec4 before = Unrounded(&node->track, earlier);
+        mtwnVec4 before = Moved(node, Unrounded(&node->track, earlier), earlierIteration);
         const float* a = &value.x;
         const float* b = &before.x;
         for (int i = 0; i < 4; ++i)

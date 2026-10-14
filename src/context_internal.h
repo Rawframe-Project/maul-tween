@@ -147,7 +147,11 @@ typedef struct mtwnClipNode
     bool autoDuration;
     // Timelines above it below the root; the root's is 0.
     uint8_t depth;
-    uint8_t reserved;
+    // A track's iterations move on by step each (record mtwn-0040): its
+    // last keyframe minus its first, or for a rotation the rotation from
+    // its first to its last.
+    bool incremental;
+    mtwnVec4 step;
 } mtwnClipNode;
 
 // A clip, in the context's pool; its storage is a block of its own.

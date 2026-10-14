@@ -27,7 +27,7 @@ path: elementary
 clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
-clip_sample: compose context_internal pool runs
+clip_sample: compose context_internal elementary pool runs
 compose:
 crossing: timing_internal
 event: context_internal crossing pool runs
