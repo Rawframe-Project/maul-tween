@@ -193,7 +193,8 @@ static void RaiseInputs(mtwnLinearPoint* points, uint32_t count)
         }
         else if (isnan(input) && i == count - 1)
         {
-            input = largest > 1.0 ? largest : 1.0;
+            // CSS's max(1, largest), which the raise below completes.
+            input = 1.0;
         }
         else if (isnan(input))
         {

@@ -70,12 +70,14 @@ typedef struct BezierCase
 
 // The eight curves the solver was measured on (record mtwn-0009): the
 // four keywords, a back-like overshoot, and three whose slope vanishes or
-// nearly does, where conditioning sets the floor.
+// nearly does, where conditioning sets the floor; then two whose x slope
+// vanishes at an end, where a Newton step from t = x leaves the bracket.
 static const BezierCase s_beziers[] = {
     {{0.25, 0.1, 0.25, 1.0}, 3e-14},     {{0.42, 0.0, 1.0, 1.0}, 2.5e-14},
     {{0.0, 0.0, 0.58, 1.0}, 2.5e-14},    {{0.42, 0.0, 0.58, 1.0}, 2.5e-14},
     {{0.68, -0.55, 0.265, 1.55}, 7e-14}, {{0.0, 1.0, 1.0, 0.0}, 4e-13},
     {{1.0, 0.0, 0.0, 1.0}, 3.5e-7},      {{0.05, 0.7, 0.1, 1.0}, 2e-13},
+    {{1.0, 0.0, 1.0, 1.0}, 2.5e-13},     {{0.0, 0.0, 0.0, 1.0}, 2.5e-13},
 };
 
 static void TestBezierAgainstBisection(void)
@@ -152,9 +154,18 @@ static void TestBezierMonotonicAndRefusals(void)
         }
     }
     CHECK(wrong == 0, "a bezier with both y in [0, 1] never decreases, tangents included");
+    // The rule is y in [0, 1] for both points, either end of the range.
+    CHECK(mtwnMakeCubicBezier(0.3, 1.2, 0.7, 0.9, &easing) == mtwn_success &&
+              !mtwnIsEasingMonotonic(&easing),
+          "y1 above 1");
+    CHECK(mtwnMakeCubicBezier(0.3, 0.2, 0.7, -0.1, &easing) == mtwn_success &&
+              !mtwnIsEasingMonotonic(&easing),
+          "y2 below 0");
     easing = mtwnLinearEasing();
     CHECK(mtwnMakeCubicBezier(-0.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "x1 below 0");
     CHECK(mtwnMakeCubicBezier(0.1, 0.0, 1.1, 1.0, &easing) == mtwn_errorInvalid, "x2 above 1");
+    CHECK(mtwnMakeCubicBezier(0.1, 0.0, -0.1, 1.0, &easing) == mtwn_errorInvalid, "x2 below 0");
+    CHECK(mtwnMakeCubicBezier(1.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "x1 above 1");
     CHECK(mtwnMakeCubicBezier(NONE, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "NaN x");
     CHECK(mtwnMakeCubicBezier(0.1, HUGE_VAL, 0.5, 1.0, &easing) == mtwn_errorInvalid,
           "infinite y1");
@@ -340,8 +351,8 @@ static void TestModesAndTheBeforeFlag(void)
     CHECK(mtwnEase(&steps, 0.0, true) == 0.0 && mtwnEase(&steps, 0.0, false) == 0.125,
           "in-out: the first half samples progress unreflected");
     CHECK(mtwnSetEaseMode(&steps, mtwn_easeOut) == mtwn_success, "out");
-    CHECK(mtwnEase(&steps, 1.0, true) == mtwnEase(&steps, 1.0, false),
-          "out: the reflected curve never sees it");
+    CHECK(mtwnEase(&steps, 1.0, true) == 0.75 && mtwnEase(&steps, 1.0, false) == 0.75,
+          "out: the reflected curve never sees it, and starts at 1/4 as jump-start does");
     CHECK(mtwnSetEaseMode(&steps, mtwn_easeOutIn) == mtwn_success, "out-in");
     CHECK(mtwnEase(&steps, 0.5, true) == 0.5 && mtwnEase(&steps, 0.5, false) == 0.625,
           "out-in: the second half samples progress unreflected");
