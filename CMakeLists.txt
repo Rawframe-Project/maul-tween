@@ -16,6 +16,7 @@ project(maul-tween
 
 option(MAUL_TWEEN_BUILD_TESTS "Build the test suites" ${PROJECT_IS_TOP_LEVEL})
 option(MAUL_TWEEN_BUILD_BENCH "Build the benchmarks" ${PROJECT_IS_TOP_LEVEL})
+option(MAUL_TWEEN_BUILD_SAMPLES "Build the samples" ${PROJECT_IS_TOP_LEVEL})
 option(MAUL_TWEEN_BUILD_SHARED "Build a shared library instead of a static one" OFF)
 option(MAUL_TWEEN_INSTALL "Generate install rules" ${PROJECT_IS_TOP_LEVEL})
 option(MAUL_TWEEN_WERROR "Treat compiler warnings as errors" OFF)
@@ -102,6 +103,10 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
+endif()
+
+if(MAUL_TWEEN_BUILD_SAMPLES)
+    add_subdirectory(samples)
 endif()
 
 if(MAUL_TWEEN_BUILD_BENCH AND EXISTS ${PROJECT_SOURCE_DIR}/bench/bench_main.c)

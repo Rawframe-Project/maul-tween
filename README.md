@@ -54,6 +54,10 @@ cmake --build build
 ctest --test-dir build
 ```
 
+The programs in `samples/` show the library at work, from a button's
+states to layered clips; [the samples page](docs/samples.md) says what
+each shows. `docs/api.md` describes every public function.
+
 ## Design
 
 The rules every Maul library follows are in `docs/conventions.md` and
