@@ -230,6 +230,23 @@ static void TestPaths(void)
     CHECK(fabs(norm - 1.0) <= 1e-6, "of unit length");
 }
 
+// The methods at exactly half a turn apart, and at none, as CSS Color 4
+// adjusts hues: shorter leaves a half turn either way as it is; longer
+// adjusts only (0, half) and (-half, 0], so a half turn is left too, and
+// no difference becomes a whole turn (found by mutants).
+static void TestHalfTurns(void)
+{
+    double half = s_pi;
+    CHECK(mtwnMixAngle(0.0, half, mtwn_angleShorter, 0.5) == 0.5 * half &&
+              mtwnMixAngle(half, 0.0, mtwn_angleShorter, 0.5) == 0.5 * half,
+          "shorter: a half turn either way, straight");
+    CHECK(mtwnMixAngle(0.0, half, mtwn_angleLonger, 0.5) == 0.5 * half &&
+              mtwnMixAngle(half, 0.0, mtwn_angleLonger, 0.5) == 0.5 * half,
+          "longer: a half turn either way, straight");
+    CHECK(fabs(mtwnMixAngle(0.5, 0.5, mtwn_angleLonger, 0.5) - (0.5 + half)) < 1e-12,
+          "longer: no difference, a whole turn");
+}
+
 static void TestRefusals(void)
 {
     mtwnRotationMix mix;
@@ -252,6 +269,7 @@ static void TestRefusals(void)
 
 int main(void)
 {
+    TestHalfTurns();
     TestAngles();
     TestRotationsAgainstSlerp();
     TestPaths();
