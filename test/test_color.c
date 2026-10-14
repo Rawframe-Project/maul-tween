@@ -301,6 +301,60 @@ static void TestMixes(void)
           "a powerless hue takes the other end's");
 }
 
+// The OkLCh hue at the middle of a mix of two colors.
+static double MiddleHue(mtwnColor from, mtwnColor to, mtwnHueMethod method)
+{
+    mtwnColorMix mix;
+    double lch[4] = {0.0, 0.0, (double)NAN, 0.0};
+    if (mtwnMakeColorMix(from, to, mtwn_colorOklch, method, &mix) != mtwn_success ||
+        mtwnColorToSpace(mtwnMixColor(&mix, 0.5), mtwn_colorOklch, lch) != mtwn_success)
+    {
+        return (double)NAN;
+    }
+    return lch[2];
+}
+
+static void TestEqualHues(void)
+{
+    // Equal hues, as a powerless end makes them: CSS's longer turns a full
+    // circle, increasing and decreasing stay put, shorter too.
+    mtwnColor white = {1.0f, 1.0f, 1.0f, 1.0f};
+    mtwnColor blue = {0.0f, 0.0f, 1.0f, 1.0f};
+    double lch[4];
+    CHECK(mtwnColorToSpace(blue, mtwn_colorOklch, lch) == mtwn_success, "blue");
+    double h = lch[2];
+    double turned = fmod(h + 180.0, 360.0);
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueShorter) - h) <= 1e-3, "shorter stays");
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueLonger) - turned) <= 1e-3,
+          "longer turns all the way");
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueIncreasing) - h) <= 1e-3, "increasing stays");
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueDecreasing) - h) <= 1e-3, "decreasing stays");
+    CHECK(fabs(MiddleHue(blue, white, mtwn_hueShorter) - h) <= 1e-3,
+          "a powerless end at 1 takes the hue at 0");
+    CHECK(fabs(MiddleHue(blue, blue, mtwn_hueLonger) - turned) <= 1e-3,
+          "the same color the long way turns too");
+}
+
+static void TestBelowZeroAlpha(void)
+{
+    // Past the end where alpha reaches 0 the interpolated alpha is below
+    // 0: the channels stay premultiplied, never divided by it.
+    mtwnColor red = {1.0f, 0.0f, 0.0f, 1.0f};
+    mtwnColor clear = {1.0f, 0.0f, 0.0f, 0.0f};
+    mtwnColorMix mix;
+    CHECK(mtwnMakeColorMix(red, clear, mtwn_colorOklab, mtwn_hueShorter, &mix) == mtwn_success,
+          "red fading out");
+    double lab[4];
+    CHECK(mtwnColorToSpace(red, mtwn_colorOklab, lab) == mtwn_success, "red in Oklab");
+    double premultiplied[4] = {-0.5 * lab[0], -0.5 * lab[1], -0.5 * lab[2], 0.0};
+    mtwnColor expected;
+    CHECK(mtwnColorFromSpace(premultiplied, mtwn_colorOklab, &expected) == mtwn_success, "made");
+    mtwnColor past = mtwnMixColor(&mix, 1.5);
+    CHECK(fabsf(past.red - expected.red) <= 1e-6f && fabsf(past.green - expected.green) <= 1e-6f &&
+              past.alpha == 0.0f,
+          "at 1.5 the premultiplied channels, alpha 0");
+}
+
 static void TestRefusals(void)
 {
     mtwnColorMix mix;
@@ -328,7 +382,12 @@ static void TestRefusals(void)
           "a negative alpha");
     mtwnColor out;
     double missing[4] = {0.5, 0.1, (double)NAN, 1.0};
-    CHECK(mtwnColorFromSpace(missing, mtwn_colorOklch, &out) == mtwn_success, "a missing hue is 0");
+    double zero[4] = {0.5, 0.1, 0.0, 1.0};
+    mtwnColor atZero;
+    CHECK(mtwnColorFromSpace(missing, mtwn_colorOklch, &out) == mtwn_success &&
+              mtwnColorFromSpace(zero, mtwn_colorOklch, &atZero) == mtwn_success &&
+              out.red == atZero.red && out.green == atZero.green && out.blue == atZero.blue,
+          "a missing hue is 0");
     double bad[4] = {0.5, (double)NAN, 0.0, 1.0};
     CHECK(mtwnColorFromSpace(bad, mtwn_colorOklch, &out) == mtwn_errorInvalid, "a NaN chroma");
     CHECK(mtwnColorFromSpace(missing, mtwn_colorOklab, &out) == mtwn_errorInvalid,
@@ -347,6 +406,8 @@ int main(void)
     TestHueMethodsOnCssExamples();
     TestPremultiplication();
     TestMixes();
+    TestEqualHues();
+    TestBelowZeroAlpha();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;
 }
