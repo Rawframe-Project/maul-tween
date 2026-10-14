@@ -898,6 +898,19 @@ static void TestReversalSignedZero(void)
     CHECK(back->duration == 0.25, "back to +0 from -0 shortened");
     mtwnDestroyContext(context);
 
+    // A jump-start step has gone a quarter of the way at its start: CSS's
+    // share is the easing's output, so the way back takes a quarter.
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    mtwnEasing steps;
+    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &steps) == mtwn_success, "steps(4, jump-start)");
+    (void)Toward(context, x, 1.0f, 1.0, &steps, true);
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "at its start");
+    back = Toward(context, x, 0.0f, 1.0, &steps, true);
+    CHECK(back->duration == 0.25, "back over the step already taken");
+    mtwnDestroyContext(context);
+
     // Every channel compares: an end differing in the last alone is not
     // the way back.
     CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
