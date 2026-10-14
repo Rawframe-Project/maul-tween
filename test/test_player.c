@@ -64,7 +64,7 @@ static Fixture Make(bool endless, uint32_t bindings)
 
 static mtwnPlayerId Player(Fixture* f, bool play, double rate)
 {
-    mtwnBinding binding = {0, 0, f->target};
+    mtwnBinding binding = mtwnBind(0, f->target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f->clip;
     def.bindings = &binding;
@@ -248,7 +248,7 @@ static void TestBindings(void)
     Fixture f = Make(false, 4);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f.clip;
-    mtwnBinding bindings[2] = {{0, 0, f.target}, {0, 0, f.target}};
+    mtwnBinding bindings[2] = {mtwnBind(0, f.target), mtwnBind(0, f.target)};
     def.bindings = bindings;
     def.bindingCount = 2;
     mtwnPlayerId p;
@@ -291,7 +291,7 @@ static void TestBindings(void)
 
 static void TestRuns(void)
 {
-    mtwnTargetId entries[10];
+    mtwnBound entries[10];
     mtwnRuns runs = mtwnMakeRuns(entries, 10);
     uint32_t a = 0;
     uint32_t b = 0;

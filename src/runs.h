@@ -9,13 +9,24 @@
 #define MAUL_TWEEN_SRC_RUNS_H
 
 #include "maul-tween/context.h"
+#include "maul-tween/player.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 
+// A bound slot: its target, its weight and its composite operation. A
+// free run keeps its length and next run in the target's two fields.
+typedef struct mtwnBound
+{
+    mtwnTargetId target;
+    float weight;
+    mtwnComposite composite;
+    uint8_t reserved[3];
+} mtwnBound;
+
 typedef struct mtwnRuns
 {
-    mtwnTargetId* entries;
+    mtwnBound* entries;
     uint32_t capacity;
     // The first free run's start plus 1, 0 when none; free runs are kept
     // in order of their starts.
@@ -23,7 +34,7 @@ typedef struct mtwnRuns
 } mtwnRuns;
 
 // Runs over entries, all free.
-mtwnRuns mtwnMakeRuns(mtwnTargetId* entries, uint32_t capacity);
+mtwnRuns mtwnMakeRuns(mtwnBound* entries, uint32_t capacity);
 
 // Takes a run of count entries, count above 0; false when none is long
 // enough.

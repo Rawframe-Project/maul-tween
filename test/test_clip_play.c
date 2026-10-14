@@ -68,7 +68,7 @@ static World MakeWorld(void)
 
 static mtwnPlayerId Play(World* w, mtwnTargetId target, bool keep, double rate)
 {
-    mtwnBinding binding = {0, 0, target};
+    mtwnBinding binding = mtwnBind(0, target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;
@@ -187,7 +187,7 @@ static void TestTree(void)
     mtwnTargetId count;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){0}, &count) == mtwn_success,
           "an integer target");
-    mtwnBinding bindings[2] = {{0, 0, w.target}, {1, 0, count}};
+    mtwnBinding bindings[2] = {mtwnBind(0, w.target), mtwnBind(1, count)};
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
     def.bindings = bindings;
@@ -209,14 +209,14 @@ static void TestTree(void)
     CHECK(Read(&w, w.target).value.x == 0.0f && Read(&w, count).value.x == 0.0f,
           "past the reversed end, filled at the start; the integer's track over, its base");
     // Wrong bindings.
-    mtwnBinding wrong = {1, 0, w.target};
+    mtwnBinding wrong = mtwnBind(1, w.target);
     def.bindings = &wrong;
     def.bindingCount = 1;
     mtwnPlayerId q;
     CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid,
           "a scalar on an integer slot");
     CHECK(mtwnDestroyTarget(w.context, count) == mtwn_success, "a target destroyed");
-    wrong = (mtwnBinding){1, 0, count};
+    wrong = mtwnBind(1, count);
     CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "a stale target");
     mtwnTargetId reused;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){42.0f, 0, 0, 0}, &reused) ==
@@ -439,7 +439,7 @@ static void TestCommitReported(void)
     mtwnTargetId other;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
-    mtwnBinding bindings[2] = {{0, 0, w.target}, {1, 0, other}};
+    mtwnBinding bindings[2] = {mtwnBind(0, w.target), mtwnBind(1, other)};
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
     def.bindings = bindings;

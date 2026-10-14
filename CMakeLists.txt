@@ -44,6 +44,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/base.c
     src/clip.c
     src/clip_sample.c
+    src/compose.c
     src/color.c
     src/context.c
     src/crossing.c
@@ -94,6 +95,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(clip_play)
     maul_add_test(crossing WHITEBOX)
     maul_add_test(event)
+    maul_add_test(compose WHITEBOX)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

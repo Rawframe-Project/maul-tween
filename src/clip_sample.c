@@ -8,6 +8,7 @@
 // to its slot, later tracks over earlier ones. A moving player's velocity
 // is its values' change over the last millisecond, as a transition's is.
 
+#include "compose.h"
 #include "context_internal.h"
 
 #include "maul-tween/path.h"
@@ -19,7 +20,7 @@ static const double s_velocitySpan = 0.001;
 
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot)
 {
-    mtwnTargetId id = context->bindings.entries[play->bindingStart + slot];
+    mtwnTargetId id = context->bindings.entries[play->bindingStart + slot].target;
     if (id.index1 == 0 || mtwnPoolFind(&context->targets, id.index1, id.generation) == NULL)
     {
         return 0;
@@ -99,9 +100,11 @@ static mtwnVec4 Unrounded(const mtwnTrack* track, double progress)
 }
 
 // Writes a track's value, and its velocity when it had a value a moment
-// ago, into its target.
+// ago, into its target, composed onto what lies under it there: what
+// earlier players wrote in this update, or the base.
 static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t target,
-                       const mtwnNodeTime* parent, bool moving, bool commit)
+                       const mtwnBound* bound, double weight, const mtwnNodeTime* parent,
+                       bool moving, bool commit)
 {
     double progress = TrackProgress(node, parent->now - node->start, parent->backwards);
     if (isnan(progress))
@@ -122,13 +125,15 @@ static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t 
             velocity[i] = (float)(((double)a[i] - (double)b[i]) / s_velocitySpan);
         }
     }
-    if (node->track.kind == mtwn_valueInteger)
-    {
-        value.x = (float)round((double)value.x);
-    }
-    mtwnWriteTarget(context, target, value,
-                    (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
     mtwnTargetSlot* slot = mtwnTargetAt(context, target);
+    bool unwritten = (slot->header.flags & MTWN_TARGET_UNWRITTEN) != 0;
+    mtwnMoving under = {unwritten ? slot->base : slot->value,
+                        unwritten ? (mtwnVec4){0.0f, 0.0f, 0.0f, 0.0f} : slot->velocity};
+    mtwnMoving effect = {value, {velocity[0], velocity[1], velocity[2], velocity[3]}};
+    mtwnMoving composed = mtwnCompose(node->track.kind, bound->composite,
+                                      weight * (double)bound->weight, under, effect);
+    value = composed.value;
+    mtwnWriteTarget(context, target, value, composed.velocity);
     bool rebased = slot->base.x != value.x || slot->base.y != value.y || slot->base.z != value.z ||
                    slot->base.w != value.w;
     if (commit && rebased)
@@ -177,7 +182,9 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
             uint32_t target = mtwnBoundTarget(context, play, node->slot);
             if (target != 0)
             {
-                WriteTrack(context, node, target, parent, moving, commit);
+                const mtwnBound* bound =
+                    &context->bindings.entries[play->bindingStart + node->slot];
+                WriteTrack(context, node, target, bound, play->weight, parent, moving, commit);
             }
         }
     }

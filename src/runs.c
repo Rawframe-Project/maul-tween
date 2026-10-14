@@ -9,20 +9,20 @@
 
 static uint32_t Length(const mtwnRuns* runs, uint32_t start)
 {
-    return runs->entries[start].index1;
+    return runs->entries[start].target.index1;
 }
 
 static uint32_t Next(const mtwnRuns* runs, uint32_t start)
 {
-    return runs->entries[start].generation;
+    return runs->entries[start].target.generation;
 }
 
 static void SetRun(mtwnRuns* runs, uint32_t start, uint32_t length, uint32_t next)
 {
-    runs->entries[start] = (mtwnTargetId){length, next};
+    runs->entries[start].target = (mtwnTargetId){length, next};
 }
 
-mtwnRuns mtwnMakeRuns(mtwnTargetId* entries, uint32_t capacity)
+mtwnRuns mtwnMakeRuns(mtwnBound* entries, uint32_t capacity)
 {
     mtwnRuns runs = {entries, capacity, 0};
     if (capacity > 0)

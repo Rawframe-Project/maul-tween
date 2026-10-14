@@ -52,6 +52,8 @@ typedef struct mtwnClipPlay
     double holdTime;
     double previousTime;
     double rate;
+    // Scales its bindings' weights.
+    double weight;
     // A rate waiting for the next update, NaN for none: until then the old
     // rate runs, and from it the new one, the current time kept.
     double pendingRate;

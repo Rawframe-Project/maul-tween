@@ -28,13 +28,49 @@ extern "C"
         uint32_t generation;
     } mtwnPlayerId;
 
-    // A slot of a clip bound to a target.
+    // How a player's value goes onto what lies under it (Web Animations'
+    // composite operations; accumulate is addition for every value kind).
+    typedef uint8_t mtwnComposite;
+    enum
+    {
+        // The player's value, mixed toward by its weight.
+        mtwn_compositeReplace = 0,
+        // The value under it plus the player's, times its weight.
+        mtwn_compositeAdd = 1,
+    };
+
+    // A slot of a clip bound to a target, with how it composes there.
+    // Start from mtwnBind.
     typedef struct mtwnBinding
     {
         uint32_t slot;
-        uint32_t reserved;
+        mtwnComposite composite;
+        uint8_t reserved[3];
         mtwnTargetId target;
+        // In [0, 1]: how far from what lies under it toward the composited
+        // value.
+        float weight;
     } mtwnBinding;
+
+    /// Makes a binding of a slot to a target: replace, at full weight.
+    ///
+    /// @param slot    The clip's slot.
+    /// @param target  The target.
+    /// @return The binding.
+    /// @par Thread safety
+    /// Safe from any thread.
+    static inline mtwnBinding mtwnBind(uint32_t slot, mtwnTargetId target)
+    {
+#ifdef __cplusplus
+        mtwnBinding binding = {};
+#else
+    mtwnBinding binding = {0};
+#endif
+        binding.slot = slot;
+        binding.target = target;
+        binding.weight = 1.0f;
+        return binding;
+    }
 
     // How a player is made. Start from mtwnDefaultPlayerDef.
     typedef struct mtwnPlayerDef
@@ -46,7 +82,9 @@ extern "C"
         // A finished clip.
         mtwnClipId clip;
         // Its slots' targets, copied; each slot at most once and used by the
-        // clip's tracks; a slot left out plays on nothing.
+        // clip's tracks, each target alive and of the slot's kind, each
+        // composite known and weight in [0, 1]; a slot left out plays on
+        // nothing.
         const mtwnBinding* bindings;
         uint32_t bindingCount;
         // Whether it plays at once, starting at the next update.
@@ -57,13 +95,16 @@ extern "C"
         uint8_t reserved[2];
         // The playback rate, finite; negative plays backwards, 0 holds.
         double rate;
+        // In [0, 1]: scales every binding's weight; mtwnPlayer_SetWeight
+        // changes it while it plays.
+        double weight;
     } mtwnPlayerDef;
 
 // The cookie mtwnDefaultPlayerDef sets and mtwnCreatePlayer checks.
 #define MTWN_PLAYER_DEF_COOKIE 0x59414C50u
 
-    /// Makes a player def: no clip, no bindings, playing at once at rate 1,
-    /// freed when it ends. Built in the program, so it carries the version of
+    /// Makes a player def: no clip, no bindings, playing at once at rate 1
+    /// and full weight, freed when it ends. Built in the program, so it carries the version of
     /// the headers the program includes.
     ///
     /// @return The def.
@@ -80,6 +121,7 @@ extern "C"
         def.version = MTWN_ABI_VERSION;
         def.play = true;
         def.rate = 1.0;
+        def.weight = 1.0;
         return def;
     }
 
@@ -118,8 +160,8 @@ extern "C"
     /// @param def        The def.
     /// @param playerOut  Receives the player's id, or the null id on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie, a rate not finite, a binding outside the
-    ///         above; mtwn_errorVersion for a def of another version;
+    ///         without its cookie, a rate not finite, a weight outside
+    ///         [0, 1], a binding outside the above; mtwn_errorVersion for a def of another version;
     ///         mtwn_errorStale for a clip that is not alive; mtwn_errorState
     ///         for one not finished; mtwn_errorLimit when the context holds
     ///         its capacity of players or of bindings.
@@ -249,6 +291,19 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player,
                                                           double rate);
+
+    /// Sets a clip's player's weight, which scales its bindings' from the
+    /// next update: a layer faded in or out.
+    ///
+    /// @param context  The context.
+    /// @param player   A clip's player.
+    /// @param weight   In [0, 1].
+    /// @return As mtwnPlayer_Play; mtwn_errorInvalid also for a weight
+    ///         outside [0, 1].
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetWeight(mtwnContext* context,
+                                                            mtwnPlayerId player, double weight);
 
     /// Reads a clip's player's state at the last update's time.
     ///

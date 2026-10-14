@@ -359,6 +359,11 @@ static bool IsRate(double rate)
     return isfinite(rate);
 }
 
+static bool IsWeight(double weight)
+{
+    return weight >= 0.0 && weight <= 1.0;
+}
+
 // Whether the bindings name slots the clip's tracks use, each once, and
 // live targets of their kinds.
 static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
@@ -374,6 +379,7 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
         const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
             &context->targets, binding->target.index1, binding->target.generation);
         if (binding->slot >= clip->slotCount || target == NULL ||
+            binding->composite > mtwn_compositeAdd || !IsWeight((double)binding->weight) ||
             clip->slotKinds[binding->slot] != target->kind + 1)
         {
             return false;
@@ -408,7 +414,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorState);
     }
-    if (!IsRate(def->rate) || !AreBindings(context, def, clip))
+    if (!IsRate(def->rate) || !IsWeight(def->weight) || !AreBindings(context, def, clip))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
@@ -426,14 +432,16 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
         }
         return mtwn_errorLimit;
     }
-    mtwnTargetId* targets = &context->bindings.entries[start];
+    mtwnBound* bound = &context->bindings.entries[start];
     for (uint32_t s = 0; s < clip->slotCount; ++s)
     {
-        targets[s] = (mtwnTargetId){0, 0};
+        bound[s] = (mtwnBound){{0, 0}, 0.0f, mtwn_compositeReplace, {0}};
     }
     for (uint32_t i = 0; i < def->bindingCount; ++i)
     {
-        targets[def->bindings[i].slot] = def->bindings[i].target;
+        const mtwnBinding* binding = &def->bindings[i];
+        bound[binding->slot] =
+            (mtwnBound){binding->target, binding->weight, binding->composite, {0}};
     }
     mtwnClipPlay* play = &mtwnPlayerAt(context, index1)->play;
     *play = (mtwnClipPlay){.clip = def->clip,
@@ -441,6 +449,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                            .holdTime = (double)NAN,
                            .previousTime = (double)NAN,
                            .rate = def->rate,
+                           .weight = def->weight,
                            .pendingRate = (double)NAN,
                            .swept = (double)NAN,
                            .bindingStart = start,
@@ -535,6 +544,7 @@ typedef enum Control
     s_seekLabel,
     s_sweep,
     s_setRate,
+    s_setWeight,
 } Control;
 
 // A seek jumped: nothing between is crossed, and a record says so.
@@ -618,6 +628,9 @@ static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, uint32_t pla
     case s_setRate:
         SetRate(play, now, end, argument);
         return mtwn_success;
+    case s_setWeight:
+        play->weight = argument;
+        return mtwn_success;
     default:
         return Seeking(context, player, control, argument, key);
     }
@@ -683,6 +696,10 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
     {
         return Misuse(context, mtwn_errorState);
     }
+    if (control == s_setWeight && !IsWeight(argument))
+    {
+        return Misuse(context, mtwn_errorInvalid);
+    }
     if ((control == s_seek || control == s_seekProgress || control == s_setRate ||
          control == s_sweep) &&
         !isfinite(argument))
@@ -744,6 +761,11 @@ mtwnResult mtwnPlayer_SeekLabel(mtwnContext* context, mtwnPlayerId player, uint3
 mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate)
 {
     return Apply(context, player, s_setRate, rate, 0);
+}
+
+mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight)
+{
+    return Apply(context, player, s_setWeight, weight, 0);
 }
 
 mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)

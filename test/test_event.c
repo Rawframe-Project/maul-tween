@@ -64,7 +64,7 @@ static mtwnNode AddTrack(World* w, double start, double seconds, double iteratio
 
 static mtwnPlayerId Play(World* w, bool keep, double rate)
 {
-    mtwnBinding binding = {0, 0, w->target};
+    mtwnBinding binding = mtwnBind(0, w->target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;

@@ -76,7 +76,7 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
     bool placed = Place(&end, def->targetCapacity, sizeof(mtwnTargetSlot), &layout->targets) &&
                   Place(&end, def->playerCapacity, sizeof(mtwnPlayerSlot), &layout->players) &&
                   Place(&end, def->clipCapacity, sizeof(mtwnClipSlot), &layout->clips) &&
-                  Place(&end, def->bindingCapacity, sizeof(mtwnTargetId), &layout->bindings) &&
+                  Place(&end, def->bindingCapacity, sizeof(mtwnBound), &layout->bindings) &&
                   Place(&end, def->eventCapacity, sizeof(mtwnEvent), &layout->events) &&
                   Place(&end, def->eventCapacity, sizeof(double), &layout->eventAlong) &&
                   Place(&end, MTWN_MAX_CLIP_DEPTH + 2u, sizeof(mtwnLevel), &layout->levels) &&
@@ -126,8 +126,7 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     context->players =
         MakePool(block + layout.players, sizeof(mtwnPlayerSlot), def->playerCapacity);
     context->clips = MakePool(block + layout.clips, sizeof(mtwnClipSlot), def->clipCapacity);
-    context->bindings =
-        mtwnMakeRuns((mtwnTargetId*)(block + layout.bindings), def->bindingCapacity);
+    context->bindings = mtwnMakeRuns((mtwnBound*)(block + layout.bindings), def->bindingCapacity);
     context->events = (mtwnEvent*)(block + layout.events);
     context->eventAlong = (double*)(block + layout.eventAlong);
     context->levels = (mtwnLevel*)(block + layout.levels);

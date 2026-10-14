@@ -321,14 +321,19 @@ Samples a track: its value at a progress, as mtwnSamplePath finds the segment an
 Players (records mtwn-0004, mtwn-0012, mtwn-0029 and mtwn-0035): what writes targets. A player plays a finished clip on targets bound to its slots, by Web Animations' procedures on the host's clock; a transition is a player too. A player not kept ends by committing its last value into its targets' base values and is then freed, its id stale.
 
 ```c
+static inline mtwnBinding mtwnBind(uint32_t slot, mtwnTargetId target);
+```
+Makes a binding of a slot to a target: replace, at full weight.  @param slot    The clip's slot. @param target  The target. @return The binding. @par Thread safety Safe from any thread.
+
+```c
 static inline mtwnPlayerDef mtwnDefaultPlayerDef(void);
 ```
-Makes a player def: no clip, no bindings, playing at once at rate 1, freed when it ends. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a player def: no clip, no bindings, playing at once at rate 1 and full weight, freed when it ends. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut);
 ```
-Makes a player of a finished clip, which it holds busy until it is freed; it starts at the next update if the def says play, else idle.  @param context    The context. @param def        The def. @param playerOut  Receives the player's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a rate not finite, a binding outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished; mtwn_errorLimit when the context holds its capacity of players or of bindings. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Makes a player of a finished clip, which it holds busy until it is freed; it starts at the next update if the def says play, else idle.  @param context    The context. @param def        The def. @param playerOut  Receives the player's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a rate not finite, a weight outside [0, 1], a binding outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished; mtwn_errorLimit when the context holds its capacity of players or of bindings. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player);
@@ -379,6 +384,11 @@ Seeks a clip's player to a label of its clip's root.  @param context  The contex
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate);
 ```
 Sets a clip's player's rate, keeping its current time.  @param context  The context. @param player   A clip's player. @param rate     Finite; negative plays backwards, 0 holds. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight);
+```
+Sets a clip's player's weight, which scales its bindings' from the next update: a layer faded in or out.  @param context  The context. @param player   A clip's player. @param weight   In [0, 1]. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a weight outside [0, 1]. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut);
@@ -557,4 +567,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-100 functions across 13 headers.
+102 functions across 13 headers.
