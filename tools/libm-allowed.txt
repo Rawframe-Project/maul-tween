@@ -6,3 +6,6 @@
 floor
 frexp
 ldexp
+copysign
+fabs
+fmod

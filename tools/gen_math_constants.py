@@ -145,8 +145,11 @@ def lines():
           "(-1)^n / (2n)! for n from 2 to 9: cosine for |r| <= pi / 4.")
     table("s_atanSeries", [to_double(D((-1) ** n) / (2 * n + 1)) for n in range(1, 9)],
           "(-1)^n / (2n + 1) for n from 1 to 8: arctangent for |u| <= 1/16.")
-    table("s_atanEighths", [to_double(atan(D(k) / 8)) for k in range(0, 9)],
-          "atan(k / 8) for k from 0 to 8.")
+    eighths = [atan(D(k) / 8) for k in range(0, 9)]
+    highs = [to_double(v) for v in eighths]
+    table("s_atanEighths", highs, "atan(k / 8) for k from 0 to 8.")
+    table("s_atanEighthsLow", [to_double(v - exact(h)) for v, h in zip(eighths, highs)],
+          "atan(k / 8) minus s_atanEighths[k].")
     return out
 
 

@@ -7,8 +7,13 @@
 // writes x = 2^k m with m in [sqrt(1/2), sqrt(2)), f = m - 1 exactly,
 // s = f / (2 + f), and ln m = f - f^2/2 + s (f^2/2 + R(s^2)), R the
 // atanh series to s^22, whose remainder is under 1e-17 relative for
-// |s| <= 0.172. In each, the leading terms are added exactly as pairs
-// of doubles (Knuth's two-sum, Dekker's product) and the result is
+// |s| <= 0.172. Sine and cosine reduce x to r = x - k pi / 2 with
+// |r| <= pi / 4 by a three-part split of pi / 2, keeping r as a pair of
+// doubles, and sum their Taylor series to degrees 17 and 18. The
+// arctangent reduces to z in [0, 1], then to u = (z - c) / (1 + z c)
+// with c the nearest multiple of 1/8, |u| <= 1/16, and sums its series
+// to u^17 onto atan(c). In each, the leading terms are added exactly as
+// pairs of doubles (Knuth's two-sum, Dekker's product) and the result is
 // rounded once, so the error stays near half an ulp.
 
 #include "elementary.h"
@@ -16,6 +21,7 @@
 #include "generated/math_constants.h"
 
 #include <math.h>
+#include <stdbool.h>
 
 // The largest x whose exponential is finite, the double just below
 // ln(DBL_MAX), and the smallest whose exponential rounds above 0.
@@ -164,4 +170,180 @@ double mtwnLog(double x)
     double totalLow = 0.0;
     double total = TwoSum(k * MTWN_LN2_HI, head, &totalLow);
     return total + (totalLow + (headLow + small + k * MTWN_LN2_LO));
+}
+
+// Below this, sine is x and cosine is 1 to within half an ulp.
+static const double s_tinyAngle = 0x1.0p-27;
+
+// The sine and cosine of r + rLow for |r| <= pi / 4 and rLow far below
+// an ulp of r.
+static void SinCosKernel(double r, double rLow, double* sineOut, double* cosineOut)
+{
+    double zLow = 0.0;
+    double z = TwoProduct(r, r, &zLow);
+    // sin = r + r^3 (-1/3! + z / 5! - ...), with rLow's first-order term.
+    double sineTail = r * z * Polynomial(s_sinTaylor, 8, z);
+    *sineOut = r + (sineTail + rLow * (1.0 - 0.5 * z));
+    // cos = 1 - z / 2 + z^2 (1/4! - z / 6! + ...), 1 - z / 2 exactly as a
+    // pair, minus rLow's first-order term r rLow.
+    double halfLow = 0.5 * zLow;
+    double headLow = 0.0;
+    double head = FastTwoSum(1.0, -0.5 * z, &headLow);
+    double cosineTail = z * z * Polynomial(s_cosTaylor, 8, z);
+    *cosineOut = head + (headLow - halfLow + (cosineTail - r * rLow));
+}
+
+void mtwnSinCos(double x, double* sineOut, double* cosineOut)
+{
+    if (!isfinite(x))
+    {
+        *sineOut = (double)NAN;
+        *cosineOut = (double)NAN;
+        return;
+    }
+    if (fabs(x) < s_tinyAngle)
+    {
+        *sineOut = x;
+        *cosineOut = 1.0;
+        return;
+    }
+    double k = floor(x * MTWN_INV_PIO2 + 0.5);
+    // x - k p1 is exact (Sterbenz), k p2 and k p3 are exact products for
+    // |k| < 2^20, and the sums carry their errors.
+    double first = x - k * MTWN_PIO2_1;
+    double secondLow = 0.0;
+    double second = TwoSum(first, -k * MTWN_PIO2_2, &secondLow);
+    double rLow = 0.0;
+    double r = FastTwoSum(second, secondLow - k * MTWN_PIO2_3, &rLow);
+    double sine = 0.0;
+    double cosine = 0.0;
+    SinCosKernel(r, rLow, &sine, &cosine);
+    // The quadrant, from k modulo 4 computed exactly for any k.
+    double quadrant = fmod(k, 4.0);
+    if (quadrant < 0.0)
+    {
+        quadrant += 4.0;
+    }
+    switch ((int)quadrant)
+    {
+    case 0:
+        *sineOut = sine;
+        *cosineOut = cosine;
+        break;
+    case 1:
+        *sineOut = cosine;
+        *cosineOut = -sine;
+        break;
+    case 2:
+        *sineOut = -sine;
+        *cosineOut = -cosine;
+        break;
+    default:
+        *sineOut = -cosine;
+        *cosineOut = sine;
+        break;
+    }
+}
+
+// atan(z + zLow) for z in [0, 1], as a pair: *lowOut carries what the
+// returned double cannot.
+static double ArctanPair(double z, double zLow, double* lowOut)
+{
+    double index = floor(z * 8.0 + 0.5);
+    double c = index * 0.125;
+    // z - c is exact (Sterbenz, or c = 0); 1 + z c is kept as a pair.
+    double numerator = z - c;
+    double productLow = 0.0;
+    double product = TwoProduct(z, c, &productLow);
+    double denominatorLow = 0.0;
+    double denominator = FastTwoSum(1.0, product, &denominatorLow);
+    denominatorLow += productLow;
+    double u = numerator / denominator;
+    double backLow = 0.0;
+    double back = TwoProduct(u, denominator, &backLow);
+    double uLow = ((numerator - back) - backLow - u * denominatorLow) / denominator;
+    // zLow moves atan by zLow / (1 + z^2) to first order.
+    uLow += zLow / (1.0 + z * z);
+    double v = u * u;
+    double tail = u * v * Polynomial(s_atanSeries, 8, v);
+    int i = (int)index;
+    double sumLow = 0.0;
+    double sum = TwoSum(s_atanEighths[i], u, &sumLow);
+    *lowOut = sumLow + (s_atanEighthsLow[i] + uLow + tail);
+    return sum;
+}
+
+// The C standard's atan2 where x or y is zero or infinite: true, with the
+// angle in *angleOut; false for every other pair.
+static bool Atan2Special(double y, double x, double* angleOut)
+{
+    double ax = fabs(x);
+    double ay = fabs(y);
+    double angle = 0.0;
+    if (isinf(ax) || isinf(ay))
+    {
+        // Infinities of both, of y alone, or of x alone.
+        double quarter = MTWN_PIO2_HI * 0.5;
+        angle = isinf(ay) ? (isinf(ax) ? quarter : MTWN_PIO2_HI) : 0.0;
+        if (signbit(x))
+        {
+            angle = isinf(ay) ? (isinf(ax) ? 3.0 * quarter : MTWN_PIO2_HI) : MTWN_PI_HI;
+        }
+    }
+    else if (ay == 0.0)
+    {
+        angle = signbit(x) ? MTWN_PI_HI : 0.0;
+    }
+    else if (ax == 0.0)
+    {
+        angle = MTWN_PIO2_HI;
+    }
+    else
+    {
+        return false;
+    }
+    *angleOut = copysign(angle, y);
+    return true;
+}
+
+double mtwnAtan2(double y, double x)
+{
+    if (isnan(x) || isnan(y))
+    {
+        return (double)NAN;
+    }
+    double special = 0.0;
+    if (Atan2Special(y, x, &special))
+    {
+        return special;
+    }
+    double ax = fabs(x);
+    double ay = fabs(y);
+    // The ratio of the smaller to the larger, as a pair, then its angle.
+    // Both are first scaled by one power of two, which leaves the angle as
+    // it is and keeps Dekker's product in range for any finite pair.
+    double small = ay <= ax ? ay : ax;
+    double large = ay <= ax ? ax : ay;
+    int exponent = 0;
+    large = frexp(large, &exponent);
+    small = ldexp(small, -exponent);
+    double z = small / large;
+    double backLow = 0.0;
+    double back = TwoProduct(z, large, &backLow);
+    double zLow = ((small - back) - backLow) / large;
+    double angleLow = 0.0;
+    double angle = ArctanPair(z, zLow, &angleLow);
+    if (ay > ax)
+    {
+        double low = 0.0;
+        angle = TwoSum(MTWN_PIO2_HI, -angle, &low);
+        angleLow = low + (MTWN_PIO2_LO - angleLow);
+    }
+    if (signbit(x))
+    {
+        double low = 0.0;
+        angle = TwoSum(MTWN_PI_HI, -angle, &low);
+        angleLow = low + (MTWN_PI_LO - angleLow);
+    }
+    return copysign(angle + angleLow, y);
 }

@@ -125,5 +125,17 @@ static const double s_atanEighths[9] = {
     0x1.700a7c5784634p-1,
     0x1.921fb54442d18p-1,
 };
+// atan(k / 8) minus s_atanEighths[k].
+static const double s_atanEighthsLow[9] = {
+    0x0.0p+0,
+    -0x1.cd37686760c17p-59,
+    0x1.8ab6e3cf7afbdp-57,
+    -0x1.c63aae6f6e918p-56,
+    0x1.a2b7f222f65e2p-56,
+    -0x1.928df287a668fp-58,
+    0x1.2419a87f2a458p-56,
+    -0x1.8c34d25aadef6p-56,
+    0x1.1a62633145c07p-55,
+};
 
 #endif

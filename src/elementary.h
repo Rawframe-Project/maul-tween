@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The library's own exponential and logarithm (record mtwn-0008), so
-// that they give the same bits on every platform: only arithmetic and
-// the functions IEEE 754 rounds exactly. Each states the accuracy its
-// tests hold it to.
+// The library's own exponential, logarithm and trigonometry (record
+// mtwn-0008), so that they give the same bits on every platform: only
+// arithmetic and the functions IEEE 754 rounds exactly. Each states its
+// range and the accuracy its tests hold it to. These take and return
+// binary64; binary32 entry points, for callers that compute in float,
+// take the same names with an F suffix.
 
 #ifndef MAUL_TWEEN_SRC_ELEMENTARY_H
 #define MAUL_TWEEN_SRC_ELEMENTARY_H
@@ -22,5 +24,17 @@ double mtwnExp2(double x);
 // The natural logarithm of x, within 1 ulp: -infinity for 0, NaN below 0
 // and for NaN, infinity for infinity, exactly 0 for 1.
 double mtwnLog(double x);
+
+// The sine and cosine of x together, each within 1 ulp for |x| up to
+// 2^20 pi / 2 (about 1.6e6), where the reduction by pi / 2 is exact to
+// beyond double precision; past it the results stay bounded and the
+// same on every platform but lose accuracy. Both are NaN for an
+// infinite or NaN x.
+void mtwnSinCos(double x, double* sineOut, double* cosineOut);
+
+// The angle of the point (x, y) from the positive x axis, in radians
+// from -pi to pi, within 1 ulp, with the C standard's values for zeros
+// and infinities of either sign.
+double mtwnAtan2(double y, double x);
 
 #endif // MAUL_TWEEN_SRC_ELEMENTARY_H
