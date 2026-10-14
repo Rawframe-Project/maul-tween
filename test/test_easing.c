@@ -226,6 +226,33 @@ static void TestEndsAreExact(void)
     CHECK(wrong == 0, "every Penner easing is exactly 0, 1/2 and 1 at its ends and middle");
 }
 
+static void TestEndsAreExactForEveryParameter(void)
+{
+    // The normalization divides by the curve's range: a multiplication by
+    // its reciprocal would miss 1 for about one range in six.
+    int wrong = 0;
+    for (int i = 1; i <= 400; ++i)
+    {
+        double parameter = (double)i / 37.0;
+        mtwnEasing easings[3];
+        mtwnResult made = mtwnMakePowerEasing(mtwn_easeIn, parameter, &easings[0]);
+        made |= mtwnMakeBackEasing(mtwn_easeIn, parameter, &easings[1]);
+        made |= mtwnMakeElasticEasing(mtwn_easeIn, 1.0 + parameter, 0.05 + parameter / 20.0,
+                                      &easings[2]);
+        wrong += made != mtwn_success;
+        for (int e = 0; e < 3; ++e)
+        {
+            for (int m = 0; m < 4; ++m)
+            {
+                wrong += mtwnSetEaseMode(&easings[e], s_modes[m]) != mtwn_success;
+                wrong += mtwnEase(&easings[e], 0.0, false) != 0.0;
+                wrong += mtwnEase(&easings[e], 1.0, false) != 1.0;
+            }
+        }
+    }
+    CHECK(wrong == 0, "power, back and elastic land exactly for every parameter");
+}
+
 static void TestAgainstTheFormulas(void)
 {
     for (size_t c = 0; c < sizeof s_cases / sizeof s_cases[0]; ++c)
@@ -417,6 +444,13 @@ static void TestRefusals(void)
           "infinite period");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1e-300, 1e10, &easing) == mtwn_errorInvalid,
           "a period whose stretch overflows");
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, 1e-310, &easing) == mtwn_errorInvalid,
+          "a period whose frequency overflows");
+    // At amplitude 1024 the sine at the out curve's end rounds to -1 for
+    // this period, putting both ends at 0.
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1024.0, 0x1.55433a91bf526p+0, &easing) ==
+              mtwn_errorInvalid,
+          "an elastic whose ends coincide");
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, NULL, NULL, &easing) == mtwn_errorInvalid,
           "null function");
     CHECK(easing.kind == mtwn_easingLinear, "a refusal leaves the out-parameter as it was");
@@ -429,6 +463,7 @@ static void TestRefusals(void)
 int main(void)
 {
     TestEndsAreExact();
+    TestEndsAreExactForEveryParameter();
     TestAgainstTheFormulas();
     TestMonotonicEasingsNeverDecrease();
     TestRivalMappings();

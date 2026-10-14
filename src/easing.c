@@ -150,7 +150,6 @@ static mtwnEasing Blank(mtwnEasingKind kind, mtwnEaseMode mode)
     mtwnEasing easing = {0};
     easing.kind = kind;
     easing.mode = mode;
-    easing.parameters[s_range] = 1.0;
     return easing;
 }
 
@@ -218,15 +217,13 @@ mtwnResult mtwnMakeElasticEasing(mtwnEaseMode mode, double amplitude, double per
         amplitude = 1.0;
     }
     double angular = 4.0 * MTWN_PIO2_HI / period;
-    if (!isfinite(angular) || angular == 0.0)
-    {
-        return mtwn_errorInvalid;
-    }
     mtwnEasing easing = Blank(mtwn_easingElastic, mode);
     easing.parameters[0] = amplitude;
     easing.parameters[1] = angular;
     // asin(1 / a) as atan2(1, sqrt(a^2 - 1)), exactly pi / 2 at a = 1.
     easing.parameters[2] = mtwnAtan2(1.0, sqrt((amplitude - 1.0) * (amplitude + 1.0))) / angular;
+    // A period whose frequency overflows or vanishes leaves no finite,
+    // nonzero range between the curve's ends.
     Normalize(&easing);
     if (!isfinite(easing.parameters[s_range]) || easing.parameters[s_range] == 0.0)
     {
