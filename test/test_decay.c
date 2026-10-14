@@ -113,6 +113,8 @@ static void TestDecayFromIos(void)
           "0.99");
     mtwnDecay decay = {7.0};
     CHECK(mtwnMakeDecayFromDeceleration(1.0, &decay) == mtwn_errorInvalid, "1 never decays");
+    CHECK(mtwnMakeDecayFromDeceleration(1.5, &decay) == mtwn_errorInvalid, "above 1 grows");
+    CHECK(mtwnMakeDecayFromDeceleration(-0.5, &decay) == mtwn_errorInvalid, "below 0");
     CHECK(mtwnMakeDecayFromDeceleration(0.0, &decay) == mtwn_errorInvalid, "0");
     CHECK(mtwnMakeDecayFromDeceleration((double)NAN, &decay) == mtwn_errorInvalid, "NaN");
     CHECK(mtwnMakeDecayFromDeceleration(1.0 - 0x1.0p-53, &decay) == mtwn_success &&
@@ -171,6 +173,12 @@ static void TestDecayCrossings(void)
     }
     CHECK(worst <= 2e-15 + s_slack,
           "crossing times within 2e-15 of their conditioning, near the start too");
+    // From 0 a tiny target makes a share that is no multiple of 2^-53, so
+    // 1 - f rounds: the series keeps its digits.
+    double tiny = mtwnDecayCrossingTime(&decay, 0.0, 7.0, 1e-12);
+    Wide tinyShare = (Wide)1e-12 * 3 / 7;
+    CHECK(Relative(tiny, -WIDE_LOG1P(-tinyShare) / 3) <= 2e-15 + s_slack,
+          "a target next to the start");
     CHECK(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 2.0) == 0.0, "at the start");
     CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 1.0)), "behind it");
     CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 4.0)), "exactly at rest");
@@ -220,7 +228,10 @@ static void TestRubberBand(void)
               mtwnRubberBand((double)NAN, 600.0, 0.55) == 0.0 &&
               mtwnRubberBand(30.0, -1.0, 0.55) == 0.0,
           "no band without a dimension and a coefficient");
-    CHECK(isinf(mtwnRubberBandInverse(600.0, 600.0, 0.55)) &&
+    CHECK(mtwnRubberBandInverse(-30.0, 600.0, 0.55) == -mtwnRubberBandInverse(30.0, 600.0, 0.55) &&
+              mtwnRubberBandInverse(-30.0, 600.0, 0.55) < 0.0,
+          "the inverse is signed");
+    CHECK(mtwnRubberBandInverse(600.0, 600.0, 0.55) == HUGE_VAL &&
               mtwnRubberBandInverse(-700.0, 600.0, 0.55) == -HUGE_VAL,
           "no drag moves it the dimension");
     CHECK(mtwnRubberBandInverse(30.0, 0.0, 0.55) == 0.0 &&

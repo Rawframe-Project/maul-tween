@@ -28,10 +28,8 @@ mtwnResult mtwnMakeDecay(double rate, mtwnDecay* decayOut)
 
 mtwnResult mtwnMakeDecayFromDeceleration(double perMillisecond, mtwnDecay* decayOut)
 {
-    if (!(perMillisecond > 0.0 && perMillisecond < 1.0))
-    {
-        return mtwn_errorInvalid;
-    }
+    // A share outside (0, 1) gives a rate that is NaN, infinite or not above
+    // 0, which mtwnMakeDecay refuses.
     return mtwnMakeDecay(-1000.0 * mtwnLog(perMillisecond), decayOut);
 }
 
@@ -127,12 +125,9 @@ double mtwnRubberBand(double distance, double dimension, double coefficient)
         return 0.0;
     }
     double past = fabs(distance);
-    if (isinf(past))
-    {
-        return copysign(dimension, distance);
-    }
     // s d / (s + d) with s = c x, as m / (1 + m / M) for the smaller m and
-    // larger M of the two, which neither overflows nor underflows.
+    // larger M of the two, which neither overflows nor underflows, and is d
+    // for an infinite drag.
     double scaled = coefficient * past;
     double smaller = scaled < dimension ? scaled : dimension;
     double larger = scaled < dimension ? dimension : scaled;
