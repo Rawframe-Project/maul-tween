@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The one place a zeroed allocator reaches the C library (record
-// mtwn-0006).
+// mtwn-0006). The library asks it for max_align_t's alignment at most,
+// which malloc serves.
 
 #include "allocator.h"
 
@@ -14,7 +15,7 @@ void* mtwnAllocate(const mtwnAllocator* allocator, size_t bytes, size_t alignmen
     {
         return allocator->alloc(bytes, alignment, allocator->context);
     }
-    return alignment <= alignof(max_align_t) ? malloc(bytes) : NULL;
+    return malloc(bytes);
 }
 
 void mtwnRelease(const mtwnAllocator* allocator, void* memory, size_t bytes, size_t alignment)

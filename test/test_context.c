@@ -105,6 +105,13 @@ static void TestDefRefusals(void)
         CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a count of 0");
         mtwnDestroyContext(context);
     }
+    Counter refusing = {.fail = true};
+    def = mtwnDefaultContextDef();
+    def.allocator = (mtwnAllocator){CountAlloc, CountFree, &refusing};
+    def.targetCapacity = MTWN_MAX_COUNT;
+    def.clipStorageBytes = MTWN_MAX_CLIP_STORAGE;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorCapacity,
+          "the maxima themselves are accepted, then the allocator asked");
     def = mtwnDefaultContextDef();
     def.clipStorageBytes = (uint64_t)MTWN_MAX_CLIP_STORAGE + 1;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "clip storage past its maximum");

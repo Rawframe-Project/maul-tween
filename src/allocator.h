@@ -11,9 +11,8 @@
 
 #include <stddef.h>
 
-// Allocates bytes aligned to alignment, a power of two; NULL when the
-// allocator fails, or for a zeroed allocator and an alignment past
-// max_align_t's.
+// Allocates bytes aligned to alignment, a power of two and, for a zeroed
+// allocator, at most max_align_t's; NULL when the allocator fails.
 void* mtwnAllocate(const mtwnAllocator* allocator, size_t bytes, size_t alignment);
 
 // Frees what mtwnAllocate returned for the same size and alignment. NULL
