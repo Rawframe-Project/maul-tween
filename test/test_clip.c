@@ -1,0 +1,342 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Clips (records mtwn-0004, mtwn-0013, mtwn-0020, mtwn-0033): one block
+// per clip through the host's allocator within the context's clip
+// storage, tracks made in it as added and read back through the values
+// layer, positions resolved to start times, the states a clip passes, and
+// the same bits under a host's flush-to-zero.
+
+#include "context_internal.h"
+#include "fpenv.h"
+#include "test_harness.h"
+
+#include "maul-tween/clip.h"
+
+#include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct Counter
+{
+    int allocations;
+    int frees;
+    uint64_t live;
+} Counter;
+
+static void* CountAlloc(size_t size, size_t alignment, void* context)
+{
+    (void)alignment;
+    Counter* counter = context;
+    ++counter->allocations;
+    counter->live += size;
+    return malloc(size);
+}
+
+static void CountFree(void* memory, size_t size, size_t alignment, void* context)
+{
+    (void)alignment;
+    Counter* counter = context;
+    ++counter->frees;
+    counter->live -= size;
+    free(memory);
+}
+
+static mtwnContext* Make(Counter* counter, uint32_t clips, uint64_t storage)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.allocator = (mtwnAllocator){CountAlloc, CountFree, counter};
+    def.clipCapacity = clips;
+    def.clipStorageBytes = storage;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    return context;
+}
+
+static mtwnKeyframe Key(double offset, float x)
+{
+    mtwnKeyframe k;
+    memset(&k, 0, sizeof k);
+    k.offset = offset;
+    k.value = (mtwnVec4){x, 0, 0, 0};
+    k.easing = mtwnLinearEasing();
+    return k;
+}
+
+static void TestStorage(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 2, 65536);
+    mtwnClipDef def = mtwnDefaultClipDef();
+    mtwnClipId a;
+    mtwnClipId b;
+    mtwnClipId c;
+    CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success && counter.allocations == 2,
+          "one block for the clip");
+    uint64_t one = context->clipStorageUsed;
+    CHECK(one > 0 && one == mtwnClipAt(context, a.index1)->blockBytes, "counted");
+    CHECK(mtwnCreateClip(context, &def, &b) == mtwn_success, "a second");
+    CHECK(mtwnCreateClip(context, &def, &c) == mtwn_errorLimit && c.index1 == 0,
+          "the pool of clips full");
+    CHECK(mtwnDestroyClip(context, a) == mtwn_success && counter.frees == 1 &&
+              context->clipStorageUsed == one,
+          "destroyed, its storage back");
+    CHECK(!mtwnClip_IsValid(context, a) && mtwnClip_IsValid(context, b), "stale and alive");
+    CHECK(mtwnDestroyClip(context, a) == mtwn_errorStale, "a stale destroy");
+    mtwnDestroyContext(context);
+    CHECK(counter.frees == counter.allocations && counter.live == 0,
+          "the context frees the clips it still holds");
+    // Clip storage is a limit.
+    counter = (Counter){0};
+    context = Make(&counter, 4, one + one / 2);
+    CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "one fits");
+    CHECK(mtwnCreateClip(context, &def, &b) == mtwn_errorLimit && counter.allocations == 2,
+          "a second would pass the clip storage, nothing allocated");
+    CHECK(mtwnContext_GetMisuseCount(context) == 0, "a limit is not misuse");
+    mtwnDestroyContext(context);
+}
+
+static void TestPositions(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 10.0f)};
+    mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+    def.keyframes = keys;
+    def.keyframeCount = 2;
+    mtwnNode nodes[5];
+    // 0 to 1; then 1 to 2.5 after the end; with it at 1.25; after the
+    // previous one's end at 2.75 to 3.75; then absolute at -0.5.
+    def.position = (mtwnPosition){0.0, mtwn_positionAbsolute, {0}};
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[0]) == mtwn_success && nodes[0] == 2,
+          "the first child is node 2");
+    def.position = (mtwnPosition){0.0, mtwn_positionAfterEnd, {0}};
+    def.timing.duration = 1.5;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[1]) == mtwn_success, "after the end");
+    def.position = (mtwnPosition){0.25, mtwn_positionWithPrevious, {0}};
+    def.timing.duration = 1.0;
+    def.slot = 1;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[2]) == mtwn_success, "with the previous");
+    def.position = (mtwnPosition){0.5, mtwn_positionAfterPrevious, {0}};
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[3]) == mtwn_success, "after the previous");
+    def.position = (mtwnPosition){-0.5, mtwn_positionAbsolute, {0}};
+    def.timing.delay = 0.25;
+    def.timing.iterations = 3.0;
+    def.timing.endDelay = 0.5;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[4]) == mtwn_success, "before 0");
+    mtwnClipTrack track;
+    CHECK(mtwnClip_GetTrack(context, clip, nodes[0], &track) == mtwn_errorState,
+          "nothing is read before it is finished");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    static const double starts[5] = {0.0, 1.0, 1.25, 2.75, -0.5};
+    int placed = 1;
+    for (int i = 0; i < 5; ++i)
+    {
+        placed &= mtwnClip_GetTrack(context, clip, nodes[i], &track) == mtwn_success &&
+                  track.start == starts[i] && track.parent == MTWN_ROOT_NODE;
+    }
+    CHECK(placed, "every position resolved to its start");
+    double duration = 0.0;
+    CHECK(mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && duration == 3.75,
+          "the root lasts to its latest child's end");
+    // The last child: -0.5 + 0.25 + 3 + 0.5 = 3.25, inside 3.75.
+    CHECK(mtwnClip_GetTrack(context, clip, nodes[4], &track) == mtwn_success &&
+              track.timing.iterations == 3.0 && track.slot == 1,
+          "its timing and slot");
+    mtwnDestroyContext(context);
+}
+
+static void TestTracks(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    double pi = 3.141592653589793;
+    mtwnKeyframe angles[3] = {Key(0.0, (float)(350 * pi / 180)), Key(0.5, (float)(10 * pi / 180)),
+                              Key(1.0, (float)(30 * pi / 180))};
+    mtwnKeyframe given[3];
+    memcpy(given, angles, sizeof angles);
+    mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+    def.track = mtwnDefaultTrackDef(mtwn_valueAngle);
+    def.keyframes = angles;
+    def.keyframeCount = 3;
+    def.constantSpeed = true;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "an angle track");
+    CHECK(memcmp(angles, given, sizeof angles) == 0, "the caller's keyframes untouched");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnClipTrack track;
+    CHECK(mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success, "read");
+    mtwnTrack direct;
+    double lengths[3];
+    CHECK(mtwnMakeTrack(&def.track, given, 3, lengths, NULL, &direct) == mtwn_success, "direct");
+    int same = 1;
+    for (int k = 0; k <= 50; ++k)
+    {
+        mtwnVec4 a = mtwnSampleTrack(&track.track, k / 50.0);
+        mtwnVec4 b = mtwnSampleTrack(&direct, k / 50.0);
+        same &= memcmp(&a, &b, sizeof a) == 0;
+    }
+    CHECK(same, "the clip's track samples as the values layer's");
+    CHECK(mtwnClip_GetTrack(context, clip, MTWN_ROOT_NODE, &track) == mtwn_errorInvalid,
+          "the root is no track");
+    CHECK(mtwnClip_GetTrack(context, clip, 9, &track) == mtwn_errorInvalid, "no such node");
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorState && node == 0,
+          "nothing is added once finished");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_errorState, "finished once");
+    CHECK(mtwnContext_GetMisuseCount(context) == 4, "each refusal counted");
+    mtwnDestroyContext(context);
+}
+
+static void TestRefusals(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(NULL, &clipDef, &clip) == mtwn_errorInvalid, "no context");
+    CHECK(mtwnCreateClip(context, NULL, &clip) == mtwn_errorInvalid, "no def");
+    clipDef.cookie = 0;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "no cookie");
+    clipDef = mtwnDefaultClipDef();
+    clipDef.version = MTWN_ABI_VERSION + 1;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorVersion, "another version");
+    clipDef = mtwnDefaultClipDef();
+    clipDef.keyframeCapacity = MTWN_MAX_COUNT + 1;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "a capacity too large");
+    clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = 1;
+    clipDef.keyframeCapacity = 3;
+    clipDef.slotCapacity = 2;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a tiny clip");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+    def.keyframes = keys;
+    def.keyframeCount = 2;
+    mtwnNode node;
+    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    def.parent = 2;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no such parent");
+    def.parent = MTWN_ROOT_NODE;
+    def.slot = 2;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a slot past it");
+    def.slot = 0;
+    def.position.kind = 9;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a position kind");
+    def.position = (mtwnPosition){(double)NAN, mtwn_positionAbsolute, {0}};
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a NaN offset");
+    def.position = (mtwnPosition){0.0, mtwn_positionAbsolute, {0}};
+    def.timing.duration = -1.0;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a bad timing");
+    def.timing.duration = 1.0;
+    def.keyframes = NULL;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no keyframes");
+    def.keyframes = keys;
+    keys[1].offset = 0.5;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid,
+          "keyframes the track refuses");
+    keys[1].offset = 1.0;
+    def.cookie = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no cookie");
+    def.cookie = MTWN_CLIP_TRACK_DEF_COOKIE;
+    def.version = MTWN_ABI_VERSION + 1;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorVersion, "a version");
+    def.version = MTWN_ABI_VERSION;
+    CHECK(mtwnContext_GetMisuseCount(context) == misuse + 9, "each counted");
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "then it fits");
+    def.slot = 1;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorLimit, "the nodes full");
+    mtwnDestroyContext(context);
+    // The keyframes and a slot's kind.
+    counter = (Counter){0};
+    context = Make(&counter, 4, 1 << 20);
+    clipDef = mtwnDefaultClipDef();
+    clipDef.keyframeCapacity = 3;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    def.slot = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "two keyframes");
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorLimit, "two more do not fit");
+    clipDef.keyframeCapacity = 8;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "another");
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "a scalar on slot 0");
+    def.track = mtwnDefaultTrackDef(mtwn_valueInteger);
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid,
+          "an integer on the same slot");
+    CHECK(mtwnClip_AddTrack(context, (mtwnClipId){9, 1}, &def, &node) == mtwn_errorStale,
+          "a stale clip");
+    mtwnDestroyContext(context);
+}
+
+#if defined(__x86_64__) || defined(_M_X64)
+static const uint64_t s_hostSetting = 0x1f80u | (1u << 15) | (1u << 6) | (3u << 13);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+static const uint64_t s_hostSetting = (1ull << 24) | (3ull << 22);
+#else
+static const uint64_t s_hostSetting = 0;
+#endif
+
+// A curved track's lengths and samples, hashed, under a host setting.
+static uint64_t Scenario(uint64_t host, int* restoredOut)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[4] = {Key(0.0, 0x1p-130f), Key(0.3, 2.0f), Key(0.7, -1.0f), Key(1.0, 3.0f)};
+    for (int i = 0; i < 4; ++i)
+    {
+        keys[i].kind = mtwn_segmentCatmullRom;
+        keys[i].value.y = (float)i * 0.3f;
+    }
+    mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+    def.track = mtwnDefaultTrackDef(mtwn_valueVec2);
+    def.keyframes = keys;
+    def.keyframeCount = 4;
+    def.constantSpeed = true;
+    uint64_t saved = mtwnFloatControlRead();
+    mtwnFloatControlWrite(host);
+    mtwnNode node;
+    int restored = mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success &&
+                   mtwnFloatControlRead() == host;
+    mtwnFloatControlWrite(saved);
+    uint64_t hash = 0xcbf29ce484222325u;
+    const mtwnClipSlot* slot = mtwnClipAt(context, clip.index1);
+    unsigned char bytes[4 * sizeof(double)];
+    memcpy(bytes, slot->lengths, sizeof bytes);
+    for (size_t b = 0; b < sizeof bytes; ++b)
+    {
+        hash = (hash ^ bytes[b]) * 0x100000001b3u;
+    }
+    mtwnDestroyContext(context);
+    *restoredOut = restored;
+    return hash;
+}
+
+static void TestFloatEnvironment(void)
+{
+    int restored = 0;
+    uint64_t plain = Scenario(mtwnFloatControlRead(), &restored);
+    CHECK(restored, "the default kept");
+    int hostileRestored = 0;
+    uint64_t hostile =
+        Scenario(s_hostSetting == 0 ? mtwnFloatControlRead() : s_hostSetting, &hostileRestored);
+    CHECK(hostileRestored, "the host's setting left as it was");
+    CHECK(plain == hostile, "the same lengths under flush-to-zero and rounding toward zero");
+}
+
+int main(void)
+{
+    TestStorage();
+    TestPositions();
+    TestTracks();
+    TestRefusals();
+    TestFloatEnvironment();
+    return s_failures == 0 ? 0 : 1;
+}

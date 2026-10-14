@@ -37,3 +37,4 @@ are listed in [README.md](README.md).
 | [mtwn-0030](mtwn-0030-spring-decay-transitions.md) | Spring and decay transitions; velocity handed over | Accepted |
 | [mtwn-0031](mtwn-0031-paths.md) | Paths: keyframe curves in the values layer | Accepted |
 | [mtwn-0032](mtwn-0032-tracks.md) | Tracks: every value kind over keyframes | Accepted |
+| [mtwn-0033](mtwn-0033-clips.md) | The clip: one block of storage, tracks at positions, then finished | Accepted |

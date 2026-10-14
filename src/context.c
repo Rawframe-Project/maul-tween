@@ -3,7 +3,8 @@
 //
 // The context: the def checked, the context, its pools and its list of
 // changed targets allocated in one block through the host's allocator,
-// and freed in one call (records mtwn-0006, mtwn-0028 and mtwn-0029).
+// and freed in one call with its clips' blocks (records mtwn-0006,
+// mtwn-0028, mtwn-0029 and mtwn-0033).
 
 #include "allocator.h"
 #include "context_internal.h"
@@ -44,6 +45,7 @@ typedef struct Layout
 {
     uint64_t targets;
     uint64_t players;
+    uint64_t clips;
     uint64_t changed;
     uint64_t bytes;
 } Layout;
@@ -69,6 +71,7 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
     uint64_t end = sizeof(mtwnContext);
     bool placed = Place(&end, def->targetCapacity, sizeof(mtwnTargetSlot), &layout->targets) &&
                   Place(&end, def->playerCapacity, sizeof(mtwnPlayerSlot), &layout->players) &&
+                  Place(&end, def->clipCapacity, sizeof(mtwnClipSlot), &layout->clips) &&
                   Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed);
     layout->bytes = end;
     return placed && end <= SIZE_MAX;
@@ -114,6 +117,7 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
         MakePool(block + layout.targets, sizeof(mtwnTargetSlot), def->targetCapacity);
     context->players =
         MakePool(block + layout.players, sizeof(mtwnPlayerSlot), def->playerCapacity);
+    context->clips = MakePool(block + layout.clips, sizeof(mtwnClipSlot), def->clipCapacity);
     context->changed = (uint32_t*)(block + layout.changed);
     *contextOut = context;
     return mtwn_success;
@@ -125,8 +129,17 @@ void mtwnDestroyContext(mtwnContext* context)
     {
         return;
     }
-    // The allocator is read out before the block that holds it is freed.
+    // The clips' blocks first, then the context's; the allocator is read
+    // out before the block that holds it is freed.
     mtwnAllocator allocator = context->allocator;
+    for (uint32_t index1 = 1; index1 <= context->clips.high; ++index1)
+    {
+        mtwnClipSlot* clip = mtwnClipAt(context, index1);
+        if ((clip->header.flags & MTWN_SLOT_ALIVE) != 0)
+        {
+            mtwnRelease(&allocator, clip->block, (size_t)clip->blockBytes, s_blockAlignment);
+        }
+    }
     mtwnRelease(&allocator, context, (size_t)context->blockBytes, s_blockAlignment);
 }
 

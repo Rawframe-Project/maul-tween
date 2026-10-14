@@ -17,6 +17,55 @@ const char* mtwnResultName(mtwnResult result);
 ```
 Returns the name of a result code, for diagnostics.  @param result  Any value; an unknown one is named as such. @return A static, NUL-terminated string such as "mtwn_errorCapacity". @par Thread safety Safe from any thread.
 
+## `clip.h`
+
+Clips (records mtwn-0004, mtwn-0013 and mtwn-0033): immutable descriptions of tracks on a timeline, built node by node at positions resolved when added, then finished. A finished clip is read through the values layer from any thread while it lives, and plays on any set of targets, its tracks addressing slots.
+
+```c
+static inline mtwnClipDef mtwnDefaultClipDef(void);
+```
+Makes a clip def for a small clip: 16 nodes, 64 keyframes, 16 slots, 16 marks and 16 labels. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+static inline mtwnClipTrackDef mtwnDefaultClipTrackDef(void);
+```
+Makes a clip track def: on the root at time 0, slot 0, a scalar track (mtwnDefaultTrackDef), Web Animations' default timing with a duration of 1 second, no keyframes. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut);
+```
+Makes a clip: allocates its storage in one block, counted against the context's clip storage. Its root timeline, node 1, lasts as long as its latest child.  @param context  The context. @param def      The def. @param clipOut  Receives the clip's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie or a capacity past MTWN_MAX_COUNT; mtwn_errorVersion for a def of another major or minor version; mtwn_errorLimit when the context holds its capacity of clips or the storage would pass its clip storage; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip);
+```
+Destroys a clip and frees its storage.  @param context  The context. @param clip     The clip. @return mtwn_success; mtwn_errorInvalid for a null context; mtwn_errorStale for an id that names no live clip; mtwn_errorBusy while a player plays it. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+bool mtwnClip_IsValid(const mtwnContext* context, mtwnClipId clip);
+```
+Tells whether an id names a live clip. Not counted as misuse.  @param context  The context, or NULL. @param clip     The id. @return Whether the clip is alive. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnClipTrackDef* def, mtwnNode* nodeOut);
+```
+Adds a track: copies its keyframes into the clip, makes the track there (mtwnMakeTrack, with the lengths and mixes in the clip) and resolves its position to a start time.  @param context  The context. @param clip     The clip, not finished. @param def      The def: a timeline of the clip as parent, a known position kind and a finite offset, a slot below the slot capacity and of the same kind as its other tracks, a timing mtwnValidateTiming accepts, and a track and keyframes mtwnMakeTrack accepts. @param nodeOut  Receives the node, or 0 on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie or outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for a finished clip; mtwn_errorLimit when the clip holds its capacity of nodes or keyframes. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip);
+```
+Finishes a clip: it can be read and played, and no longer changed.  @param context  The context. @param clip     The clip. @return mtwn_success; mtwn_errorInvalid for a null context; mtwn_errorStale for a clip that is not alive; mtwn_errorState for a clip already finished. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node, mtwnClipTrack* trackOut);
+```
+Reads a finished clip's track node.  @param context   The context. @param clip      The clip. @param node      A track node of the clip. @param trackOut  Receives the track, its timing, start, parent and slot; sample it with mtwnComputeTiming and mtwnSampleTrack from any thread while the clip lives. @return mtwn_success; mtwn_errorInvalid for a null argument or a node that is not a track of the clip; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut);
+```
+Reads a finished clip's duration: its root's end.  @param context     The context. @param clip        The clip. @param secondsOut  Receives the duration. @return As mtwnClip_GetTrack, without the node. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
 ## `context.h`
 
 The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, clips and players, made from a def that names every capacity and allocated in one block through the host's allocator. Nothing allocates after creation.
@@ -394,4 +443,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-69 functions across 11 headers.
+78 functions across 12 headers.

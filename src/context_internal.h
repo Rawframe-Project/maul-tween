@@ -10,6 +10,7 @@
 
 #include "pool.h"
 
+#include "maul-tween/clip.h"
 #include "maul-tween/context.h"
 #include "maul-tween/easing.h"
 #include "maul-tween/interpolate.h"
@@ -72,6 +73,51 @@ static inline bool mtwnIsPathKind(mtwnValueKind kind)
     return kind == mtwn_valueColor || kind == mtwn_valueRotation;
 }
 
+// What a clip node is.
+#define MTWN_NODE_TRACK    1u
+#define MTWN_NODE_TIMELINE 2u
+
+// A node of a clip.
+typedef struct mtwnClipNode
+{
+    mtwnTiming timing;
+    mtwnTrack track;
+    // Its start in its parent, and its end there.
+    double start;
+    double end;
+    // For a timeline: the latest end of its children so far, and its last
+    // child, 0 when none.
+    double childrenEnd;
+    uint32_t lastChild;
+    uint32_t parent;
+    uint32_t slot;
+    uint8_t kind;
+    uint8_t reserved[3];
+} mtwnClipNode;
+
+// A clip, in the context's pool; its storage is a block of its own.
+typedef struct mtwnClipSlot
+{
+    mtwnSlotHeader header;
+    bool finished;
+    uint8_t reserved[3];
+    mtwnClipDef def;
+    void* block;
+    uint64_t blockBytes;
+    // The root is nodes[0].
+    mtwnClipNode* nodes;
+    mtwnKeyframe* keyframes;
+    double* lengths;
+    mtwnSegmentMix* mixes;
+    // Each slot's value kind plus 1, 0 for a slot no track uses yet.
+    uint8_t* slotKinds;
+    uint32_t nodeCount;
+    uint32_t keyframeCount;
+    // The players playing it.
+    uint32_t users;
+    uint32_t reserved2;
+} mtwnClipSlot;
+
 struct mtwnContext
 {
     mtwnAllocator allocator;
@@ -82,6 +128,9 @@ struct mtwnContext
     uint64_t lastTimeNs;
     mtwnPool targets;
     mtwnPool players;
+    mtwnPool clips;
+    // The bytes the live clips' blocks hold.
+    uint64_t clipStorageUsed;
     // The index1 of each target changed since the last report, in order.
     uint32_t* changed;
     uint32_t changedCount;
@@ -90,6 +139,11 @@ struct mtwnContext
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)
 {
     return (mtwnTargetSlot*)mtwnPoolAt(&context->targets, index1);
+}
+
+static inline mtwnClipSlot* mtwnClipAt(const mtwnContext* context, uint32_t index1)
+{
+    return (mtwnClipSlot*)mtwnPoolAt(&context->clips, index1);
 }
 
 static inline mtwnPlayerSlot* mtwnPlayerAt(const mtwnContext* context, uint32_t index1)

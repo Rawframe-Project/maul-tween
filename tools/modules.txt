@@ -23,3 +23,4 @@ target: context_internal pool
 transition: context_internal fpenv pool spring_internal
 update: context_internal fpenv pool
 path: elementary
+clip: allocator context_internal fpenv pool

@@ -42,6 +42,7 @@ endif()
 add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/allocator.c
     src/base.c
+    src/clip.c
     src/color.c
     src/context.c
     src/css_easing.c
@@ -83,6 +84,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(transition WHITEBOX)
     maul_add_test(path)
     maul_add_test(track)
+    maul_add_test(clip WHITEBOX)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
