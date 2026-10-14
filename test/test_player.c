@@ -11,6 +11,7 @@
 #include "runs.h"
 #include "test_harness.h"
 
+#include "maul-tween/event.h"
 #include "maul-tween/player.h"
 #include "maul-tween/transition.h"
 
@@ -422,6 +423,28 @@ static void TestClipChain(void)
     mtwnDestroyContext(f.context);
 }
 
+// A player made at a rate of 0 runs forwards from no time: its first
+// update records the starts of what begins at 0, not ends.
+static void TestFirstSweepAtRest(void)
+{
+    Fixture f = Make(false, 8);
+    (void)Player(&f, true, 0.0);
+    Update(&f, 0.0);
+    mtwnEvent events[16];
+    uint32_t count = 0;
+    CHECK(mtwnReadEvents(f.context, events, 16, &count, NULL) == mtwn_success && count > 0,
+          "records");
+    uint32_t starts = 0;
+    uint32_t ends = 0;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        starts += events[i].kind == mtwn_eventStart ? 1u : 0u;
+        ends += events[i].kind == mtwn_eventEnd ? 1u : 0u;
+    }
+    CHECK(starts >= 2 && ends == 0, "the root's and the track's starts, no ends");
+    mtwnDestroyContext(f.context);
+}
+
 // After the last clip's player goes, the clips' part of an update stays
 // installed (record mtwn-0047): transitions alone update as before, and a
 // target a player wrote shows its base.
@@ -587,6 +610,7 @@ int main(void)
     TestPendingRates();
     TestEdges();
     TestAfterLastPlayer();
+    TestFirstSweepAtRest();
     TestPlayPause();
     TestSeeks();
     TestFinishReverse();
