@@ -25,6 +25,15 @@ float mtwnExp2F(float x);
 // and for NaN, infinity for infinity, exactly 0 for 1.
 float mtwnLogF(float x);
 
+// The real cube root of x, of either sign, within 0.6 ulp, and exact
+// where the root is a float; 0, infinity and NaN return themselves.
+float mtwnCbrtF(float x);
+
+// x to the y for x >= 0, within 1 ulp while |y ln x| <= 32, past which
+// the error grows with |y ln x|. C's values where x or y is 0, 1 or
+// infinite; NaN for a negative x.
+float mtwnPowF(float x, float y);
+
 // The sine and cosine of x together, each within 1 ulp for |x| up to
 // 2^16 pi / 2 (about 1e5), where the reduction by pi / 2 is exact to
 // beyond float precision; past it the results stay bounded and the same

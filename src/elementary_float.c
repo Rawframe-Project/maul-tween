@@ -6,7 +6,9 @@
 // high part has 16 bits, and sums its Taylor series to degree 7, whose
 // remainder is under 6e-9 relative there; the logarithm writes
 // x = 2^k m with m in [sqrt(1/2), sqrt(2)) and sums the atanh series of
-// s = (m - 1) / (m + 1) to s^9, whose remainder is under 0.05 ulp.
+// s = (m - 1) / (m + 1) to s^13, whose remainder is under 2^-39
+// relative, as pow needs: it multiplies the logarithm's error by
+// |y ln x|.
 // Sine and cosine reduce by pi / 2 held in seven parts, six of 8 bits
 // whose products with k are exact for |k| < 2^16, about 72 bits in all,
 // as floats within 2^-27.8 of a multiple of pi / 2 need; they sum their
@@ -69,6 +71,26 @@ static float TwoProductF(float a, float b, float* errorOut)
     return product;
 }
 
+// e to the x + xLow, for xLow a few ulps of x at most, within the range
+// where the result is finite and above 0.
+static float ExpPairF(float x, float xLow)
+{
+    float k = floorf(x * MTWN_INV_LN2_F + 0.5f);
+    // x - k times the high part is exact for |k| < 2^8; r + rLow is the
+    // reduced argument to beyond float precision.
+    float reduced = x - k * MTWN_LN2_HI_F;
+    float rLow = 0.0f;
+    float r = TwoSumF(reduced, -k * MTWN_LN2_LO_F, &rLow);
+    rLow += xLow;
+    // e^r = 1 + r + r^2 (1/2! + ... + r^5 / 7!), the 1 + r added exactly;
+    // e^(r + rLow) = e^r (1 + rLow) to first order.
+    float tail = r * r * PolynomialF(s_expTaylorF, 6, r);
+    float sumLow = 0.0f;
+    float sum = FastTwoSumF(1.0f, r, &sumLow);
+    float scaledLow = rLow + rLow * (r + tail);
+    return ldexpf(sum + (sumLow + (scaledLow + tail)), (int)k);
+}
+
 float mtwnExpF(float x)
 {
     if (isnan(x))
@@ -83,17 +105,7 @@ float mtwnExpF(float x)
     {
         return 0.0f;
     }
-    float k = floorf(x * MTWN_INV_LN2_F + 0.5f);
-    // x - k times the high part is exact for |k| < 2^8; r + rLow is the
-    // reduced argument to beyond float precision.
-    float reduced = x - k * MTWN_LN2_HI_F;
-    float rLow = 0.0f;
-    float r = TwoSumF(reduced, -k * MTWN_LN2_LO_F, &rLow);
-    // e^r = 1 + r + r^2 (1/2! + ... + r^5 / 7!), the 1 + r added exactly.
-    float tail = r * r * PolynomialF(s_expTaylorF, 6, r);
-    float sumLow = 0.0f;
-    float sum = FastTwoSumF(1.0f, r, &sumLow);
-    return ldexpf(sum + (sumLow + (rLow + tail)), (int)k);
+    return ExpPairF(x, 0.0f);
 }
 
 float mtwnExp2F(float x)
@@ -124,20 +136,10 @@ float mtwnExp2F(float x)
     return ldexpf(sum + (sumLow + (productLow + tail)), (int)k);
 }
 
-float mtwnLogF(float x)
+// The natural logarithm of a finite x above 0, as a pair: *lowOut
+// carries what the returned float cannot, a few ulps of it at most.
+static float LogPairF(float x, float* lowOut)
 {
-    if (isnan(x) || x < 0.0f)
-    {
-        return NAN;
-    }
-    if (x == 0.0f)
-    {
-        return -HUGE_VALF;
-    }
-    if (isinf(x))
-    {
-        return x;
-    }
     int e = 0;
     float m = frexpf(x, &e);
     if (m < s_sqrtHalfF)
@@ -154,8 +156,19 @@ float mtwnLogF(float x)
     float backLow = 0.0f;
     float back = TwoProductF(s, denominator, &backLow);
     float sLow = ((f - back) - backLow - s * denominatorLow) / denominator;
-    float z = s * s;
-    float r = z * PolynomialF(s_logSeriesF, 4, z);
+    // R = 2 z / 3 + z^2 (2/5 + ...), z = s^2: its leading term carried as
+    // a pair, from z exact as a pair and 2/3 in two parts, since pow
+    // multiplies the logarithm's error by |y ln x|.
+    float zLow = 0.0f;
+    float z = TwoProductF(s, s, &zLow);
+    zLow += 2.0f * s * sLow;
+    float rLow = 0.0f;
+    float r = TwoProductF(s_logSeriesF[0], z, &rLow);
+    rLow += s_logSeriesF[0] * zLow + MTWN_TWO_THIRDS_LO_F * z;
+    // The higher terms are 2 percent of R, too large for its low part.
+    float higherLow = 0.0f;
+    r = TwoSumF(r, z * z * PolynomialF(s_logSeriesF + 1, 5, z), &higherLow);
+    rLow += higherLow;
     // f - f^2/2 + s (f^2/2 + R), the leading terms as exact pairs.
     float squareLow = 0.0f;
     float halfSquare = 0.5f * TwoProductF(f, f, &squareLow);
@@ -164,7 +177,7 @@ float mtwnLogF(float x)
     float head = FastTwoSumF(f, -halfSquare, &headLow);
     float innerLow = 0.0f;
     float inner = TwoSumF(halfSquare, r, &innerLow);
-    innerLow += squareLow;
+    innerLow += squareLow + rLow;
     float termLow = 0.0f;
     float term = TwoProductF(s, inner, &termLow);
     termLow += s * innerLow + sLow * inner;
@@ -174,8 +187,117 @@ float mtwnLogF(float x)
     float total = TwoSumF(k * MTWN_LN2_HI_F, head, &totalLow);
     float withTermLow = 0.0f;
     float withTerm = TwoSumF(total, term, &withTermLow);
-    return withTerm +
-           ((totalLow + withTermLow) + (headLow + (termLow - squareLow) + k * MTWN_LN2_LO_F));
+    *lowOut = (totalLow + withTermLow) + (headLow + (termLow - squareLow) + k * MTWN_LN2_LO_F);
+    return withTerm;
+}
+
+float mtwnLogF(float x)
+{
+    if (isnan(x) || x < 0.0f)
+    {
+        return NAN;
+    }
+    if (x == 0.0f)
+    {
+        return -HUGE_VALF;
+    }
+    if (isinf(x))
+    {
+        return x;
+    }
+    float low = 0.0f;
+    float high = LogPairF(x, &low);
+    return high + low;
+}
+
+float mtwnCbrtF(float x)
+{
+    if (!isfinite(x) || x == 0.0f)
+    {
+        return x;
+    }
+    // |x| = m 2^e with e a multiple of 3 and m in [1/2, 4).
+    int e = 0;
+    float m = frexpf(fabsf(x), &e);
+    int rest = e % 3;
+    if (rest < 0)
+    {
+        rest += 3;
+    }
+    m = ldexpf(m, rest);
+    e -= rest;
+    // Two steps of Halley's iteration take the relative error from 13
+    // percent at a line through the range to about 1e-8; one Newton step
+    // from the residual m - y^3, computed exactly, squares it and rounds y
+    // once.
+    float y = 0.6f + 0.25f * m;
+    for (int i = 0; i < 2; ++i)
+    {
+        float cube = y * y * y;
+        y = y * (cube + 2.0f * m) / (2.0f * cube + m);
+    }
+    float squareLow = 0.0f;
+    float square = TwoProductF(y, y, &squareLow);
+    float cubeLow = 0.0f;
+    float cube = TwoProductF(square, y, &cubeLow);
+    cubeLow += squareLow * y;
+    // m - cube is exact (Sterbenz): they agree to many digits.
+    float residual = (m - cube) - cubeLow;
+    y += residual / (3.0f * square);
+    return copysignf(ldexpf(y, e / 3), x);
+}
+
+// pow where x or y is 0, 1 or infinite, or x is negative: true, with the
+// result in *resultOut; false for every other pair.
+static bool PowSpecialF(float x, float y, float* resultOut)
+{
+    if (y == 0.0f || x == 1.0f)
+    {
+        *resultOut = 1.0f;
+    }
+    else if (isnan(x) || isnan(y) || x < 0.0f)
+    {
+        *resultOut = NAN;
+    }
+    else if (x == 0.0f || isinf(x))
+    {
+        // 0 to a positive power and infinity to a negative one are 0.
+        *resultOut = (x == 0.0f) == (y > 0.0f) ? 0.0f : HUGE_VALF;
+    }
+    else if (isinf(y))
+    {
+        *resultOut = (x > 1.0f) == (y > 0.0f) ? HUGE_VALF : 0.0f;
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+float mtwnPowF(float x, float y)
+{
+    float special = 0.0f;
+    if (PowSpecialF(x, y, &special))
+    {
+        return special;
+    }
+    // e^(y ln x), with ln x and the product carried as pairs.
+    float logLow = 0.0f;
+    float logHigh = LogPairF(x, &logLow);
+    float product = y * logHigh;
+    if (product > MTWN_EXP_OVERFLOW_F)
+    {
+        return HUGE_VALF;
+    }
+    if (product < MTWN_EXP_UNDERFLOW_F)
+    {
+        return 0.0f;
+    }
+    float productLow = 0.0f;
+    product = TwoProductF(y, logHigh, &productLow);
+    productLow += y * logLow;
+    return ExpPairF(product, productLow);
 }
 
 // Below this, sine is x and cosine is 1 to within half an ulp.

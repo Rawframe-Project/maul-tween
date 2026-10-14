@@ -238,6 +238,99 @@ static void TestAtan2WithinOneUlp(void)
     CHECK(worst <= 0.505, "atan2 within 0.505 ulp, all but correctly rounded");
 }
 
+static void TestCbrtSpecialValues(void)
+{
+    CHECK(mtwnCbrtF(0.0f) == 0.0f && signbit(mtwnCbrtF(-0.0f)), "signed zeros");
+    CHECK(mtwnCbrtF(HUGE_VALF) == HUGE_VALF && mtwnCbrtF(-HUGE_VALF) == -HUGE_VALF, "infinities");
+    CHECK(isnan(mtwnCbrtF(NAN)), "NaN");
+    int wrong = 0;
+    for (int k = -255; k <= 255; ++k)
+    {
+        float cube = (float)(k * k * k);
+        wrong += mtwnCbrtF(cube) != (float)k;
+    }
+    CHECK(wrong == 0, "the cube root of an integer's cube is the integer");
+    CHECK(UlpError(mtwnCbrtF(0x1.0p-149f), cbrt(0x1.0p-149)) <= 0.55, "the smallest subnormal");
+}
+
+static void TestCbrtWithinHalfAnUlp(void)
+{
+    uint64_t state = 40;
+    double worst = 0.0;
+    for (int i = 0; i < 400000; ++i)
+    {
+        float x = ldexpf(Uniform(&state, -2.0f, 2.0f), (int)(Next(&state) % 277) - 149);
+        double error = UlpError(mtwnCbrtF(x), cbrt((double)x));
+        worst = error > worst ? error : worst;
+    }
+    CHECK(worst <= 0.505, "cube root within 0.505 ulp, all but correctly rounded");
+}
+
+static void TestPowSpecialValues(void)
+{
+    CHECK(mtwnPowF(0.0f, 0.0f) == 1.0f && mtwnPowF(NAN, 0.0f) == 1.0f, "x^0 is 1");
+    CHECK(mtwnPowF(1.0f, NAN) == 1.0f && mtwnPowF(1.0f, HUGE_VALF) == 1.0f, "1^y is 1");
+    CHECK(isnan(mtwnPowF(-2.0f, 2.0f)), "a negative base is NaN");
+    CHECK(isnan(mtwnPowF(NAN, 2.0f)) && isnan(mtwnPowF(2.0f, NAN)), "NaN");
+    CHECK(mtwnPowF(0.0f, 3.0f) == 0.0f && mtwnPowF(0.0f, -3.0f) == HUGE_VALF, "powers of 0");
+    CHECK(mtwnPowF(HUGE_VALF, 0.5f) == HUGE_VALF && mtwnPowF(HUGE_VALF, -0.5f) == 0.0f,
+          "powers of infinity");
+    CHECK(mtwnPowF(2.0f, HUGE_VALF) == HUGE_VALF && mtwnPowF(0.5f, HUGE_VALF) == 0.0f,
+          "to +infinity");
+    CHECK(mtwnPowF(2.0f, -HUGE_VALF) == 0.0f && mtwnPowF(0.5f, -HUGE_VALF) == HUGE_VALF,
+          "to -infinity");
+    CHECK(mtwnPowF(10.0f, 40.0f) == HUGE_VALF && mtwnPowF(10.0f, -50.0f) == 0.0f, "past the range");
+    int wrong = 0;
+    for (int k = -149; k <= 127; ++k)
+    {
+        wrong += mtwnPowF(2.0f, (float)k) != ldexpf(1.0f, k);
+    }
+    float ten = 1.0f;
+    for (int k = 0; k <= 10; ++k)
+    {
+        wrong += mtwnPowF(10.0f, (float)k) != ten;
+        ten *= 10.0f;
+    }
+    CHECK(wrong == 0, "2^k and 10^k up to 10^10 are exact");
+}
+
+static void TestPowWithinOneUlp(void)
+{
+    // |y ln x| up to 8, the range the curves raise in, and up to 32.
+    static const float limits[] = {8.0f, 32.0f};
+    static const double bounds[] = {0.7, 0.7};
+    for (int l = 0; l < 2; ++l)
+    {
+        uint64_t state = 41;
+        double worst = 0.0;
+        for (int i = 0; i < 200000; ++i)
+        {
+            float x = mtwnExpF(Uniform(&state, -20.0f, 20.0f));
+            float logX = fabsf(mtwnLogF(x));
+            float y = Uniform(&state, -limits[l], limits[l]) / (logX > 1e-3f ? logX : 1.0f);
+            double error = UlpError(mtwnPowF(x, y), pow((double)x, (double)y));
+            worst = error > worst ? error : worst;
+        }
+        CHECK(worst <= bounds[l], "x^y within its bound");
+    }
+}
+
+static void TestPowOnTheSrgbRanges(void)
+{
+    double worst = 0.0;
+    for (int i = 0; i <= 1000; ++i)
+    {
+        float toLinear = 0.0899f + 0.9101f * (float)i / 1000.0f;
+        float fromLinear = 0.0031308f + 0.9968692f * (float)i / 1000.0f;
+        double a = UlpError(mtwnPowF(toLinear, 2.4f), pow((double)toLinear, (double)2.4f));
+        double b = UlpError(mtwnPowF(fromLinear, 1.0f / 2.4f),
+                            pow((double)fromLinear, (double)(1.0f / 2.4f)));
+        worst = a > worst ? a : worst;
+        worst = b > worst ? b : worst;
+    }
+    CHECK(worst <= 0.7, "the sRGB powers within 0.7 ulp");
+}
+
 int main(void)
 {
     TestExpSpecialValues();
@@ -253,5 +346,10 @@ int main(void)
     TestSinCosOnTheUnitCircle();
     TestAtan2SpecialValues();
     TestAtan2WithinOneUlp();
+    TestCbrtSpecialValues();
+    TestCbrtWithinHalfAnUlp();
+    TestPowSpecialValues();
+    TestPowWithinOneUlp();
+    TestPowOnTheSrgbRanges();
     return s_failures == 0 ? 0 : 1;
 }
