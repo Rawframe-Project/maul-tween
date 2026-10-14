@@ -222,7 +222,7 @@ static mtwnResult Play(mtwnClipPlay* play, double now, double end)
     {
         play->startTime = (double)NAN;
     }
-    if (isnan(play->holdTime) && isnan(seek) && !play->pending)
+    if (isnan(play->holdTime) && isnan(seek))
     {
         // Already running: nothing to do but a pending rate, which the next
         // update applies from the time it reaches.
@@ -235,10 +235,6 @@ static mtwnResult Play(mtwnClipPlay* play, double now, double end)
 
 static mtwnResult Pause(mtwnClipPlay* play, double now, double end)
 {
-    if (StateOf(play, now, end) == mtwn_playPaused)
-    {
-        return mtwn_success;
-    }
     double current = CurrentTime(play, now);
     if (isnan(current))
     {
@@ -290,7 +286,7 @@ static mtwnResult Finish(mtwnClipPlay* play, double now, double end)
 static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
 {
     bool moving = !isnan(play->startTime) && isnan(play->holdTime);
-    if (moving || play->pending)
+    if (moving)
     {
         play->pendingRate = rate;
         return;

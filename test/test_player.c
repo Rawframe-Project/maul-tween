@@ -28,7 +28,7 @@ typedef struct Fixture
 } Fixture;
 
 // A context with one finished clip: a 2 s scalar track on slot 0, a root
-// label 3 at 1.25; endless when asked.
+// mark 3 at 0.75 and label 3 at 1.25; endless when asked.
 static Fixture Make(bool endless, uint32_t bindings)
 {
     Fixture f = {0};
@@ -49,7 +49,11 @@ static Fixture Make(bool endless, uint32_t bindings)
     track.timing.iterations = endless ? HUGE_VAL : 1.0;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(f.context, f.clip, &track, &node) == mtwn_success, "a track");
-    mtwnPosition at = {1.25, 0, mtwn_positionAbsolute, {0}};
+    // A mark sharing the label's key, before it: seeks find the label.
+    mtwnPosition at = {0.75, 0, mtwn_positionAbsolute, {0}};
+    CHECK(mtwnClip_AddMark(f.context, f.clip, MTWN_ROOT_NODE, at, 3, &node) == mtwn_success,
+          "a mark");
+    at.offset = 1.25;
     CHECK(mtwnClip_AddLabel(f.context, f.clip, MTWN_ROOT_NODE, at, 3, &node) == mtwn_success,
           "a label");
     CHECK(mtwnClip_Finish(f.context, f.clip) == mtwn_success, "finished");
@@ -124,6 +128,40 @@ static void TestPlayPause(void)
     Update(&f, 31.0);
     Update(&f, 31.25);
     CHECK(Near(State(&f, p).currentTime, 0.25), "and plays again");
+    mtwnDestroyContext(f.context);
+}
+
+static void TestSeeks(void)
+{
+    Fixture f = Make(false, 64);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    Update(&f, 1.0);
+    Update(&f, 1.5);
+    CHECK(mtwnPlayer_Seek(f.context, p, 3.0) == mtwn_success && State(&f, p).currentTime == 3.0,
+          "a running player sought past its end is there");
+    Update(&f, 2.0);
+    CHECK(State(&f, p).currentTime == 3.0 && State(&f, p).state == mtwn_playFinished,
+          "and stays, its previous time past the end");
+    CHECK(mtwnPlayer_Seek(f.context, p, 0.5) == mtwn_success, "back into range");
+    Update(&f, 2.25);
+    mtwnPlayerState s = State(&f, p);
+    CHECK(Near(s.currentTime, 0.75) && s.state == mtwn_playRunning,
+          "a finished player sought into range runs from there");
+    CHECK(mtwnPlayer_SetRate(f.context, p, -1.0) == mtwn_success, "backwards");
+    Update(&f, 2.5);
+    CHECK(mtwnPlayer_Seek(f.context, p, -1.0) == mtwn_success && State(&f, p).currentTime == -1.0,
+          "sought before 0");
+    Update(&f, 3.0);
+    CHECK(State(&f, p).currentTime == -1.0, "and stays there backwards");
+    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success &&
+              mtwnPlayer_Seek(f.context, p, 1.0) == mtwn_success,
+          "paused, then sought");
+    Update(&f, 4.0);
+    s = State(&f, p);
+    CHECK(s.state == mtwn_playPaused && s.currentTime == 1.0, "a paused player stays paused");
+    mtwnPlayerId back = Player(&f, false, -1.0);
+    CHECK(mtwnPlayer_Pause(f.context, back) == mtwn_success && State(&f, back).currentTime == 2.0,
+          "an idle player paused backwards holds its end");
     mtwnDestroyContext(f.context);
 }
 
@@ -314,6 +352,7 @@ static void TestOrder(void)
 int main(void)
 {
     TestPlayPause();
+    TestSeeks();
     TestFinishReverse();
     TestSeekCancel();
     TestBindings();
