@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The binary32 entry points of the library's own elementary functions
-// (record mtwn-0008), for callers that compute in float: the names of
+// (a family file), for callers that compute in float: the names of
 // src/elementary.h with an F suffix, computed in binary32 arithmetic
 // alone so that vectorized callers keep their width, with the same
 // bits on every platform. Each states its range and the accuracy its

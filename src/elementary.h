@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The library's own exponential, logarithm and trigonometry (record
-// mtwn-0008), so that they give the same bits on every platform: only
+// The library's own exponential, logarithm and trigonometry (a family
+// file), so that they give the same bits on every platform: only
 // arithmetic and the functions IEEE 754 rounds exactly. Each states its
 // range and the accuracy its tests hold it to. These take and return
 // binary64; binary32 entry points, for callers that compute in float,
