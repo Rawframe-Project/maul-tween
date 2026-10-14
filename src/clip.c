@@ -574,6 +574,27 @@ mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode pare
     return AddInstant(context, clip, mtwn_nodeMark, parent, position, key, nodeOut);
 }
 
+static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
+{
+    // Timelines sized by their children take the size for good; every node
+    // keeps its active duration for its events.
+    for (uint32_t i = 0; i < slot->nodeCount; ++i)
+    {
+        mtwnClipNode* node = &slot->nodes[i];
+        if (node->kind == mtwn_nodeTimeline && node->autoDuration)
+        {
+            node->timing.duration = node->childrenEnd;
+        }
+        if (node->kind == mtwn_nodeTimeline || node->kind == mtwn_nodeTrack)
+        {
+            mtwnTimingResult shape;
+            mtwnComputeTiming(&node->timing, 0.0, false, &shape);
+            node->activeDuration = shape.activeDuration;
+        }
+    }
+    slot->finished = true;
+}
+
 mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
 {
     if (context == NULL)
@@ -589,16 +610,10 @@ mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
     {
         return Misuse(context, mtwn_errorState);
     }
-    // Timelines sized by their children take the size for good.
-    for (uint32_t i = 0; i < slot->nodeCount; ++i)
-    {
-        mtwnClipNode* node = &slot->nodes[i];
-        if (node->kind == mtwn_nodeTimeline && node->autoDuration)
-        {
-            node->timing.duration = node->childrenEnd;
-        }
-    }
-    slot->finished = true;
+    mtwnFloatEnv env;
+    mtwnFloatEnvEnter(&env);
+    FinishWorker(slot);
+    mtwnFloatEnvLeave(&env);
     return mtwn_success;
 }
 

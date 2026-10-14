@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The easings' commonest case inline, for the update's hot loop (record
+// mtwn-0042): an integer power already normal, by the general path's
+// arithmetic, so the same bits.
+
+#ifndef MAUL_TWEEN_SRC_EASING_INTERNAL_H
+#define MAUL_TWEEN_SRC_EASING_INTERNAL_H
+
+#include "maul-tween/easing.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+
+// Where the normalization's numbers sit in parameters[].
+enum
+{
+    MTWN_EASING_START = 3,
+    MTWN_EASING_RANGE = 4
+};
+
+// x^n for n >= 1 by binary powering.
+static inline double mtwnIntegerPower(double x, uint32_t n)
+{
+    double result = 1.0;
+    double square = x;
+    while (n > 0)
+    {
+        if (n & 1u)
+        {
+            result *= square;
+        }
+        square *= square;
+        n >>= 1;
+    }
+    return result;
+}
+
+// Whether an easing is an integer power whose raw ends are 0 and 1.
+static inline bool mtwnIsNormalPower(const mtwnEasing* easing)
+{
+    return easing->kind == mtwn_easingPower && easing->count > 0 &&
+           easing->parameters[MTWN_EASING_START] == 0.0 &&
+           easing->parameters[MTWN_EASING_RANGE] == 1.0;
+}
+
+// Such a power at a progress, clamped, by its mode.
+static inline double mtwnEaseNormalPower(const mtwnEasing* easing, double progress)
+{
+    double p = progress < 0.0 ? 0.0 : (progress > 1.0 ? 1.0 : progress);
+    uint32_t n = easing->count;
+    switch (easing->mode)
+    {
+    case mtwn_easeIn:
+        return mtwnIntegerPower(p, n);
+    case mtwn_easeOut:
+        return 1.0 - mtwnIntegerPower(1.0 - p, n);
+    case mtwn_easeInOut:
+        return p < 0.5 ? 0.5 * mtwnIntegerPower(2.0 * p, n)
+                       : 0.5 + 0.5 * (1.0 - mtwnIntegerPower(1.0 - (2.0 * p - 1.0), n));
+    default:
+        return p < 0.5 ? 0.5 * (1.0 - mtwnIntegerPower(1.0 - 2.0 * p, n))
+                       : 0.5 + 0.5 * mtwnIntegerPower(2.0 * p - 1.0, n);
+    }
+}
+
+// An easing at a progress: the inline case, or the general path.
+static inline double mtwnEaseFast(const mtwnEasing* easing, double progress)
+{
+    return mtwnIsNormalPower(easing) ? mtwnEaseNormalPower(easing, progress)
+                                     : mtwnEase(easing, progress, false);
+}
+
+#endif

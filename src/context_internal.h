@@ -39,6 +39,10 @@ typedef struct mtwnTargetSlot
 // A clip's player bound to the target has not written it in this update
 // yet: if none does, it shows its base.
 #define MTWN_TARGET_UNWRITTEN 4u
+// The target's velocity is its eased transition's at the last update's
+// time, computed when read (record mtwn-0042); its velocity field is
+// stale.
+#define MTWN_TARGET_LAZY 8u
 
 // What a player is.
 #define MTWN_PLAYER_TRANSITION 1u
@@ -60,6 +64,10 @@ typedef struct mtwnClipPlay
     // The time its events have swept to, NaN for none (idle, or not yet
     // updated since it played): the next sweep starts there.
     double swept;
+    // The clips' players before and after it, in no order, 0 for none:
+    // the passes over clips' players alone.
+    uint32_t previousClip;
+    uint32_t nextClip;
     // Its bindings: one target per slot of the clip, from start.
     uint32_t bindingStart;
     uint32_t bindingCount;
@@ -80,39 +88,49 @@ typedef struct mtwnPlayerSlot
     uint8_t type;
     // Whether a transition's delay has ended, its start recorded.
     bool begun;
-    uint8_t reserved2[2];
-
+    // Whether the first update has fixed a transition's start time.
+    bool started;
+    mtwnValueKind kind;
     // The players before and after it in creation order, 0 for none.
     uint32_t earlier;
     uint32_t later;
-    mtwnClipPlay play;
-    mtwnValueKind kind;
-    mtwnTransitionSpec spec;
-    // Whether the first update has fixed the start time.
-    bool started;
-    uint8_t reserved;
-    mtwnTargetId target;
-    uint64_t startNs;
-    double delay;
-    // Seconds after the delay to the end; infinity for a spring that never
-    // settles.
-    double endTime;
-    double duration;
-    // The start velocity per channel; for a color or rotation, in progress
-    // in the first.
-    double velocity[4];
-    mtwnEasing easing;
-    mtwnSpring spring;
-    mtwnDecay decay;
-    mtwnVec4 from;
-    // The end value: an angle's moved by its turns, a decay's where it
-    // stops.
-    mtwnVec4 to;
     union
     {
-        mtwnColorMix color;
-        mtwnRotationMix rotation;
-    } mix;
+        mtwnClipPlay play;
+        // A transition: what every update reads first, in the slot's first
+        // three cache lines with the header (record mtwn-0042), then what it
+        // reads when it starts, ends or is replaced. One curve, by its spec.
+        struct
+        {
+            mtwnTransitionSpec spec;
+            uint8_t reserved[7];
+            uint64_t startNs;
+            double delay;
+            // Seconds after the delay to the end; infinity for a spring that
+            // never settles.
+            double endTime;
+            double duration;
+            mtwnVec4 from;
+            // The end value: an angle's moved by its turns, a decay's where
+            // it stops.
+            mtwnVec4 to;
+            union
+            {
+                mtwnEasing easing;
+                mtwnSpring spring;
+                mtwnDecay decay;
+            };
+            mtwnTargetId target;
+            // The start velocity per channel; for a color or rotation, in
+            // progress in the first.
+            double velocity[4];
+            union
+            {
+                mtwnColorMix color;
+                mtwnRotationMix rotation;
+            } mix;
+        };
+    };
 } mtwnPlayerSlot;
 
 // Whether a kind moves along a path by its progress: colors and rotations.
@@ -133,6 +151,8 @@ typedef struct mtwnClipNode
     double end;
     // For a timeline: the latest end of its children so far.
     double childrenEnd;
+    // Its active duration, from its timing as finished, for its events.
+    double activeDuration;
     // For a timeline: its first and last children, and the last track or
     // timeline among them (positions' previous child); 0 when none.
     uint32_t firstChild;
@@ -166,7 +186,11 @@ typedef struct mtwnNodeTime
     // For events: whether it and every timeline above it stayed in one
     // iteration over the sweep, so its child time moved one way.
     bool steady;
-    uint8_t reserved[6];
+    // For events: whether, besides, every one's child time at both ends lay
+    // clearly inside an iteration, off its boundaries, where a crossing's
+    // position is one child time (record mtwn-0042).
+    bool sure;
+    uint8_t reserved[5];
 } mtwnNodeTime;
 
 typedef struct mtwnClipSlot
@@ -208,6 +232,8 @@ struct mtwnContext
     // The players in creation order, first and last; 0 for none.
     uint32_t firstPlayer;
     uint32_t lastPlayer;
+    // The first of the clips' players, 0 for none.
+    uint32_t firstClipPlayer;
     // The players' bindings.
     mtwnRuns bindings;
 
@@ -287,6 +313,14 @@ bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double before, dou
 // Writes a target's value and velocity, marking it changed when its value
 // changed and written in this update (src/update.c).
 void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwnVec4 velocity);
+
+// A target's velocity: its own, or for a lazy one its transition's at the
+// last update's time, in the library's floating-point environment
+// (src/update.c).
+mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1);
+
+// Stores a lazy target's velocity in it, before its transition goes.
+void mtwnSettleVelocity(mtwnContext* context, uint32_t index1);
 
 // The live target a player's binding names, 0 for none.
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot);

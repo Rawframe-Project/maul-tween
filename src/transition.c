@@ -55,12 +55,13 @@ static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
 }
 
 // The start velocity per channel, or for a path, in progress: the channel
-// velocity projected on the end minus the start.
+// velocity projected on the end minus the start. inherited is the
+// target's.
 static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* target,
-                          mtwnPlayerSlot* out)
+                          mtwnVec4 inherited, mtwnPlayerSlot* out)
 {
     bool given = def->velocitySource == mtwn_velocityGiven;
-    const float* v = given ? &def->velocity.x : &target->velocity.x;
+    const float* v = given ? &def->velocity.x : &inherited.x;
     uint8_t channels = mtwnKindChannels(target->kind);
     for (uint8_t i = 0; i < channels; ++i)
     {
@@ -134,7 +135,7 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
 
 // The transition as the def asks it, before it takes a slot.
 static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* target,
-                          mtwnPlayerSlot* out)
+                          mtwnVec4 inherited, mtwnPlayerSlot* out)
 {
     out->kind = target->kind;
     out->spec = def->spec;
@@ -142,15 +143,25 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     mtwnVec4 end = def->spec == mtwn_transitionDecay ? target->value : def->value;
     if (!mtwnAcceptValue(target->kind, end, &out->to) || !IsTime(def->delay) ||
         !IsTime(def->duration) || !IsSpec(def, target->kind) ||
-        def->velocitySource > mtwn_velocityGiven || !StartVelocity(def, target, out))
+        def->velocitySource > mtwn_velocityGiven || !StartVelocity(def, target, inherited, out))
     {
         return mtwn_errorInvalid;
     }
     out->delay = def->delay;
     out->duration = def->duration;
-    out->easing = def->easing;
-    out->spring = def->spring;
-    out->decay = def->decay;
+    // The one curve its spec uses.
+    switch (def->spec)
+    {
+    case mtwn_transitionEasing:
+        out->easing = def->easing;
+        break;
+    case mtwn_transitionSpring:
+        out->spring = def->spring;
+        break;
+    default:
+        out->decay = def->decay;
+        break;
+    }
     // A decay's end, computed after, replaces this.
     if (target->kind == mtwn_valueAngle)
     {
@@ -183,7 +194,8 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
         return mtwn_errorStale;
     }
     mtwnPlayerSlot prepared = {0};
-    mtwnResult result = Prepare(def, target, &prepared);
+    mtwnResult result =
+        Prepare(def, target, mtwnTargetVelocity(context, def->target.index1), &prepared);
     if (result != mtwn_success)
     {
         ++context->misuse;
@@ -249,6 +261,7 @@ mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* de
 void mtwnEndTransition(mtwnContext* context, uint32_t player)
 {
     uint32_t target = mtwnPlayerAt(context, player)->header.link;
+    mtwnSettleVelocity(context, target);
     mtwnTargetAt(context, target)->header.link = 0;
     mtwnFreePlayer(context, player);
 }

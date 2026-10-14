@@ -13,6 +13,7 @@
 #include "maul-tween/easing.h"
 
 #include "css_easing.h"
+#include "easing_internal.h"
 #include "elementary.h"
 #include "spring_easing.h"
 
@@ -23,8 +24,8 @@
 // Where the normalization's numbers sit in parameters[].
 enum
 {
-    s_start = 3,
-    s_range = 4,
+    s_start = MTWN_EASING_START,
+    s_range = MTWN_EASING_RANGE,
 };
 
 // The largest exponent a power computes by multiplication.
@@ -35,21 +36,9 @@ static bool IsMode(mtwnEaseMode mode)
     return mode <= mtwn_easeOutIn;
 }
 
-// x^n for n >= 1 by binary powering.
 static double IntegerPower(double x, uint32_t n)
 {
-    double result = 1.0;
-    double square = x;
-    while (n > 0)
-    {
-        if (n & 1u)
-        {
-            result *= square;
-        }
-        square *= square;
-        n >>= 1;
-    }
-    return result;
+    return mtwnIntegerPower(x, n);
 }
 
 // Penner's bounce out, before normalization.
@@ -135,7 +124,14 @@ static double NativeCurve(const mtwnEasing* easing, double x, bool before)
     case mtwn_easingSpring:
         return mtwnSampleSpringEasing(easing, x);
     default:
-        return (RawCurve(easing, x) - easing->parameters[s_start]) / easing->parameters[s_range];
+    {
+        // A curve whose raw ends are already 0 and 1 (the integer powers)
+        // skips the division, which would give the same bits.
+        double raw = RawCurve(easing, x);
+        double start = easing->parameters[s_start];
+        double range = easing->parameters[s_range];
+        return start == 0.0 && range == 1.0 ? raw : (raw - start) / range;
+    }
     }
 }
 
@@ -387,6 +383,10 @@ double mtwnEase(const mtwnEasing* easing, double progress, bool before)
     if (easing->kind == mtwn_easingLinear)
     {
         return progress;
+    }
+    if (mtwnIsNormalPower(easing))
+    {
+        return mtwnEaseNormalPower(easing, progress);
     }
     double p = progress;
     if (!IsCss(easing->kind))

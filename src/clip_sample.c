@@ -177,7 +177,8 @@ static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t 
     mtwnTargetSlot* slot = mtwnTargetAt(context, target);
     bool unwritten = (slot->header.flags & MTWN_TARGET_UNWRITTEN) != 0;
     mtwnMoving under = {unwritten ? slot->base : slot->value,
-                        unwritten ? (mtwnVec4){0.0f, 0.0f, 0.0f, 0.0f} : slot->velocity};
+                        unwritten ? (mtwnVec4){0.0f, 0.0f, 0.0f, 0.0f}
+                                  : mtwnTargetVelocity(context, target)};
     mtwnMoving effect = {value, {velocity[0], velocity[1], velocity[2], velocity[3]}};
     mtwnMoving composed = mtwnCompose(node->track.kind, bound->composite,
                                       weight * (double)bound->weight, under, effect);
@@ -216,7 +217,7 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
     mtwnNodeTime* times = clip->times;
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
-    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, {0}};
+    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, false, {0}};
     TimelineTimes(&clip->nodes[0], &player, moving, &times[0]);
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {

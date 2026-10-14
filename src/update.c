@@ -9,6 +9,7 @@
 // its end value as the target's base (records mtwn-0029 and mtwn-0030).
 
 #include "context_internal.h"
+#include "easing_internal.h"
 #include "fpenv.h"
 
 #include <math.h>
@@ -114,16 +115,115 @@ static bool SameBits(mtwnVec4 a, mtwnVec4 b)
     return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3];
 }
 
-void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwnVec4 velocity)
+// Writes a target's value, marking it changed when its bits changed.
+static inline void WriteValue(mtwnContext* context, uint32_t index1, mtwnVec4 value)
 {
     mtwnTargetSlot* target = mtwnTargetAt(context, index1);
-    target->header.flags &= (uint8_t)~MTWN_TARGET_UNWRITTEN;
     if (!SameBits(target->value, value))
     {
         target->value = value;
         mtwnMarkChanged(context, index1);
     }
+}
+
+static inline void WriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value,
+                               mtwnVec4 velocity)
+{
+    mtwnTargetSlot* target = mtwnTargetAt(context, index1);
+    target->header.flags &= (uint8_t)~(MTWN_TARGET_UNWRITTEN | MTWN_TARGET_LAZY);
+    WriteValue(context, index1, value);
     target->velocity = velocity;
+}
+
+// Whether a transition is eased numbers: its velocity is then computed
+// only when read.
+static bool IsEasedNumbers(const mtwnPlayerSlot* slot)
+{
+    return slot->spec == mtwn_transitionEasing && !mtwnIsPathKind(slot->kind) &&
+           slot->kind != mtwn_valueDiscrete;
+}
+
+// An eased transition of numbers at t seconds after its delay, before
+// rounding: Sample's arithmetic for the commonest case, straight through.
+static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4])
+{
+    double p = mtwnEaseFast(&slot->easing, t / slot->duration);
+    const float* from = &slot->from.x;
+    const float* to = &slot->to.x;
+    uint8_t channels = mtwnKindChannels(slot->kind);
+    value[0] = value[1] = value[2] = value[3] = 0.0;
+    for (uint8_t i = 0; i < channels; ++i)
+    {
+        value[i] = (1.0 - p) * (double)from[i] + p * (double)to[i];
+    }
+}
+
+// Its change over the last millisecond to that value, as Advance measures
+// the others'.
+static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double value[4])
+{
+    double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
+    double q = mtwnEaseFast(&slot->easing, earlier / slot->duration);
+    const float* from = &slot->from.x;
+    const float* to = &slot->to.x;
+    uint8_t channels = mtwnKindChannels(slot->kind);
+    float velocity[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    for (uint8_t i = 0; i < channels; ++i)
+    {
+        double before = (1.0 - q) * (double)from[i] + q * (double)to[i];
+        velocity[i] = (float)((value[i] - before) / (t - earlier));
+    }
+    return (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]};
+}
+
+// The seconds after its delay a transition has run at the host's time.
+static double Elapsed(const mtwnPlayerSlot* slot, uint64_t timeNs)
+{
+    return (double)(timeNs - slot->startNs) / 1e9 - slot->delay;
+}
+
+static MTWN_NOINLINE mtwnVec4 LazyVelocity(const mtwnContext* context, uint32_t index1)
+{
+    const mtwnPlayerSlot* slot = mtwnPlayerAt(context, mtwnTargetAt(context, index1)->header.link);
+    double t = Elapsed(slot, context->lastTimeNs);
+    double value[4];
+    EasedValue(slot, t, value);
+    return EasedVelocity(slot, t, value);
+}
+
+mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
+{
+    const mtwnTargetSlot* target = mtwnTargetAt(context, index1);
+    if ((target->header.flags & MTWN_TARGET_LAZY) == 0)
+    {
+        return target->velocity;
+    }
+    mtwnFloatEnv env;
+    mtwnFloatEnvEnter(&env);
+    mtwnVec4 velocity = LazyVelocity(context, index1);
+    mtwnFloatEnvLeave(&env);
+    return velocity;
+}
+
+void mtwnSettleVelocity(mtwnContext* context, uint32_t index1)
+{
+    mtwnTargetSlot* target = mtwnTargetAt(context, index1);
+    if ((target->header.flags & MTWN_TARGET_LAZY) != 0)
+    {
+        target->velocity = mtwnTargetVelocity(context, index1);
+        target->header.flags &= (uint8_t)~MTWN_TARGET_LAZY;
+    }
+}
+
+// The host time a transition's delay ends, in seconds.
+static double Begin(const mtwnPlayerSlot* slot)
+{
+    return (double)slot->startNs / 1e9 + slot->delay;
+}
+
+void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwnVec4 velocity)
+{
+    WriteTarget(context, index1, value, velocity);
 }
 
 static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
@@ -135,32 +235,46 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         slot->started = true;
         slot->startNs = timeNs;
     }
-    double t = (double)(timeNs - slot->startNs) / 1e9 - slot->delay;
-    double begin = (double)slot->startNs / 1e9 + slot->delay;
+    double t = Elapsed(slot, timeNs);
     if (t >= 0.0 && !slot->begun)
     {
         // Its delay has ended: its start, at that time.
         slot->begun = true;
-        mtwnPlayerEvent(context, index1, mtwn_eventStart, begin, 0.0);
+        mtwnPlayerEvent(context, index1, mtwn_eventStart, Begin(slot), 0.0);
     }
     if (t >= slot->endTime)
     {
-        mtwnPlayerEvent(context, index1, mtwn_eventEnd, begin + slot->endTime, slot->endTime);
+        mtwnPlayerEvent(context, index1, mtwn_eventEnd, Begin(slot) + slot->endTime, slot->endTime);
         // The end: committed as the base, and the transition freed.
         mtwnTargetSlot* written = mtwnTargetAt(context, target);
         written->base = slot->to;
-        mtwnWriteTarget(context, target, slot->to, (mtwnVec4){0});
+        WriteTarget(context, target, slot->to, (mtwnVec4){0});
         mtwnMarkChanged(context, target);
         mtwnEndTransition(context, index1);
         return;
     }
     if (t <= 0.0)
     {
-        mtwnWriteTarget(context, target, slot->from, (mtwnVec4){0});
+        WriteTarget(context, target, slot->from, (mtwnVec4){0});
         return;
     }
     double now[4];
     double speed[4];
+    if (IsEasedNumbers(slot))
+    {
+        // Its value now, its velocity when read.
+        EasedValue(slot, t, now);
+        if (slot->kind == mtwn_valueInteger)
+        {
+            now[0] = round(now[0]);
+        }
+        mtwnTargetSlot* written = mtwnTargetAt(context, target);
+        written->header.flags =
+            (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
+        WriteValue(context, target,
+                   (mtwnVec4){(float)now[0], (float)now[1], (float)now[2], (float)now[3]});
+        return;
+    }
     if (!Sample(slot, t, now, speed))
     {
         // The change over the curve's last millisecond, from its start
@@ -169,24 +283,28 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         double before[4];
         double unused[4];
         Sample(slot, earlier, before, unused);
-        for (int i = 0; i < 4; ++i)
+        uint8_t channels = slot->kind == mtwn_valueDiscrete ? 0 : mtwnKindChannels(slot->kind);
+        speed[0] = speed[1] = speed[2] = speed[3] = 0.0;
+        for (uint8_t i = 0; i < channels; ++i)
         {
-            speed[i] =
-                slot->kind == mtwn_valueDiscrete ? 0.0 : (now[i] - before[i]) / (t - earlier);
+            speed[i] = (now[i] - before[i]) / (t - earlier);
         }
     }
     // An integer's value rounds to nearest, ties away from zero; its
     // velocity is the unrounded curve's.
-    bool integer = slot->kind == mtwn_valueInteger;
+    if (slot->kind == mtwn_valueInteger)
+    {
+        now[0] = round(now[0]);
+    }
     float value[4];
     float velocity[4];
     for (int i = 0; i < 4; ++i)
     {
-        value[i] = (float)(integer && i == 0 ? round(now[i]) : now[i]);
+        value[i] = (float)now[i];
         velocity[i] = (float)speed[i];
     }
-    mtwnWriteTarget(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
-                    (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
+    WriteTarget(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
+                (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
 }
 
 static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, uint64_t timeNs)
@@ -194,14 +312,11 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     double now = (double)timeNs / 1e9;
     double before = (double)beforeNs / 1e9;
     uint32_t queued = context->eventCount;
-    for (uint32_t index1 = context->firstPlayer; index1 != 0;)
+    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        if (slot->type == MTWN_PLAYER_CLIP)
-        {
-            mtwnMarkUnwritten(context, &slot->play);
-        }
-        index1 = slot->later;
+        mtwnMarkUnwritten(context, &slot->play);
+        index1 = slot->play.nextClip;
     }
     // In creation order, the composite order; a player may free itself.
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)
@@ -221,14 +336,11 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     }
     mtwnSortEvents(context, queued);
     // A target no clip's player wrote shows its base.
-    for (uint32_t index1 = context->firstPlayer; index1 != 0;)
+    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        if (slot->type == MTWN_PLAYER_CLIP)
-        {
-            mtwnResetUnwritten(context, &slot->play);
-        }
-        index1 = slot->later;
+        mtwnResetUnwritten(context, &slot->play);
+        index1 = slot->play.nextClip;
     }
 }
 

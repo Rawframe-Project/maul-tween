@@ -46,3 +46,4 @@ are listed in [README.md](README.md).
 | [mtwn-0039](mtwn-0039-composition.md) | Composition: replace and add with weights | Accepted |
 | [mtwn-0040](mtwn-0040-incremental-tracks.md) | Incremental tracks: each iteration moves on | Accepted |
 | [mtwn-0041](mtwn-0041-growing-a-context.md) | Growing a context, when the host asks | Accepted |
+| [mtwn-0042](mtwn-0042-the-update-hot-path.md) | The update's hot path, the same bits | Accepted |

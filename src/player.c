@@ -33,6 +33,15 @@ uint32_t mtwnTakePlayer(mtwnContext* context, uint8_t type)
         context->firstPlayer = index1;
     }
     context->lastPlayer = index1;
+    if (type == MTWN_PLAYER_CLIP)
+    {
+        slot->play.nextClip = context->firstClipPlayer;
+        if (context->firstClipPlayer != 0)
+        {
+            mtwnPlayerAt(context, context->firstClipPlayer)->play.previousClip = index1;
+        }
+        context->firstClipPlayer = index1;
+    }
     return index1;
 }
 
@@ -57,6 +66,19 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player)
     }
     if (slot->type == MTWN_PLAYER_CLIP)
     {
+        const mtwnClipPlay* play = &slot->play;
+        if (play->previousClip != 0)
+        {
+            mtwnPlayerAt(context, play->previousClip)->play.nextClip = play->nextClip;
+        }
+        else
+        {
+            context->firstClipPlayer = play->nextClip;
+        }
+        if (play->nextClip != 0)
+        {
+            mtwnPlayerAt(context, play->nextClip)->play.previousClip = play->previousClip;
+        }
         if (slot->play.bindingCount > 0)
         {
             mtwnGiveRun(&context->bindings, slot->play.bindingStart, slot->play.bindingCount);
@@ -452,6 +474,8 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                            .weight = def->weight,
                            .pendingRate = (double)NAN,
                            .swept = (double)NAN,
+                           .previousClip = play->previousClip,
+                           .nextClip = play->nextClip,
                            .bindingStart = start,
                            .bindingCount = clip->slotCount,
                            .keep = def->keep};

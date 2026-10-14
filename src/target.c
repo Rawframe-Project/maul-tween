@@ -212,7 +212,7 @@ mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTa
     {
         stateOut->base = slot->base;
         stateOut->value = slot->value;
-        stateOut->velocity = slot->velocity;
+        stateOut->velocity = mtwnTargetVelocity(context, target.index1);
         stateOut->kind = slot->kind;
     }
     return resolved;

@@ -212,40 +212,98 @@ static mtwnLeaf InstantAt(double at)
     return leaf;
 }
 
+// The margin Missed leaves: the child times it compares are worked out
+// by other arithmetic than the crossings' exact positions, and may differ
+// from them by rounding, far below this.
+static const double s_missedMargin = 1e-6;
+
+// Whether the sweep certainly left the parent's child time short of the
+// span [from, to] in it: the parent moved one way in one iteration of each
+// timeline above (its child time monotonic, timelines' easings being so),
+// both ends clearly inside those iterations, so it covered the span
+// between its two ends, and a point well outside was not crossed (record
+// mtwn-0042). False when unsure, NaN included.
+static bool Missed(const mtwnNodeTime* parent, double from, double to)
+{
+    if (!parent->sure)
+    {
+        return false;
+    }
+    double low = parent->now < parent->before ? parent->now : parent->before;
+    double high = parent->now < parent->before ? parent->before : parent->now;
+    double below = low - s_missedMargin * (1.0 + fabs(low));
+    double above = high + s_missedMargin * (1.0 + fabs(high));
+    return to < below || from > above;
+}
+
+// Whether a timing has iteration starts after its first: an integer
+// strictly inside (iterationStart, iterationStart + iterations).
+static bool Iterates(const mtwnTiming* timing)
+{
+    return floor(timing->iterationStart) + 1.0 < timing->iterationStart + timing->iterations;
+}
+
 // A node's records: a mark's crossings, or a track's or timeline's start,
-// iterations and end.
-static void NodeEvents(const Sweep* sweep, const mtwnClipSlot* clip, uint32_t node)
+// iterations and end. Those its parent certainly did not reach are not
+// counted, their counts being 0.
+static void NodeEvents(const Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
+                       const mtwnNodeTime* parent)
 {
     const mtwnClipNode* n = &clip->nodes[node - 1];
     mtwnLevel* levels = sweep->context->levels;
-    uint32_t count = Chain(levels, clip, node);
     if (n->kind == mtwn_nodeMark)
     {
-        mtwnLeaf mark = InstantAt(n->start);
-        Record(sweep, count, count, &mark, (Kinds){mtwn_eventMark, mtwn_eventMark}, node, n->key);
+        if (!Missed(parent, n->start, n->start))
+        {
+            mtwnLeaf mark = InstantAt(n->start);
+            uint32_t count = Chain(levels, clip, node);
+            Record(sweep, count, count, &mark, (Kinds){mtwn_eventMark, mtwn_eventMark}, node,
+                   n->key);
+        }
         return;
     }
     if (n->kind == mtwn_nodeLabel)
     {
         return;
     }
-    mtwnTimingResult shape;
-    mtwnComputeTiming(&n->timing, 0.0, false, &shape);
     double activeStart = n->start + n->timing.delay;
+    double activeEnd = activeStart + n->activeDuration;
     mtwnLeaf start = InstantAt(activeStart);
-    mtwnLeaf end = InstantAt(activeStart + shape.activeDuration);
+    mtwnLeaf end = InstantAt(activeEnd);
     mtwnLeaf iterations = {0};
     iterations.at = n->start;
     iterations.timing = n->timing;
     iterations.kind = mtwn_leafIterations;
     // The levels below the chain hold the node itself, for its iteration;
-    // preparing a leaf leaves them be.
-    Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
-    Chain(levels, clip, node);
-    Record(sweep, count, count + 1, &iterations, (Kinds){mtwn_eventIteration, mtwn_eventIteration},
-           node, 0);
-    Chain(levels, clip, node);
-    Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
+    // preparing a leaf leaves them be, so the chain is filled again for
+    // each.
+    if (!Missed(parent, activeStart, activeStart))
+    {
+        uint32_t count = Chain(levels, clip, node);
+        Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
+    }
+    if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd))
+    {
+        uint32_t count = Chain(levels, clip, node);
+        Record(sweep, count, count + 1, &iterations,
+               (Kinds){mtwn_eventIteration, mtwn_eventIteration}, node, 0);
+    }
+    if (!Missed(parent, activeEnd, activeEnd))
+    {
+        uint32_t count = Chain(levels, clip, node);
+        Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
+    }
+}
+
+// Whether a child time lies clearly inside an iteration of a duration:
+// off 0 and the duration by more than the margin Missed leaves. False for
+// NaN.
+static bool Inside(double child, double duration)
+{
+    double margin = s_missedMargin * (1.0 + fabs(child));
+    bool offStart = fabs(child) > margin;
+    bool offEnd = isinf(duration) || fabs(child - duration) > margin;
+    return offStart && offEnd;
 }
 
 // A timeline's child times at the sweep's ends, and whether it stayed in
@@ -269,6 +327,8 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
     out->now = children[0];
     out->before = children[1];
     out->steady = parent->steady && iterations[0] == iterations[1];
+    out->sure = parent->sure && out->steady && Inside(children[0], timing.duration) &&
+                Inside(children[1], timing.duration);
 }
 
 void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double rate, double hostFrom,
@@ -289,7 +349,7 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
     Sweep sweep = {context,  player, play, fromNone ? to : from, to, fromNone, fromNone || turning,
                    hostFrom, hostTo, rate};
     // The player's time is the root's parent's, and moves one way.
-    mtwnNodeTime top = {to, sweep.from, false, true, {0}};
+    mtwnNodeTime top = {to, sweep.from, false, true, true, {0}};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* n = &clip->nodes[i];
@@ -299,7 +359,7 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
         {
             if (still)
             {
-                clip->times[i] = (mtwnNodeTime){0.0, 0.0, false, true, {0}};
+                clip->times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, {0}};
             }
             else
             {
@@ -308,7 +368,7 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
         }
         if (!still)
         {
-            NodeEvents(&sweep, clip, i + 1);
+            NodeEvents(&sweep, clip, i + 1, parent);
         }
     }
 }
