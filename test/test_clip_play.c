@@ -218,8 +218,14 @@ static void TestTree(void)
     CHECK(mtwnDestroyTarget(w.context, count) == mtwn_success, "a target destroyed");
     wrong = (mtwnBinding){1, 0, count};
     CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "a stale target");
+    mtwnTargetId reused;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){42.0f, 0, 0, 0}, &reused) ==
+                  mtwn_success &&
+              reused.index1 == count.index1,
+          "its slot reused");
     Update(&w, 7.0);
-    CHECK(mtwnPlayer_IsValid(w.context, p), "a player whose target went plays on");
+    CHECK(mtwnPlayer_IsValid(w.context, p) && Read(&w, reused).value.x == 42.0f,
+          "a player whose target went plays on, and not into the new one");
     mtwnDestroyContext(w.context);
 }
 
@@ -295,6 +301,165 @@ static void TestEndlessTimeline(void)
     mtwnDestroyContext(w.context);
 }
 
+// A timeline at 0 holding a track from 5 to 6 at 1 for 1 s without fill on
+// slot 0 and one of 4 s on slot 1, which sizes it to 4.
+static mtwnNode Boundary(World* w, mtwnNode parent, mtwnClipTimelineDef group)
+{
+    group.parent = parent;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w->context, w->clip, &group, &timeline) == mtwn_success,
+          "a timeline");
+    AddTrack(w, timeline, 0, mtwn_valueScalar, 5.0f, 6.0f, 1.0, mtwn_fillNone, 1.0);
+    AddTrack(w, timeline, 1, mtwn_valueScalar, 0.0f, 1.0f, 4.0, mtwn_fillNone, 0.0);
+    return timeline;
+}
+
+// The value a paused player of the world's clip shows at a time and rate.
+static float ShownAt(World* w, double seconds, double rate)
+{
+    mtwnPlayerId p = Play(w, w->target, true, rate);
+    CHECK(mtwnPlayer_Pause(w->context, p) == mtwn_success &&
+              mtwnPlayer_Seek(w->context, p, seconds) == mtwn_success,
+          "held at the time");
+    Update(w, 100.0);
+    float value = Read(w, w->target).value.x;
+    CHECK(mtwnDestroyPlayer(w->context, p) == mtwn_success, "gone");
+    return value;
+}
+
+static void TestBoundaries(void)
+{
+    // At a track's start exactly: active going forwards, before it going
+    // backwards (Level 1's phases), a paused player keeping its direction.
+    World w = MakeWorld();
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    Boundary(&w, MTWN_ROOT_NODE, group);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(ShownAt(&w, 1.0, 1.0) == 5.0f, "forwards at the start: its first value");
+    CHECK(ShownAt(&w, 1.0, -1.0) == 0.0f, "backwards at the start: before it, the base");
+    mtwnDestroyContext(w.context);
+    // A timeline played at rate -1 runs its children backwards: at 3 of 4
+    // its child time is 1, going back.
+    w = MakeWorld();
+    group.timing.playbackRate = -1.0;
+    Boundary(&w, MTWN_ROOT_NODE, group);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(ShownAt(&w, 3.0, 1.0) == 0.0f, "a negative rate turns time back");
+    CHECK(ShownAt(&w, 3.0, -1.0) == 5.0f, "and a backward player forwards again");
+    mtwnDestroyContext(w.context);
+    // A reversed timeline passes its direction to a normal one inside it.
+    w = MakeWorld();
+    mtwnClipTimelineDef outer = mtwnDefaultClipTimelineDef();
+    outer.timing.direction = mtwn_directionReverse;
+    mtwnNode reversed = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &outer, &reversed) == mtwn_success, "reversed");
+    Boundary(&w, reversed, mtwnDefaultClipTimelineDef());
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(ShownAt(&w, 3.0, 1.0) == 0.0f, "backwards two levels down");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestTimelineShapes(void)
+{
+    // A reversed timeline of infinite set duration holds its end: its
+    // children are past theirs.
+    World w = MakeWorld();
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = HUGE_VAL;
+    group.timing.direction = mtwn_directionReverse;
+    mtwnNode endless = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &endless) == mtwn_success, "endless");
+    AddTrack(&w, endless, 0, mtwn_valueScalar, 5.0f, 6.0f, 1.0, mtwn_fillForwards, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(ShownAt(&w, 0.5, 1.0) == 6.0f, "the child past its end, filled");
+    mtwnDestroyContext(w.context);
+    // A timeline's easing shapes its children's time.
+    w = MakeWorld();
+    group = mtwnDefaultClipTimelineDef();
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &group.timing.easing) == mtwn_success,
+          "ease in, squared");
+    mtwnNode eased = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &eased) == mtwn_success, "eased");
+    AddTrack(&w, eased, 0, mtwn_valueScalar, 0.0f, 4.0f, 4.0, mtwn_fillNone, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(ShownAt(&w, 2.0, 1.0) == 1.0f, "half way through: a quarter of the time");
+    mtwnDestroyContext(w.context);
+    // A discrete value moves by steps, at rest.
+    w = MakeWorld();
+    mtwnTargetId flag;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueDiscrete, (mtwnVec4){0}, &flag) == mtwn_success,
+          "a discrete target");
+    AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueDiscrete, 1.0f, 2.0f, 1.0, mtwn_fillNone, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w, flag, true, 1.0);
+    bool still = true;
+    bool stepped = false;
+    for (int i = 0; i < 2000; ++i)
+    {
+        Update(&w, 0.0005 * i);
+        mtwnTargetState s = Read(&w, flag);
+        still = still && s.velocity.x == 0.0f;
+        stepped = stepped || s.value.x == 2.0f;
+    }
+    CHECK(still && stepped, "it steps, at rest throughout");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestStaleTarget(void)
+{
+    World w = MakeWorld();
+    AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 2.0f, 4.0, mtwn_fillNone, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, w.target, true, 1.0);
+    Update(&w, 0.0);
+    Update(&w, 1.0);
+    CHECK(mtwnDestroyTarget(w.context, w.target) == mtwn_success, "its target destroyed mid-play");
+    mtwnTargetId reused;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){9.0f, 0, 0, 0}, &reused) ==
+                  mtwn_success &&
+              reused.index1 == w.target.index1,
+          "its slot reused");
+    Update(&w, 2.0);
+    CHECK(Read(&w, reused).value.x == 9.0f && mtwnPlayer_IsValid(w.context, p),
+          "the player writes nothing into the new target");
+    mtwnDestroyContext(w.context);
+}
+
+static void TestCommitReported(void)
+{
+    // The committing update changes only the base of a target filled since
+    // earlier: it is still reported.
+    World w = MakeWorld();
+    AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 2.0f, 1.0, mtwn_fillForwards, 0.0);
+    AddTrack(&w, MTWN_ROOT_NODE, 1, mtwn_valueScalar, 0.0f, 2.0f, 2.0, mtwn_fillForwards, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnTargetId other;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
+          "another target");
+    mtwnBinding bindings[2] = {{0, 0, w.target}, {1, 0, other}};
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = w.clip;
+    def.bindings = bindings;
+    def.bindingCount = 2;
+    mtwnPlayerId p;
+    CHECK(mtwnCreatePlayer(w.context, &def, &p) == mtwn_success, "a player");
+    Update(&w, 0.0);
+    Update(&w, 1.5);
+    CHECK(Read(&w, w.target).value.x == 2.0f && Read(&w, w.target).base.x == 0.0f,
+          "filled, not yet committed");
+    mtwnTargetId changed[4];
+    uint32_t total = 0;
+    CHECK(mtwnUpdate(w.context, 3000000000u, changed, 4, &total) == mtwn_success, "the end");
+    bool reported = false;
+    for (uint32_t i = 0; i < total && i < 4; ++i)
+    {
+        reported = reported || changed[i].index1 == w.target.index1;
+    }
+    CHECK(reported && Read(&w, w.target).base.x == 2.0f, "its new base reported");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestValues();
@@ -302,5 +467,9 @@ int main(void)
     TestTree();
     TestOrder();
     TestEndlessTimeline();
+    TestBoundaries();
+    TestTimelineShapes();
+    TestStaleTarget();
+    TestCommitReported();
     return s_failures == 0 ? 0 : 1;
 }

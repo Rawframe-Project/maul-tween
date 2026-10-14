@@ -253,11 +253,12 @@ void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwn
 // The live target a player's binding names, 0 for none.
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot);
 
-// Samples a clip's player's tree at its current time into its targets,
-// the velocity over the last moment when moving; committing writes the
-// values as the bases too (src/clip_sample.c).
+// Samples a clip's player's tree at its current time into its targets:
+// rate is how fast its time moves (0 when held), backwards its playback
+// direction; committing writes the values as the bases too
+// (src/clip_sample.c).
 void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double current, double rate,
-                    bool commit);
+                    bool backwards, bool commit);
 
 // Marks a clip's player's targets unwritten, before the update's players
 // run.

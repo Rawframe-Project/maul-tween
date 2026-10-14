@@ -156,13 +156,13 @@ static void TimelineTimes(const mtwnClipNode* node, const mtwnNodeTime* parent, 
 }
 
 void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double current, double rate,
-                    bool commit)
+                    bool backwards, bool commit)
 {
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     mtwnNodeTime* times = clip->times;
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
-    mtwnNodeTime player = {current, current - rate * s_velocitySpan, rate < 0.0, {0}};
+    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, {0}};
     TimelineTimes(&clip->nodes[0], &player, moving, &times[0]);
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {
@@ -172,7 +172,7 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
         {
             TimelineTimes(node, parent, moving, &times[i]);
         }
-        else if (node->kind == mtwn_nodeTrack && !isnan(parent->now))
+        else if (node->kind == mtwn_nodeTrack)
         {
             uint32_t target = mtwnBoundTarget(context, play, node->slot);
             if (target != 0)

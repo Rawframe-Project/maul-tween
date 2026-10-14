@@ -342,7 +342,7 @@ bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now)
     // Only a running player moves; one not kept commits its end and goes.
     bool done = state == mtwn_playFinished && !play->keep;
     double rate = state == mtwn_playRunning ? play->rate : 0.0;
-    mtwnSampleClip(context, play, CurrentTime(play, now), rate, done);
+    mtwnSampleClip(context, play, CurrentTime(play, now), rate, play->rate < 0.0, done);
     return done;
 }
 
