@@ -5,7 +5,7 @@
 // mtwn-0014 and mtwn-0024), in double: sRGB's transfer extended to
 // negative values by reflection, linear sRGB to LMS and back by one
 // matrix each (src/generated/color_matrices.h), the signed cube root to
-// Oklab, OkLCh in degrees. A mix holds both ends converted and
+// Oklab, OkLCh with its hue in radians. A mix holds both ends converted and
 // premultiplied, so a sample costs one conversion back.
 
 #include "elementary.h"
@@ -19,9 +19,9 @@
 
 // Where an OkLCh hue is powerless (conversions.js's epsilon).
 static const double s_powerlessChroma = 0.000004;
-// Degrees to radians and back.
-static const double s_radiansPerDegree = 4.0 * MTWN_PIO2_HI / 360.0;
-static const double s_degreesPerRadian = 360.0 / (4.0 * MTWN_PIO2_HI);
+// A turn and half a turn, in radians.
+static const double s_turn = 4.0 * MTWN_PIO2_HI;
+static const double s_halfTurn = 2.0 * MTWN_PIO2_HI;
 
 static double ToLinear(double value)
 {
@@ -91,8 +91,8 @@ static void ToSpace(mtwnColor color, mtwnColorSpace space, double out[4])
         double a = out[1];
         double b = out[2];
         double chroma = sqrt(a * a + b * b);
-        double hue = mtwnAtan2(b, a) * s_degreesPerRadian;
-        hue = hue < 0.0 ? hue + 360.0 : hue;
+        double hue = mtwnAtan2(b, a);
+        hue = hue < 0.0 ? hue + s_turn : hue;
         out[1] = chroma;
         out[2] = chroma <= s_powerlessChroma ? (double)NAN : hue;
     }
@@ -113,7 +113,7 @@ static mtwnColor FromSpace(const double in[4], mtwnColorSpace space)
                 double hue = isnan(in[2]) ? 0.0 : in[2];
                 double sine = 0.0;
                 double cosine = 0.0;
-                mtwnSinCos(hue * s_radiansPerDegree, &sine, &cosine);
+                mtwnSinCos(hue, &sine, &cosine);
                 lab[1] = in[1] * cosine;
                 lab[2] = in[1] * sine;
             }
@@ -131,42 +131,42 @@ static mtwnColor FromSpace(const double in[4], mtwnColorSpace space)
     return (mtwnColor){(float)gamma[0], (float)gamma[1], (float)gamma[2], (float)alpha};
 }
 
-// CSS Color 4's hue fix-ups, in degrees, on the two ends' hues.
+// CSS Color 4's hue fix-ups, in radians, on the two ends' hues.
 static void FixHues(mtwnHueMethod method, double* first, double* second)
 {
     double difference = *second - *first;
     switch (method)
     {
     case mtwn_hueShorter:
-        if (difference > 180.0)
+        if (difference > s_halfTurn)
         {
-            *first += 360.0;
+            *first += s_turn;
         }
-        else if (difference < -180.0)
+        else if (difference < -s_halfTurn)
         {
-            *second += 360.0;
+            *second += s_turn;
         }
         break;
     case mtwn_hueLonger:
-        if (difference > 0.0 && difference < 180.0)
+        if (difference > 0.0 && difference < s_halfTurn)
         {
-            *first += 360.0;
+            *first += s_turn;
         }
-        else if (difference > -180.0 && difference <= 0.0)
+        else if (difference > -s_halfTurn && difference <= 0.0)
         {
-            *second += 360.0;
+            *second += s_turn;
         }
         break;
     case mtwn_hueIncreasing:
         if (*second < *first)
         {
-            *second += 360.0;
+            *second += s_turn;
         }
         break;
     default:
         if (*first < *second)
         {
-            *first += 360.0;
+            *first += s_turn;
         }
         break;
     }

@@ -34,7 +34,7 @@ extern "C"
     {
         // Oklab: lightness, a, b. CSS's default.
         mtwn_colorOklab = 0,
-        // OkLCh: lightness, chroma, hue in degrees.
+        // OkLCh: lightness, chroma, hue in radians.
         mtwn_colorOklch = 1,
         // Linear sRGB: red, green, blue in linear light, as light mixes.
         mtwn_colorLinearSrgb = 2,
@@ -106,8 +106,9 @@ extern "C"
     /// @param color           Finite, alpha from 0 to 1.
     /// @param space           The space.
     /// @param coordinatesOut  Receives the three coordinates and the
-    ///                        alpha; an OkLCh hue in degrees from 0 to 360,
-    ///                        NaN where it is powerless.
+    ///                        alpha; an OkLCh hue in radians from 0 to
+    ///                        2 pi (CSS's degrees times pi / 180), NaN
+    ///                        where it is powerless.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown space or a color outside the above.
     /// @par Thread safety

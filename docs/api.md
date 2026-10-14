@@ -132,7 +132,7 @@ Samples a mix: its colors exactly at 0 and 1, between them the premultiplied coo
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordinatesOut[4]);
 ```
-Converts a color to a space's coordinates and its alpha, for a host that springs or composes in the space.  @param color           Finite, alpha from 0 to 1. @param space           The space. @param coordinatesOut  Receives the three coordinates and the alpha; an OkLCh hue in degrees from 0 to 360, NaN where it is powerless. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown space or a color outside the above. @par Thread safety Safe from any thread.
+Converts a color to a space's coordinates and its alpha, for a host that springs or composes in the space.  @param color           Finite, alpha from 0 to 1. @param space           The space. @param coordinatesOut  Receives the three coordinates and the alpha; an OkLCh hue in radians from 0 to 2 pi (CSS's degrees times pi / 180), NaN where it is powerless. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown space or a color outside the above. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space, mtwnColor* colorOut);

@@ -128,9 +128,9 @@ static void TestConversionsAgainstConversionsJs(void)
         double e = fabs(lch[1] - (double)chroma) / steep;
         if (chroma > W(1e-3))
         {
-            Wide hue = WIDE_ATAN2(reference[2], reference[1]) * 180 / W(3.14159265358979323846264);
-            hue = hue < 0 ? hue + 360 : hue;
-            double h = fabs(lch[2] - (double)hue) * (double)chroma * 0.0175 / steep;
+            Wide hue = WIDE_ATAN2(reference[2], reference[1]);
+            hue = hue < 0 ? hue + 2 * W(3.14159265358979323846264) : hue;
+            double h = fabs(lch[2] - (double)hue) * (double)chroma / steep;
             e = h > e ? h : e;
         }
         worstLch = e > worstLch ? e : worstLch;
@@ -194,12 +194,15 @@ static void TestRoundTrips(void)
     CHECK(wrong == 0, "every space gives the same floats back");
 }
 
-// The OkLCh coordinates at the middle of a mix of two OkLCh colors.
+static const double s_pi = 3.141592653589793;
+
+// The OkLCh coordinates at the middle of a mix of two OkLCh colors, hues
+// in degrees as CSS writes them, converted at this edge.
 static void Middle(const double first[3], const double second[3], mtwnHueMethod method,
                    double out[4])
 {
-    double a[4] = {first[0], first[1], first[2], 1.0};
-    double b[4] = {second[0], second[1], second[2], 1.0};
+    double a[4] = {first[0], first[1], first[2] * s_pi / 180.0, 1.0};
+    double b[4] = {second[0], second[1], second[2] * s_pi / 180.0, 1.0};
     mtwnColor from;
     mtwnColor to;
     mtwnColorMix mix;
@@ -214,8 +217,8 @@ static void Middle(const double first[3], const double second[3], mtwnHueMethod 
 
 static bool Near(const double got[4], double l, double c, double h)
 {
-    // Float colors carry about 1e-7; hues are compared mod 360.
-    double dh = fmod(fabs(got[2] - h), 360.0);
+    // Float colors carry about 1e-7; hues are compared in degrees, mod 360.
+    double dh = fmod(fabs(got[2] * 180.0 / s_pi - h), 360.0);
     dh = dh > 180.0 ? 360.0 - dh : dh;
     return fabs(got[0] - l) <= 2e-6 && fabs(got[1] - c) <= 2e-6 && dh <= 2e-4;
 }
@@ -297,7 +300,7 @@ static void TestMixes(void)
     CHECK(mtwnColorToSpace((mtwnColor){0.0f, 0.0f, 1.0f, 1.0f}, mtwn_colorOklch, blueLch) ==
                   mtwn_success &&
               mtwnColorToSpace(mtwnMixColor(&mix, 0.5), mtwn_colorOklch, midLch) == mtwn_success &&
-              fabs(midLch[2] - blueLch[2]) <= 1e-3,
+              fabs(midLch[2] - blueLch[2]) <= 2e-5,
           "a powerless hue takes the other end's");
 }
 
@@ -323,15 +326,15 @@ static void TestEqualHues(void)
     double lch[4];
     CHECK(mtwnColorToSpace(blue, mtwn_colorOklch, lch) == mtwn_success, "blue");
     double h = lch[2];
-    double turned = fmod(h + 180.0, 360.0);
-    CHECK(fabs(MiddleHue(white, blue, mtwn_hueShorter) - h) <= 1e-3, "shorter stays");
-    CHECK(fabs(MiddleHue(white, blue, mtwn_hueLonger) - turned) <= 1e-3,
+    double turned = fmod(h + s_pi, 2.0 * s_pi);
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueShorter) - h) <= 2e-5, "shorter stays");
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueLonger) - turned) <= 2e-5,
           "longer turns all the way");
-    CHECK(fabs(MiddleHue(white, blue, mtwn_hueIncreasing) - h) <= 1e-3, "increasing stays");
-    CHECK(fabs(MiddleHue(white, blue, mtwn_hueDecreasing) - h) <= 1e-3, "decreasing stays");
-    CHECK(fabs(MiddleHue(blue, white, mtwn_hueShorter) - h) <= 1e-3,
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueIncreasing) - h) <= 2e-5, "increasing stays");
+    CHECK(fabs(MiddleHue(white, blue, mtwn_hueDecreasing) - h) <= 2e-5, "decreasing stays");
+    CHECK(fabs(MiddleHue(blue, white, mtwn_hueShorter) - h) <= 2e-5,
           "a powerless end at 1 takes the hue at 0");
-    CHECK(fabs(MiddleHue(blue, blue, mtwn_hueLonger) - turned) <= 1e-3,
+    CHECK(fabs(MiddleHue(blue, blue, mtwn_hueLonger) - turned) <= 2e-5,
           "the same color the long way turns too");
 }
 

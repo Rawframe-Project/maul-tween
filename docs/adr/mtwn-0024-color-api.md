@@ -35,3 +35,9 @@ waste most of the work.
 
 Colors match CSS's sample code to an ulp or two, and every space gives
 the same floats back after a round trip.
+
+## Amendment (2026-10-14)
+
+OkLCh's hue is in radians, from 0 to 2 pi, at `mtwnColorToSpace` and
+`mtwnColorFromSpace`, as every angle in the library is (record
+mtwn-0025); CSS's degrees are converted by the host at its CSS edge.
