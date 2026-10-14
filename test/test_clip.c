@@ -724,6 +724,51 @@ static void TestFloatEnvironment(void)
     CHECK(plain == hostile, "the same lengths under flush-to-zero and rounding toward zero");
 }
 
+// The builder's limits at their edges, found by mutants: a track taking
+// the last keyframes fits, a capacity of MTWN_MAX_COUNT is one, and a
+// node outside the clip is refused.
+static void TestLimitEdges(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 2, 1u << 16);
+    mtwnClipDef def = mtwnDefaultClipDef();
+    def.keyframeCapacity = 4;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &def, &clip) == mtwn_success, "a clip of 4 keyframes");
+    mtwnKeyframe two[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnKeyframe three[3] = {Key(0.0, 0.0f), Key(0.5, 1.0f), Key(1.0, 0.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = two;
+    track.keyframeCount = 2;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "two keyframes");
+    track.keyframes = three;
+    track.keyframeCount = 3;
+    track.slot = 1;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorLimit,
+          "three more past the last refused");
+    track.keyframes = two;
+    track.keyframeCount = 2;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "two taking the last fit");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnClipNodeInfo info;
+    uint32_t nodes = mtwnClipAt(context, clip.index1)->nodeCount;
+    CHECK(mtwnClip_GetNode(context, clip, 0, &info) == mtwn_errorInvalid &&
+              mtwnClip_GetNode(context, clip, nodes + 1, &info) == mtwn_errorInvalid &&
+              mtwnClip_GetNode(context, clip, nodes, &info) == mtwn_success,
+          "node 0 and past the last refused, the last read");
+    mtwnDestroyContext(context);
+
+    mtwnClipDef largest = mtwnDefaultClipDef();
+    largest.keyframeCapacity = MTWN_MAX_COUNT;
+    uint64_t bytes = 0;
+    CHECK(mtwnGetClipBytes(&largest, &bytes) == mtwn_success && bytes > MTWN_MAX_COUNT,
+          "a capacity of MTWN_MAX_COUNT sized");
+    largest.keyframeCapacity = MTWN_MAX_COUNT + 1;
+    CHECK(mtwnGetClipBytes(&largest, &bytes) == mtwn_errorInvalid, "one past it refused");
+}
+
 static void TestDefaults(void)
 {
     // The default context holds as many default clips as it has clip
@@ -764,6 +809,7 @@ static void TestDefaults(void)
 
 int main(void)
 {
+    TestLimitEdges();
     TestDefaults();
     TestStorage();
     TestPositions();
