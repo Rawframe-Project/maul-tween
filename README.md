@@ -54,9 +54,10 @@ cmake --build build
 ctest --test-dir build
 ```
 
-The programs in `samples/` show the library at work, from a button's
-states to layered clips; [the samples page](docs/samples.md) says what
-each shows. `docs/api.md` describes every public function.
+[The guide](docs/guide.md) walks through the library in the order a
+program uses it. The programs in `samples/` show it at work, from a
+button's states to layered clips; [the samples page](docs/samples.md)
+says what each shows. `docs/api.md` describes every public function.
 
 ## Design
 
