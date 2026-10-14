@@ -393,7 +393,7 @@ Seeks a clip's player to a label of its clip's root.  @param context  The contex
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate);
 ```
-Sets a clip's player's rate, keeping its current time.  @param context  The context. @param player   A clip's player. @param rate     Finite; negative plays backwards, 0 holds. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Sets a clip's player's rate, keeping its current time: as Web Animations keeps it, by the start time, so to within the host time's resolution times the rate (an ulp of 10^5 s, 1.5e-11 s, times 10^5 is 1.5e-6 s).  @param context  The context. @param player   A clip's player. @param rate     Finite; negative plays backwards, 0 holds. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight);

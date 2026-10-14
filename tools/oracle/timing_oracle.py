@@ -91,7 +91,8 @@ def compute(t, local, backwards):
         repeated = 0.0
     elif repeat and n != INF:
         # One delay at each iteration boundary the path crosses.
-        repeated = n * d + (ceil(start + n) - math.floor(start) - 1) * r
+        # From the start's fraction: a large start loses it in start + n.
+        repeated = n * d + (ceil(start - math.floor(start) + n) - 1) * r
     else:
         repeated = n * d
     active_duration = repeated / abs(rate)
@@ -131,6 +132,9 @@ def compute(t, local, backwards):
         overall = (0.0 if at_start else n) + start
     else:
         scaled = (active - active_duration) * rate if rate < 0 else active * rate
+        # Never before the first iteration: an active time an ulp past the
+        # active duration (local - delay rounding up) would put it there.
+        scaled = max(scaled, 0.0)
         if repeat:
             # On the cycle timeline each iteration takes d + r; the
             # iteration start puts the first one partway in.
@@ -267,6 +271,19 @@ def regressions():
     # backwards, at the active start.
     t = dict(base, duration=0.1875, iterations=3.7, iterationStart=0.3, rate=-1.0)
     for local in [0.0, 0.69375]:
+        out.append((t, local, False, compute(t, local, False)))
+    # Found by the randomized invariants: with a repeat delay and a
+    # negative rate, the active time at local = delay + active rounds an
+    # ulp past the active duration, and the scaled time fell before the
+    # first iteration, into a repeat delay of iteration -1.
+    t = dict(base, duration=0.1, delay=0.1, iterations=1.5, repeatDelay=0.25, rate=-1.5)
+    active = (1.5 * 0.1 + 0.25) / 1.5
+    for backwards in [False, True]:
+        out.append((t, 0.1 + active, backwards, compute(t, 0.1 + active, backwards)))
+    # A start too large to keep its fraction in start + n: the repeat
+    # delays counted from its fraction, none below 0.
+    t = dict(base, iterationStart=1e300, iterations=0.25, repeatDelay=0.5)
+    for local in [0.0, 0.125, 0.25]:
         out.append((t, local, False, compute(t, local, False)))
     return out
 

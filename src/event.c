@@ -113,8 +113,10 @@ typedef struct Sweep
 } Sweep;
 
 // The host's time a player's time was reached at: from the sweep's start
-// at the rate that ran since (which the sweep runs with), not past the
-// sweep's end; the sweep's end when no time passed or none ran.
+// at the rate that ran since (which the sweep runs with), within the
+// sweep; the sweep's end when no time passed or none ran. Within it even
+// when the player's time moved otherwise: a rate change keeps the time
+// only to the host time's resolution times the rate (record mtwn-0046).
 static double HostAt(const Sweep* sweep, double t)
 {
     if (sweep->fromNone || sweep->hostTo == sweep->hostFrom || sweep->rate == 0.0)
@@ -123,7 +125,7 @@ static double HostAt(const Sweep* sweep, double t)
     }
     double host = sweep->hostFrom + (t - sweep->from) / sweep->rate;
 
-    return host > sweep->hostTo ? sweep->hostTo : host;
+    return host > sweep->hostTo ? sweep->hostTo : (host < sweep->hostFrom ? sweep->hostFrom : host);
 }
 
 // What a crossing of a leaf is, either way: the kinds, and whether a kind

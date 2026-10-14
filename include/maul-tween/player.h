@@ -281,7 +281,10 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SeekLabel(mtwnContext* context,
                                                             mtwnPlayerId player, uint32_t key);
 
-    /// Sets a clip's player's rate, keeping its current time.
+    /// Sets a clip's player's rate, keeping its current time: as Web
+    /// Animations keeps it, by the start time, so to within the host
+    /// time's resolution times the rate (an ulp of 10^5 s, 1.5e-11 s,
+    /// times 10^5 is 1.5e-6 s).
     ///
     /// @param context  The context.
     /// @param player   A clip's player.

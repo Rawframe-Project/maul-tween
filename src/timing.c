@@ -67,7 +67,9 @@ static double ActiveDuration(const mtwnTiming* timing)
         {
             // One delay at each iteration boundary the path crosses.
             double s = timing->iterationStart;
-            repeated += (ceil(s + n) - floor(s) - 1.0) * timing->repeatDelay;
+            // ceil(s + n) - floor(s) - 1, from s's fraction so that a large
+            // s, its fraction lost in s + n, counts none below 0.
+            repeated += (ceil(s - floor(s) + n) - 1.0) * timing->repeatDelay;
         }
     }
     return repeated / fabs(timing->playbackRate);
@@ -132,7 +134,10 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
         mtwnPhase first = timing->playbackRate > 0.0 ? mtwn_phaseBefore : mtwn_phaseAfter;
         return (result->phase == first ? 0.0 : n) + start;
     }
+    // Never before the first iteration: an active time an ulp past the
+    // active duration (local - delay rounding up) would put it there.
     double scaled = ScaledTime(timing, result->activeTime, active);
+    scaled = scaled < 0.0 ? 0.0 : scaled;
     if (!mtwnHasRepeatDelay(timing))
     {
         return scaled / d + start;
