@@ -74,6 +74,42 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
     return result;
 }
 
+// Whether a clip def is one of this version with counts in range.
+static mtwnResult CheckClipDef(const mtwnClipDef* def)
+{
+    if (def->cookie != MTWN_CLIP_DEF_COOKIE)
+    {
+        return mtwn_errorInvalid;
+    }
+    if (def->version != MTWN_ABI_VERSION)
+    {
+        return mtwn_errorVersion;
+    }
+    bool counts =
+        IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) && IsCount(def->slotCapacity);
+    return counts ? mtwn_success : mtwn_errorInvalid;
+}
+
+mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut)
+{
+    if (def == NULL || bytesOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *bytesOut = 0;
+    mtwnResult checked = CheckClipDef(def);
+    if (checked != mtwn_success)
+    {
+        return checked;
+    }
+    // Counts within MTWN_MAX_COUNT never overflow the plan; a size past
+    // what this platform can allocate is still the size.
+    ClipLayout layout = {0};
+    (void)PlanClip(def, &layout);
+    *bytesOut = layout.bytes;
+    return mtwn_success;
+}
+
 mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
 {
     if (context == NULL)
@@ -84,20 +120,12 @@ mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClip
     {
         *clipOut = (mtwnClipId){0, 0};
     }
-    if (def == NULL || clipOut == NULL || def->cookie != MTWN_CLIP_DEF_COOKIE)
+    mtwnResult checked = def == NULL || clipOut == NULL ? mtwn_errorInvalid : CheckClipDef(def);
+    if (checked != mtwn_success)
     {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    if (def->version != MTWN_ABI_VERSION)
-    {
-        return Misuse(context, mtwn_errorVersion);
+        return Misuse(context, checked);
     }
     ClipLayout layout = {0};
-    if (!IsCount(def->nodeCapacity) || !IsCount(def->keyframeCapacity) ||
-        !IsCount(def->slotCapacity))
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
     uint64_t used = 0;
     if (!PlanClip(def, &layout) || ckd_add(&used, context->clipStorageUsed, layout.bytes) ||
         used > context->def.clipStorageBytes)

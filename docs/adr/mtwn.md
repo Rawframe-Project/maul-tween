@@ -48,3 +48,4 @@ are listed in [README.md](README.md).
 | [mtwn-0041](mtwn-0041-growing-a-context.md) | Growing a context, when the host asks | Accepted |
 | [mtwn-0042](mtwn-0042-the-update-hot-path.md) | The update's hot path, the same bits | Accepted |
 | [mtwn-0043](mtwn-0043-targets-measured.md) | Performance and size targets, measured | Accepted |
+| [mtwn-0044](mtwn-0044-defaults-sized-together.md) | The defaults, sized together | Accepted |

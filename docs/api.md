@@ -24,7 +24,7 @@ Clips (records mtwn-0004, mtwn-0013, mtwn-0033 and mtwn-0034): immutable descrip
 ```c
 static inline mtwnClipDef mtwnDefaultClipDef(void);
 ```
-Makes a clip def for a small clip: 32 nodes, 64 keyframes, 16 slots. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a clip def for a small clip: 16 nodes, 32 keyframes, 8 slots, about 13 KB of clip storage (mtwnGetClipBytes says how much). Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 static inline mtwnClipTrackDef mtwnDefaultClipTrackDef(void);
@@ -35,6 +35,11 @@ Makes a clip track def: on the root at time 0, slot 0, a scalar track (mtwnDefau
 static inline mtwnClipTimelineDef mtwnDefaultClipTimelineDef(void);
 ```
 Makes a clip timeline def: on the root at time 0, lasting to its latest child's end, Web Animations' default timing. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut);
+```
+Gives the clip storage a clip of a def takes, so a host can size its context's clipStorageBytes for the clips it makes.  @param def         The clip's def. @param bytesOut    Receives the bytes. @return mtwn_success; mtwn_errorInvalid for a null pointer, a def without its cookie or a capacity past MTWN_MAX_COUNT; mtwn_errorVersion for a def of another version. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut);
@@ -103,7 +108,7 @@ The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, 
 ```c
 static inline mtwnContextDef mtwnDefaultContextDef(void);
 ```
-Makes a context def for a medium host: 1024 targets, 256 players, 64 clips, 256 events, 1024 bindings and 64 KiB of clip storage, the C library's allocator. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a context def for a medium host: 1024 targets, 256 players, 16 clips, 256 events, 1024 bindings and 208 KiB of clip storage, which holds 16 clips of the default clip def, the C library's allocator. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut);
@@ -572,4 +577,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-103 functions across 13 headers.
+104 functions across 13 headers.

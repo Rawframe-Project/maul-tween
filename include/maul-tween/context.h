@@ -61,10 +61,11 @@ extern "C"
 // The cookie mtwnDefaultContextDef sets and mtwnCreateContext checks.
 #define MTWN_CONTEXT_DEF_COOKIE 0x4E575454u
 
-    /// Makes a context def for a medium host: 1024 targets, 256 players, 64
-    /// clips, 256 events, 1024 bindings and 64 KiB of clip storage, the C
-    /// library's allocator. Built in the program, so it carries the version of the
-    /// headers the program includes.
+    /// Makes a context def for a medium host: 1024 targets, 256 players, 16
+    /// clips, 256 events, 1024 bindings and 208 KiB of clip storage, which
+    /// holds 16 clips of the default clip def, the C library's allocator.
+    /// Built in the program, so it carries the version of the headers the
+    /// program includes.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -80,10 +81,10 @@ extern "C"
         def.version = MTWN_ABI_VERSION;
         def.targetCapacity = 1024;
         def.playerCapacity = 256;
-        def.clipCapacity = 64;
+        def.clipCapacity = 16;
         def.eventCapacity = 256;
         def.bindingCapacity = 1024;
-        def.clipStorageBytes = 65536;
+        def.clipStorageBytes = 16u * 13312u;
         return def;
     }
 

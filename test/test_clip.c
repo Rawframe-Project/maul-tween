@@ -724,8 +724,47 @@ static void TestFloatEnvironment(void)
     CHECK(plain == hostile, "the same lengths under flush-to-zero and rounding toward zero");
 }
 
+static void TestDefaults(void)
+{
+    // The default context holds as many default clips as it has clip
+    // slots, and mtwnGetClipBytes gives what each counts against it.
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "the default context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    uint64_t bytes = 0;
+    CHECK(mtwnGetClipBytes(&clipDef, &bytes) == mtwn_success && bytes > 0 && bytes <= 13312,
+          "a default clip within 13 KiB");
+    bool made = true;
+    for (uint32_t i = 0; i < def.clipCapacity; ++i)
+    {
+        mtwnClipId clip;
+        made = made && mtwnCreateClip(context, &clipDef, &clip) == mtwn_success;
+    }
+    CHECK(made, "every clip slot filled with a default clip");
+    CHECK(context->clipStorageUsed == bytes * def.clipCapacity, "each counted as said");
+    mtwnDestroyContext(context);
+    // Bigger defs take more; bad defs are refused.
+    clipDef.keyframeCapacity *= 2;
+    uint64_t more = 0;
+    CHECK(mtwnGetClipBytes(&clipDef, &more) == mtwn_success && more > bytes, "more keyframes");
+    CHECK(mtwnGetClipBytes(NULL, &more) == mtwn_errorInvalid &&
+              mtwnGetClipBytes(&clipDef, NULL) == mtwn_errorInvalid,
+          "null arguments refused");
+    clipDef.version += 1;
+    CHECK(mtwnGetClipBytes(&clipDef, &more) == mtwn_errorVersion && more == 0,
+          "another version refused");
+    clipDef = mtwnDefaultClipDef();
+    clipDef.cookie = 0;
+    CHECK(mtwnGetClipBytes(&clipDef, &more) == mtwn_errorInvalid, "a def without its cookie");
+    clipDef = mtwnDefaultClipDef();
+    clipDef.slotCapacity = MTWN_MAX_COUNT + 1;
+    CHECK(mtwnGetClipBytes(&clipDef, &more) == mtwn_errorInvalid, "a count past the limit");
+}
+
 int main(void)
 {
+    TestDefaults();
     TestStorage();
     TestPositions();
     TestTracks();

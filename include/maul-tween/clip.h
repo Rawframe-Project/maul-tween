@@ -97,8 +97,10 @@ extern "C"
 // The cookie mtwnDefaultClipDef sets and mtwnCreateClip checks.
 #define MTWN_CLIP_DEF_COOKIE 0x50494C43u
 
-    /// Makes a clip def for a small clip: 32 nodes, 64 keyframes, 16 slots. Built in the program,
-    /// so it carries the version of the headers the program includes.
+    /// Makes a clip def for a small clip: 16 nodes, 32 keyframes, 8 slots,
+    /// about 13 KB of clip storage (mtwnGetClipBytes says how much). Built
+    /// in the program, so it carries the version of the headers the
+    /// program includes.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -112,9 +114,9 @@ extern "C"
 #endif
         def.cookie = MTWN_CLIP_DEF_COOKIE;
         def.version = MTWN_ABI_VERSION;
-        def.nodeCapacity = 32;
-        def.keyframeCapacity = 64;
-        def.slotCapacity = 16;
+        def.nodeCapacity = 16;
+        def.keyframeCapacity = 32;
+        def.slotCapacity = 8;
         return def;
     }
 
@@ -252,6 +254,18 @@ extern "C"
         mtwnNode parent;
         uint32_t slot;
     } mtwnClipTrack;
+
+    /// Gives the clip storage a clip of a def takes, so a host can size its
+    /// context's clipStorageBytes for the clips it makes.
+    ///
+    /// @param def         The clip's def.
+    /// @param bytesOut    Receives the bytes.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a def
+    ///         without its cookie or a capacity past MTWN_MAX_COUNT;
+    ///         mtwn_errorVersion for a def of another version.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut);
 
     /// Makes a clip: allocates its storage in one block, counted against the
     /// context's clip storage. Its root timeline, node 1, lasts as long as

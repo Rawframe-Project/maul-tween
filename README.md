@@ -41,7 +41,7 @@ tracks on nested timelines with labels and marks; players controlling
 clips by Web Animations' procedures; events as counted records in a
 bounded queue; players layered by replace and add with weights; a
 context grown only when the host asks. The library has
-103 public functions.
+104 public functions.
 
 ## Building
 
