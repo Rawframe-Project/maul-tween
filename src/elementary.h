@@ -25,6 +25,17 @@ double mtwnExp2(double x);
 // and for NaN, infinity for infinity, exactly 0 for 1.
 double mtwnLog(double x);
 
+// The real cube root of x, of either sign, within 0.6 ulp, and exact
+// where the root is a double; 0, infinity and NaN return themselves.
+double mtwnCbrt(double x);
+
+// x to the y for x >= 0, within 1 ulp while |y ln x| <= 32, past which
+// the error grows with |y ln x| by about 5e-18 of it relative; exact
+// where the power is a double the logarithm's pair resolves, as 2^k and
+// 10^k for k up to 22. C's values where x or y is 0, 1 or infinite; NaN
+// for a negative x, which the library never raises.
+double mtwnPow(double x, double y);
+
 // The sine and cosine of x together, each within 1 ulp for |x| up to
 // 2^20 pi / 2 (about 1.6e6), where the reduction by pi / 2 is exact to
 // beyond double precision; past it the results stay bounded and the

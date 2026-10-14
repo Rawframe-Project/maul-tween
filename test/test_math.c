@@ -83,6 +83,24 @@ static long double ReferenceLog(double x)
 #endif
 }
 
+static long double ReferenceCbrt(double x)
+{
+#if WIDE_REFERENCE
+    return cbrtl((long double)x);
+#else
+    return (long double)cbrt(x);
+#endif
+}
+
+static long double ReferencePow(double x, double y)
+{
+#if WIDE_REFERENCE
+    return powl((long double)x, (long double)y);
+#else
+    return (long double)pow(x, y);
+#endif
+}
+
 static long double ReferenceSin(double x)
 {
 #if WIDE_REFERENCE
@@ -145,7 +163,7 @@ static void TestExpWithinOneUlp(void)
         double error = UlpError(mtwnExp(x), ReferenceExp(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= Bound(0.7), "e^x within 0.7 ulp");
+    CHECK(worst <= Bound(0.65), "e^x within 0.65 ulp");
 }
 
 static void TestExpSmallArguments(void)
@@ -213,7 +231,7 @@ static void TestLogWithinOneUlp(void)
         double error = UlpError(mtwnLog(x), ReferenceLog(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= Bound(0.6), "ln x within 0.6 ulp");
+    CHECK(worst <= Bound(0.55), "ln x within 0.55 ulp");
 }
 
 static void TestLogNearOne(void)
@@ -226,7 +244,7 @@ static void TestLogNearOne(void)
         double error = UlpError(mtwnLog(x), ReferenceLog(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= Bound(0.6), "ln x within 0.6 ulp near 1");
+    CHECK(worst <= Bound(0.55), "ln x within 0.55 ulp near 1");
 }
 
 static void TestLogAtTheReductionEdges(void)
@@ -402,6 +420,114 @@ static void TestAtanOfRatiosNearTheTable(void)
     CHECK(worst <= Bound(0.55), "atan within 0.55 ulp on [0, 1]");
 }
 
+static void TestCbrtSpecialValues(void)
+{
+    CHECK(mtwnCbrt(0.0) == 0.0 && !signbit(mtwnCbrt(0.0)), "+0");
+    CHECK(mtwnCbrt(-0.0) == 0.0 && signbit(mtwnCbrt(-0.0)), "-0");
+    CHECK(mtwnCbrt(HUGE_VAL) == HUGE_VAL && mtwnCbrt(-HUGE_VAL) == -HUGE_VAL, "infinities");
+    CHECK(isnan(mtwnCbrt((double)NAN)), "NaN");
+    CHECK(mtwnCbrt(-27.0) == -3.0 && mtwnCbrt(8.0) == 2.0, "Maul UI's exact cubes");
+    int wrong = 0;
+    for (int k = -100000; k <= 100000; ++k)
+    {
+        double cube = (double)k * (double)k * (double)k;
+        wrong += mtwnCbrt(cube) != (double)k;
+    }
+    CHECK(wrong == 0, "the cube root of an integer's cube is the integer");
+    CHECK(UlpError(mtwnCbrt(0x1.0p-1074), ReferenceCbrt(0x1.0p-1074)) <= Bound(0.55),
+          "the smallest subnormal");
+}
+
+static void TestCbrtWithinHalfAnUlp(void)
+{
+    uint64_t state = 40;
+    double worst = 0.0;
+    for (int i = 0; i < 200000; ++i)
+    {
+        double x = ldexp(Uniform(&state, -2.0, 2.0), (int)(Next(&state) % 2098) - 1074);
+        double error = UlpError(mtwnCbrt(x), ReferenceCbrt(x));
+        worst = error > worst ? error : worst;
+    }
+    CHECK(worst <= Bound(0.55), "cube root within 0.55 ulp");
+}
+
+static void TestCbrtOnMaulUiInputs(void)
+{
+    double worst = 0.0;
+    for (int i = -400; i <= 400; ++i)
+    {
+        double x = pow(1.37, (double)i) * (1.0 + 1e-3 * (double)(i % 7));
+        double error = UlpError(mtwnCbrt(x), ReferenceCbrt(x));
+        double negative = UlpError(mtwnCbrt(-x), ReferenceCbrt(-x));
+        worst = error > worst ? error : worst;
+        worst = negative > worst ? negative : worst;
+    }
+    CHECK(worst <= Bound(0.55), "cube root within 0.55 ulp on Maul UI's inputs");
+}
+
+static void TestPowSpecialValues(void)
+{
+    CHECK(mtwnPow(0.0, 0.0) == 1.0 && mtwnPow((double)NAN, 0.0) == 1.0, "x^0 is 1");
+    CHECK(mtwnPow(1.0, (double)NAN) == 1.0 && mtwnPow(1.0, HUGE_VAL) == 1.0, "1^y is 1");
+    CHECK(isnan(mtwnPow(-2.0, 2.0)), "a negative base is NaN");
+    CHECK(isnan(mtwnPow((double)NAN, 2.0)) && isnan(mtwnPow(2.0, (double)NAN)), "NaN");
+    CHECK(mtwnPow(0.0, 3.0) == 0.0 && mtwnPow(0.0, -3.0) == HUGE_VAL, "powers of 0");
+    CHECK(mtwnPow(HUGE_VAL, 0.5) == HUGE_VAL && mtwnPow(HUGE_VAL, -0.5) == 0.0,
+          "powers of infinity");
+    CHECK(mtwnPow(2.0, HUGE_VAL) == HUGE_VAL && mtwnPow(0.5, HUGE_VAL) == 0.0, "to +infinity");
+    CHECK(mtwnPow(2.0, -HUGE_VAL) == 0.0 && mtwnPow(0.5, -HUGE_VAL) == HUGE_VAL, "to -infinity");
+    CHECK(mtwnPow(10.0, 400.0) == HUGE_VAL && mtwnPow(10.0, -400.0) == 0.0, "past the range");
+    int wrong = 0;
+    for (int k = -1074; k <= 1023; ++k)
+    {
+        wrong += mtwnPow(2.0, (double)k) != ldexp(1.0, k);
+    }
+    double ten = 1.0;
+    for (int k = 0; k <= 22; ++k)
+    {
+        wrong += mtwnPow(10.0, (double)k) != ten;
+        ten *= 10.0;
+    }
+    CHECK(wrong == 0, "2^k and 10^k up to 10^22 are exact");
+}
+
+static void TestPowWithinOneUlp(void)
+{
+    // |y ln x| up to 8, the range the library raises in, and up to 32.
+    static const double limits[] = {8.0, 32.0};
+    static const double bounds[] = {0.7, 0.95};
+    for (int l = 0; l < 2; ++l)
+    {
+        uint64_t state = 41;
+        double worst = 0.0;
+        for (int i = 0; i < 100000; ++i)
+        {
+            double x = mtwnExp(Uniform(&state, -30.0, 30.0));
+            double logX = fabs(mtwnLog(x));
+            double y = Uniform(&state, -limits[l], limits[l]) / (logX > 1e-3 ? logX : 1.0);
+            double error = UlpError(mtwnPow(x, y), ReferencePow(x, y));
+            worst = error > worst ? error : worst;
+        }
+        CHECK(worst <= Bound(bounds[l]), "x^y within its bound");
+    }
+}
+
+static void TestPowOnMaulUiInputs(void)
+{
+    // The ranges the sRGB transfer function raises, as Maul UI tests them.
+    double worst = 0.0;
+    for (int i = 0; i <= 1000; ++i)
+    {
+        double toLinear = 0.0899 + 0.9101 * (double)i / 1000.0;
+        double fromLinear = 0.0031308 + 0.9968692 * (double)i / 1000.0;
+        double a = UlpError(mtwnPow(toLinear, 2.4), ReferencePow(toLinear, 2.4));
+        double b = UlpError(mtwnPow(fromLinear, 1.0 / 2.4), ReferencePow(fromLinear, 1.0 / 2.4));
+        worst = a > worst ? a : worst;
+        worst = b > worst ? b : worst;
+    }
+    CHECK(worst <= Bound(0.65), "the sRGB powers within 0.65 ulp");
+}
+
 int main(void)
 {
     TestExpSpecialValues();
@@ -422,5 +548,11 @@ int main(void)
     TestAtan2SpecialValues();
     TestAtan2WithinOneUlp();
     TestAtanOfRatiosNearTheTable();
+    TestCbrtSpecialValues();
+    TestCbrtWithinHalfAnUlp();
+    TestCbrtOnMaulUiInputs();
+    TestPowSpecialValues();
+    TestPowWithinOneUlp();
+    TestPowOnMaulUiInputs();
     return s_failures == 0 ? 0 : 1;
 }

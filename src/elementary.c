@@ -76,6 +76,27 @@ static double TwoProduct(double a, double b, double* errorOut)
     return product;
 }
 
+// e to the x + xLow, for xLow far below an ulp of x, within the range
+// where the result is finite and above 0.
+static double ExpPair(double x, double xLow)
+{
+    double k = floor(x * MTWN_INV_LN2 + 0.5);
+    // x - k times the high part is exact; r + rLow is the reduced
+    // argument to well beyond double precision.
+    double reduced = x - k * MTWN_LN2_HI;
+    double rLow = 0.0;
+    double r = TwoSum(reduced, -k * MTWN_LN2_LO, &rLow);
+    rLow += xLow;
+    // e^r = 1 + r + r^2 (1/2! + r / 3! + ... + r^11 / 13!), the 1 + r
+    // added exactly; e^(r + rLow) = e^r (1 + rLow) to first order, and
+    // rLow e^r matters when rLow carries a caller's low part.
+    double tail = r * r * Polynomial(s_expTaylor, 12, r);
+    double sumLow = 0.0;
+    double sum = FastTwoSum(1.0, r, &sumLow);
+    double scaledLow = rLow + rLow * (r + tail);
+    return ldexp(sum + (sumLow + (scaledLow + tail)), (int)k);
+}
+
 double mtwnExp(double x)
 {
     if (isnan(x))
@@ -90,18 +111,7 @@ double mtwnExp(double x)
     {
         return 0.0;
     }
-    double k = floor(x * MTWN_INV_LN2 + 0.5);
-    // x - k times the high part is exact; r + rLow is the reduced
-    // argument to well beyond double precision.
-    double reduced = x - k * MTWN_LN2_HI;
-    double rLow = 0.0;
-    double r = TwoSum(reduced, -k * MTWN_LN2_LO, &rLow);
-    // e^r = 1 + r + r^2 (1/2! + r / 3! + ... + r^11 / 13!), the 1 + r
-    // added exactly; e^(r + rLow) adds rLow to first order.
-    double tail = r * r * Polynomial(s_expTaylor, 12, r);
-    double sumLow = 0.0;
-    double sum = FastTwoSum(1.0, r, &sumLow);
-    return ldexp(sum + (sumLow + (rLow + tail)), (int)k);
+    return ExpPair(x, 0.0);
 }
 
 double mtwnExp2(double x)
@@ -132,6 +142,56 @@ double mtwnExp2(double x)
     return ldexp(sum + (sumLow + (productLow + tail)), (int)k);
 }
 
+// The natural logarithm of a finite x above 0, as a pair: *lowOut
+// carries what the returned double cannot.
+static double LogPair(double x, double* lowOut)
+{
+    int e = 0;
+    double m = frexp(x, &e);
+    if (m < s_sqrtHalf)
+    {
+        m *= 2.0;
+        e -= 1;
+    }
+    // Exact by Sterbenz's lemma, m being within a factor of two of 1.
+    double f = m - 1.0;
+    // s = f / (2 + f) as a pair, from 2 + f kept exactly as a pair.
+    double denominatorLow = 0.0;
+    double denominator = FastTwoSum(2.0, f, &denominatorLow);
+    double s = f / denominator;
+    double backLow = 0.0;
+    double back = TwoProduct(s, denominator, &backLow);
+    double sLow = ((f - back) - backLow - s * denominatorLow) / denominator;
+    double z = s * s;
+    double r = z * Polynomial(s_logSeries, 11, z);
+    // f^2 / 2 exactly as a pair, then f - f^2/2 exactly as a pair.
+    double squareLow = 0.0;
+    double halfSquare = 0.5 * TwoProduct(f, f, &squareLow);
+    squareLow *= 0.5;
+    double headLow = 0.0;
+    double head = FastTwoSum(f, -halfSquare, &headLow);
+    // s (f^2/2 + R), up to 4 percent of the result near m = sqrt(2), as a
+    // pair too.
+    double innerLow = 0.0;
+    double inner = TwoSum(halfSquare, r, &innerLow);
+    innerLow += squareLow;
+    double termLow = 0.0;
+    double term = TwoProduct(s, inner, &termLow);
+    termLow += s * innerLow + sLow * inner;
+    // k times MTWN_LN2_HI is exact for every exponent a double has; adding
+    // it to the head exactly keeps the cancellation near x = 1/2 exact.
+    double k = (double)e;
+    double totalLow = 0.0;
+    double total = TwoSum(k * MTWN_LN2_HI, head, &totalLow);
+    // The term is too large to round with the low parts, so it joins the
+    // high part exactly too; the pair is then renormalized, its low part
+    // under half an ulp of its high part, as the exponential expects.
+    double withTermLow = 0.0;
+    double withTerm = TwoSum(total, term, &withTermLow);
+    double rest = (totalLow + withTermLow) + (headLow + (termLow - squareLow) + k * MTWN_LN2_LO);
+    return TwoSum(withTerm, rest, lowOut);
+}
+
 double mtwnLog(double x)
 {
     if (isnan(x) || x < 0.0)
@@ -146,31 +206,98 @@ double mtwnLog(double x)
     {
         return x;
     }
-    int e = 0;
-    double m = frexp(x, &e);
-    if (m < s_sqrtHalf)
+    double low = 0.0;
+    double high = LogPair(x, &low);
+    return high + low;
+}
+
+double mtwnCbrt(double x)
+{
+    if (!isfinite(x) || x == 0.0)
     {
-        m *= 2.0;
-        e -= 1;
+        return x;
     }
-    // Exact by Sterbenz's lemma, m being within a factor of two of 1.
-    double f = m - 1.0;
-    double s = f / (2.0 + f);
-    double z = s * s;
-    double r = z * Polynomial(s_logSeries, 11, z);
-    // f^2 / 2 exactly as a pair, then f - f^2/2 exactly as a pair.
+    // |x| = m 2^e with e a multiple of 3 and m in [1/2, 4).
+    int e = 0;
+    double m = frexp(fabs(x), &e);
+    int rest = e % 3;
+    if (rest < 0)
+    {
+        rest += 3;
+    }
+    m = ldexp(m, rest);
+    e -= rest;
+    // Four steps of Halley's iteration from a line through the range take
+    // the relative error from 13 percent below 1e-24; then one Newton step
+    // from the residual m - y^3, computed exactly, rounds y once.
+    double y = 0.6 + 0.25 * m;
+    for (int i = 0; i < 4; ++i)
+    {
+        double cube = y * y * y;
+        y = y * (cube + 2.0 * m) / (2.0 * cube + m);
+    }
     double squareLow = 0.0;
-    double halfSquare = 0.5 * TwoProduct(f, f, &squareLow);
-    squareLow *= 0.5;
-    double headLow = 0.0;
-    double head = FastTwoSum(f, -halfSquare, &headLow);
-    double small = s * (halfSquare + r) - squareLow;
-    // k times MTWN_LN2_HI is exact for every exponent a double has; adding
-    // it to the head exactly keeps the cancellation near x = 1/2 exact.
-    double k = (double)e;
-    double totalLow = 0.0;
-    double total = TwoSum(k * MTWN_LN2_HI, head, &totalLow);
-    return total + (totalLow + (headLow + small + k * MTWN_LN2_LO));
+    double square = TwoProduct(y, y, &squareLow);
+    double cubeLow = 0.0;
+    double cube = TwoProduct(square, y, &cubeLow);
+    cubeLow += squareLow * y;
+    // m - cube is exact (Sterbenz): they agree to many digits.
+    double residual = (m - cube) - cubeLow;
+    y += residual / (3.0 * square);
+    return copysign(ldexp(y, e / 3), x);
+}
+
+// pow where x or y is 0, 1 or infinite, or x is negative: true, with the
+// result in *resultOut; false for every other pair.
+static bool PowSpecial(double x, double y, double* resultOut)
+{
+    if (y == 0.0 || x == 1.0)
+    {
+        *resultOut = 1.0;
+    }
+    else if (isnan(x) || isnan(y) || x < 0.0)
+    {
+        *resultOut = (double)NAN;
+    }
+    else if (x == 0.0 || isinf(x))
+    {
+        // 0 to a positive power and infinity to a negative one are 0.
+        *resultOut = (x == 0.0) == (y > 0.0) ? 0.0 : HUGE_VAL;
+    }
+    else if (isinf(y))
+    {
+        *resultOut = (x > 1.0) == (y > 0.0) ? HUGE_VAL : 0.0;
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+double mtwnPow(double x, double y)
+{
+    double special = 0.0;
+    if (PowSpecial(x, y, &special))
+    {
+        return special;
+    }
+    // e^(y ln x), with ln x and the product carried as pairs.
+    double logLow = 0.0;
+    double logHigh = LogPair(x, &logLow);
+    double product = y * logHigh;
+    if (product > s_expOverflow)
+    {
+        return HUGE_VAL;
+    }
+    if (product < s_expUnderflow)
+    {
+        return 0.0;
+    }
+    double productLow = 0.0;
+    product = TwoProduct(y, logHigh, &productLow);
+    productLow += y * logLow;
+    return ExpPair(product, productLow);
 }
 
 // Below this, sine is x and cosine is 1 to within half an ulp.
