@@ -854,6 +854,28 @@ static void TestReversalSignedZero(void)
     mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
     CHECK(back->duration == 0.25, "back to +0 from -0 shortened");
     mtwnDestroyContext(context);
+
+    // Every channel compares: an end differing in the last alone is not
+    // the way back.
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId v;
+    CHECK(mtwnCreateTarget(context, mtwn_valueVec4, (mtwnVec4){1, 2, 3, 4}, &v) == mtwn_success,
+          "a vector");
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = v;
+    def.value = (mtwnVec4){5, 6, 7, 8};
+    def.duration = 1.0;
+    def.reverses = true;
+    mtwnPlayerId player;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
+              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "a quarter in");
+    def.value = (mtwnVec4){1, 2, 3, 9};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
+              mtwnPlayerAt(context, player.index1)->duration == 1.0,
+          "another end in its last channel takes its whole duration");
+    mtwnDestroyContext(context);
 }
 
 static void TestReversalEdges(void)
