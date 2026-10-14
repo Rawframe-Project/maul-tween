@@ -79,6 +79,16 @@ static void TestAngles(void)
     CHECK(fabs(mtwnMixAngle(0.0, 1.0, mtwn_angleShorter, 2.0) - 2.0) <= tolerance,
           "past the end it extends");
     CHECK(mtwnMixAngle(0.0, 3.0, 9, 0.5) == 1.5, "an unknown method is raw");
+    CHECK(fabs(mtwnMixAngle(0.0, 4.0 + 4.0 * s_pi, mtwn_angleShorter, 0.5) -
+               (4.0 - 2.0 * s_pi) / 2.0) <= tolerance,
+          "shorter takes the nearest turn, not the one below");
+    CHECK(fabs(mtwnMixAngle(0.0, s_pi, mtwn_angleLonger, 0.5) - s_pi / 2.0) <= tolerance,
+          "longer at exactly half a turn keeps its direction, as CSS's does");
+    CHECK(fabs(mtwnMixAngle(Degrees(30), Degrees(90), mtwn_angleLonger, 0.5) - Degrees(-120)) <=
+              tolerance,
+          "longer from 30 to 90 goes down through -120");
+    CHECK(mtwnMixAngle(1e16, 1.0, mtwn_angleRaw, 1.0) == 1.0,
+          "the end exactly where from + t (to - from) would miss it");
 }
 
 // The rotation by angle radians about a unit axis.
@@ -197,6 +207,10 @@ static void TestPaths(void)
           "the end negated back where the path needed it");
     mtwnQuat start = mtwnMixRotation(&mix, 0.0);
     CHECK(start.w == 1.0f && start.z == 0.0f, "the start exactly");
+    CHECK(mtwnMakeRotationMix((mtwnQuat){0.0f, 0.0f, 0.0f, 3.0f}, quarter, mtwn_rotationShortest,
+                              &mix) == mtwn_success &&
+              mtwnMixRotation(&mix, 0.0).w == 1.0f,
+          "an end given unnormalized comes out normalized");
     CHECK(mtwnMakeRotationMix(identity, identity, mtwn_rotationShortest, &mix) == mtwn_success &&
               mtwnMixRotation(&mix, 0.3).w == 1.0f,
           "the same rotation holds still");
@@ -229,7 +243,9 @@ static void TestRefusals(void)
     CHECK(mtwnMakeRotationMix(identity, (mtwnQuat){INFINITY, 0.0f, 0.0f, 1.0f},
                               mtwn_rotationShortest, &mix) == mtwn_errorInvalid,
           "infinite");
-    CHECK(mtwnMakeRotationMix(identity, identity, 2, &mix) == mtwn_errorInvalid, "a path");
+    CHECK(mtwnMakeRotationMix(identity, (mtwnQuat){0.0f, 0.0f, 0.6f, 0.8f}, 2, &mix) ==
+              mtwn_errorInvalid,
+          "an unknown path");
     CHECK(mtwnMakeRotationMix(identity, identity, mtwn_rotationShortest, NULL) == mtwn_errorInvalid,
           "null out");
 }

@@ -123,7 +123,7 @@ Makes the spherical interpolation between two rotations, at constant angular spe
 ```c
 mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
 ```
-Samples a rotation mix: its rotations exactly at 0 and 1 (the second negated when the path needed it), between and beyond them slerp, normalized.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The rotation. @par Thread safety Safe from any thread.
+Samples a rotation mix: its rotations normalized exactly at 0 and 1 (the second negated when the path needed it), between and beyond them slerp, of unit length to a float's rounding.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The rotation. @par Thread safety Safe from any thread.
 
 ## `sample.h`
 

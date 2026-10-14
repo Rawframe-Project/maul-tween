@@ -210,9 +210,9 @@ extern "C"
                                                            mtwnRotationPath path,
                                                            mtwnRotationMix* mixOut);
 
-    /// Samples a rotation mix: its rotations exactly at 0 and 1 (the second
-    /// negated when the path needed it), between and beyond them slerp,
-    /// normalized.
+    /// Samples a rotation mix: its rotations normalized exactly at 0 and 1
+    /// (the second negated when the path needed it), between and beyond
+    /// them slerp, of unit length to a float's rounding.
     ///
     /// @param mix       A mix made by this library.
     /// @param progress  The progress, finite.

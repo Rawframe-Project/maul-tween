@@ -21,10 +21,12 @@ library already stores rotations as x, y, z, w, glTF's order.
 - `mtwnRotationMix` holds the ends normalized in double, the second
   negated for the shortest way (the default) or for the longest, and
   Kahan's angle `2 atan2(|q0 - q1|, |q0 + q1|)`; `mtwnMixRotation`
-  weights the ends by slerp's sines written with `sinc`, so tiny angles
-  keep their digits, and normalizes once. The ends are the rotations
-  given, the second negated where the path needed it. The long way
-  between equal rotations has no axis and is refused.
+  weights the ends by slerp's sines written with `sinc`, which keeps
+  its digits at any angle but 0, so tiny angles keep theirs; unit ends
+  give a unit result to an ulp of double, so no second normalization.
+  The ends are the rotations given, normalized, the second negated
+  where the path needed it. The long way between equal rotations has
+  no axis and is refused.
 
 ## Consequences
 

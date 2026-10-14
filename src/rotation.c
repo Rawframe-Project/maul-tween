@@ -6,7 +6,10 @@
 // mix holds its ends normalized in double and Kahan's angle between
 // them, 2 atan2(|q0 - q1|, |q0 + q1|), accurate at every angle where acos
 // of the dot product loses half its digits near 0; slerp's weights are
-// written with sinc so a tiny angle keeps its digits too.
+// written with sinc, sin(x) / x, which keeps its digits at any x but 0,
+// as the sine does, so a tiny angle keeps its digits too. The weights of
+// unit ends give a unit result to an ulp of double, far below a float's,
+// so it is not normalized again.
 
 #include "elementary.h"
 
@@ -64,29 +67,21 @@ double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progr
     double turned = TurnedDifference(difference, method);
     // The end moved by the whole turns the method added, exact when none.
     double turns = floor((turned - difference) / s_turn + 0.5);
-    double end = turns == 0.0 ? to : to + turns * s_turn;
+    double end = to + turns * s_turn;
     return (1.0 - progress) * from + progress * end;
 }
 
-// sin(x) / x, by its series below 1/2.
+// sin(x) / x.
 static double Sinc(double x)
 {
-    if (fabs(x) >= 0.5)
+    if (x == 0.0)
     {
-        double sine = 0.0;
-        double cosine = 0.0;
-        mtwnSinCos(x, &sine, &cosine);
-        return sine / x;
+        return 1.0;
     }
-    // To x^12, whose next term is under 5e-17.
-    double z = x * x;
-    double sum = -1.0 / 6227020800.0;
-    sum = sum * z + 1.0 / 39916800.0;
-    sum = sum * z - 1.0 / 362880.0;
-    sum = sum * z + 1.0 / 5040.0;
-    sum = sum * z - 1.0 / 120.0;
-    sum = sum * z + 1.0 / 6.0;
-    return 1.0 - z * sum;
+    double sine = 0.0;
+    double cosine = 0.0;
+    mtwnSinCos(x, &sine, &cosine);
+    return sine / x;
 }
 
 // Normalizes q into out in double: false for a q not finite or zero.
@@ -121,16 +116,19 @@ mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to, mtwnRotationPath path
     }
     // The shortest way has a dot product of at least 0, the longest below.
     bool negate = path == mtwn_rotationShortest ? dot < 0.0 : dot >= 0.0;
-    mix.fromRotation = from;
-    mix.toRotation = to;
     if (negate)
     {
         for (int i = 0; i < 4; ++i)
         {
             mix.to[i] = -mix.to[i];
         }
-        mix.toRotation = (mtwnQuat){-to.x, -to.y, -to.z, -to.w};
     }
+    // The ends as they come out: normalized, the second negated if the
+    // path did.
+    mix.fromRotation =
+        (mtwnQuat){(float)mix.from[0], (float)mix.from[1], (float)mix.from[2], (float)mix.from[3]};
+    mix.toRotation =
+        (mtwnQuat){(float)mix.to[0], (float)mix.to[1], (float)mix.to[2], (float)mix.to[3]};
     double difference = 0.0;
     double sum = 0.0;
     for (int i = 0; i < 4; ++i)
@@ -167,13 +165,9 @@ mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
     double a = keep * Sinc(keep * theta) / denominator;
     double b = progress * Sinc(progress * theta) / denominator;
     double q[4];
-    double norm = 0.0;
     for (int i = 0; i < 4; ++i)
     {
         q[i] = a * mix->from[i] + b * mix->to[i];
-        norm += q[i] * q[i];
     }
-    norm = sqrt(norm);
-    return (mtwnQuat){(float)(q[0] / norm), (float)(q[1] / norm), (float)(q[2] / norm),
-                      (float)(q[3] / norm)};
+    return (mtwnQuat){(float)q[0], (float)q[1], (float)q[2], (float)q[3]};
 }
