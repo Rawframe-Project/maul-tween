@@ -103,7 +103,12 @@ typedef struct mtwnPlayerSlot
         struct
         {
             mtwnTransitionSpec spec;
-            uint8_t reserved[7];
+            // For an easing that is an integer power already normal, its
+            // exponent and mode, so the update reads no more of it;
+            // otherwise 0.
+            uint8_t power;
+            mtwnEaseMode powerMode;
+            uint8_t reserved[5];
             uint64_t startNs;
             double delay;
             // Seconds after the delay to the end; infinity for a spring that

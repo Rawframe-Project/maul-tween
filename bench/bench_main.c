@@ -201,13 +201,15 @@ static double SpringNs(const mtwnSpring* spring)
 }
 
 // The curves' samples: the cubic bezier of CSS's ease, an underdamped
-// spring, and Penner's quad, sine, expo, circ, back, elastic and bounce,
-// each in-out: the slowest.
+// spring, and the slowest of Penner's easings in-out, those of
+// arithmetic alone (quad, circ, back, bounce) and those of exponentials
+// and sines (sine, expo, elastic).
 typedef struct Curves
 {
     double bezier;
     double spring;
-    double penner;
+    double arithmetic;
+    double transcendental;
 } Curves;
 
 static void RunCurves(Curves* best)
@@ -218,22 +220,25 @@ static void RunCurves(Curves* best)
     mtwnSpring spring;
     Check(mtwnMakeSpringFromDuration(0.5, 0.3, &spring), "a spring");
     best->spring = fmin(best->spring, SpringNs(&spring));
-    static const mtwnEasingKind kinds[] = {mtwn_easingSine, mtwn_easingExpo, mtwn_easingCirc,
-                                           mtwn_easingBounce};
-    double worst = 0.0;
     mtwnEasing penner;
-    for (size_t k = 0; k < sizeof kinds / sizeof kinds[0]; ++k)
-    {
-        Check(mtwnMakePennerEasing(kinds[k], mtwn_easeInOut, &penner), "a Penner easing");
-        worst = fmax(worst, EaseNs(&penner));
-    }
-    Check(mtwnMakeElasticEasing(mtwn_easeInOut, 1.0, 0.45, &penner), "elastic");
-    worst = fmax(worst, EaseNs(&penner));
-    Check(mtwnMakeBackEasing(mtwn_easeInOut, 1.70158 * 1.525, &penner), "back");
-    worst = fmax(worst, EaseNs(&penner));
+    double arithmetic = 0.0;
     Check(mtwnMakePowerEasing(mtwn_easeInOut, 2.0, &penner), "quad");
-    worst = fmax(worst, EaseNs(&penner));
-    best->penner = fmin(best->penner, worst);
+    arithmetic = fmax(arithmetic, EaseNs(&penner));
+    Check(mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeInOut, &penner), "circ");
+    arithmetic = fmax(arithmetic, EaseNs(&penner));
+    Check(mtwnMakeBackEasing(mtwn_easeInOut, 1.70158 * 1.525, &penner), "back");
+    arithmetic = fmax(arithmetic, EaseNs(&penner));
+    Check(mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeInOut, &penner), "bounce");
+    arithmetic = fmax(arithmetic, EaseNs(&penner));
+    double transcendental = 0.0;
+    Check(mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeInOut, &penner), "sine");
+    transcendental = fmax(transcendental, EaseNs(&penner));
+    Check(mtwnMakePennerEasing(mtwn_easingExpo, mtwn_easeInOut, &penner), "expo");
+    transcendental = fmax(transcendental, EaseNs(&penner));
+    Check(mtwnMakeElasticEasing(mtwn_easeInOut, 1.0, 0.45, &penner), "elastic");
+    transcendental = fmax(transcendental, EaseNs(&penner));
+    best->arithmetic = fmin(best->arithmetic, arithmetic);
+    best->transcendental = fmin(best->transcendental, transcendental);
 }
 
 // A clip of four numbers' tracks in a timeline repeating every second.
@@ -329,7 +334,7 @@ int main(int argc, char** argv)
     }
     static mtwnTargetId changed[TWEENS];
     Tweens tweens = {HUGE_VAL, HUGE_VAL, HUGE_VAL, 0.0};
-    Curves curves = {HUGE_VAL, HUGE_VAL, HUGE_VAL};
+    Curves curves = {HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL};
     double clips = HUGE_VAL;
     for (int run = 0; run < RUNS; ++run)
     {
@@ -345,7 +350,8 @@ int main(int argc, char** argv)
     printf("# one sample each, over %d progresses\n", SAMPLES);
     Report("cubic bezier sample", curves.bezier, "ns");
     Report("spring sample", curves.spring, "ns");
-    Report("Penner sample, the slowest", curves.penner, "ns");
+    Report("Penner sample, arithmetic", curves.arithmetic, "ns");
+    Report("Penner sample, exp and sin", curves.transcendental, "ns");
     printf("# %d clip players of %d tracks in a repeating timeline\n", PLAYERS, TRACKS);
     Report("update 1,000 clip players", clips * 1e3, "ms");
     return 0;

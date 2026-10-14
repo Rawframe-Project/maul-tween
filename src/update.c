@@ -143,11 +143,19 @@ static bool IsEasedNumbers(const mtwnPlayerSlot* slot)
            slot->kind != mtwn_valueDiscrete;
 }
 
+// A transition's easing at a progress: a power from the slot's first
+// line, or the easing.
+static inline double Eased(const mtwnPlayerSlot* slot, double progress)
+{
+    return slot->power != 0 ? mtwnEasePower(slot->power, slot->powerMode, progress)
+                            : mtwnEaseFast(&slot->easing, progress);
+}
+
 // An eased transition of numbers at t seconds after its delay, before
 // rounding: Sample's arithmetic for the commonest case, straight through.
 static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4])
 {
-    double p = mtwnEaseFast(&slot->easing, t / slot->duration);
+    double p = Eased(slot, t / slot->duration);
     const float* from = &slot->from.x;
     const float* to = &slot->to.x;
     uint8_t channels = mtwnKindChannels(slot->kind);
@@ -163,7 +171,7 @@ static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4])
 static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double value[4])
 {
     double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
-    double q = mtwnEaseFast(&slot->easing, earlier / slot->duration);
+    double q = Eased(slot, earlier / slot->duration);
     const float* from = &slot->from.x;
     const float* to = &slot->to.x;
     uint8_t channels = mtwnKindChannels(slot->kind);

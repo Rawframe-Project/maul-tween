@@ -10,6 +10,7 @@
 #include "maul-tween/transition.h"
 
 #include "context_internal.h"
+#include "easing_internal.h"
 #include "fpenv.h"
 #include "spring_internal.h"
 
@@ -154,6 +155,11 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     {
     case mtwn_transitionEasing:
         out->easing = def->easing;
+        if (mtwnIsNormalPower(&def->easing))
+        {
+            out->power = (uint8_t)def->easing.count;
+            out->powerMode = def->easing.mode;
+        }
         break;
     case mtwn_transitionSpring:
         out->spring = def->spring;

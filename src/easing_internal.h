@@ -45,12 +45,11 @@ static inline bool mtwnIsNormalPower(const mtwnEasing* easing)
            easing->parameters[MTWN_EASING_RANGE] == 1.0;
 }
 
-// Such a power at a progress, clamped, by its mode.
-static inline double mtwnEaseNormalPower(const mtwnEasing* easing, double progress)
+// An integer power n already normal at a progress, clamped, by a mode.
+static inline double mtwnEasePower(uint32_t n, mtwnEaseMode mode, double progress)
 {
     double p = progress < 0.0 ? 0.0 : (progress > 1.0 ? 1.0 : progress);
-    uint32_t n = easing->count;
-    switch (easing->mode)
+    switch (mode)
     {
     case mtwn_easeIn:
         return mtwnIntegerPower(p, n);
@@ -63,6 +62,12 @@ static inline double mtwnEaseNormalPower(const mtwnEasing* easing, double progre
         return p < 0.5 ? 0.5 * (1.0 - mtwnIntegerPower(1.0 - 2.0 * p, n))
                        : 0.5 + 0.5 * mtwnIntegerPower(2.0 * p - 1.0, n);
     }
+}
+
+// Such a power easing at a progress.
+static inline double mtwnEaseNormalPower(const mtwnEasing* easing, double progress)
+{
+    return mtwnEasePower(easing->count, easing->mode, progress);
 }
 
 // An easing at a progress: the inline case, or the general path.
