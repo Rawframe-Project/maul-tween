@@ -27,8 +27,9 @@ platform.
 
 ## Status
 
-Not released. The design is decided; the curves come first. This
-skeleton has 2 public functions.
+Not released. The design is decided; the curves come first, and
+Penner's easings with their modes are in. The library has
+11 public functions.
 
 ## Building
 
