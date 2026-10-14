@@ -239,8 +239,24 @@ static void TestRubberBand(void)
           "nor without a dimension");
 }
 
+// The documented ends (found by mutants): a stop speed not above 0 is
+// never reached, even from rest; a dimension of 0 bands nothing, a drag
+// of 0 included.
+static void TestEnds(void)
+{
+    mtwnDecay decay;
+    CHECK(mtwnMakeDecay(4.0, &decay) == mtwn_success, "a decay");
+    CHECK(mtwnDecayStopTime(&decay, 0.0, 0.0) == HUGE_VAL &&
+              mtwnDecayStopTime(&decay, 5.0, -1.0) == HUGE_VAL,
+          "a stop speed not above 0 never reached");
+    CHECK(mtwnRubberBand(0.0, 0.0, 0.55) == 0.0 && mtwnRubberBand(3.0, 0.0, 0.55) == 0.0 &&
+              mtwnRubberBand(3.0, 100.0, 0.0) == 0.0,
+          "no dimension or coefficient, no band");
+}
+
 int main(void)
 {
+    TestEnds();
     TestDecayAgainstTheFormula();
     TestDecayTravelAlone();
     TestDecayFromIos();
