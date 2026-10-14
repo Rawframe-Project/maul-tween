@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Sirac Ozmen
 #
-# Writes src/generated/math_constants.h, the constants of the library's
-# own math functions (src/math.c, record mtwn-0008): the splits of ln 2
-# and pi / 2 for exact argument reduction, the Taylor coefficients of
-# the polynomials, and arctangents at multiples of 1/8. Each is computed
-# in decimal arithmetic to 80 digits and rounded once to binary64.
+# Writes src/generated/math_constants.h and math_constants_float.h, the
+# constants of the library's own math functions in binary64
+# (src/elementary.c) and binary32 (src/elementary_float.c), record
+# mtwn-0008: the splits of ln 2 and pi / 2 for exact argument reduction,
+# the Taylor coefficients of the polynomials, arctangents at multiples of
+# 1/8, and where the exponentials overflow and underflow. Each is
+# computed in decimal arithmetic to 80 digits and rounded once.
 #
 # usage: gen_math_constants.py [--check]
 #   --check  fail when the file differs from what would be written
@@ -18,8 +20,7 @@ from fractions import Fraction
 
 D = decimal.Decimal
 decimal.getcontext().prec = 80
-PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "generated",
-                    "math_constants.h")
+GENERATED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "generated")
 
 
 def pi():
@@ -153,37 +154,161 @@ def lines():
     return out
 
 
-def render():
+def to_float(value):
+    # The nearest binary32, ties to even, as a double holding it exactly.
+    return to_bits(value, 24)
+
+
+def float_step(value, direction):
+    # The binary32 next to a normal binary32 value, up or down.
+    f = Fraction(value)
+    e = 0
+    a = abs(f)
+    while a >= 2:
+        a /= 2
+        e += 1
+    while a < 1:
+        a *= 2
+        e -= 1
+    ulp = Fraction(2) ** (e - 23)
+    if direction < 0 and a == 1 and f > 0:
+        ulp /= 2
+    return float(f + direction * ulp)
+
+
+def float_hex(value):
+    # The hexadecimal literal of a binary32 held in a double, without the
+    # trailing zeros a double's 13 digits leave.
+    text = value.hex()
+    if "." in text:
+        mantissa, exponent = text.split("p")
+        mantissa = mantissa.rstrip("0").rstrip(".")
+        text = mantissa + "p" + exponent
+    return text + "f"
+
+
+def lines_float():
+    ln2 = D(2).ln()
+    pio2 = pi() / 2
+    out = []
+
+    def const(name, value, note):
+        out.append(f"// {note}")
+        out.append(f"#define {name} {float_hex(value)}")
+
+    ln2hi = to_bits(ln2, 16)
+    const("MTWN_LN2_HI_F", ln2hi, "ln 2 to 16 bits: k times it is exact for |k| < 2^8.")
+    const("MTWN_LN2_LO_F", to_float(ln2 - exact(ln2hi)), "ln 2 minus MTWN_LN2_HI_F.")
+    const("MTWN_INV_LN2_F", to_float(1 / ln2), "1 / ln 2.")
+    ln2_near = to_float(ln2)
+    const("MTWN_LN2_F", ln2_near, "ln 2, the nearest float.")
+    const("MTWN_LN2_TAIL_F", to_float(ln2 - exact(ln2_near)), "ln 2 minus MTWN_LN2_F.")
+    p1 = to_bits(pio2, 12)
+    rest = pio2 - exact(p1)
+    p2 = to_bits(rest, 12)
+    rest = rest - exact(p2)
+    const("MTWN_PIO2_1_F", p1, "pi / 2 to 12 bits: k times it is exact for |k| < 2^12.")
+    const("MTWN_PIO2_2_F", p2, "The next 12 bits of pi / 2.")
+    const("MTWN_PIO2_3_F", to_float(rest), "The rest of pi / 2.")
+    const("MTWN_INV_PIO2_F", to_float(1 / pio2), "2 / pi.")
+    pi_hi = to_float(2 * pio2)
+    const("MTWN_PI_HI_F", pi_hi, "pi.")
+    const("MTWN_PI_LO_F", to_float(2 * pio2 - exact(pi_hi)), "pi minus MTWN_PI_HI_F.")
+    pio2_hi = to_float(pio2)
+    const("MTWN_PIO2_HI_F", pio2_hi, "pi / 2.")
+    const("MTWN_PIO2_LO_F", to_float(pio2 - exact(pio2_hi)), "pi / 2 minus MTWN_PIO2_HI_F.")
+    # The largest float whose exponential is finite, and the smallest
+    # whose exponential rounds above 0 (above 2^-150, half the smallest
+    # subnormal).
+    flt_max = (2 - Fraction(1, 2 ** 23)) * Fraction(2) ** 127
+    top = D(flt_max.numerator).ln() - D(flt_max.denominator).ln()
+    over = to_float(top)
+    while exact(over) > top:
+        over = float_step(over, -1)
+    while exact(float_step(over, 1)) <= top:
+        over = float_step(over, 1)
+    const("MTWN_EXP_OVERFLOW_F", over, "The largest x whose e^x is a finite float.")
+    bottom = -150 * ln2
+    under = to_float(bottom)
+    while exact(under) <= bottom:
+        under = float_step(under, 1)
+    while exact(float_step(under, -1)) > bottom:
+        under = float_step(under, -1)
+    const("MTWN_EXP_UNDERFLOW_F", under, "The smallest x whose e^x rounds to a float above 0.")
+
+    def table(name, values, note):
+        out.append(f"// {note}")
+        out.append(f"static const float {name}[{len(values)}] = {{")
+        for v in values:
+            out.append(f"    {float_hex(v)},")
+        out.append("};")
+
+    table("s_expTaylorF", [to_float(D(1) / factorial(n)) for n in range(2, 8)],
+          "1 / n! for n from 2 to 7: e^r for |r| <= ln 2 / 2.")
+    table("s_exp2TaylorF", [to_float(ln2 ** n / factorial(n)) for n in range(1, 8)],
+          "(ln 2)^n / n! for n from 1 to 7: 2^f for |f| <= 1/2.")
+    table("s_logSeriesF", [to_float(D(2) / (2 * n + 1)) for n in range(1, 6)],
+          "2 / (2n + 1) for n from 1 to 5: the atanh series of the logarithm.")
+    table("s_sinTaylorF", [to_float(D((-1) ** n) / factorial(2 * n + 1)) for n in range(1, 5)],
+          "(-1)^n / (2n + 1)! for n from 1 to 4: sine for |r| <= pi / 4.")
+    table("s_cosTaylorF", [to_float(D((-1) ** n) / factorial(2 * n)) for n in range(2, 6)],
+          "(-1)^n / (2n)! for n from 2 to 5: cosine for |r| <= pi / 4.")
+    table("s_atanSeriesF", [to_float(D((-1) ** n) / (2 * n + 1)) for n in range(1, 4)],
+          "(-1)^n / (2n + 1) for n from 1 to 3: arctangent for |u| <= 1/16.")
+    eighths = [atan(D(k) / 8) for k in range(0, 9)]
+    highs = [to_float(v) for v in eighths]
+    table("s_atanEighthsF", highs, "atan(k / 8) for k from 0 to 8.")
+    table("s_atanEighthsLowF", [to_float(v - exact(h)) for v, h in zip(eighths, highs)],
+          "atan(k / 8) minus s_atanEighthsF[k].")
+    return out
+
+
+def render(body, guard, kind, source):
     head = [
         "// SPDX-License-Identifier: MIT",
         "// Copyright (c) 2026 Sirac Ozmen",
         "//",
-        "// Generated by tools/gen_math_constants.py; do not edit. The constants",
-        "// of src/math.c (record mtwn-0008), each computed to 80 digits and",
-        "// rounded once to binary64.",
+        "// Generated by tools/gen_math_constants.py; do not edit. The",
+        f"// constants of {source} (record mtwn-0008), each",
+        f"// computed to 80 digits and rounded once to {kind}.",
         "// clang-format off",
         "",
-        "#ifndef MTWN_MATH_CONSTANTS_H",
-        "#define MTWN_MATH_CONSTANTS_H",
+        f"#ifndef {guard}",
+        f"#define {guard}",
         "",
     ]
-    return "\n".join(head + lines() + ["", "#endif", ""])
+    return "\n".join(head + body + ["", "#endif", ""])
+
+
+def outputs():
+    return [
+        ("math_constants.h", render(lines(), "MTWN_MATH_CONSTANTS_H", "binary64", "src/elementary.c")),
+        ("math_constants_float.h", render(lines_float(), "MTWN_MATH_CONSTANTS_FLOAT_H", "binary32",
+                                          "src/elementary_float.c")),
+    ]
 
 
 def main():
-    text = render()
-    if len(sys.argv) > 1 and sys.argv[1] == "--check":
-        with open(PATH, encoding="utf-8") as f:
-            if f.read() != text:
-                print("src/generated/math_constants.h is stale: run tools/gen_math_constants.py")
-                return 1
+    check = len(sys.argv) > 1 and sys.argv[1] == "--check"
+    stale = 0
+    for name, text in outputs():
+        path = os.path.join(GENERATED, name)
+        if check:
+            current = ""
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    current = f.read()
+            if current != text:
+                print(f"src/generated/{name} is stale: run tools/gen_math_constants.py")
+                stale = 1
+            continue
+        os.makedirs(GENERATED, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        print("wrote " + os.path.normpath(path))
+    if check and not stale:
         print("math constants: current")
-        return 0
-    os.makedirs(os.path.dirname(PATH), exist_ok=True)
-    with open(PATH, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
-    print("wrote " + os.path.normpath(PATH))
-    return 0
+    return stale
 
 
 if __name__ == "__main__":

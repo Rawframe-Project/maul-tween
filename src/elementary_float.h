@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The binary32 entry points of the library's own elementary functions
+// (record mtwn-0008), for callers that compute in float: the names of
+// src/elementary.h with an F suffix, computed in binary32 arithmetic
+// alone so that vectorized callers keep their width, with the same
+// bits on every platform. Each states its range and the accuracy its
+// tests hold it to, against the C library's binary64 functions.
+
+#ifndef MAUL_TWEEN_SRC_ELEMENTARY_FLOAT_H
+#define MAUL_TWEEN_SRC_ELEMENTARY_FLOAT_H
+
+// e to the x, within 1 ulp for results in the normal range. Overflows
+// to infinity above ln(FLT_MAX), is 0 below ln(2^-150), and NaN for NaN;
+// results in the subnormal range are rounded twice.
+float mtwnExpF(float x);
+
+// 2 to the x, within 1 ulp for results in the normal range, and exact
+// for every integer x whose power is a float. Overflows to infinity from
+// 128, is 0 below -150, and NaN for NaN.
+float mtwnExp2F(float x);
+
+// The natural logarithm of x, within 1 ulp: -infinity for 0, NaN below 0
+// and for NaN, infinity for infinity, exactly 0 for 1.
+float mtwnLogF(float x);
+
+#endif // MAUL_TWEEN_SRC_ELEMENTARY_FLOAT_H

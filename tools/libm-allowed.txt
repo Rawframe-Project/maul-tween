@@ -9,3 +9,6 @@ ldexp
 copysign
 fabs
 fmod
+floorf
+frexpf
+ldexpf
