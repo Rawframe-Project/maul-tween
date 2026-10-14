@@ -51,7 +51,8 @@ extern "C"
         uint32_t bindingCount;
         // Whether it plays at once, starting at the next update.
         bool play;
-        // Whether it is kept when it ends, rather than committed and freed.
+        // Whether it is kept when it finishes; otherwise it commits what it
+        // fills forward as its targets' bases and is freed.
         bool keep;
         uint8_t reserved[2];
         // The playback rate, finite; negative plays backwards, 0 holds.

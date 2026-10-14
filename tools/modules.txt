@@ -26,3 +26,4 @@ path: elementary
 clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
+clip_sample: context_internal pool runs

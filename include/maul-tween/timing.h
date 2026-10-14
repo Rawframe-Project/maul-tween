@@ -113,7 +113,9 @@ extern "C"
         // Whether the time lies in a repeat delay, the progress held at
         // its iteration's end.
         bool inRepeatDelay;
-        uint8_t reserved[5];
+        // Whether the current iteration runs forwards, by the direction.
+        bool forwards;
+        uint8_t reserved[4];
     } mtwnTimingResult;
 
     /// Returns Web Animations' default timing: no delays, fill none, one

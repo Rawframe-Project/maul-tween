@@ -114,11 +114,10 @@ static bool SameBits(mtwnVec4 a, mtwnVec4 b)
     return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3];
 }
 
-// Writes a target's value and velocity, marking it changed when its value
-// changed.
-static void Write(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwnVec4 velocity)
+void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwnVec4 velocity)
 {
     mtwnTargetSlot* target = mtwnTargetAt(context, index1);
+    target->header.flags &= (uint8_t)~MTWN_TARGET_UNWRITTEN;
     if (!SameBits(target->value, value))
     {
         target->value = value;
@@ -142,14 +141,14 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         // The end: committed as the base, and the transition freed.
         mtwnTargetSlot* written = mtwnTargetAt(context, target);
         written->base = slot->to;
-        Write(context, target, slot->to, (mtwnVec4){0});
+        mtwnWriteTarget(context, target, slot->to, (mtwnVec4){0});
         mtwnMarkChanged(context, target);
         mtwnEndTransition(context, index1);
         return;
     }
     if (t <= 0.0)
     {
-        Write(context, target, slot->from, (mtwnVec4){0});
+        mtwnWriteTarget(context, target, slot->from, (mtwnVec4){0});
         return;
     }
     double now[4];
@@ -178,13 +177,22 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         value[i] = (float)(integer && i == 0 ? round(now[i]) : now[i]);
         velocity[i] = (float)speed[i];
     }
-    Write(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
-          (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
+    mtwnWriteTarget(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
+                    (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
 }
 
 static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t timeNs)
 {
     double now = (double)timeNs / 1e9;
+    for (uint32_t index1 = context->firstPlayer; index1 != 0;)
+    {
+        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+        if (slot->type == MTWN_PLAYER_CLIP)
+        {
+            mtwnMarkUnwritten(context, &slot->play);
+        }
+        index1 = slot->later;
+    }
     // In creation order, the composite order; a player may free itself.
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)
     {
@@ -194,11 +202,22 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t timeNs)
         {
             Advance(context, index1, timeNs);
         }
-        else
+        else if (mtwnAdvancePlayer(context, index1, now))
         {
-            mtwnAdvancePlayer(context, index1, now);
+            mtwnResetUnwritten(context, &slot->play);
+            mtwnFreePlayer(context, index1);
         }
         index1 = later;
+    }
+    // A target no clip's player wrote shows its base.
+    for (uint32_t index1 = context->firstPlayer; index1 != 0;)
+    {
+        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+        if (slot->type == MTWN_PLAYER_CLIP)
+        {
+            mtwnResetUnwritten(context, &slot->play);
+        }
+        index1 = slot->later;
     }
 }
 

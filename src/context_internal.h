@@ -34,6 +34,9 @@ typedef struct mtwnTargetSlot
 
 // The target is on the list of changed targets.
 #define MTWN_TARGET_CHANGED 2u
+// A clip's player bound to the target has not written it in this update
+// yet: if none does, it shows its base.
+#define MTWN_TARGET_UNWRITTEN 4u
 
 // What a player is.
 #define MTWN_PLAYER_TRANSITION 1u
@@ -133,6 +136,16 @@ typedef struct mtwnClipNode
 } mtwnClipNode;
 
 // A clip, in the context's pool; its storage is a block of its own.
+// A node's time during a sample: the time it gives its children now and
+// a moment ago (for the velocity), and whether time runs backwards in it.
+typedef struct mtwnNodeTime
+{
+    double now;
+    double before;
+    bool backwards;
+    uint8_t reserved[7];
+} mtwnNodeTime;
+
 typedef struct mtwnClipSlot
 {
     mtwnSlotHeader header;
@@ -148,6 +161,8 @@ typedef struct mtwnClipSlot
     mtwnSegmentMix* mixes;
     // Each slot's value kind plus 1, 0 for a slot no track uses yet.
     uint8_t* slotKinds;
+    // Scratch for sampling, one per node.
+    mtwnNodeTime* times;
     uint32_t nodeCount;
     uint32_t keyframeCount;
     // The slots its tracks use: the largest plus 1.
@@ -227,7 +242,28 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player);
 // Ends a target's transition: frees the player and unlinks the target.
 void mtwnEndTransition(mtwnContext* context, uint32_t player);
 
-// Advances a clip's player to the host's time (src/player.c).
-void mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now);
+// Advances a clip's player to the host's time and samples it; true when it
+// has finished and is not kept, to be freed (src/player.c).
+bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now);
+
+// Writes a target's value and velocity, marking it changed when its value
+// changed and written in this update (src/update.c).
+void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwnVec4 velocity);
+
+// The live target a player's binding names, 0 for none.
+uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot);
+
+// Samples a clip's player's tree at its current time into its targets,
+// the velocity over the last moment when moving; committing writes the
+// values as the bases too (src/clip_sample.c).
+void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double current, double rate,
+                    bool commit);
+
+// Marks a clip's player's targets unwritten, before the update's players
+// run.
+void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play);
+
+// Shows their bases in a clip's player's targets no player wrote.
+void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play);
 
 #endif

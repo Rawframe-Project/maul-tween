@@ -221,6 +221,7 @@ void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backward
     }
     // The directed and transformed progress.
     bool forwards = IterationForwards(timing->direction, result.iteration);
+    result.forwards = forwards;
     result.directedProgress = forwards ? simple : 1.0 - simple;
     bool goingForwards = forwards == (timing->playbackRate > 0.0);
     result.before = (result.phase == mtwn_phaseBefore && goingForwards) ||

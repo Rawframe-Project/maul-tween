@@ -127,8 +127,13 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
 
-    /// Advances every player to the host's time: transitions sample their
-    /// curves, write their targets and end. Reports the targets whose value
+    /// Advances every player to the host's time, in the order they were
+    /// made, later ones writing over earlier ones: transitions sample their
+    /// curves, write their targets and end; clips' players sample their
+    /// clips into their bound targets, and those that finish, unless kept,
+    /// commit what they fill forward as their targets' bases and are freed.
+    /// A target bound to a clip's player that no player writes shows its
+    /// base. Reports the targets whose value
     /// or base changed since the last report, in the order they changed;
     /// a target appears once.
     ///

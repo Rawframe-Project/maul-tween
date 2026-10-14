@@ -300,7 +300,7 @@ static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
     }
 }
 
-void mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now)
+bool mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double end = EffectEnd(context, play);
@@ -334,6 +334,16 @@ void mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now)
         }
     }
     UpdateFinished(play, now, end, false);
+    mtwnPlayState state = StateOf(play, now, end);
+    if (state == mtwn_playIdle)
+    {
+        return false;
+    }
+    // Only a running player moves; one not kept commits its end and goes.
+    bool done = state == mtwn_playFinished && !play->keep;
+    double rate = state == mtwn_playRunning ? play->rate : 0.0;
+    mtwnSampleClip(context, play, CurrentTime(play, now), rate, done);
+    return done;
 }
 
 static bool IsRate(double rate)
@@ -341,8 +351,10 @@ static bool IsRate(double rate)
     return isfinite(rate);
 }
 
-// Whether the bindings are within the clip's slots, each slot once.
-static bool AreBindings(const mtwnPlayerDef* def, const mtwnClipSlot* clip)
+// Whether the bindings name slots the clip's tracks use, each once, and
+// live targets of their kinds.
+static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
+                        const mtwnClipSlot* clip)
 {
     if (def->bindingCount > 0 && def->bindings == NULL)
     {
@@ -350,7 +362,11 @@ static bool AreBindings(const mtwnPlayerDef* def, const mtwnClipSlot* clip)
     }
     for (uint32_t i = 0; i < def->bindingCount; ++i)
     {
-        if (def->bindings[i].slot >= clip->slotCount)
+        const mtwnBinding* binding = &def->bindings[i];
+        const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
+            &context->targets, binding->target.index1, binding->target.generation);
+        if (binding->slot >= clip->slotCount || target == NULL ||
+            clip->slotKinds[binding->slot] != target->kind + 1)
         {
             return false;
         }
@@ -384,7 +400,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorState);
     }
-    if (!IsRate(def->rate) || !AreBindings(def, clip))
+    if (!IsRate(def->rate) || !AreBindings(context, def, clip))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
@@ -468,6 +484,17 @@ mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     }
     if (slot->type == MTWN_PLAYER_CLIP)
     {
+        // Its targets show their bases again, until another player writes
+        // them.
+        for (uint32_t s = 0; s < slot->play.bindingCount; ++s)
+        {
+            uint32_t target = mtwnBoundTarget(context, &slot->play, s);
+            if (target != 0)
+            {
+                mtwnWriteTarget(context, target, mtwnTargetAt(context, target)->base,
+                                (mtwnVec4){0});
+            }
+        }
         mtwnFreePlayer(context, player.index1);
         return mtwn_success;
     }

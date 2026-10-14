@@ -25,6 +25,7 @@ typedef struct ClipLayout
     uint64_t lengths;
     uint64_t mixes;
     uint64_t slots;
+    uint64_t times;
     uint64_t bytes;
 } ClipLayout;
 
@@ -50,7 +51,8 @@ static bool PlanClip(const mtwnClipDef* def, ClipLayout* layout)
         Place(&end, def->keyframeCapacity, sizeof(mtwnKeyframe), &layout->keyframes) &&
         Place(&end, def->keyframeCapacity, sizeof(double), &layout->lengths) &&
         Place(&end, def->keyframeCapacity, sizeof(mtwnSegmentMix), &layout->mixes) &&
-        Place(&end, def->slotCapacity, sizeof(uint8_t), &layout->slots);
+        Place(&end, def->slotCapacity, sizeof(uint8_t), &layout->slots) &&
+        Place(&end, (uint64_t)def->nodeCapacity + 1, sizeof(mtwnNodeTime), &layout->times);
     layout->bytes = end;
     return placed && end <= SIZE_MAX;
 }
@@ -125,9 +127,13 @@ mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClip
     slot->lengths = (double*)(block + layout.lengths);
     slot->mixes = (mtwnSegmentMix*)(block + layout.mixes);
     slot->slotKinds = block + layout.slots;
+    slot->times = (mtwnNodeTime*)(block + layout.times);
     slot->nodes[0].kind = mtwn_nodeTimeline;
     slot->nodes[0].autoDuration = true;
     slot->nodes[0].timing = mtwnDefaultTiming();
+    // The root is the player's whole clip: it passes the player's time to
+    // its children, held at its ends, and their fills decide.
+    slot->nodes[0].timing.fill = mtwn_fillBoth;
     slot->nodeCount = 1;
     context->clipStorageUsed = used;
     *clipOut = (mtwnClipId){index1, slot->header.generation};
@@ -544,6 +550,15 @@ mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
     if (slot->finished)
     {
         return Misuse(context, mtwn_errorState);
+    }
+    // Timelines sized by their children take the size for good.
+    for (uint32_t i = 0; i < slot->nodeCount; ++i)
+    {
+        mtwnClipNode* node = &slot->nodes[i];
+        if (node->kind == mtwn_nodeTimeline && node->autoDuration)
+        {
+            node->timing.duration = node->childrenEnd;
+        }
     }
     slot->finished = true;
     return mtwn_success;
