@@ -18,7 +18,9 @@ always takes the full duration.
 - Every eased transition keeps CSS's reversing-adjusted start value
   (where it began) and reversing shortening factor (1).
 - When one with `reverses` replaces an eased transition and its end, as
-  given, is that one's reversing-adjusted start, the factor is the
+  given, is that one's reversing-adjusted start (equal channel by
+  channel, as CSS compares computed values: 0 and -0 alike; values are
+  finite, so NaN never compares), the factor is the
   absolute value of that one's eased progress times its factor plus one
   minus its factor, at most 1; the new duration is its own times the
   factor, its reversing-adjusted start is that one's end, and its

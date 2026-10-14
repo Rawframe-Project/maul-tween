@@ -422,8 +422,45 @@ static void TestClipChain(void)
     mtwnDestroyContext(f.context);
 }
 
+// A rate past MTWN_RATE_LIMIT in size is refused as misuse, the player
+// unchanged (record mtwn-0046).
+static void TestRateLimit(void)
+{
+    Fixture f = Make(false, 8);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    CHECK(mtwnUpdate(f.context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    uint64_t misuse = mtwnContext_GetMisuseCount(f.context);
+    CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_RATE_LIMIT) == mtwn_success &&
+              mtwnPlayer_SetRate(f.context, p, -MTWN_RATE_LIMIT) == mtwn_success,
+          "the limit itself, either way");
+    CHECK(mtwnPlayer_SetRate(f.context, p, 2.0) == mtwn_success, "back to 2");
+    mtwnPlayerState before;
+    CHECK(mtwnPlayer_GetState(f.context, p, &before) == mtwn_success, "read");
+    CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(MTWN_RATE_LIMIT, HUGE_VAL)) ==
+                  mtwn_errorInvalid &&
+              mtwnPlayer_SetRate(f.context, p, -1e300) == mtwn_errorInvalid &&
+              mtwnPlayer_SetRate(f.context, p, (double)NAN) == mtwn_errorInvalid &&
+              mtwnPlayer_SetRate(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
+          "past the limit, NaN and infinity refused");
+    mtwnPlayerState after;
+    CHECK(mtwnPlayer_GetState(f.context, p, &after) == mtwn_success && after.rate == before.rate &&
+              after.pending == before.pending &&
+              mtwnContext_GetMisuseCount(f.context) == misuse + 4,
+          "the player unchanged, each counted as misuse");
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = f.clip;
+    def.rate = 1e300;
+    mtwnPlayerId refused;
+    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorInvalid && refused.index1 == 0,
+          "a def past the limit refused");
+    def.rate = -MTWN_RATE_LIMIT;
+    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_success, "a def at the limit");
+    mtwnDestroyContext(f.context);
+}
+
 int main(void)
 {
+    TestRateLimit();
     TestPlayPause();
     TestSeeks();
     TestFinishReverse();

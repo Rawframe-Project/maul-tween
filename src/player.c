@@ -301,9 +301,11 @@ static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, 
     return done;
 }
 
+// A rate whose size keeps the time to its limit's resolution (record
+// mtwn-0046).
 static bool IsRate(double rate)
 {
-    return isfinite(rate);
+    return fabs(rate) <= MTWN_RATE_LIMIT;
 }
 
 static bool IsWeight(double weight)
@@ -681,8 +683,11 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    if ((control == s_seek || control == s_seekProgress || control == s_setRate ||
-         control == s_sweep) &&
+    if (control == s_setRate && !IsRate(argument))
+    {
+        return Misuse(context, mtwn_errorInvalid);
+    }
+    if ((control == s_seek || control == s_seekProgress || control == s_sweep) &&
         !isfinite(argument))
     {
         return Misuse(context, mtwn_errorInvalid);

@@ -15,7 +15,6 @@
 #include "spring_internal.h"
 
 #include <math.h>
-#include <string.h>
 
 static mtwnColor ToColor(mtwnVec4 value)
 {
@@ -91,14 +90,11 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     return true;
 }
 
-// Whether two values are the same bits.
+// Whether two accepted values are equal, as CSS compares computed
+// values: channel by channel, so 0 and -0 are; NaN was refused.
 static bool Same(mtwnVec4 a, mtwnVec4 b)
 {
-    uint32_t x[4];
-    uint32_t y[4];
-    memcpy(x, &a, sizeof x);
-    memcpy(y, &b, sizeof y);
-    return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3];
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
 
 // The time after the delay a spring or decay ends, and a decay's end.

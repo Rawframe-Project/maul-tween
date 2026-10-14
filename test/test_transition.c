@@ -835,6 +835,27 @@ static void TestReversal(void)
     mtwnDestroyContext(context);
 }
 
+// The reversal's ends compare as CSS compares computed values: 0 and -0
+// are the same end.
+static void TestReversalSignedZero(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){-0.0f, 0, 0, 0}, &x) ==
+              mtwn_success,
+          "a target at -0");
+    mtwnEasing linear = mtwnLinearEasing();
+    (void)Toward(context, x, 1.0f, 1.0, &linear, true);
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "a quarter in");
+    mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
+    CHECK(back->duration == 0.25, "back to +0 from -0 shortened");
+    mtwnDestroyContext(context);
+}
+
 static void TestReversalEdges(void)
 {
     mtwnContextDef contextDef = mtwnDefaultContextDef();
@@ -903,6 +924,7 @@ int main(void)
 {
     TestReversal();
     TestReversalEdges();
+    TestReversalSignedZero();
     TestStartVelocity();
     TestReplacedVelocity();
     TestScalar();

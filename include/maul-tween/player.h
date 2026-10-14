@@ -93,7 +93,8 @@ extern "C"
         // fills forward as its targets' bases and is freed.
         bool keep;
         uint8_t reserved[2];
-        // The playback rate, finite; negative plays backwards, 0 holds.
+        // The playback rate, at most MTWN_RATE_LIMIT in size; negative
+        // plays backwards, 0 holds.
         double rate;
         // In [0, 1]: scales every binding's weight; mtwnPlayer_SetWeight
         // changes it while it plays.
@@ -102,6 +103,12 @@ extern "C"
 
 // The cookie mtwnDefaultPlayerDef sets and mtwnCreatePlayer checks.
 #define MTWN_PLAYER_DEF_COOKIE 0x59414C50u
+
+// The largest size of a clip's player's rate, 2^20. A rate change keeps
+// the current time as Web Animations does, by the start time, so to
+// within an ulp of the host time times the rate: at this limit and 10^7 s
+// of host time (116 days), 2 ms. A larger rate is refused as misuse.
+#define MTWN_RATE_LIMIT 1048576.0
 
     /// Makes a player def: no clip, no bindings, playing at once at rate 1
     /// and full weight, freed when it ends. Built in the program, so it carries the version of
@@ -160,7 +167,7 @@ extern "C"
     /// @param def        The def.
     /// @param playerOut  Receives the player's id, or the null id on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie, a rate not finite, a weight outside
+    ///         without its cookie, a rate NaN or above MTWN_RATE_LIMIT in size, a weight outside
     ///         [0, 1], a binding outside the above; mtwn_errorVersion for a def of another version;
     ///         mtwn_errorStale for a clip that is not alive; mtwn_errorState
     ///         for one not finished; mtwn_errorLimit when the context holds
@@ -282,13 +289,14 @@ extern "C"
                                                             mtwnPlayerId player, uint32_t key);
 
     /// Sets a clip's player's rate, keeping its current time: as Web
-    /// Animations keeps it, by the start time, so to within the host
-    /// time's resolution times the rate (an ulp of 10^5 s, 1.5e-11 s,
-    /// times 10^5 is 1.5e-6 s).
+    /// Animations keeps it, by the start time, so to within an ulp of the
+    /// host time times the rate (see MTWN_RATE_LIMIT).
     ///
     /// @param context  The context.
     /// @param player   A clip's player.
-    /// @param rate     Finite; negative plays backwards, 0 holds.
+    /// @param rate     At most MTWN_RATE_LIMIT in size; negative plays
+    ///                 backwards, 0 holds. A larger one or NaN is refused
+    ///                 as misuse, the player unchanged.
     /// @return As mtwnPlayer_Seek.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.

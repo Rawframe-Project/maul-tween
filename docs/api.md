@@ -343,7 +343,7 @@ Makes a player def: no clip, no bindings, playing at once at rate 1 and full wei
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut);
 ```
-Makes a player of a finished clip, which it holds busy until it is freed; it starts at the next update if the def says play, else idle.  @param context    The context. @param def        The def. @param playerOut  Receives the player's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a rate not finite, a weight outside [0, 1], a binding outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished; mtwn_errorLimit when the context holds its capacity of players or of bindings. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Makes a player of a finished clip, which it holds busy until it is freed; it starts at the next update if the def says play, else idle.  @param context    The context. @param def        The def. @param playerOut  Receives the player's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a rate NaN or above MTWN_RATE_LIMIT in size, a weight outside [0, 1], a binding outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished; mtwn_errorLimit when the context holds its capacity of players or of bindings. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player);
@@ -393,7 +393,7 @@ Seeks a clip's player to a label of its clip's root.  @param context  The contex
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate);
 ```
-Sets a clip's player's rate, keeping its current time: as Web Animations keeps it, by the start time, so to within the host time's resolution times the rate (an ulp of 10^5 s, 1.5e-11 s, times 10^5 is 1.5e-6 s).  @param context  The context. @param player   A clip's player. @param rate     Finite; negative plays backwards, 0 holds. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Sets a clip's player's rate, keeping its current time: as Web Animations keeps it, by the start time, so to within an ulp of the host time times the rate (see MTWN_RATE_LIMIT).  @param context  The context. @param player   A clip's player. @param rate     At most MTWN_RATE_LIMIT in size; negative plays backwards, 0 holds. A larger one or NaN is refused as misuse, the player unchanged. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight);

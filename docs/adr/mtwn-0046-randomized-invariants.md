@@ -38,11 +38,14 @@ extreme ones among them.
   - A rate change keeps the current time as Web Animations does, by the
     start time, so to within the host time's resolution times the rate;
     at a rate of 1e300 the time is lost, and records were stamped before
-    their update. A record's host time is kept within its update, and
-    `mtwnPlayer_SetRate` states the resolution.
+    their update. A record's host time is kept within its update, and a
+    player's rate larger than `MTWN_RATE_LIMIT`, 2^20, is refused as
+    misuse with the player unchanged (in its def and by
+    `mtwnPlayer_SetRate`): at the limit and 10^7 s of host time the time
+    is kept to 2 ms, and no host loses time silently.
 
 ## Consequences
 
 The start-time model stays Web Animations' (its tests pin its steps);
-a host that needs a rate beyond 10^5 near a long uptime knows the
-resolution it gets.
+a rate past the limit is refused rather than kept to a resolution the
+host cannot see.
