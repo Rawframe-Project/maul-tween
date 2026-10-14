@@ -180,7 +180,11 @@ extern "C"
     /// @param keyframes   As mtwnMakePath takes them, in the kind's channels;
     ///                    a rotation not all zero; a color's alpha from 0 to
     ///                    1. Colors and discrete values take linear and step
-    ///                    segments only.
+    ///                    segments only. Rewritten in place for angles and
+    ///                    rotations on the shortest path (unwrapped, flipped),
+    ///                    so one array must not feed two tracks with
+    ///                    different angle methods or rotation paths; a clip
+    ///                    copies them first.
     /// @param count       The number of keyframes.
     /// @param lengthsOut  Count doubles for constant speed, or NULL; only
     ///                    numbers, vectors, angles and integers take it.

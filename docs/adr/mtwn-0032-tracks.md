@@ -30,6 +30,10 @@ values layer.
   Every rotation that comes out is of unit length.
 - Constant speed for numbers, vectors, angles and integers only. A
   refused track leaves its keyframes as they were.
+- The keyframes are taken by a pointer to modifiable data and the
+  public documentation says they are rewritten for angles and
+  rotations, so one array must not feed two tracks with different
+  angle methods or rotation paths; a clip copies them first.
 
 ## Consequences
 
