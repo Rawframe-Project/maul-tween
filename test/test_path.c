@@ -519,8 +519,34 @@ static void TestRefusals(void)
     CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "an unknown kind");
 }
 
+// At constant speed a curve sampled past its ends goes on along its end
+// segments, by their parameter, as without constant speed (found by
+// mutants).
+static void TestBeyondAtConstantSpeed(void)
+{
+    mtwnKeyframe keys[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentCatmullRom),
+                            Key(0.5, 1.0f, 2.0f, mtwn_segmentCatmullRom),
+                            Key(1.0, 3.0f, 0.0f, mtwn_segmentCatmullRom)};
+    double lengths[3];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 3, 2, 0.5, lengths, &path) == mtwn_success, "a curve");
+    double end[4];
+    double past[4];
+    double start[4];
+    double before[4];
+    double tangent[4];
+    mtwnSamplePath(&path, 1.0, end, tangent);
+    mtwnSamplePath(&path, 1.25, past, tangent);
+    mtwnSamplePath(&path, 0.0, start, tangent);
+    mtwnSamplePath(&path, -0.25, before, tangent);
+    CHECK(fabs(past[0] - end[0]) > 0.1 &&
+              fabs(before[1] - start[1]) + fabs(before[0] - start[0]) > 0.1,
+          "past the ends, the curve goes on");
+}
+
 int main(void)
 {
+    TestBeyondAtConstantSpeed();
     TestLinearAndStep();
     TestBezier();
     TestCatmullRom();

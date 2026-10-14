@@ -257,6 +257,27 @@ static void TestRotations(void)
           "a zero rotation");
 }
 
+// A rotation track refuses an all-zero keyframe and takes others, one of
+// four nonzero channels and a half turn of one (found by mutants).
+static void TestRotationZero(void)
+{
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
+    mtwnSegmentMix mixes[1];
+    mtwnTrack track;
+    mtwnKeyframe zero[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
+                            Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, zero, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+          "an all-zero rotation refused");
+    mtwnKeyframe full[2] = {Key(0.0, (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f}, mtwn_segmentLinear),
+                            Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, full, 2, NULL, mixes, &track) == mtwn_success,
+          "a rotation of four nonzero channels taken");
+    mtwnKeyframe half[2] = {Key(0.0, (mtwnVec4){1, 0, 0, 0}, mtwn_segmentLinear),
+                            Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, half, 2, NULL, mixes, &track) == mtwn_success,
+          "a half turn about x taken");
+}
+
 static void TestRefusals(void)
 {
     float deg = (float)(s_pi / 180.0);
@@ -289,6 +310,7 @@ static void TestRefusals(void)
 
 int main(void)
 {
+    TestRotationZero();
     TestNumbers();
     TestDiscrete();
     TestAngles();
