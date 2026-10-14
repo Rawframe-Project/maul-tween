@@ -78,12 +78,12 @@ static bool Near(double a, double b, double tolerance)
 
 static void TestNumbers(void)
 {
-    World w = MakeWorld(mtwn_valueVec2, (mtwnVec4){0});
+    World w = MakeWorld(mtwn_valueVec4, (mtwnVec4){0});
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
-    keys[0].value = (mtwnVec4){2.0f, 10.0f, 0, 0};
-    keys[1].value = (mtwnVec4){3.0f, 8.0f, 0, 0};
-    mtwnClipTrackDef track = Incremental(mtwn_valueVec2, keys, 3.0);
+    keys[0].value = (mtwnVec4){2.0f, 10.0f, 0.0f, 1.0f};
+    keys[1].value = (mtwnVec4){3.0f, 8.0f, 0.5f, 3.0f};
+    mtwnClipTrackDef track = Incremental(mtwn_valueVec4, keys, 3.0);
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
     CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
@@ -98,8 +98,9 @@ static void TestNumbers(void)
     CHECK(Near((double)s.velocity.x, 1.0, 1e-3) && Near((double)s.velocity.y, -2.0, 1e-3),
           "continuous across the boundary: the velocity unbroken");
     s = At(&w, 9.0);
-    CHECK(Near((double)s.value.x, 5.0, 1e-6) && Near((double)s.value.y, 4.0, 1e-6),
-          "filled at the third's end");
+    CHECK(Near((double)s.value.x, 5.0, 1e-6) && Near((double)s.value.y, 4.0, 1e-6) &&
+              Near((double)s.value.z, 1.5, 1e-6) && Near((double)s.value.w, 7.0, 1e-6),
+          "filled at the third's end, every channel moved on");
     mtwnDestroyContext(w.context);
 }
 
@@ -165,6 +166,24 @@ static void TestRotations(void)
     CHECK(Near((double)state.value.z, sin(end), 1e-6) &&
               Near((double)state.value.w, cos(end), 1e-6),
           "three quarters at the end");
+    mtwnDestroyContext(w.context);
+    // From a quarter turn about x to a quarter about z after it: the step
+    // is the quarter about z, turning before the path, three times over;
+    // the end is three quarters about z after the first.
+    w = MakeWorld(mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
+    keys[0].value = (mtwnVec4){s, 0, 0, c};
+    keys[1].value = (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f};
+    track = Incremental(mtwn_valueRotation, keys, 3.0);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    state = At(&w, 9.0);
+    double sign = state.value.w < 0.0f ? -1.0 : 1.0;
+    CHECK(Near(sign * (double)state.value.x, 0.5, 1e-6) &&
+              Near(sign * (double)state.value.y, -0.5, 1e-6) &&
+              Near(sign * (double)state.value.z, -0.5, 1e-6) &&
+              Near(sign * (double)state.value.w, 0.5, 1e-6),
+          "the step from the first's inverse, turning before the path");
     mtwnDestroyContext(w.context);
 }
 

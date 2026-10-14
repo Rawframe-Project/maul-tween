@@ -333,11 +333,8 @@ static mtwnVec4 Step(mtwnValueKind kind, mtwnVec4 first, mtwnVec4 last)
     double y = aw * by - ax * bz + ay * bw + az * bx;
     double z = aw * bz + ax * by - ay * bx + az * bw;
     double w = aw * bw - ax * bx - ay * by - az * bz;
+    // Of unit rotations, so of length near 1.
     double norm = sqrt(x * x + y * y + z * z + w * w);
-    if (!(norm > 0.0))
-    {
-        return (mtwnVec4){0.0f, 0.0f, 0.0f, 1.0f};
-    }
     return (mtwnVec4){(float)(x / norm), (float)(y / norm), (float)(z / norm), (float)(w / norm)};
 }
 
