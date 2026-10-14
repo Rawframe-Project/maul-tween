@@ -22,9 +22,10 @@ early, and must say what "settled" means in the value's own units.
   costs four multiplications. A retarget changes the offset and keeps
   the velocity.
 - The overdamped matrix is written in its two rates, the slow one as
-  `w0^2 / (a + w)`; below `w t = 1/2` every regime uses series for
-  `sin(w t) / w` and `sinh(w t) / w`, so the regimes meet with no
-  vanishing divisor, cancellation or overflow.
+  `w0^2 / (a + w)`; below `w t = 1/2`, `sinh(w t) / w` comes from its
+  series, and `sin(w t) / w` needs none, the sine keeping its relative
+  digits, so the regimes meet with no vanishing divisor, cancellation
+  or overflow.
 - `mtwnSpringSettlingTime` takes an offset and a velocity tolerance and
   returns when bounds on both stay below them: in closed form where the
   bound is a pure exponential, else by Newton from the right on its

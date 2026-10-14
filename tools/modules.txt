@@ -7,3 +7,4 @@ css_easing:
 easing: css_easing elementary
 sample:
 spring: elementary
+decay: elementary

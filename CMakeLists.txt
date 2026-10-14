@@ -42,6 +42,7 @@ endif()
 add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/base.c
     src/css_easing.c
+    src/decay.c
     src/easing.c
     src/sample.c
     src/spring.c
@@ -61,6 +62,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(easing_css)
     maul_add_test(sample)
     maul_add_test(spring)
+    maul_add_test(decay)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
