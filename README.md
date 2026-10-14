@@ -36,7 +36,8 @@ values, punch and shake; Web Animations' timing with playback rate
 and repeat delay; a context in one block holding targets, and
 transitions advanced by an update that guards the floating-point
 environment; keyframe paths, Catmull-Rom or Bezier, at constant speed
-if asked. The library has 66 public functions.
+if asked, and tracks of every value kind over them. The library has
+69 public functions.
 
 ## Building
 

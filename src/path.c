@@ -398,12 +398,11 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
     return u;
 }
 
-void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+// The segment a progress falls in and the parameter within it.
+static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
+                   Cubic* cubic)
 {
-    double unused[4];
-    double* tangent = tangentOut != NULL ? tangentOut : unused;
     const mtwnKeyframe* k = path->keyframes;
-    Cubic cubic;
     uint32_t i = 0;
     double u = 0.0;
     if (path->lengths != NULL)
@@ -411,25 +410,251 @@ void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], d
         double total = path->lengths[path->count - 1];
         double distance = progress * total;
         i = FindSegment(path, distance, true);
-        SegmentCubic(path, i, &cubic);
+        SegmentCubic(path, i, cubic);
         double length = path->lengths[i + 1] - path->lengths[i];
-        u = length > 0.0 ? ParameterAt(&cubic, path->channels, distance - path->lengths[i], length)
+        u = length > 0.0 ? ParameterAt(cubic, path->channels, distance - path->lengths[i], length)
                          : 1.0;
     }
     else
     {
         i = FindSegment(path, progress, false);
-        SegmentCubic(path, i, &cubic);
+        SegmentCubic(path, i, cubic);
         double width = k[i + 1].offset - k[i].offset;
         double local = width > 0.0 ? (progress - k[i].offset) / width : 1.0;
         u = mtwnEase(&k[i].easing, local, false);
     }
+    *segmentOut = i;
+    *uOut = u;
+}
+
+void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+{
+    double unused[4];
+    double* tangent = tangentOut != NULL ? tangentOut : unused;
+    Cubic cubic;
+    uint32_t i = 0;
+    double u = 0.0;
+    Locate(path, progress, &i, &u, &cubic);
     double end[4];
-    Load(k[i + 1].value, end);
+    Load(path->keyframes[i + 1].value, end);
     Evaluate(&cubic, end, u, valueOut, tangent);
     for (uint8_t c = path->channels; c < 4; ++c)
     {
         valueOut[c] = 0.0;
         tangent[c] = 0.0;
     }
+}
+
+static const uint8_t s_kindChannels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1};
+
+static bool IsNumberKind(mtwnValueKind kind)
+{
+    return kind != mtwn_valueColor && kind != mtwn_valueRotation && kind != mtwn_valueDiscrete;
+}
+
+// Whether the track's kind takes every segment its keyframes start.
+static bool TakesSegments(mtwnValueKind kind, const mtwnKeyframe* keyframes, uint32_t count)
+{
+    if (kind != mtwn_valueColor && kind != mtwn_valueDiscrete)
+    {
+        return true;
+    }
+    for (uint32_t i = 0; i + 1 < count; ++i)
+    {
+        if (keyframes[i].kind != mtwn_segmentLinear && keyframes[i].kind != mtwn_segmentStep)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool IsZero4(mtwnVec4 v)
+{
+    return v.x == 0.0f && v.y == 0.0f && v.z == 0.0f && v.w == 0.0f;
+}
+
+static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, uint32_t count,
+                       bool lengths, const mtwnSegmentMix* mixes)
+{
+    if (def == NULL || def->kind > mtwn_valueDiscrete || def->rotationPath > mtwn_rotationLongest ||
+        !IsValid(keyframes, count, s_kindChannels[def->kind], def->alpha, lengths) ||
+        (lengths && !IsNumberKind(def->kind)) || !TakesSegments(def->kind, keyframes, count))
+    {
+        return false;
+    }
+    bool mixed = def->kind == mtwn_valueColor || def->kind == mtwn_valueRotation;
+    if (mixed && mixes == NULL)
+    {
+        return false;
+    }
+    for (uint32_t i = 0; def->kind == mtwn_valueRotation && i < count; ++i)
+    {
+        if (IsZero4(keyframes[i].value))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void Shift(mtwnVec4* v, float by)
+{
+    v->x += by;
+}
+
+static void Negate(mtwnVec4* v)
+{
+    *v = (mtwnVec4){-v->x, -v->y, -v->z, -v->w};
+}
+
+static double Dot4(mtwnVec4 a, mtwnVec4 b)
+{
+    return (double)a.x * (double)b.x + (double)a.y * (double)b.y + (double)a.z * (double)b.z +
+           (double)a.w * (double)b.w;
+}
+
+// Angles each moved by the method's whole turns from the one before;
+// rotations on the shortest path each into the hemisphere of the one
+// before; their controls with them.
+static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count)
+{
+    for (uint32_t i = 1; i < count; ++i)
+    {
+        mtwnKeyframe* k = &keyframes[i];
+        if (def->kind == mtwn_valueAngle)
+        {
+            float moved = (float)mtwnMixAngle((double)keyframes[i - 1].value.x, (double)k->value.x,
+                                              def->angleMethod, 1.0);
+            float by = moved - k->value.x;
+            k->value.x = moved;
+            Shift(&k->in, by);
+            Shift(&k->out, by);
+        }
+        else if (def->kind == mtwn_valueRotation && def->rotationPath == mtwn_rotationShortest &&
+                 Dot4(keyframes[i - 1].value, k->value) < 0.0)
+        {
+            Negate(&k->value);
+            Negate(&k->in);
+            Negate(&k->out);
+        }
+    }
+}
+
+mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count,
+                         double* lengthsOut, mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
+{
+    if (trackOut == NULL || !CheckTrack(def, keyframes, count, lengthsOut != NULL, mixesOut))
+    {
+        return mtwn_errorInvalid;
+    }
+    // Only the longest way between equal rotations refuses a mix, and it
+    // flips nothing, so a refusal leaves the keyframes as they were.
+    Canonicalize(def, keyframes, count);
+    bool mixed = def->kind == mtwn_valueColor || def->kind == mtwn_valueRotation;
+    for (uint32_t i = 0; mixed && i + 1 < count; ++i)
+    {
+        mtwnVec4 a = keyframes[i].value;
+        mtwnVec4 b = keyframes[i + 1].value;
+        mtwnResult made = mtwn_success;
+        if (def->kind == mtwn_valueColor)
+        {
+            made =
+                mtwnMakeColorMix((mtwnColor){a.x, a.y, a.z, a.w}, (mtwnColor){b.x, b.y, b.z, b.w},
+                                 def->colorSpace, def->hueMethod, &mixesOut[i].color);
+        }
+        else if (keyframes[i].kind == mtwn_segmentLinear)
+        {
+            made =
+                mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
+                                    def->rotationPath, &mixesOut[i].rotation);
+        }
+        if (made != mtwn_success)
+        {
+            return mtwn_errorInvalid;
+        }
+    }
+    mtwnTrack track = {{0}, mixed ? mixesOut : NULL, def->kind, {0}};
+    mtwnResult result = mtwnMakePath(keyframes, count, s_kindChannels[def->kind], def->alpha,
+                                     lengthsOut, &track.path);
+    if (result != mtwn_success)
+    {
+        return result;
+    }
+    *trackOut = track;
+    return mtwn_success;
+}
+
+static mtwnVec4 ToVec4(const double v[4])
+{
+    return (mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]};
+}
+
+// A rotation's per-component cubic, normalized; the segment's start where
+// it cancels to zero.
+static mtwnVec4 Normalized(const double v[4], mtwnVec4 start)
+{
+    double norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+    if (!(norm > 0.0))
+    {
+        return start;
+    }
+    return (mtwnVec4){(float)(v[0] / norm), (float)(v[1] / norm), (float)(v[2] / norm),
+                      (float)(v[3] / norm)};
+}
+
+mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
+{
+    const mtwnPath* path = &track->path;
+    double value[4];
+    if (IsNumberKind(track->kind))
+    {
+        mtwnSamplePath(path, progress, value, NULL);
+        if (track->kind == mtwn_valueInteger)
+        {
+            value[0] = round(value[0]);
+        }
+        return ToVec4(value);
+    }
+    Cubic cubic;
+    uint32_t i = 0;
+    double u = 0.0;
+    Locate(path, progress, &i, &u, &cubic);
+    const mtwnKeyframe* k = path->keyframes;
+    mtwnSegmentKind kind = k[i].kind;
+    mtwnVec4 held = u >= 1.0 ? k[i + 1].value : k[i].value;
+    switch (track->kind)
+    {
+    case mtwn_valueDiscrete:
+        return kind == mtwn_segmentStep ? held : (u < 0.5 ? k[i].value : k[i + 1].value);
+    case mtwn_valueColor:
+    {
+        if (kind == mtwn_segmentStep)
+        {
+            return held;
+        }
+        mtwnColor color = mtwnMixColor(&track->mixes[i].color, u);
+        return (mtwnVec4){color.red, color.green, color.blue, color.alpha};
+    }
+    default:
+        break;
+    }
+    // A rotation, normalized whatever its segment.
+    if (kind == mtwn_segmentLinear)
+    {
+        mtwnQuat q = mtwnMixRotation(&track->mixes[i].rotation, u);
+        return (mtwnVec4){q.x, q.y, q.z, q.w};
+    }
+    if (kind == mtwn_segmentStep || u == 1.0)
+    {
+        Load(held, value);
+    }
+    else
+    {
+        double end[4];
+        double tangent[4];
+        Load(k[i + 1].value, end);
+        Evaluate(&cubic, end, u, value, tangent);
+    }
+    return Normalized(value, k[i].value);
 }

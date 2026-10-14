@@ -3,8 +3,8 @@
 //
 // The base of the Maul Tween API: the library version, the export and
 // attribute macros, the result codes every fallible function returns,
-// the allocator a context takes and the four-channel value targets
-// hold.
+// the allocator a context takes, and the four-channel values and their
+// kinds that targets and tracks hold.
 
 #ifndef MAUL_TWEEN_BASE_H
 #define MAUL_TWEEN_BASE_H
@@ -112,6 +112,32 @@ extern "C"
         float z;
         float w;
     } mtwnVec4;
+
+    // What a value is, a target's or a track's: the channels it uses and how
+    // it is interpolated and composed.
+    typedef uint8_t mtwnValueKind;
+    enum
+    {
+        // One number, in x.
+        mtwn_valueScalar = 0,
+        // Two numbers, x and y.
+        mtwn_valueVec2 = 1,
+        // Three numbers, x to z.
+        mtwn_valueVec3 = 2,
+        // Four numbers.
+        mtwn_valueVec4 = 3,
+        // A color: red, green, blue and alpha in x to w, sRGB as CSS gives
+        // it, interpolated in the space a transition or track names.
+        mtwn_valueColor = 4,
+        // An angle in radians, in x.
+        mtwn_valueAngle = 5,
+        // A rotation as a quaternion: x, y, z, then w.
+        mtwn_valueRotation = 6,
+        // An integer, in x: interpolations round to nearest.
+        mtwn_valueInteger = 7,
+        // A discrete value the host indexes, in x: it steps at progress 1/2.
+        mtwn_valueDiscrete = 8,
+    };
 
     /// Returns the version of the library that was linked, which may differ
     /// from the MTWN_VERSION macros a program was compiled with.

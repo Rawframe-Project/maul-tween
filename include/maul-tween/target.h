@@ -19,32 +19,6 @@ extern "C"
 {
 #endif
 
-    // What a target's value is, which fixes the channels it uses and how it
-    // is interpolated and composed.
-    typedef uint8_t mtwnValueKind;
-    enum
-    {
-        // One number, in x.
-        mtwn_valueScalar = 0,
-        // Two numbers, x and y.
-        mtwn_valueVec2 = 1,
-        // Three numbers, x to z.
-        mtwn_valueVec3 = 2,
-        // Four numbers.
-        mtwn_valueVec4 = 3,
-        // A color: red, green, blue and alpha in x to w, sRGB as CSS gives
-        // it, interpolated in the space a transition or track names.
-        mtwn_valueColor = 4,
-        // An angle in radians, in x.
-        mtwn_valueAngle = 5,
-        // A rotation as a quaternion: x, y, z, then w.
-        mtwn_valueRotation = 6,
-        // An integer, in x: interpolations round to nearest.
-        mtwn_valueInteger = 7,
-        // A discrete value the host indexes, in x: it steps at progress 1/2.
-        mtwn_valueDiscrete = 8,
-    };
-
     // A target as it is: its kind, base value, current value and velocity
     // (channels per second).
     typedef struct mtwnTargetState
