@@ -3,3 +3,6 @@
 # under every C library; any other is refused by tools/check_source.py.
 # The library writes its own exponential, logarithm, trigonometry and
 # powers.
+floor
+frexp
+ldexp

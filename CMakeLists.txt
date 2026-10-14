@@ -40,12 +40,19 @@ else()
     set(MAUL_LIBRARY_KIND STATIC)
 endif()
 add_library(maul-tween ${MAUL_LIBRARY_KIND}
-    src/base.c)
+    src/base.c
+    src/elementary.c)
 maul_configure_library(maul-tween)
+# The exactly rounded functions the library takes from libm
+# (tools/libm-allowed.txt, record mtwn-0001).
+if(NOT WIN32 AND NOT APPLE)
+    target_link_libraries(maul-tween PUBLIC m)
+endif()
 
 if(MAUL_TWEEN_BUILD_TESTS)
     enable_testing()
     maul_add_test(base)
+    maul_add_test(math WHITEBOX)
     maul_add_header_tests()
 endif()
 
