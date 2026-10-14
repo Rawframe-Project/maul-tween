@@ -121,9 +121,14 @@ static void TestFitCounts(void)
     CHECK(mtwnFitLinearEasing(&ease, 1e-3, NULL, 0, &count) == mtwn_errorCapacity && count > 2,
           "no buffer reports the count");
     uint32_t needed = count;
-    CHECK(mtwnFitLinearEasing(&ease, 1e-3, s_points, needed - 1, &count) == mtwn_errorCapacity &&
+    mtwnLinearPoint guarded[65];
+    guarded[needed - 1] = (mtwnLinearPoint){-7.0, -7.0};
+    CHECK(needed <= 64 &&
+              mtwnFitLinearEasing(&ease, 1e-3, guarded, needed - 1, &count) == mtwn_errorCapacity &&
               count == needed,
           "one short reports the same count");
+    CHECK(guarded[needed - 1].input == -7.0 && guarded[needed - 1].output == -7.0,
+          "and writes nothing past the capacity");
     mtwnLinearPoint exact[64];
     CHECK(needed <= 64 && mtwnFitLinearEasing(&ease, 1e-3, exact, needed, &count) == mtwn_success,
           "an exact buffer fits");
@@ -142,6 +147,26 @@ static void TestFitCounts(void)
               mtwnFitLinearEasing(&ease, 1e-4, NULL, 0, &tight) == mtwn_errorCapacity &&
               loose < needed && needed < tight,
           "the count grows as the tolerance shrinks");
+}
+
+static void TestToleranceMetExactly(void)
+{
+    // The first segment's chord is y = x and its probes at k / 33, so the
+    // worst miss is computable here exactly as the fit computes it; a
+    // tolerance equal to it is met.
+    mtwnEasing quad;
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success, "quad");
+    double worst = 0.0;
+    for (int k = 1; k <= 32; ++k)
+    {
+        double share = (double)k / 33.0;
+        double miss = fabs(mtwnEase(&quad, share, false) - share);
+        worst = miss > worst ? miss : worst;
+    }
+    uint32_t count = 0;
+    CHECK(mtwnFitLinearEasing(&quad, worst, s_points, s_capacity, &count) == mtwn_success &&
+              count == 2,
+          "a miss equal to the tolerance is within it");
 }
 
 static double Jump(void* context, double progress)
@@ -203,6 +228,7 @@ int main(void)
     TestEvenTables();
     TestFitsWithinTolerance();
     TestFitCounts();
+    TestToleranceMetExactly();
     TestJumpsEnd();
     TestFitRefusals();
     return s_failures == 0 ? 0 : 1;
