@@ -151,7 +151,8 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     out->easing = def->easing;
     out->spring = def->spring;
     out->decay = def->decay;
-    if (target->kind == mtwn_valueAngle && def->spec != mtwn_transitionDecay)
+    // A decay's end, computed after, replaces this.
+    if (target->kind == mtwn_valueAngle)
     {
         // The end moved by the method's turns, once.
         out->to.x =

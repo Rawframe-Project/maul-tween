@@ -395,23 +395,24 @@ static void TestPathSprings(void)
     mtwnVec4 v = State(context, color).velocity;
     mtwnVec4 at = State(context, color).value;
     CHECK(fabsf(v.x + 1.0f) <= 1e-3f && fabsf(v.z - 1.0f) <= 1e-3f, "moving red to blue");
-    mtwnTransitionDef spring = SpringTo(color, (mtwnVec4){0.0f, 1.0f, 0.0f, 1.0f});
+    mtwnTransitionDef spring = SpringTo(color, (mtwnVec4){0.0f, 1.0f, 1.0f, 1.0f});
     spring.colorSpace = mtwn_colorSrgb;
     Start(context, &spring);
     uint32_t index1 = mtwnTargetAt(context, color.index1)->header.link;
-    // The velocity projected on green minus the point reached.
-    double d[4] = {0.0 - (double)at.x, 1.0 - (double)at.y, 0.0 - (double)at.z, 1.0 - (double)at.w};
+    // The velocity projected on cyan minus the point reached: 2/3.
+    double d[4] = {0.0 - (double)at.x, 1.0 - (double)at.y, 1.0 - (double)at.z, 1.0 - (double)at.w};
     double along =
         (double)v.x * d[0] + (double)v.y * d[1] + (double)v.z * d[2] + (double)v.w * d[3];
     double length = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3];
-    CHECK(fabs(mtwnPlayerAt(context, index1)->velocity[0] - along / length) <= 1e-12,
+    CHECK(fabs(mtwnPlayerAt(context, index1)->velocity[0] - along / length) <= 1e-12 &&
+              fabs(along / length - 2.0 / 3.0) <= 1e-3,
           "a path takes the velocity along it");
     Update(context, s_second / 2);
     Update(context, s_second);
     double offset = 0.0;
     mtwnSampleSpring(&spring.spring, -1.0, along / length, 0.5, &offset, NULL);
     mtwnColorMix mix;
-    CHECK(mtwnMakeColorMix((mtwnColor){at.x, at.y, at.z, at.w}, (mtwnColor){0.0f, 1.0f, 0.0f, 1.0f},
+    CHECK(mtwnMakeColorMix((mtwnColor){at.x, at.y, at.z, at.w}, (mtwnColor){0.0f, 1.0f, 1.0f, 1.0f},
                            mtwn_colorSrgb, mtwn_hueShorter, &mix) == mtwn_success,
           "the mix");
     mtwnColor want = mtwnMixColor(&mix, 1.0 + offset);
@@ -419,8 +420,9 @@ static void TestPathSprings(void)
     CHECK(got.x == want.red && got.y == want.green && got.z == want.blue,
           "the color at the spring's progress along its path");
     Update(context, 20 * s_second);
-    CHECK(State(context, color).base.y == 1.0f && State(context, color).base.x == 0.0f,
-          "and it ends exactly on green");
+    CHECK(State(context, color).base.y == 1.0f && State(context, color).base.z == 1.0f &&
+              State(context, color).base.x == 0.0f,
+          "and it ends exactly on cyan");
     // An undamped spring never settles: it runs until replaced or stopped.
     mtwnTargetId rotation = Target(context, mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
     mtwnTransitionDef forever = SpringTo(rotation, (mtwnVec4){0, 0, 1.0f, 0});
@@ -469,6 +471,15 @@ static void TestSpecRefusals(void)
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.restSpeed = (double)NAN;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a NaN rest speed");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.restOffset = HUGE_VAL;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "an infinite rest offset");
+    def = SpringTo(x, (mtwnVec4){NAN, 0, 0, 0});
+    def.spec = mtwn_transitionDecay;
+    def.restSpeed = 0.0;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a decay never at rest");
+    def.restSpeed = 0.01;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "a decay reads no end value");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.spec = mtwn_transitionDecay;
     def.decay.rate = 0.0;
