@@ -15,15 +15,22 @@
 #include <math.h>
 #include <stdint.h>
 
-// The bound the sweeps hold: under the 1 ulp the functions promise, so
-// that a change which loses accuracy fails here first.
+// Each sweep holds a bound a little above the worst error measured on
+// it, under the 1 ulp the functions promise, so that a change which
+// loses accuracy fails here first; one more ulp is allowed against a
+// double reference.
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 #define WIDE_REFERENCE 1
-static const double s_bound = 0.75;
+static const double s_referenceSlack = 0.0;
 #else
 #define WIDE_REFERENCE 0
-static const double s_bound = 1.75;
+static const double s_referenceSlack = 1.0;
 #endif
+
+static double Bound(double measured)
+{
+    return measured + s_referenceSlack;
+}
 
 // SplitMix64: a fixed sequence, so every run checks the same inputs.
 static uint64_t Next(uint64_t* state)
@@ -99,7 +106,7 @@ static void TestExpWithinOneUlp(void)
         double error = UlpError(mtwnExp(x), ReferenceExp(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= s_bound, "e^x within 1 ulp");
+    CHECK(worst <= Bound(0.7), "e^x within 0.7 ulp");
 }
 
 static void TestExpSmallArguments(void)
@@ -112,7 +119,7 @@ static void TestExpSmallArguments(void)
         double error = UlpError(mtwnExp(x), ReferenceExp(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= s_bound, "e^x within 1 ulp near 0");
+    CHECK(worst <= Bound(0.75), "e^x within 0.75 ulp near 0");
 }
 
 static void TestExp2IntegersExact(void)
@@ -140,7 +147,7 @@ static void TestExp2WithinOneUlp(void)
         double error = UlpError(mtwnExp2(x), ReferenceExp2(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= s_bound, "2^x within 1 ulp");
+    CHECK(worst <= Bound(0.65), "2^x within 0.65 ulp");
 }
 
 static void TestLogSpecialValues(void)
@@ -151,9 +158,9 @@ static void TestLogSpecialValues(void)
     CHECK(isnan(mtwnLog(-1.0)), "ln of a negative is NaN");
     CHECK(isnan(mtwnLog((double)NAN)), "ln NaN is NaN");
     CHECK(mtwnLog(HUGE_VAL) == HUGE_VAL, "ln inf is inf");
-    CHECK(UlpError(mtwnLog(0x1.0p-1074), ReferenceLog(0x1.0p-1074)) <= s_bound,
+    CHECK(UlpError(mtwnLog(0x1.0p-1074), ReferenceLog(0x1.0p-1074)) <= Bound(1.0),
           "ln of the smallest subnormal");
-    CHECK(UlpError(mtwnLog(DBL_MAX), ReferenceLog(DBL_MAX)) <= s_bound, "ln DBL_MAX");
+    CHECK(UlpError(mtwnLog(DBL_MAX), ReferenceLog(DBL_MAX)) <= Bound(1.0), "ln DBL_MAX");
 }
 
 static void TestLogWithinOneUlp(void)
@@ -167,7 +174,7 @@ static void TestLogWithinOneUlp(void)
         double error = UlpError(mtwnLog(x), ReferenceLog(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= s_bound, "ln x within 1 ulp");
+    CHECK(worst <= Bound(0.6), "ln x within 0.6 ulp");
 }
 
 static void TestLogNearOne(void)
@@ -180,7 +187,23 @@ static void TestLogNearOne(void)
         double error = UlpError(mtwnLog(x), ReferenceLog(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= s_bound, "ln x within 1 ulp near 1");
+    CHECK(worst <= Bound(0.6), "ln x within 0.6 ulp near 1");
+}
+
+static void TestLogAtTheReductionEdges(void)
+{
+    // Mantissas just below sqrt(1/2) and sqrt(2), where |s| is largest
+    // and the series' last terms count.
+    uint64_t state = 7;
+    double worst = 0.0;
+    for (int i = 0; i < 200000; ++i)
+    {
+        double m = (i % 2 == 0) ? Uniform(&state, 0.70, 0.7072) : Uniform(&state, 1.40, 1.4143);
+        double x = ldexp(m, (int)(Next(&state) % 40) - 20);
+        double error = UlpError(mtwnLog(x), ReferenceLog(x));
+        worst = error > worst ? error : worst;
+    }
+    CHECK(worst <= Bound(0.7), "ln x within 0.7 ulp at the reduction's edges");
 }
 
 int main(void)
@@ -193,5 +216,6 @@ int main(void)
     TestLogSpecialValues();
     TestLogWithinOneUlp();
     TestLogNearOne();
+    TestLogAtTheReductionEdges();
     return s_failures == 0 ? 0 : 1;
 }
