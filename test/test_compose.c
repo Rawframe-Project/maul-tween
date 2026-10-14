@@ -66,6 +66,13 @@ static void TestKinds(void)
     r = mtwnCompose(mtwn_valueRotation, mtwn_compositeReplace, 0.5, Still(0, 0, 0, 1.0f), quarter);
     CHECK(Near((double)r.value.z, sin(s_pi / 8.0)) && Near((double)r.value.w, cos(s_pi / 8.0)),
           "and mix by slerp: half of a quarter turn");
+    // About x, then about y in x's frame: (1/2, 1/2, 1/2, 1/2), the
+    // order fixing z's sign.
+    r = mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 1.0, Still(s, 0, 0, c),
+                    Still(0, s, 0, c));
+    CHECK(Near((double)r.value.x, 0.5) && Near((double)r.value.y, 0.5) &&
+              Near((double)r.value.z, 0.5) && Near((double)r.value.w, 0.5),
+          "the underlying times the effect, in that order");
     // A discrete value is not additive and steps at half.
     r = mtwnCompose(mtwn_valueDiscrete, mtwn_compositeAdd, 1.0, Still(3, 0, 0, 0),
                     Still(4, 0, 0, 0));
