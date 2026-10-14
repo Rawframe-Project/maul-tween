@@ -460,8 +460,20 @@ static void TestRefusals(void)
           "back with no overshoot is the cubic");
 }
 
+// An elastic easing's amplitude and period at 0 are refused (found by
+// mutants).
+static void TestElasticZero(void)
+{
+    mtwnEasing easing;
+    CHECK(mtwnMakeElasticEasing(mtwn_easeOut, 0.0, 0.3, &easing) == mtwn_errorInvalid &&
+              mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.0, &easing) == mtwn_errorInvalid &&
+              mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &easing) == mtwn_success,
+          "amplitude or period 0 refused");
+}
+
 int main(void)
 {
+    TestElasticZero();
     TestEndsAreExact();
     TestEndsAreExactForEveryParameter();
     TestAgainstTheFormulas();

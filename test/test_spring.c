@@ -600,8 +600,26 @@ static void TestSpringEasingRefusals(void)
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
 }
 
+// The makers' ranges at their ends (found by mutants): a stiffness of 0
+// is refused, a bounce of 1 (no damping) taken, a spring easing in every
+// mode taken.
+static void TestRangeEnds(void)
+{
+    mtwnSpring spring;
+    CHECK(mtwnMakeSpring(0.0, 1.0, 1.0, &spring) == mtwn_errorInvalid, "no stiffness refused");
+    CHECK(mtwnMakeSpringFromDuration(0.5, 1.0, &spring) == mtwn_success, "a bounce of 1 taken");
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.2, &spring) == mtwn_success, "a spring");
+    for (uint32_t mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
+    {
+        mtwnEasing easing;
+        CHECK(mtwnMakeSpringEasing(&spring, 1.0, 0.0, (mtwnEaseMode)mode, &easing) == mtwn_success,
+              "a spring easing in each mode");
+    }
+}
+
 int main(void)
 {
+    TestRangeEnds();
     TestAgainstIntegration();
     TestMakersAgree();
     TestRegimesMeet();
