@@ -463,6 +463,9 @@ static void TestTimelines(void)
           "and the other in its timeline");
     CHECK(mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 9, &seconds) == mtwn_errorInvalid,
           "no such label");
+    CHECK(mtwnClip_FindLabel(context, clip, 999, 7, &seconds) == mtwn_errorInvalid &&
+              mtwnClip_FindLabel(context, clip, a, 7, &seconds) == mtwn_errorInvalid,
+          "a parent that is no timeline of the clip");
     double duration = 0.0;
     CHECK(mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && duration == 4.0,
           "labels and marks lengthen nothing");
@@ -480,6 +483,40 @@ static void TestTimelines(void)
     }
     CHECK(n == 5 && order[0] == a && order[1] == c && order[2] == otherLabel && order[4] == mark,
           "children chained in the order added");
+    mtwnDestroyContext(context);
+}
+
+static void TestNesting(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    // Root > outer at 1 > inner at 2 > a 3 s track: the end climbs every
+    // level, 1 + 2 + 3 = 6.
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.position = At(mtwn_positionAbsolute, 1.0);
+    mtwnNode outer;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &outer) == mtwn_success, "outer");
+    group.parent = outer;
+    group.position = At(mtwn_positionAbsolute, 2.0);
+    mtwnNode inner;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &inner) == mtwn_success, "inner");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.parent = inner;
+    track.timing.duration = 3.0;
+    mtwnNode leaf;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &leaf) == mtwn_success, "a leaf");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnClipNodeInfo info;
+    double duration = 0.0;
+    CHECK(mtwnClip_GetNode(context, clip, outer, &info) == mtwn_success && info.end == 6.0 &&
+              mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && duration == 6.0,
+          "the leaf's end climbs every level to the root");
     mtwnDestroyContext(context);
 }
 
@@ -597,6 +634,7 @@ int main(void)
     TestTracks();
     TestRefusals();
     TestTimelines();
+    TestNesting();
     TestTimelineRefusals();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;
