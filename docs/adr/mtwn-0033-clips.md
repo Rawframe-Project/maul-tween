@@ -11,8 +11,8 @@ capacity up front.
 
 ## Decision
 
-- `mtwnClipDef` (cookie, ABI version) names the clip's nodes,
-  keyframes, slots, marks and labels. `mtwnCreateClip` allocates the
+- `mtwnClipDef` (cookie, ABI version) names the clip's nodes (labels
+  and marks among them, record mtwn-0034), keyframes and slots. `mtwnCreateClip` allocates the
   clip's storage in one block through the context's allocator, when
   the clip is created, counted against the context's clip storage;
   destroying the clip, or the context, frees it.

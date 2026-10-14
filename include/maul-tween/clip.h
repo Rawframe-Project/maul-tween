@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Clips (records mtwn-0004, mtwn-0013 and mtwn-0033): immutable
-// descriptions of tracks on a timeline, built node by node at positions
+// Clips (records mtwn-0004, mtwn-0013, mtwn-0033 and mtwn-0034):
+// immutable descriptions of tracks on nested timelines with labels and
+// marks, built node by node at positions
 // resolved when added, then finished. A finished clip is read through the
 // values layer from any thread while it lives, and plays on any set of
 // targets, its tracks addressing slots.
@@ -34,6 +35,20 @@ extern "C"
     typedef uint32_t mtwnNode;
 #define MTWN_ROOT_NODE 1u
 
+    // What a node is.
+    typedef uint8_t mtwnNodeKind;
+    enum
+    {
+        // Keyframes on a slot.
+        mtwn_nodeTrack = 1,
+        // A timeline of children: the root, a group, a sequence.
+        mtwn_nodeTimeline = 2,
+        // A named time in its timeline, for positions and seeking.
+        mtwn_nodeLabel = 3,
+        // An instant that gives events when crossed.
+        mtwn_nodeMark = 4,
+    };
+
     // Where a child starts in its parent.
     typedef uint8_t mtwnPositionKind;
     enum
@@ -46,15 +61,21 @@ extern "C"
         mtwn_positionWithPrevious = 2,
         // At the previous child's end, plus offset; 0 when none.
         mtwn_positionAfterPrevious = 3,
+        // At the label of the same parent named by label, plus offset.
+        mtwn_positionAtLabel = 4,
     };
 
-    // A position, resolved to a start time when the child is added.
+    // A position, resolved to a start time when the child is added. The
+    // previous child is the last track or timeline added to the parent;
+    // labels and marks are not.
     typedef struct mtwnPosition
     {
         // Seconds, finite; may be negative.
         double offset;
+        // For mtwn_positionAtLabel: the label's key.
+        uint32_t label;
         mtwnPositionKind kind;
-        uint8_t reserved[7];
+        uint8_t reserved[3];
     } mtwnPosition;
 
     // What a clip may hold. Start from mtwnDefaultClipDef.
@@ -64,22 +85,19 @@ extern "C"
         uint32_t cookie;
         // The headers' MTWN_ABI_VERSION.
         uint32_t version;
-        // Nodes besides the root, keyframes, binding slots, marks and
-        // labels, each up to MTWN_MAX_COUNT.
+        // Nodes besides the root (tracks, timelines, labels, marks),
+        // keyframes and binding slots, each up to MTWN_MAX_COUNT.
         uint32_t nodeCapacity;
         uint32_t keyframeCapacity;
         uint32_t slotCapacity;
-        uint32_t markCapacity;
-        uint32_t labelCapacity;
         uint32_t reserved;
     } mtwnClipDef;
 
 // The cookie mtwnDefaultClipDef sets and mtwnCreateClip checks.
 #define MTWN_CLIP_DEF_COOKIE 0x50494C43u
 
-    /// Makes a clip def for a small clip: 16 nodes, 64 keyframes, 16 slots,
-    /// 16 marks and 16 labels. Built in the program, so it carries the
-    /// version of the headers the program includes.
+    /// Makes a clip def for a small clip: 32 nodes, 64 keyframes, 16 slots. Built in the program,
+    /// so it carries the version of the headers the program includes.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -93,11 +111,9 @@ extern "C"
 #endif
         def.cookie = MTWN_CLIP_DEF_COOKIE;
         def.version = MTWN_ABI_VERSION;
-        def.nodeCapacity = 16;
+        def.nodeCapacity = 32;
         def.keyframeCapacity = 64;
         def.slotCapacity = 16;
-        def.markCapacity = 16;
-        def.labelCapacity = 16;
         return def;
     }
 
@@ -154,6 +170,68 @@ extern "C"
         def.timing.duration = 1.0;
         return def;
     }
+
+    // A timeline to add. Start from mtwnDefaultClipTimelineDef.
+    typedef struct mtwnClipTimelineDef
+    {
+        // Set by mtwnDefaultClipTimelineDef; checked by
+        // mtwnClip_AddTimeline.
+        uint32_t cookie;
+        // The headers' MTWN_ABI_VERSION.
+        uint32_t version;
+        // The timeline it is added to.
+        mtwnNode parent;
+        // Whether its iteration duration is its latest child's end, kept as
+        // children arrive; otherwise the timing's duration, which clips.
+        bool autoDuration;
+        uint8_t reserved[3];
+        mtwnPosition position;
+        // Its timing; its easing must be monotonic.
+        mtwnTiming timing;
+    } mtwnClipTimelineDef;
+
+// The cookie mtwnDefaultClipTimelineDef sets and mtwnClip_AddTimeline
+// checks.
+#define MTWN_CLIP_TIMELINE_DEF_COOKIE 0x454E4C54u
+
+    /// Makes a clip timeline def: on the root at time 0, lasting to its
+    /// latest child's end, Web Animations' default timing. Built in the
+    /// program, so it carries the version of the headers the program
+    /// includes.
+    ///
+    /// @return The def.
+    /// @par Thread safety
+    /// Safe from any thread.
+    static inline mtwnClipTimelineDef mtwnDefaultClipTimelineDef(void)
+    {
+#ifdef __cplusplus
+        mtwnClipTimelineDef def = {};
+#else
+    mtwnClipTimelineDef def = {0};
+#endif
+        def.cookie = MTWN_CLIP_TIMELINE_DEF_COOKIE;
+        def.version = MTWN_ABI_VERSION;
+        def.parent = MTWN_ROOT_NODE;
+        def.autoDuration = true;
+        def.timing = mtwnDefaultTiming();
+        return def;
+    }
+
+    // Any node of a finished clip.
+    typedef struct mtwnClipNodeInfo
+    {
+        // A timeline's with its iteration duration resolved.
+        mtwnTiming timing;
+        // Its start and end in its parent, seconds; equal for an instant.
+        double start;
+        double end;
+        mtwnNode parent;
+        // A track's slot, a label's or mark's key, else 0.
+        uint32_t slot;
+        uint32_t key;
+        mtwnNodeKind kind;
+        uint8_t reserved[3];
+    } mtwnClipNodeInfo;
 
     // A finished clip's track, for sampling through the values layer: it
     // references the clip's storage, valid while the clip lives.
@@ -229,6 +307,59 @@ extern "C"
                                                          const mtwnClipTrackDef* def,
                                                          mtwnNode* nodeOut);
 
+    /// Adds a timeline: a group of children taking its transformed time.
+    /// Its end in its parent follows its children as they arrive when its
+    /// duration is theirs; children already placed after it keep their
+    /// starts.
+    ///
+    /// @param context  The context.
+    /// @param clip     The clip, not finished.
+    /// @param def      The def: a timeline of the clip as parent, a position
+    ///                 as for tracks, a timing mtwnValidateTiming accepts
+    ///                 with a monotonic easing (mtwnIsEasingMonotonic).
+    /// @param nodeOut  Receives the node, or 0 on failure.
+    /// @return As mtwnClip_AddTrack.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
+                                                            const mtwnClipTimelineDef* def,
+                                                            mtwnNode* nodeOut);
+
+    /// Adds a label: a time in its parent named by a host key, unique in the
+    /// parent, for positions and seeking. It is not a previous child and
+    /// does not lengthen its parent.
+    ///
+    /// @param context   The context.
+    /// @param clip      The clip, not finished.
+    /// @param parent    A timeline of the clip.
+    /// @param position  Where, as for tracks.
+    /// @param key       The host's key.
+    /// @param nodeOut   Receives the node, or 0 on failure.
+    /// @return As mtwnClip_AddTrack; mtwn_errorInvalid also for a key the
+    ///         parent already has.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip,
+                                                         mtwnNode parent, mtwnPosition position,
+                                                         uint32_t key, mtwnNode* nodeOut);
+
+    /// Adds a mark: an instant in its parent that gives an event, with the
+    /// host's key, each time playback crosses it. It is not a previous
+    /// child and does not lengthen its parent.
+    ///
+    /// @param context   The context.
+    /// @param clip      The clip, not finished.
+    /// @param parent    A timeline of the clip.
+    /// @param position  Where, as for tracks.
+    /// @param key       The host's key; marks may share one.
+    /// @param nodeOut   Receives the node, or 0 on failure.
+    /// @return As mtwnClip_AddTrack.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip,
+                                                        mtwnNode parent, mtwnPosition position,
+                                                        uint32_t key, mtwnNode* nodeOut);
+
     /// Finishes a clip: it can be read and played, and no longer changed.
     ///
     /// @param context  The context.
@@ -255,6 +386,34 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip,
                                                          mtwnNode node, mtwnClipTrack* trackOut);
+
+    /// Reads any node of a finished clip.
+    ///
+    /// @param context  The context.
+    /// @param clip     The clip.
+    /// @param node     A node of the clip, the root included.
+    /// @param infoOut  Receives what the node is.
+    /// @return As mtwnClip_GetTrack, for any node.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip,
+                                                        mtwnNode node, mtwnClipNodeInfo* infoOut);
+
+    /// Finds a label of a finished clip by its parent and key.
+    ///
+    /// @param context     The context.
+    /// @param clip        The clip.
+    /// @param parent      The timeline the label is in.
+    /// @param key         The label's key.
+    /// @param secondsOut  Receives its time in the parent.
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a parent
+    ///         that is not a timeline of the clip, or no such label;
+    ///         mtwn_errorStale and mtwn_errorState as mtwnClip_GetTrack.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip,
+                                                          mtwnNode parent, uint32_t key,
+                                                          double* secondsOut);
 
     /// Reads a finished clip's duration: its root's end.
     ///

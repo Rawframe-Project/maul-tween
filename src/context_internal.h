@@ -73,26 +73,31 @@ static inline bool mtwnIsPathKind(mtwnValueKind kind)
     return kind == mtwn_valueColor || kind == mtwn_valueRotation;
 }
 
-// What a clip node is.
-#define MTWN_NODE_TRACK    1u
-#define MTWN_NODE_TIMELINE 2u
-
 // A node of a clip.
 typedef struct mtwnClipNode
 {
+    // A timeline's with the duration the host set; with autoDuration its
+    // children's end stands for it.
     mtwnTiming timing;
     mtwnTrack track;
-    // Its start in its parent, and its end there.
+    // Its start and end in its parent.
     double start;
     double end;
-    // For a timeline: the latest end of its children so far, and its last
-    // child, 0 when none.
+    // For a timeline: the latest end of its children so far.
     double childrenEnd;
+    // For a timeline: its first and last children, and the last track or
+    // timeline among them (positions' previous child); 0 when none.
+    uint32_t firstChild;
     uint32_t lastChild;
+    uint32_t previous;
+    // The next child of its parent, 0 for the last.
+    uint32_t nextSibling;
     uint32_t parent;
     uint32_t slot;
-    uint8_t kind;
-    uint8_t reserved[3];
+    uint32_t key;
+    mtwnNodeKind kind;
+    bool autoDuration;
+    uint8_t reserved[2];
 } mtwnClipNode;
 
 // A clip, in the context's pool; its storage is a block of its own.

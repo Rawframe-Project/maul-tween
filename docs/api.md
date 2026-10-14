@@ -19,17 +19,22 @@ Returns the name of a result code, for diagnostics.  @param result  Any value; a
 
 ## `clip.h`
 
-Clips (records mtwn-0004, mtwn-0013 and mtwn-0033): immutable descriptions of tracks on a timeline, built node by node at positions resolved when added, then finished. A finished clip is read through the values layer from any thread while it lives, and plays on any set of targets, its tracks addressing slots.
+Clips (records mtwn-0004, mtwn-0013, mtwn-0033 and mtwn-0034): immutable descriptions of tracks on nested timelines with labels and marks, built node by node at positions resolved when added, then finished. A finished clip is read through the values layer from any thread while it lives, and plays on any set of targets, its tracks addressing slots.
 
 ```c
 static inline mtwnClipDef mtwnDefaultClipDef(void);
 ```
-Makes a clip def for a small clip: 16 nodes, 64 keyframes, 16 slots, 16 marks and 16 labels. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a clip def for a small clip: 32 nodes, 64 keyframes, 16 slots. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 static inline mtwnClipTrackDef mtwnDefaultClipTrackDef(void);
 ```
 Makes a clip track def: on the root at time 0, slot 0, a scalar track (mtwnDefaultTrackDef), Web Animations' default timing with a duration of 1 second, no keyframes. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+static inline mtwnClipTimelineDef mtwnDefaultClipTimelineDef(void);
+```
+Makes a clip timeline def: on the root at time 0, lasting to its latest child's end, Web Animations' default timing. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut);
@@ -52,6 +57,21 @@ MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnC
 Adds a track: copies its keyframes into the clip, makes the track there (mtwnMakeTrack, with the lengths and mixes in the clip) and resolves its position to a start time.  @param context  The context. @param clip     The clip, not finished. @param def      The def: a timeline of the clip as parent, a known position kind and a finite offset, a slot below the slot capacity and of the same kind as its other tracks, a timing mtwnValidateTiming accepts, and a track and keyframes mtwnMakeTrack accepts. @param nodeOut  Receives the node, or 0 on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie or outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for a finished clip; mtwn_errorLimit when the clip holds its capacity of nodes or keyframes. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip, const mtwnClipTimelineDef* def, mtwnNode* nodeOut);
+```
+Adds a timeline: a group of children taking its transformed time. Its end in its parent follows its children as they arrive when its duration is theirs; children already placed after it keep their starts.  @param context  The context. @param clip     The clip, not finished. @param def      The def: a timeline of the clip as parent, a position as for tracks, a timing mtwnValidateTiming accepts with a monotonic easing (mtwnIsEasingMonotonic). @param nodeOut  Receives the node, or 0 on failure. @return As mtwnClip_AddTrack. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, mtwnPosition position, uint32_t key, mtwnNode* nodeOut);
+```
+Adds a label: a time in its parent named by a host key, unique in the parent, for positions and seeking. It is not a previous child and does not lengthen its parent.  @param context   The context. @param clip      The clip, not finished. @param parent    A timeline of the clip. @param position  Where, as for tracks. @param key       The host's key. @param nodeOut   Receives the node, or 0 on failure. @return As mtwnClip_AddTrack; mtwn_errorInvalid also for a key the parent already has. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent, mtwnPosition position, uint32_t key, mtwnNode* nodeOut);
+```
+Adds a mark: an instant in its parent that gives an event, with the host's key, each time playback crosses it. It is not a previous child and does not lengthen its parent.  @param context   The context. @param clip      The clip, not finished. @param parent    A timeline of the clip. @param position  Where, as for tracks. @param key       The host's key; marks may share one. @param nodeOut   Receives the node, or 0 on failure. @return As mtwnClip_AddTrack. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip);
 ```
 Finishes a clip: it can be read and played, and no longer changed.  @param context  The context. @param clip     The clip. @return mtwn_success; mtwn_errorInvalid for a null context; mtwn_errorStale for a clip that is not alive; mtwn_errorState for a clip already finished. @par Thread safety Safe from any thread; the context is used by one thread at a time.
@@ -60,6 +80,16 @@ Finishes a clip: it can be read and played, and no longer changed.  @param conte
 MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node, mtwnClipTrack* trackOut);
 ```
 Reads a finished clip's track node.  @param context   The context. @param clip      The clip. @param node      A track node of the clip. @param trackOut  Receives the track, its timing, start, parent and slot; sample it with mtwnComputeTiming and mtwnSampleTrack from any thread while the clip lives. @return mtwn_success; mtwn_errorInvalid for a null argument or a node that is not a track of the clip; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node, mtwnClipNodeInfo* infoOut);
+```
+Reads any node of a finished clip.  @param context  The context. @param clip     The clip. @param node     A node of the clip, the root included. @param infoOut  Receives what the node is. @return As mtwnClip_GetTrack, for any node. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, uint32_t key, double* secondsOut);
+```
+Finds a label of a finished clip by its parent and key.  @param context     The context. @param clip        The clip. @param parent      The timeline the label is in. @param key         The label's key. @param secondsOut  Receives its time in the parent. @return mtwn_success; mtwn_errorInvalid for a null argument, a parent that is not a timeline of the clip, or no such label; mtwn_errorStale and mtwn_errorState as mtwnClip_GetTrack. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut);
@@ -443,4 +473,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-78 functions across 12 headers.
+84 functions across 12 headers.

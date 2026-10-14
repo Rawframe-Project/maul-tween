@@ -69,6 +69,15 @@ static mtwnKeyframe Key(double offset, float x)
     return k;
 }
 
+static mtwnPosition At(mtwnPositionKind kind, double offset)
+{
+    mtwnPosition position;
+    memset(&position, 0, sizeof position);
+    position.kind = kind;
+    position.offset = offset;
+    return position;
+}
+
 static void TestStorage(void)
 {
     Counter counter = {0};
@@ -129,19 +138,19 @@ static void TestPositions(void)
     mtwnNode nodes[5];
     // 0 to 1; then 1 to 2.5 after the end; with it at 1.25; after the
     // previous one's end at 2.75 to 3.75; then absolute at -0.5.
-    def.position = (mtwnPosition){0.0, mtwn_positionAbsolute, {0}};
+    def.position = At(mtwn_positionAbsolute, 0.0);
     CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[0]) == mtwn_success && nodes[0] == 2,
           "the first child is node 2");
-    def.position = (mtwnPosition){0.0, mtwn_positionAfterEnd, {0}};
+    def.position = At(mtwn_positionAfterEnd, 0.0);
     def.timing.duration = 1.5;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[1]) == mtwn_success, "after the end");
-    def.position = (mtwnPosition){0.25, mtwn_positionWithPrevious, {0}};
+    def.position = At(mtwn_positionWithPrevious, 0.25);
     def.timing.duration = 1.0;
     def.slot = 1;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[2]) == mtwn_success, "with the previous");
-    def.position = (mtwnPosition){0.5, mtwn_positionAfterPrevious, {0}};
+    def.position = At(mtwn_positionAfterPrevious, 0.5);
     CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[3]) == mtwn_success, "after the previous");
-    def.position = (mtwnPosition){-0.5, mtwn_positionAbsolute, {0}};
+    def.position = At(mtwn_positionAbsolute, -0.5);
     def.timing.delay = 0.25;
     def.timing.iterations = 3.0;
     def.timing.endDelay = 0.5;
@@ -263,9 +272,9 @@ static void TestRefusals(void)
     def.slot = 0;
     def.position.kind = 9;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a position kind");
-    def.position = (mtwnPosition){(double)NAN, mtwn_positionAbsolute, {0}};
+    def.position = At(mtwn_positionAbsolute, (double)NAN);
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a NaN offset");
-    def.position = (mtwnPosition){0.0, mtwn_positionAbsolute, {0}};
+    def.position = At(mtwn_positionAbsolute, 0.0);
     def.timing.duration = -1.0;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "a bad timing");
     def.timing.duration = 1.0;
@@ -336,6 +345,193 @@ static void TestRefusals(void)
     mtwnDestroyContext(context);
 }
 
+static mtwnPosition AtLabel(uint32_t key, double offset)
+{
+    mtwnPosition position = At(mtwn_positionAtLabel, offset);
+    position.label = key;
+    return position;
+}
+
+static void TestTimelines(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.position = At(mtwn_positionAbsolute, 1.0);
+    mtwnNode t;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &t) == mtwn_success && t == 2,
+          "a timeline at 1");
+    mtwnNode a;
+    track.parent = t;
+    track.timing.duration = 2.0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &a) == mtwn_success, "a 2 s track in it");
+    mtwnNode b;
+    track.parent = MTWN_ROOT_NODE;
+    track.slot = 1;
+    track.timing.duration = 1.0;
+    track.position = At(mtwn_positionAfterPrevious, 0.0);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &b) == mtwn_success,
+          "after the timeline, which ends at 3");
+    mtwnNode c;
+    track.parent = t;
+    track.position = At(mtwn_positionAfterEnd, 0.0);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &c) == mtwn_success,
+          "the timeline grows to 3 s, ending at 4");
+    // A fixed duration does not follow its children.
+    mtwnClipTimelineDef fixed = mtwnDefaultClipTimelineDef();
+    fixed.autoDuration = false;
+    fixed.timing.duration = 0.5;
+    fixed.timing.iterations = 2.0;
+    fixed.timing.delay = 0.25;
+    mtwnNode f;
+    CHECK(mtwnClip_AddTimeline(context, clip, &fixed, &f) == mtwn_success, "fixed at 0");
+    track.parent = f;
+    track.slot = 2;
+    track.timing.duration = 9.0;
+    track.position = At(mtwn_positionAbsolute, 0.0);
+    mtwnNode inside;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &inside) == mtwn_success, "a long child");
+    // Labels name times; a position at one; not a previous child.
+    mtwnNode label;
+    CHECK(mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 2.5), 7,
+                            &label) == mtwn_success,
+          "a label at 2.5");
+    CHECK(mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 9.0), 7,
+                            &label) == mtwn_errorInvalid,
+          "its key once in its parent");
+    mtwnNode otherLabel;
+    CHECK(mtwnClip_AddLabel(context, clip, t, At(mtwn_positionAbsolute, 0.5), 7, &otherLabel) ==
+              mtwn_success,
+          "the same key in another timeline");
+    mtwnNode d;
+    track.parent = MTWN_ROOT_NODE;
+    track.slot = 3;
+    track.timing.duration = 0.25;
+    track.position = AtLabel(7, 0.5);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &d) == mtwn_success, "at the label plus 0.5");
+    mtwnNode late;
+    CHECK(mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 50.0), 8,
+                            &late) == mtwn_success,
+          "a label past the end");
+    mtwnNode e;
+    track.position = At(mtwn_positionWithPrevious, 0.0);
+    track.slot = 4;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &e) == mtwn_success,
+          "with the previous track, not the label");
+    track.position = AtLabel(99, 0.0);
+    mtwnNode refused;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &refused) == mtwn_errorInvalid && refused == 0,
+          "no such label");
+    mtwnNode mark;
+    CHECK(mtwnClip_AddMark(context, clip, t, At(mtwn_positionAbsolute, 1.5), 7, &mark) ==
+                  mtwn_success &&
+              mtwnClip_AddMark(context, clip, t, At(mtwn_positionAbsolute, 2.0), 7, &mark) ==
+                  mtwn_success,
+          "marks may share a key");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnClipNodeInfo info;
+    double seconds = 0.0;
+    CHECK(mtwnClip_GetNode(context, clip, b, &info) == mtwn_success && info.start == 3.0,
+          "a sibling keeps the start it was given");
+    CHECK(mtwnClip_GetNode(context, clip, t, &info) == mtwn_success && info.start == 1.0 &&
+              info.end == 4.0 && info.timing.duration == 3.0 && info.kind == mtwn_nodeTimeline,
+          "the timeline's end and duration follow its children");
+    CHECK(mtwnClip_GetNode(context, clip, c, &info) == mtwn_success && info.start == 2.0 &&
+              info.parent == t,
+          "after its timeline's end so far");
+    CHECK(mtwnClip_GetNode(context, clip, f, &info) == mtwn_success && info.end == 1.25 &&
+              info.timing.duration == 0.5,
+          "a fixed duration keeps its end: 0.25 + 2 x 0.5");
+    CHECK(mtwnClip_GetNode(context, clip, d, &info) == mtwn_success && info.start == 3.0,
+          "at the label plus 0.5");
+    CHECK(mtwnClip_GetNode(context, clip, e, &info) == mtwn_success && info.start == 3.0,
+          "with the previous track");
+    CHECK(mtwnClip_GetNode(context, clip, mark, &info) == mtwn_success &&
+              info.kind == mtwn_nodeMark && info.key == 7 && info.start == 2.0 && info.end == 2.0,
+          "a mark, an instant with its key");
+    CHECK(mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 7, &seconds) == mtwn_success &&
+              seconds == 2.5,
+          "the label found by its key");
+    CHECK(mtwnClip_FindLabel(context, clip, t, 7, &seconds) == mtwn_success && seconds == 0.5,
+          "and the other in its timeline");
+    CHECK(mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 9, &seconds) == mtwn_errorInvalid,
+          "no such label");
+    double duration = 0.0;
+    CHECK(mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && duration == 4.0,
+          "labels and marks lengthen nothing");
+    CHECK(mtwnClip_GetNode(context, clip, MTWN_ROOT_NODE, &info) == mtwn_success &&
+              info.end == 4.0 && info.kind == mtwn_nodeTimeline && info.timing.duration == 4.0,
+          "the root");
+    // The children in the order they were added.
+    const mtwnClipSlot* slot = mtwnClipAt(context, clip.index1);
+    uint32_t order[16];
+    uint32_t n = 0;
+    for (uint32_t child = slot->nodes[t - 1].firstChild; child != 0 && n < 16;
+         child = slot->nodes[child - 1].nextSibling)
+    {
+        order[n++] = child;
+    }
+    CHECK(n == 5 && order[0] == a && order[1] == c && order[2] == otherLabel && order[4] == mark,
+          "children chained in the order added");
+    mtwnDestroyContext(context);
+}
+
+static void TestTimelineRefusals(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = 3;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    CHECK(mtwnMakeBackEasing(mtwn_easeOut, 1.70158, &group.timing.easing) == mtwn_success, "back");
+    mtwnNode node;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid,
+          "a timeline's easing turns back");
+    group = mtwnDefaultClipTimelineDef();
+    group.timing.playbackRate = -1.0;
+    mtwnNode backward;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &backward) == mtwn_success,
+          "a timeline played backwards");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.parent = backward;
+    track.timing.iterations = HUGE_VAL;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "an endless child would leave it no end to start from");
+    track.timing.iterations = 2.0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a child that ends");
+    CHECK(mtwnClip_AddMark(context, clip, node, At(mtwn_positionAbsolute, 0.0), 1, &node) ==
+              mtwn_errorInvalid,
+          "a mark needs a timeline for a parent");
+    CHECK(mtwnClip_AddMark(context, clip, backward, At(9, 0.0), 1, &node) == mtwn_errorInvalid,
+          "a position kind");
+    CHECK(mtwnClip_AddMark(context, clip, backward, At(mtwn_positionAbsolute, 0.0), 1, &node) ==
+              mtwn_success,
+          "the third node");
+    CHECK(mtwnClip_AddLabel(context, clip, backward, At(mtwn_positionAbsolute, 0.0), 1, &node) ==
+              mtwn_errorLimit,
+          "labels count among the nodes");
+    group = mtwnDefaultClipTimelineDef();
+    group.cookie = 0;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid, "no cookie");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 0.0), 1,
+                           &node) == mtwn_errorState,
+          "nothing added once finished");
+    mtwnDestroyContext(context);
+}
+
 #if defined(__x86_64__) || defined(_M_X64)
 static const uint64_t s_hostSetting = 0x1f80u | (1u << 15) | (1u << 6) | (3u << 13);
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -400,6 +596,8 @@ int main(void)
     TestPositions();
     TestTracks();
     TestRefusals();
+    TestTimelines();
+    TestTimelineRefusals();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;
 }
