@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Sampling (record mtwn-0022): even tables are the easing rounded to
+// float, and a fitted linear() stays within its tolerance of the easing
+// on a grid of 100,001 progresses the fit never probed, read through the
+// library's own linear().
+
+#include "test_harness.h"
+
+#include "maul-tween/easing.h"
+#include "maul-tween/sample.h"
+
+#include <math.h>
+#include <stdint.h>
+
+enum
+{
+    s_capacity = 4096,
+    s_grid = 100000,
+};
+
+static mtwnLinearPoint s_points[s_capacity];
+
+static void TestEvenTables(void)
+{
+    mtwnEasing quad;
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success, "quad");
+    float values[5];
+    CHECK(mtwnSampleEasing(&quad, 5, values) == mtwn_success, "sampled");
+    CHECK(values[0] == 0.0f && values[1] == 0.0625f && values[2] == 0.25f && values[3] == 0.5625f &&
+              values[4] == 1.0f,
+          "p^2 at quarters");
+    mtwnEasing elastic;
+    CHECK(mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &elastic) == mtwn_success, "elastic");
+    float table[257];
+    CHECK(mtwnSampleEasing(&elastic, 257, table) == mtwn_success, "sampled");
+    int wrong = 0;
+    for (int i = 0; i <= 256; ++i)
+    {
+        wrong += table[i] != (float)mtwnEase(&elastic, (double)i / 256.0, false);
+    }
+    CHECK(wrong == 0 && table[0] == 0.0f && table[256] == 1.0f, "the easing, rounded to float");
+    CHECK(mtwnSampleEasing(&quad, 1, values) == mtwn_errorInvalid, "one sample");
+    CHECK(mtwnSampleEasing(NULL, 5, values) == mtwn_errorInvalid, "no easing");
+    CHECK(mtwnSampleEasing(&quad, 5, NULL) == mtwn_errorInvalid, "no buffer");
+}
+
+// The largest error of the fitted points against the easing on the grid,
+// and whether the points are in order, on the curve, from 0 to 1.
+static double FitError(const mtwnEasing* easing, uint32_t count, bool* shapeOut)
+{
+    bool shape = count >= 2 && s_points[0].input == 0.0 && s_points[count - 1].input == 1.0;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        shape = shape && s_points[i].output == mtwnEase(easing, s_points[i].input, false);
+        shape = shape && (i == 0 || s_points[i].input > s_points[i - 1].input);
+    }
+    *shapeOut = shape;
+    mtwnEasing fitted;
+    if (mtwnMakeLinearEasing(s_points, count, &fitted) != mtwn_success)
+    {
+        *shapeOut = false;
+        return HUGE_VAL;
+    }
+    double worst = 0.0;
+    for (int i = 0; i <= s_grid; ++i)
+    {
+        double p = (double)i / s_grid;
+        double error = fabs(mtwnEase(&fitted, p, false) - mtwnEase(easing, p, false));
+        worst = error > worst ? error : worst;
+    }
+    return worst;
+}
+
+static void TestFitsWithinTolerance(void)
+{
+    mtwnEasing easings[7];
+    int n = 0;
+    bool made = mtwnMakePowerEasing(mtwn_easeIn, 2.0, &easings[n++]) == mtwn_success;
+    made = made && mtwnMakeCssEasing(mtwn_cssEase, &easings[n++]) == mtwn_success;
+    made = made && mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &easings[n++]) == mtwn_success;
+    made =
+        made && mtwnMakeBackEasing(mtwn_easeInOut, 1.70158 * 1.525, &easings[n++]) == mtwn_success;
+    made = made &&
+           mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeOut, &easings[n++]) == mtwn_success;
+    made =
+        made && mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeIn, &easings[n++]) == mtwn_success;
+    made = made && mtwnMakeCubicBezier(0.0, 1.0, 1.0, 0.0, &easings[n++]) == mtwn_success;
+    CHECK(made, "the easings");
+    static const double tolerances[] = {1e-2, 1e-3, 1e-4};
+    for (int e = 0; e < n; ++e)
+    {
+        for (int t = 0; t < 3; ++t)
+        {
+            uint32_t count = 0;
+            mtwnResult fit =
+                mtwnFitLinearEasing(&easings[e], tolerances[t], s_points, s_capacity, &count);
+            bool shape = false;
+            double error = fit == mtwn_success ? FitError(&easings[e], count, &shape) : HUGE_VAL;
+            if (!(error <= tolerances[t]) || !shape)
+            {
+                printf("  easing %d at %g: %u points, error %.3g\n", e, tolerances[t], count,
+                       error);
+            }
+            CHECK(fit == mtwn_success && shape, "points in order on the curve, from 0 to 1");
+            CHECK(error <= tolerances[t], "a fit within its tolerance between its probes too");
+        }
+    }
+}
+
+static void TestFitCounts(void)
+{
+    uint32_t count = 0;
+    mtwnEasing linear = mtwnLinearEasing();
+    CHECK(mtwnFitLinearEasing(&linear, 1e-6, s_points, s_capacity, &count) == mtwn_success &&
+              count == 2,
+          "linear is two points");
+    mtwnEasing ease;
+    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &ease) == mtwn_success, "ease");
+    CHECK(mtwnFitLinearEasing(&ease, 1e-3, NULL, 0, &count) == mtwn_errorCapacity && count > 2,
+          "no buffer reports the count");
+    uint32_t needed = count;
+    CHECK(mtwnFitLinearEasing(&ease, 1e-3, s_points, needed - 1, &count) == mtwn_errorCapacity &&
+              count == needed,
+          "one short reports the same count");
+    mtwnLinearPoint exact[64];
+    CHECK(needed <= 64 && mtwnFitLinearEasing(&ease, 1e-3, exact, needed, &count) == mtwn_success,
+          "an exact buffer fits");
+    CHECK(mtwnFitLinearEasing(&ease, 1e-3, s_points, s_capacity, &count) == mtwn_success,
+          "a large one too");
+    int wrong = 0;
+    for (uint32_t i = 0; i < needed; ++i)
+    {
+        wrong += exact[i].input != s_points[i].input || exact[i].output != s_points[i].output;
+    }
+    CHECK(wrong == 0, "the same points whatever the capacity");
+    // Fewer points for a looser tolerance.
+    uint32_t loose = 0;
+    uint32_t tight = 0;
+    CHECK(mtwnFitLinearEasing(&ease, 1e-2, NULL, 0, &loose) == mtwn_errorCapacity &&
+              mtwnFitLinearEasing(&ease, 1e-4, NULL, 0, &tight) == mtwn_errorCapacity &&
+              loose < needed && needed < tight,
+          "the count grows as the tolerance shrinks");
+}
+
+static double Jump(void* context, double progress)
+{
+    (void)context;
+    return progress < 0.5 ? 0.0 : 1.0;
+}
+
+static void TestJumpsEnd(void)
+{
+    mtwnEasing jump;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Jump, NULL, &jump) == mtwn_success, "jump");
+    uint32_t count = 0;
+    CHECK(mtwnFitLinearEasing(&jump, 1e-3, s_points, s_capacity, &count) == mtwn_success,
+          "a jump is fitted");
+    mtwnEasing fitted;
+    CHECK(count < 300 && mtwnMakeLinearEasing(s_points, count, &fitted) == mtwn_success,
+          "in a bounded count");
+    double worst = 0.0;
+    for (int i = 0; i <= s_grid; ++i)
+    {
+        double p = (double)i / s_grid;
+        if (fabs(p - 0.5) > 0x1.0p-24)
+        {
+            double error = fabs(mtwnEase(&fitted, p, false) - Jump(NULL, p));
+            worst = error > worst ? error : worst;
+        }
+    }
+    CHECK(worst <= 1e-3, "within the tolerance away from the jump");
+}
+
+static void TestFitRefusals(void)
+{
+    uint32_t count = 7;
+    mtwnEasing steps;
+    CHECK(mtwnMakeSteps(4, mtwn_jumpEnd, &steps) == mtwn_success, "steps");
+    CHECK(mtwnFitLinearEasing(&steps, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "steps are refused");
+    mtwnEasing quad;
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success, "quad");
+    CHECK(mtwnFitLinearEasing(&quad, 0.0, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "a zero tolerance");
+    CHECK(mtwnFitLinearEasing(&quad, (double)NAN, s_points, s_capacity, &count) ==
+              mtwn_errorInvalid,
+          "a NaN tolerance");
+    CHECK(mtwnFitLinearEasing(&quad, HUGE_VAL, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "an infinite tolerance");
+    CHECK(mtwnFitLinearEasing(&quad, 1e-3, NULL, 4, &count) == mtwn_errorInvalid,
+          "a capacity without a buffer");
+    CHECK(mtwnFitLinearEasing(NULL, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "no easing");
+    CHECK(mtwnFitLinearEasing(&quad, 1e-3, s_points, s_capacity, NULL) == mtwn_errorInvalid,
+          "no count");
+    CHECK(count == 7, "refusals leave the count as it was");
+}
+
+int main(void)
+{
+    TestEvenTables();
+    TestFitsWithinTolerance();
+    TestFitCounts();
+    TestJumpsEnd();
+    TestFitRefusals();
+    return s_failures == 0 ? 0 : 1;
+}

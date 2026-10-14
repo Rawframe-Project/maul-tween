@@ -26,3 +26,4 @@ are listed in [README.md](README.md).
 | [mtwn-0019](mtwn-0019-performance-and-size.md) | Performance and size targets | Accepted |
 | [mtwn-0020](mtwn-0020-proof.md) | Every part is checked against an independent reference | Accepted |
 | [mtwn-0021](mtwn-0021-easing-api.md) | The easing API: one value type, makers that validate, a mode for every kind | Accepted |
+| [mtwn-0022](mtwn-0022-sampling.md) | Sampling: even tables, and linear() fitted to a tolerance | Accepted |

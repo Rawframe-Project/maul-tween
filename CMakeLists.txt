@@ -43,6 +43,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/base.c
     src/css_easing.c
     src/easing.c
+    src/sample.c
     src/elementary.c
     src/elementary_float.c)
 maul_configure_library(maul-tween)
@@ -57,6 +58,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(base)
     maul_add_test(easing)
     maul_add_test(easing_css)
+    maul_add_test(sample)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

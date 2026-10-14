@@ -5,3 +5,4 @@ elementary:
 elementary_float:
 css_easing:
 easing: css_easing elementary
+sample:
