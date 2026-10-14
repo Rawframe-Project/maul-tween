@@ -221,8 +221,9 @@ void mtwnSinCosF(float x, float* sineOut, float* cosineOut)
         r = TwoSumF(r, -k * s_pio2PartsF[i], &error);
         rLow += error;
     }
+    // rLow is a few ulps of r at most, which the kernel takes to first
+    // order.
     rLow -= k * s_pio2PartsF[6];
-    r = FastTwoSumF(r, rLow, &rLow);
     float sine = 0.0f;
     float cosine = 0.0f;
     SinCosKernelF(r, rLow, &sine, &cosine);
