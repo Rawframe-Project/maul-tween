@@ -37,8 +37,9 @@ and repeat delay; a context in one block holding targets, and
 transitions advanced by an update that guards the floating-point
 environment; keyframe paths, Catmull-Rom or Bezier, at constant speed
 if asked, and tracks of every value kind over them; clips holding
-tracks on nested timelines with labels and marks. The library has
-84 public functions.
+tracks on nested timelines with labels and marks; players controlling
+clips by Web Animations' procedures. The library has
+96 public functions.
 
 ## Building
 

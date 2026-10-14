@@ -36,7 +36,7 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
     bool oneFunction = (def->allocator.alloc == NULL) != (def->allocator.free == NULL);
     bool valid = !oneFunction && IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
-                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
+                 IsCount(def->bindingCapacity) && def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
 
@@ -46,6 +46,7 @@ typedef struct Layout
     uint64_t targets;
     uint64_t players;
     uint64_t clips;
+    uint64_t bindings;
     uint64_t changed;
     uint64_t bytes;
 } Layout;
@@ -72,6 +73,7 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
     bool placed = Place(&end, def->targetCapacity, sizeof(mtwnTargetSlot), &layout->targets) &&
                   Place(&end, def->playerCapacity, sizeof(mtwnPlayerSlot), &layout->players) &&
                   Place(&end, def->clipCapacity, sizeof(mtwnClipSlot), &layout->clips) &&
+                  Place(&end, def->bindingCapacity, sizeof(mtwnTargetId), &layout->bindings) &&
                   Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed);
     layout->bytes = end;
     return placed && end <= SIZE_MAX;
@@ -118,6 +120,8 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     context->players =
         MakePool(block + layout.players, sizeof(mtwnPlayerSlot), def->playerCapacity);
     context->clips = MakePool(block + layout.clips, sizeof(mtwnClipSlot), def->clipCapacity);
+    context->bindings =
+        mtwnMakeRuns((mtwnTargetId*)(block + layout.bindings), def->bindingCapacity);
     context->changed = (uint32_t*)(block + layout.changed);
     *contextOut = context;
     return mtwn_success;

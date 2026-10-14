@@ -9,6 +9,7 @@
 #define MAUL_TWEEN_SRC_CONTEXT_INTERNAL_H
 
 #include "pool.h"
+#include "runs.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/context.h"
@@ -34,10 +35,41 @@ typedef struct mtwnTargetSlot
 // The target is on the list of changed targets.
 #define MTWN_TARGET_CHANGED 2u
 
-// A transition. Its header's link names its target.
+// What a player is.
+#define MTWN_PLAYER_TRANSITION 1u
+#define MTWN_PLAYER_CLIP       2u
+
+// A clip's player: Web Animations' times, in seconds, NaN unresolved.
+typedef struct mtwnClipPlay
+{
+    mtwnClipId clip;
+    double startTime;
+    double holdTime;
+    double previousTime;
+    double rate;
+    // A rate waiting for the next update, NaN for none: until then the old
+    // rate runs, and from it the new one, the current time kept.
+    double pendingRate;
+    // Its bindings: one target per slot of the clip, from start.
+    uint32_t bindingStart;
+    uint32_t bindingCount;
+    // Waiting for the next update's time to start.
+    bool pending;
+    bool keep;
+    uint8_t reserved[6];
+} mtwnClipPlay;
+
+// A player: a transition or a clip's player. A transition's header link
+// names its target.
 typedef struct mtwnPlayerSlot
 {
     mtwnSlotHeader header;
+    uint8_t type;
+    uint8_t reserved2[3];
+    // The players before and after it in creation order, 0 for none.
+    uint32_t earlier;
+    uint32_t later;
+    mtwnClipPlay play;
     mtwnValueKind kind;
     mtwnTransitionSpec spec;
     // Whether the first update has fixed the start time.
@@ -118,9 +150,10 @@ typedef struct mtwnClipSlot
     uint8_t* slotKinds;
     uint32_t nodeCount;
     uint32_t keyframeCount;
+    // The slots its tracks use: the largest plus 1.
+    uint32_t slotCount;
     // The players playing it.
     uint32_t users;
-    uint32_t reserved2;
 } mtwnClipSlot;
 
 struct mtwnContext
@@ -134,6 +167,11 @@ struct mtwnContext
     mtwnPool targets;
     mtwnPool players;
     mtwnPool clips;
+    // The players in creation order, first and last; 0 for none.
+    uint32_t firstPlayer;
+    uint32_t lastPlayer;
+    // The players' bindings.
+    mtwnRuns bindings;
     // The bytes the live clips' blocks hold.
     uint64_t clipStorageUsed;
     // The index1 of each target changed since the last report, in order.
@@ -178,7 +216,18 @@ static inline void mtwnMarkChanged(mtwnContext* context, uint32_t index1)
 // the kind refuses it: a channel not finite, or a rotation all zero.
 bool mtwnAcceptValue(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out);
 
+// Takes a player slot, put last in creation order; 0 when the pool is
+// full.
+uint32_t mtwnTakePlayer(mtwnContext* context, uint8_t type);
+
+// Frees a player: out of creation order, its bindings given back, its
+// clip no longer busy for it, its slot returned.
+void mtwnFreePlayer(mtwnContext* context, uint32_t player);
+
 // Ends a target's transition: frees the player and unlinks the target.
 void mtwnEndTransition(mtwnContext* context, uint32_t player);
+
+// Advances a clip's player to the host's time (src/player.c).
+void mtwnAdvancePlayer(mtwnContext* context, uint32_t player, double now);
 
 #endif

@@ -103,7 +103,7 @@ The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, 
 ```c
 static inline mtwnContextDef mtwnDefaultContextDef(void);
 ```
-Makes a context def for a medium host: 1024 targets, 256 players, 64 clips, 256 events and 64 KiB of clip storage, the C library's allocator. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a context def for a medium host: 1024 targets, 256 players, 64 clips, 256 events, 1024 bindings and 64 KiB of clip storage, the C library's allocator. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut);
@@ -299,7 +299,67 @@ Samples a track: its value at a progress, as mtwnSamplePath finds the segment an
 
 ## `player.h`
 
-Players (records mtwn-0004 and mtwn-0029): what writes targets. A transition is a player; a player ends by committing its last value into its targets' base values and is then freed, its id stale.
+Players (records mtwn-0004, mtwn-0012, mtwn-0029 and mtwn-0035): what writes targets. A player plays a finished clip on targets bound to its slots, by Web Animations' procedures on the host's clock; a transition is a player too. A player not kept ends by committing its last value into its targets' base values and is then freed, its id stale.
+
+```c
+static inline mtwnPlayerDef mtwnDefaultPlayerDef(void);
+```
+Makes a player def: no clip, no bindings, playing at once at rate 1, freed when it ends. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut);
+```
+Makes a player of a finished clip, which it holds busy until it is freed; it starts at the next update if the def says play, else idle.  @param context    The context. @param def        The def. @param playerOut  Receives the player's id, or the null id on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a rate not finite, a binding outside the above; mtwn_errorVersion for a def of another version; mtwn_errorStale for a clip that is not alive; mtwn_errorState for one not finished; mtwn_errorLimit when the context holds its capacity of players or of bindings. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player);
+```
+Plays a clip's player, as Web Animations plays an animation with auto-rewind: from the start (or the end, backwards) when idle, at its end or before its start; a paused player resumes. One that needs a start time takes the next update's.  @param context  The context. @param player   A clip's player. @return mtwn_success; mtwn_errorInvalid for a null context; mtwn_errorStale for an id that names no live player; mtwn_errorState for a transition, or backwards from an end that is infinite. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Pause(mtwnContext* context, mtwnPlayerId player);
+```
+Pauses a clip's player at its current time, or at its start (its end, backwards) when idle.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Reverse(mtwnContext* context, mtwnPlayerId player);
+```
+Reverses a clip's player: negates its rate, keeping its current time, and plays it with auto-rewind; refused, and nothing changed, when that would play an infinite clip backwards from its end.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Finish(mtwnContext* context, mtwnPlayerId player);
+```
+Finishes a clip's player: its current time goes to the end of its playback direction, the clip's end forwards, 0 backwards.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play; mtwn_errorState also for a rate of 0 or an infinite clip played forwards. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player);
+```
+Cancels a clip's player: it becomes idle, without effect, and is kept, to be played again.  @param context  The context. @param player   A clip's player. @return As mtwnPlayer_Play. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player, double seconds);
+```
+Seeks a clip's player to a current time.  @param context  The context. @param player   A clip's player. @param seconds  The time into the clip, finite. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a time not finite. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context, mtwnPlayerId player, double progress);
+```
+Seeks a clip's player to a share of its clip's duration.  @param context   The context. @param player    A clip's player. @param progress  The share, finite; the duration must be finite. @return As mtwnPlayer_Seek; mtwn_errorState also for an infinite duration. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SeekLabel(mtwnContext* context, mtwnPlayerId player, uint32_t key);
+```
+Seeks a clip's player to a label of its clip's root.  @param context  The context. @param player   A clip's player. @param key      The label's key. @return As mtwnPlayer_Play; mtwn_errorInvalid also for no such label. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate);
+```
+Sets a clip's player's rate, keeping its current time.  @param context  The context. @param player   A clip's player. @param rate     Finite; negative plays backwards, 0 holds. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut);
+```
+Reads a clip's player's state at the last update's time.  @param context   The context. @param player    A clip's player. @param stateOut  Receives the state. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a null stateOut. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player);
@@ -473,4 +533,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-84 functions across 12 headers.
+96 functions across 12 headers.

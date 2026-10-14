@@ -353,6 +353,7 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     *nodeOut = Attach(clip, &node);
     clip->keyframeCount += def->keyframeCount;
     clip->slotKinds[def->slot] = (uint8_t)(def->track.kind + 1);
+    clip->slotCount = def->slot + 1 > clip->slotCount ? def->slot + 1 : clip->slotCount;
     return mtwn_success;
 }
 

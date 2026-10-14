@@ -184,12 +184,21 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
 
 static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t timeNs)
 {
-    for (uint32_t index1 = 1; index1 <= context->players.high; ++index1)
+    double now = (double)timeNs / 1e9;
+    // In creation order, the composite order; a player may free itself.
+    for (uint32_t index1 = context->firstPlayer; index1 != 0;)
     {
-        if ((mtwnPoolAt(&context->players, index1)->flags & MTWN_SLOT_ALIVE) != 0)
+        mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+        uint32_t later = slot->later;
+        if (slot->type == MTWN_PLAYER_TRANSITION)
         {
             Advance(context, index1, timeNs);
         }
+        else
+        {
+            mtwnAdvancePlayer(context, index1, now);
+        }
+        index1 = later;
     }
 }
 

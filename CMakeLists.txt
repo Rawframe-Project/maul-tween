@@ -51,7 +51,9 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/fpenv.c
     src/rotation.c
     src/path.c
+    src/player.c
     src/pool.c
+    src/runs.c
     src/sample.c
     src/signal.c
     src/spring.c
@@ -85,6 +87,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(path)
     maul_add_test(track)
     maul_add_test(clip WHITEBOX)
+    maul_add_test(player WHITEBOX)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()

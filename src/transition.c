@@ -194,13 +194,16 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     {
         mtwnEndTransition(context, target->header.link);
     }
-    uint32_t index1 = mtwnPoolAcquire(&context->players);
+    uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_TRANSITION);
     if (index1 == 0)
     {
         return mtwn_errorLimit;
     }
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     prepared.header = slot->header;
+    prepared.type = slot->type;
+    prepared.earlier = slot->earlier;
+    prepared.later = slot->later;
     prepared.header.link = def->target.index1;
     prepared.target = def->target;
     *slot = prepared;
@@ -241,34 +244,5 @@ void mtwnEndTransition(mtwnContext* context, uint32_t player)
 {
     uint32_t target = mtwnPlayerAt(context, player)->header.link;
     mtwnTargetAt(context, target)->header.link = 0;
-    mtwnPoolRelease(&context->players, player);
-}
-
-mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
-{
-    if (context == NULL)
-    {
-        return mtwn_errorInvalid;
-    }
-    mtwnPlayerSlot* slot =
-        (mtwnPlayerSlot*)mtwnPoolFind(&context->players, player.index1, player.generation);
-    if (slot == NULL)
-    {
-        ++context->misuse;
-        return mtwn_errorStale;
-    }
-    uint32_t index1 = slot->header.link;
-    mtwnEndTransition(context, player.index1);
-    // The target shows its base again.
-    mtwnTargetSlot* target = mtwnTargetAt(context, index1);
-    target->value = target->base;
-    target->velocity = (mtwnVec4){0};
-    mtwnMarkChanged(context, index1);
-    return mtwn_success;
-}
-
-bool mtwnPlayer_IsValid(const mtwnContext* context, mtwnPlayerId player)
-{
-    return context != NULL &&
-           mtwnPoolFind(&context->players, player.index1, player.generation) != NULL;
+    mtwnFreePlayer(context, player);
 }

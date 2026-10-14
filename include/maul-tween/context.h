@@ -50,6 +50,10 @@ extern "C"
         // Event records the queue holds between reads, up to
         // MTWN_MAX_COUNT.
         uint32_t eventCapacity;
+        // Bindings of slots to targets the players hold at once, up to
+        // MTWN_MAX_COUNT.
+        uint32_t bindingCapacity;
+        uint32_t reserved;
         // Bytes for the clips' contents, up to MTWN_MAX_CLIP_STORAGE.
         uint64_t clipStorageBytes;
     } mtwnContextDef;
@@ -58,8 +62,8 @@ extern "C"
 #define MTWN_CONTEXT_DEF_COOKIE 0x4E575454u
 
     /// Makes a context def for a medium host: 1024 targets, 256 players, 64
-    /// clips, 256 events and 64 KiB of clip storage, the C library's
-    /// allocator. Built in the program, so it carries the version of the
+    /// clips, 256 events, 1024 bindings and 64 KiB of clip storage, the C
+    /// library's allocator. Built in the program, so it carries the version of the
     /// headers the program includes.
     ///
     /// @return The def.
@@ -78,6 +82,7 @@ extern "C"
         def.playerCapacity = 256;
         def.clipCapacity = 64;
         def.eventCapacity = 256;
+        def.bindingCapacity = 1024;
         def.clipStorageBytes = 65536;
         return def;
     }
