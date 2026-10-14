@@ -25,4 +25,16 @@ float mtwnExp2F(float x);
 // and for NaN, infinity for infinity, exactly 0 for 1.
 float mtwnLogF(float x);
 
+// The sine and cosine of x together, each within 1 ulp for |x| up to
+// 2^16 pi / 2 (about 1e5), where the reduction by pi / 2 is exact to
+// beyond float precision; past it the results stay bounded and the same
+// on every platform but lose accuracy. Both are NaN for an infinite or
+// NaN x.
+void mtwnSinCosF(float x, float* sineOut, float* cosineOut);
+
+// The angle of the point (x, y) from the positive x axis, in radians
+// from -pi to pi, within 1 ulp, with the C standard's values for zeros
+// and infinities of either sign.
+float mtwnAtan2F(float y, float x);
+
 #endif // MAUL_TWEEN_SRC_ELEMENTARY_FLOAT_H

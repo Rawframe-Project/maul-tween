@@ -12,3 +12,6 @@ fmod
 floorf
 frexpf
 ldexpf
+copysignf
+fabsf
+fmodf

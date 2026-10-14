@@ -6,15 +6,20 @@
 // high part has 16 bits, and sums its Taylor series to degree 7, whose
 // remainder is under 6e-9 relative there; the logarithm writes
 // x = 2^k m with m in [sqrt(1/2), sqrt(2)) and sums the atanh series of
-// s = (m - 1) / (m + 1) to s^9, whose remainder is under 0.05 ulp. The
-// leading terms are added exactly as pairs of floats, so the result is
-// rounded once.
+// s = (m - 1) / (m + 1) to s^9, whose remainder is under 0.05 ulp.
+// Sine and cosine reduce by pi / 2 held in seven parts, six of 8 bits
+// whose products with k are exact for |k| < 2^16, about 72 bits in all,
+// as floats within 2^-27.8 of a multiple of pi / 2 need; they sum their
+// Taylor series to degrees 9 and 10; the arctangent reduces around atan(k / 8) to |u| <= 1/16 and
+// sums its series to u^7. The leading terms are added exactly as pairs
+// of floats, so the result is rounded once.
 
 #include "elementary_float.h"
 
 #include "generated/math_constants_float.h"
 
 #include <math.h>
+#include <stdbool.h>
 
 // sqrt(1/2), where the logarithm moves its mantissa into the upper half.
 static const float s_sqrtHalfF = 0x1.6a09e6p-1f;
@@ -171,4 +176,182 @@ float mtwnLogF(float x)
     float withTerm = TwoSumF(total, term, &withTermLow);
     return withTerm +
            ((totalLow + withTermLow) + (headLow + (termLow - squareLow) + k * MTWN_LN2_LO_F));
+}
+
+// Below this, sine is x and cosine is 1 to within half an ulp.
+static const float s_tinyAngleF = 0x1.0p-12f;
+
+// The sine and cosine of r + rLow for |r| <= pi / 4 and rLow far below
+// an ulp of r.
+static void SinCosKernelF(float r, float rLow, float* sineOut, float* cosineOut)
+{
+    float zLow = 0.0f;
+    float z = TwoProductF(r, r, &zLow);
+    float sineTail = r * z * PolynomialF(s_sinTaylorF, 4, z);
+    *sineOut = r + (sineTail + rLow * (1.0f - 0.5f * z));
+    float halfLow = 0.5f * zLow;
+    float headLow = 0.0f;
+    float head = FastTwoSumF(1.0f, -0.5f * z, &headLow);
+    float cosineTail = z * z * PolynomialF(s_cosTaylorF, 4, z);
+    *cosineOut = head + (headLow - halfLow + (cosineTail - r * rLow));
+}
+
+void mtwnSinCosF(float x, float* sineOut, float* cosineOut)
+{
+    if (!isfinite(x))
+    {
+        *sineOut = NAN;
+        *cosineOut = NAN;
+        return;
+    }
+    if (fabsf(x) < s_tinyAngleF)
+    {
+        *sineOut = x;
+        *cosineOut = 1.0f;
+        return;
+    }
+    float k = floorf(x * MTWN_INV_PIO2_F + 0.5f);
+    // x - k p1 is exact (Sterbenz) and each k p an exact product for
+    // |k| < 2^16; the sums carry their errors in rLow.
+    float r = x - k * s_pio2PartsF[0];
+    float rLow = 0.0f;
+    for (int i = 1; i < 6; ++i)
+    {
+        float error = 0.0f;
+        r = TwoSumF(r, -k * s_pio2PartsF[i], &error);
+        rLow += error;
+    }
+    rLow -= k * s_pio2PartsF[6];
+    r = FastTwoSumF(r, rLow, &rLow);
+    float sine = 0.0f;
+    float cosine = 0.0f;
+    SinCosKernelF(r, rLow, &sine, &cosine);
+    // The quadrant, from k modulo 4 computed exactly for any k.
+    float quadrant = fmodf(k, 4.0f);
+    if (quadrant < 0.0f)
+    {
+        quadrant += 4.0f;
+    }
+    switch ((int)quadrant)
+    {
+    case 0:
+        *sineOut = sine;
+        *cosineOut = cosine;
+        break;
+    case 1:
+        *sineOut = cosine;
+        *cosineOut = -sine;
+        break;
+    case 2:
+        *sineOut = -sine;
+        *cosineOut = -cosine;
+        break;
+    default:
+        *sineOut = -cosine;
+        *cosineOut = sine;
+        break;
+    }
+}
+
+// atan(z + zLow) for z in [0, 1], as a pair: *lowOut carries what the
+// returned float cannot.
+static float ArctanPairF(float z, float zLow, float* lowOut)
+{
+    float index = floorf(z * 8.0f + 0.5f);
+    float c = index * 0.125f;
+    // z - c is exact (Sterbenz, or c = 0); 1 + z c is kept as a pair.
+    float numerator = z - c;
+    float productLow = 0.0f;
+    float product = TwoProductF(z, c, &productLow);
+    float denominatorLow = 0.0f;
+    float denominator = FastTwoSumF(1.0f, product, &denominatorLow);
+    denominatorLow += productLow;
+    float u = numerator / denominator;
+    float backLow = 0.0f;
+    float back = TwoProductF(u, denominator, &backLow);
+    float uLow = ((numerator - back) - backLow - u * denominatorLow) / denominator;
+    // zLow moves atan by zLow / (1 + z^2) to first order.
+    uLow += zLow / (1.0f + z * z);
+    float v = u * u;
+    float tail = u * v * PolynomialF(s_atanSeriesF, 3, v);
+    int i = (int)index;
+    float sumLow = 0.0f;
+    float sum = TwoSumF(s_atanEighthsF[i], u, &sumLow);
+    *lowOut = sumLow + (s_atanEighthsLowF[i] + uLow + tail);
+    return sum;
+}
+
+// The C standard's atan2 where x or y is zero or infinite: true, with the
+// angle in *angleOut; false for every other pair.
+static bool Atan2SpecialF(float y, float x, float* angleOut)
+{
+    float ax = fabsf(x);
+    float ay = fabsf(y);
+    float angle = 0.0f;
+    if (isinf(ax) || isinf(ay))
+    {
+        // Infinities of both, of y alone, or of x alone.
+        float quarter = MTWN_PIO2_HI_F * 0.5f;
+        angle = isinf(ay) ? (isinf(ax) ? quarter : MTWN_PIO2_HI_F) : 0.0f;
+        if (signbit(x))
+        {
+            angle = isinf(ay) ? (isinf(ax) ? 3.0f * quarter : MTWN_PIO2_HI_F) : MTWN_PI_HI_F;
+        }
+    }
+    else if (ay == 0.0f)
+    {
+        angle = signbit(x) ? MTWN_PI_HI_F : 0.0f;
+    }
+    else if (ax == 0.0f)
+    {
+        angle = MTWN_PIO2_HI_F;
+    }
+    else
+    {
+        return false;
+    }
+    *angleOut = copysignf(angle, y);
+    return true;
+}
+
+float mtwnAtan2F(float y, float x)
+{
+    if (isnan(x) || isnan(y))
+    {
+        return NAN;
+    }
+    float special = 0.0f;
+    if (Atan2SpecialF(y, x, &special))
+    {
+        return special;
+    }
+    float ax = fabsf(x);
+    float ay = fabsf(y);
+    // The ratio of the smaller to the larger, as a pair, then its angle.
+    // Both are first scaled by one power of two, which leaves the angle as
+    // it is and keeps Dekker's product in range for any finite pair.
+    float small = ay <= ax ? ay : ax;
+    float large = ay <= ax ? ax : ay;
+    int exponent = 0;
+    large = frexpf(large, &exponent);
+    small = ldexpf(small, -exponent);
+    float z = small / large;
+    float backLow = 0.0f;
+    float back = TwoProductF(z, large, &backLow);
+    float zLow = ((small - back) - backLow) / large;
+    float angleLow = 0.0f;
+    float angle = ArctanPairF(z, zLow, &angleLow);
+    if (ay > ax)
+    {
+        float low = 0.0f;
+        angle = TwoSumF(MTWN_PIO2_HI_F, -angle, &low);
+        angleLow = low + (MTWN_PIO2_LO_F - angleLow);
+    }
+    if (signbit(x))
+    {
+        float low = 0.0f;
+        angle = TwoSumF(MTWN_PI_HI_F, -angle, &low);
+        angleLow = low + (MTWN_PI_LO_F - angleLow);
+    }
+    return copysignf(angle + angleLow, y);
 }

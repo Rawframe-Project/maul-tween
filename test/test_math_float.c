@@ -128,6 +128,116 @@ static void TestLogNearOne(void)
     CHECK(worst <= 0.55, "ln x within 0.55 ulp near 1");
 }
 
+// The larger of the sine's and the cosine's errors at x.
+static double SinCosError(float x)
+{
+    float sine = 0.0f;
+    float cosine = 0.0f;
+    mtwnSinCosF(x, &sine, &cosine);
+    double sineError = UlpError(sine, sin((double)x));
+    double cosineError = UlpError(cosine, cos((double)x));
+    return sineError > cosineError ? sineError : cosineError;
+}
+
+static void TestSinCosSpecialValues(void)
+{
+    float sine = 1.0f;
+    float cosine = 0.0f;
+    mtwnSinCosF(0.0f, &sine, &cosine);
+    CHECK(sine == 0.0f && !signbit(sine) && cosine == 1.0f, "exact at 0");
+    mtwnSinCosF(-0.0f, &sine, &cosine);
+    CHECK(sine == 0.0f && signbit(sine) && cosine == 1.0f, "the sign of -0 is kept");
+    mtwnSinCosF(0x1.0p-14f, &sine, &cosine);
+    CHECK(sine == 0x1.0p-14f && cosine == 1.0f, "a tiny angle");
+    mtwnSinCosF(HUGE_VALF, &sine, &cosine);
+    CHECK(isnan(sine) && isnan(cosine), "infinity gives NaN");
+    mtwnSinCosF(NAN, &sine, &cosine);
+    CHECK(isnan(sine) && isnan(cosine), "NaN gives NaN");
+}
+
+static void TestSinCosWithinOneUlp(void)
+{
+    static const float ranges[] = {1.0f, 10.0f, 2000.0f, 1.0e5f};
+    for (size_t r = 0; r < sizeof ranges / sizeof ranges[0]; ++r)
+    {
+        uint64_t state = 10 + r;
+        double worst = 0.0;
+        for (int i = 0; i < 200000; ++i)
+        {
+            double error = SinCosError(Uniform(&state, -ranges[r], ranges[r]));
+            worst = error > worst ? error : worst;
+        }
+        CHECK(worst <= 0.8, "sine and cosine within 0.8 ulp up to 1e5");
+    }
+}
+
+static void TestSinCosNearQuadrantBoundaries(void)
+{
+    // The floats nearest k pi / 2 and their neighbors, where the reduced
+    // argument is small and its leading bits cancel.
+    double worst = 0.0;
+    for (int k = 1; k < 65536; ++k)
+    {
+        float x = (float)((double)k * 0x1.921fb54442d18p+0);
+        for (int step = 0; step < 3; ++step)
+        {
+            double error = SinCosError(x);
+            worst = error > worst ? error : worst;
+            x = nextafterf(x, HUGE_VALF);
+        }
+    }
+    CHECK(worst <= 0.55, "sine and cosine within 0.55 ulp next to k pi / 2");
+}
+
+static void TestSinCosOnTheUnitCircle(void)
+{
+    uint64_t state = 15;
+    double worst = 0.0;
+    for (int i = 0; i < 200000; ++i)
+    {
+        float sine = 0.0f;
+        float cosine = 0.0f;
+        mtwnSinCosF(Uniform(&state, -2000.0f, 2000.0f), &sine, &cosine);
+        double unit = fabs((double)sine * (double)sine + (double)cosine * (double)cosine - 1.0);
+        worst = unit > worst ? unit : worst;
+    }
+    CHECK(worst <= 2.0 * (double)FLT_EPSILON, "on the unit circle");
+}
+
+static void TestAtan2SpecialValues(void)
+{
+    const float pi = 0x1.921fb6p+1f;
+    const float half = 0x1.921fb6p+0f;
+    CHECK(mtwnAtan2F(0.0f, 1.0f) == 0.0f && !signbit(mtwnAtan2F(0.0f, 1.0f)), "+0 at +x");
+    CHECK(mtwnAtan2F(-0.0f, 1.0f) == 0.0f && signbit(mtwnAtan2F(-0.0f, 1.0f)), "-0 at +x");
+    CHECK(mtwnAtan2F(0.0f, -1.0f) == pi && mtwnAtan2F(-0.0f, -1.0f) == -pi, "+-pi at -x");
+    CHECK(mtwnAtan2F(0.0f, -0.0f) == pi && mtwnAtan2F(-0.0f, -0.0f) == -pi, "zero over -0");
+    CHECK(mtwnAtan2F(1.0f, 0.0f) == half && mtwnAtan2F(-1.0f, -0.0f) == -half, "the y axis");
+    CHECK(mtwnAtan2F(HUGE_VALF, HUGE_VALF) == 0.5f * half, "pi / 4 at two infinities");
+    CHECK(UlpError(mtwnAtan2F(HUGE_VALF, -HUGE_VALF), atan2(HUGE_VAL, -HUGE_VAL)) <= 1.0,
+          "3 pi / 4 at two infinities");
+    CHECK(mtwnAtan2F(5.0f, HUGE_VALF) == 0.0f && mtwnAtan2F(-5.0f, -HUGE_VALF) == -pi,
+          "an infinite x");
+    CHECK(isnan(mtwnAtan2F(NAN, 1.0f)) && isnan(mtwnAtan2F(1.0f, NAN)), "NaN");
+    CHECK(mtwnAtan2F(FLT_MAX, FLT_MAX) == 0.5f * half, "pi / 4 at the largest floats");
+    CHECK(UlpError(mtwnAtan2F(0x1.0p-149f, 3.0f), atan2(0x1.0p-149, 3.0)) <= 1.0,
+          "a subnormal angle");
+}
+
+static void TestAtan2WithinOneUlp(void)
+{
+    uint64_t state = 30;
+    double worst = 0.0;
+    for (int i = 0; i < 400000; ++i)
+    {
+        float y = ldexpf(Uniform(&state, -1.0f, 1.0f), (int)(Next(&state) % 80) - 40);
+        float x = ldexpf(Uniform(&state, -1.0f, 1.0f), (int)(Next(&state) % 80) - 40);
+        double error = UlpError(mtwnAtan2F(y, x), atan2((double)y, (double)x));
+        worst = error > worst ? error : worst;
+    }
+    CHECK(worst <= 0.55, "atan2 within 0.55 ulp");
+}
+
 int main(void)
 {
     TestExpSpecialValues();
@@ -137,5 +247,11 @@ int main(void)
     TestLogSpecialValues();
     TestLogWithinOneUlp();
     TestLogNearOne();
+    TestSinCosSpecialValues();
+    TestSinCosWithinOneUlp();
+    TestSinCosNearQuadrantBoundaries();
+    TestSinCosOnTheUnitCircle();
+    TestAtan2SpecialValues();
+    TestAtan2WithinOneUlp();
     return s_failures == 0 ? 0 : 1;
 }

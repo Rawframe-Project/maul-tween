@@ -203,13 +203,22 @@ def lines_float():
     ln2_near = to_float(ln2)
     const("MTWN_LN2_F", ln2_near, "ln 2, the nearest float.")
     const("MTWN_LN2_TAIL_F", to_float(ln2 - exact(ln2_near)), "ln 2 minus MTWN_LN2_F.")
-    p1 = to_bits(pio2, 12)
-    rest = pio2 - exact(p1)
-    p2 = to_bits(rest, 12)
-    rest = rest - exact(p2)
-    const("MTWN_PIO2_1_F", p1, "pi / 2 to 12 bits: k times it is exact for |k| < 2^12.")
-    const("MTWN_PIO2_2_F", p2, "The next 12 bits of pi / 2.")
-    const("MTWN_PIO2_3_F", to_float(rest), "The rest of pi / 2.")
+    # Six 8-bit parts, each times k exact for |k| < 2^16, and a 24-bit
+    # tail: pi / 2 to about 2^-73, as reducing floats up to 1e5 that lie
+    # within 2^-27.8 of a multiple of pi / 2 needs.
+    rest = pio2
+    parts = []
+    for i in range(6):
+        part = to_bits(rest, 8)
+        parts.append(part)
+        rest = rest - exact(part)
+    parts.append(to_float(rest))
+    out.append("// pi / 2 in six 8-bit parts and a 24-bit tail: k times each of the")
+    out.append("// first six is exact for |k| < 2^16.")
+    out.append(f"static const float s_pio2PartsF[{len(parts)}] = {{")
+    for v in parts:
+        out.append(f"    {float_hex(v)},")
+    out.append("};")
     const("MTWN_INV_PIO2_F", to_float(1 / pio2), "2 / pi.")
     pi_hi = to_float(2 * pio2)
     const("MTWN_PI_HI_F", pi_hi, "pi.")

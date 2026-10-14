@@ -19,12 +19,17 @@
 #define MTWN_LN2_F 0x1.62e43p-1f
 // ln 2 minus MTWN_LN2_F.
 #define MTWN_LN2_TAIL_F -0x1.05c61p-29f
-// pi / 2 to 12 bits: k times it is exact for |k| < 2^12.
-#define MTWN_PIO2_1_F 0x1.922p+0f
-// The next 12 bits of pi / 2.
-#define MTWN_PIO2_2_F -0x1.2aep-18f
-// The rest of pi / 2.
-#define MTWN_PIO2_3_F -0x1.de973ep-31f
+// pi / 2 in six 8-bit parts and a 24-bit tail: k times each of the
+// first six is exact for |k| < 2^16.
+static const float s_pio2PartsF[7] = {
+    0x1.92p+0f,
+    0x1.fcp-12f,
+    -0x1.58p-21f,
+    0x1.1p-30f,
+    0x1.68p-39f,
+    0x1.84p-48f,
+    0x1.a62634p-58f,
+};
 // 2 / pi.
 #define MTWN_INV_PIO2_F 0x1.45f306p-1f
 // pi.
