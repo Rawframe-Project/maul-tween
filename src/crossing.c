@@ -19,6 +19,7 @@
 #include "maul-tween/easing.h"
 
 #include <math.h>
+#include <string.h>
 
 // What a local time reaches of a level's path.
 typedef enum ReachKind
@@ -556,44 +557,65 @@ static double Of(mtwnCrossings c, mtwnCrossingWay way)
                                            : c.same + c.opposite;
 }
 
+// The doubles in their order as integers: the bisection below halves the
+// doubles between two times, so it ends exactly, after at most 64 halvings.
+static int64_t Ordered(double x)
+{
+    int64_t bits = 0;
+    memcpy(&bits, &x, sizeof bits);
+    return bits < 0 ? INT64_MIN - bits : bits;
+}
+
+static double Unordered(int64_t ordered)
+{
+    int64_t bits = ordered < 0 ? INT64_MIN - ordered : ordered;
+    double x = 0.0;
+    memcpy(&x, &bits, sizeof x);
+    return x;
+}
+
+// Whether the sweep part a search tests counts a crossing: from the sweep's
+// start to t, or from t to its end.
+static bool Found(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
+                  double to, bool fromClosed, bool last, mtwnCrossingWay way, double t)
+{
+    mtwnCrossings c = last ? mtwnCountCrossings(levels, count, leaf, t, to, true)
+                           : mtwnCountCrossings(levels, count, leaf, from, t, fromClosed);
+    return Of(c, way) >= 1.0;
+}
+
 double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
                         double to, bool fromClosed, bool last, mtwnCrossingWay way)
 {
-    double lo = from;
-    double hi = to;
-    if (!last)
+    // The point at the near end itself.
+    double end = last ? to : from;
+    if ((last || fromClosed) &&
+        Of(mtwnCountCrossings(levels, count, leaf, end, end, true), way) >= 1.0)
     {
-        if (fromClosed && Of(mtwnCountCrossings(levels, count, leaf, from, from, true), way) >= 1.0)
-        {
-            return from;
-        }
-        // The sweep to lo counts none, to hi one at least.
-        for (;;)
-        {
-            double mid = lo + (hi - lo) / 2.0;
-            if (mid == lo || mid == hi)
-            {
-                return hi;
-            }
-            bool found =
-                Of(mtwnCountCrossings(levels, count, leaf, from, mid, fromClosed), way) >= 1.0;
-            *(found ? &hi : &lo) = mid;
-        }
+        return end;
     }
-    if (Of(mtwnCountCrossings(levels, count, leaf, to, to, true), way) >= 1.0)
-    {
-        return to;
-    }
-    // The sweep from lo to the end counts one at least, from hi none.
+    // Found is false at the near end and true at the far one; halve the
+    // doubles between until they are neighbours.
+    int64_t near = Ordered(last ? to : from);
+    int64_t far = Ordered(last ? from : to);
+    bool up = far > near;
     for (;;)
     {
-        double mid = lo + (hi - lo) / 2.0;
-        if (mid == lo || mid == hi)
+        uint64_t distance = up ? (uint64_t)far - (uint64_t)near : (uint64_t)near - (uint64_t)far;
+        if (distance <= 1)
         {
-            return lo;
+            return Unordered(far);
         }
-        bool found = Of(mtwnCountCrossings(levels, count, leaf, mid, to, true), way) >= 1.0;
-        *(found ? &lo : &hi) = mid;
+        int64_t half = (int64_t)(distance / 2);
+        int64_t mid = up ? near + half : near - half;
+        if (Found(levels, count, leaf, from, to, fromClosed, last, way, Unordered(mid)))
+        {
+            far = mid;
+        }
+        else
+        {
+            near = mid;
+        }
     }
 }
 

@@ -31,7 +31,8 @@ must count, not walk, its crossings.
 - What is counted: an instant (a mark, a node's active start or end),
   or the iteration starts of a node after its first.
 - The first and last crossing's times are found by bisection on the
-  count, to the double.
+  count over the doubles in their order as 64-bit integers: exact to
+  the double, at most 64 halvings, each one count.
 - Timelines nest at most `MTWN_MAX_CLIP_DEPTH` (32) below the root, so
   a count's chain fits a fixed scratch.
 

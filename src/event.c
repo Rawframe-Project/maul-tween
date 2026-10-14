@@ -23,6 +23,7 @@ void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
     if (context->eventCount == capacity)
     {
         ++context->droppedEvents;
+        ++context->droppedSinceRead;
         return;
     }
     uint32_t at = (context->eventHead + context->eventCount) % capacity;
@@ -313,7 +314,7 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
 }
 
 mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
-                          uint32_t* countOut)
+                          uint32_t* countOut, uint64_t* droppedOut)
 {
     if (context == NULL)
     {
@@ -335,6 +336,11 @@ mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t c
         context->eventCount -= n;
     }
     *countOut = n;
+    if (droppedOut != NULL)
+    {
+        *droppedOut = context->droppedSinceRead;
+    }
+    context->droppedSinceRead = 0;
     return mtwn_success;
 }
 

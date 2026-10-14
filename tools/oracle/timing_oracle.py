@@ -241,6 +241,33 @@ def cases():
         local = (random.next() % 1281) / 128.0 - 0.5
         backwards = random.next() % 4 == 0
         out.append((t, local, backwards, compute(t, local, backwards)))
+    out.extend(regressions())
+    return out
+
+
+def regressions():
+    """Fixed cases for defects the crossing oracle found (record mtwn-0027), kept
+    so a later change to repeat delays or negative rates meets them."""
+    base = {"delay": 0.0, "endDelay": 0.0, "iterationStart": 0.0, "iterations": 2.0,
+            "duration": 1.0, "repeatDelay": 0.0, "rate": 1.0, "fill": FILL_BOTH,
+            "direction": NORMAL, "alternate": RUNS_BACK, "easing": LINEAR}
+    out = []
+    # A fractional iteration start with a repeat delay: two boundaries, two
+    # delays; the active interval ends on the last partial iteration.
+    t = dict(base, iterationStart=0.25, repeatDelay=0.5)
+    for local in [0.75, 1.0, 1.25, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5]:
+        out.append((t, local, False, compute(t, local, False)))
+    # A negative rate begins at the iterations' end: before its delay
+    # ends (filling backwards) and at its active start.
+    t = dict(base, delay=1.0, rate=-1.0, fill=FILL_BACKWARDS)
+    for local in [0.0, 0.5, 1.0, 1.5]:
+        out.append((t, local, False, compute(t, local, False)))
+    out.append((dict(t, duration=0.0), 0.5, False, compute(dict(t, duration=0.0), 0.5, False)))
+    # Rounding past the iterations' end: 3.7 iterations of 0.1875 from 0.3,
+    # backwards, at the active start.
+    t = dict(base, duration=0.1875, iterations=3.7, iterationStart=0.3, rate=-1.0)
+    for local in [0.0, 0.69375]:
+        out.append((t, local, False, compute(t, local, False)))
     return out
 
 

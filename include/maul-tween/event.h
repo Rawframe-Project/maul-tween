@@ -6,7 +6,13 @@
 // players crossed, at most one record per player, node or mark, kind and
 // direction, with the count of crossings, ordered by the time of the first
 // crossing, then the players' creation order, then the clip's order; the
-// host reads them when it likes.
+// host reads them when it likes. The queue holds the context def's
+// eventCapacity records. One that arrives at a full queue is dropped and
+// counted, never silently: mtwnReadEvents reports the drops since the last
+// read, and mtwnContext_GetDroppedEvents all of them. Records arrive in
+// the order they are made (players in creation order, each player's nodes
+// in clip order), so a full queue keeps the first made and drops the rest
+// of an update's; those kept are sorted.
 
 #ifndef MAUL_TWEEN_EVENT_H
 #define MAUL_TWEEN_EVENT_H
@@ -71,19 +77,23 @@ extern "C"
         uint8_t reserved[6];
     } mtwnEvent;
 
-    /// Takes the oldest records off the queue, as many as fit.
+    /// Takes the oldest records off the queue, as many as fit, and reports
+    /// how many were dropped at a full queue since the last read.
     ///
-    /// @param context    The context.
-    /// @param eventsOut  Receives the records; NULL only with a capacity of
-    ///                   0.
-    /// @param capacity   Its length.
-    /// @param countOut   Receives how many were taken.
+    /// @param context     The context.
+    /// @param eventsOut   Receives the records; NULL only with a capacity of
+    ///                    0.
+    /// @param capacity    Its length.
+    /// @param countOut    Receives how many were taken.
+    /// @param droppedOut  Receives the records dropped since the last read
+    ///                    (the count then starts again); may be NULL.
     /// @return mtwn_success; mtwn_errorInvalid for a null context or
     ///         countOut, or a null array with a capacity.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut,
-                                                      uint32_t capacity, uint32_t* countOut);
+                                                      uint32_t capacity, uint32_t* countOut,
+                                                      uint64_t* droppedOut);
 
     /// Returns how many records waited in the queue, not yet taken.
     ///

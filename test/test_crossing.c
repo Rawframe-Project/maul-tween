@@ -169,6 +169,41 @@ static void TestExactEdges(void)
           "an iteration start after a delay, at the sweep's ends");
 }
 
+static void TestTimes(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    // At an iteration boundary: the next start, where the path jumps.
+    level[0].timing = Timing(1.0, 3.0);
+    mtwnLeaf start = Instant(0.0);
+    mtwnPrepareLevels(level, 1, &start);
+    CHECK(mtwnFindCrossing(level, 1, &start, 0.5, 3.0, false, false, mtwn_crossingEither) == 1.0 &&
+              mtwnFindCrossing(level, 1, &start, 0.5, 3.0, false, true, mtwn_crossingEither) == 2.0,
+          "at a jump: the starts at 1 and 2 exactly");
+    // At a repeat delay's edges: the end at its start, the next start at
+    // its end.
+    level[0].timing = Timing(1.0, 2.0);
+    level[0].timing.repeatDelay = 0.5;
+    mtwnLeaf end = Instant(1.0);
+    mtwnPrepareLevels(level, 1, &end);
+    CHECK(mtwnFindCrossing(level, 1, &end, 0.5, 3.0, false, false, mtwn_crossingEither) == 1.0 &&
+              mtwnFindCrossing(level, 1, &end, 0.5, 3.0, false, true, mtwn_crossingEither) == 2.5,
+          "the ends at the delay's start and the active end");
+    mtwnPrepareLevels(level, 1, &start);
+    CHECK(mtwnFindCrossing(level, 1, &start, 0.5, 3.0, false, false, mtwn_crossingEither) == 1.5,
+          "the next start at the delay's end");
+    // Backwards, from 3 to 0.5: the last start crossed first.
+    CHECK(mtwnFindCrossing(level, 1, &start, 3.0, 0.5, false, false, mtwn_crossingEither) == 1.5,
+          "backwards too");
+    // Far from 0, where doubles thin out: still exact, in 64 halvings.
+    level[0].timing = Timing(1.0, HUGE_VAL);
+    mtwnLeaf mid = Instant(0.5);
+    mtwnPrepareLevels(level, 1, &mid);
+    double first =
+        mtwnFindCrossing(level, 1, &mid, 1e12, 1e12 + 2.0, false, false, mtwn_crossingEither);
+    CHECK(first == 1e12 + 0.5, "at 10^12 seconds");
+}
+
 static void TestIterations(void)
 {
     mtwnLevel level[1];
@@ -238,6 +273,39 @@ static double NodeIteration(const mtwnLeaf* leaf, double value)
     return r.iteration;
 }
 
+// The earliest crossing the oracle met, in the sweep's order.
+static double s_oracleFirst = 0.0;
+static bool s_oracleFound = false;
+
+static void Met(double t, bool forwardSweep)
+{
+    if (!s_oracleFound || (forwardSweep ? t < s_oracleFirst : t > s_oracleFirst))
+    {
+        s_oracleFirst = t;
+        s_oracleFound = true;
+    }
+}
+
+// Where in a smooth piece the leaf's coordinate passes at.
+static double Locate(const mtwnLevel* levels, uint32_t count, double at, double t1, double t2)
+{
+    double v1 = Eval(levels, count, t1).value;
+    for (int i = 0; i < 80; ++i)
+    {
+        double mid = t1 + (t2 - t1) / 2.0;
+        double v = Eval(levels, count, mid).value;
+        if ((v < at) == (v1 < at))
+        {
+            t1 = mid;
+        }
+        else
+        {
+            t2 = mid;
+        }
+    }
+    return t1 + (t2 - t1) / 2.0;
+}
+
 static void Oracle(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double t1,
                    double t2, int depth, mtwnCrossings* sum)
 {
@@ -268,6 +336,7 @@ static void Oracle(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
         if (lo < at && at < hi)
         {
             *(forwards ? &sum->same : &sum->opposite) += 1.0;
+            Met(Locate(levels, count, at, t1, t2), t2 > t1);
         }
         return;
     }
@@ -319,6 +388,8 @@ static mtwnTiming RandomTiming(void)
 static void TestOracle(void)
 {
     int mismatches = 0;
+    int timeMismatches = 0;
+    int timed = 0;
     for (int trial = 0; trial < 3000; ++trial)
     {
         mtwnLevel levels[3];
@@ -348,7 +419,19 @@ static void TestOracle(void)
             double t2 = Random() * span - 0.5;
             mtwnCrossings exact = mtwnCountCrossings(levels, count, &leaf, t1, t2, false);
             mtwnCrossings oracle = {0.0, 0.0};
+            s_oracleFound = false;
             Oracle(levels, count, &leaf, t1, t2, 0, &oracle);
+            if (leaf.kind == mtwn_leafInstant && s_oracleFound && exact.same == oracle.same &&
+                exact.opposite == oracle.opposite)
+            {
+                double first = mtwnFindCrossing(levels, count, &leaf, t1, t2, false, false,
+                                                mtwn_crossingEither);
+                if (fabs(first - s_oracleFirst) > 1e-9)
+                {
+                    timeMismatches++;
+                }
+                timed++;
+            }
             if (exact.same != oracle.same || exact.opposite != oracle.opposite)
             {
                 if (mismatches++ < 5)
@@ -377,6 +460,8 @@ static void TestOracle(void)
         }
     }
     CHECK(mismatches == 0, "random nested levels agree with the sampled oracle");
+    CHECK(timeMismatches == 0 && timed > 5000,
+          "and the first crossing's time with where the oracle meets it");
 }
 
 int main(void)
@@ -386,6 +471,7 @@ int main(void)
     TestDelaysAndRates();
     TestIterations();
     TestExactEdges();
+    TestTimes();
     TestOracle();
     return s_failures == 0 ? 0 : 1;
 }

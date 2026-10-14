@@ -93,8 +93,9 @@ enum
 };
 
 // The time of the first (or last) crossing, of a way, in a sweep that has
-// one: the time t nearest 'from' (or 'to') such that the sweep to t (from
-// t) counts one.
+// one: the double t nearest 'from' (or 'to') such that the sweep to t
+// (from t) counts one, found exactly by halving the doubles between, in
+// their order as integers: at most 64 halvings, each a count.
 double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
                         double to, bool fromClosed, bool last, mtwnCrossingWay way);
 

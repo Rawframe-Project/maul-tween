@@ -201,12 +201,12 @@ Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner
 
 ## `event.h`
 
-Events (records mtwn-0004, mtwn-0013 and mtwn-0038): records in the context's bounded queue, never callbacks. Each update appends what its players crossed, at most one record per player, node or mark, kind and direction, with the count of crossings, ordered by the time of the first crossing, then the players' creation order, then the clip's order; the host reads them when it likes.
+Events (records mtwn-0004, mtwn-0013 and mtwn-0038): records in the context's bounded queue, never callbacks. Each update appends what its players crossed, at most one record per player, node or mark, kind and direction, with the count of crossings, ordered by the time of the first crossing, then the players' creation order, then the clip's order; the host reads them when it likes. The queue holds the context def's eventCapacity records. One that arrives at a full queue is dropped and counted, never silently: mtwnReadEvents reports the drops since the last read, and mtwnContext_GetDroppedEvents all of them. Records arrive in the order they are made (players in creation order, each player's nodes in clip order), so a full queue keeps the first made and drops the rest of an update's; those kept are sorted.
 
 ```c
-MTWN_NODISCARD MTWN_API mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity, uint32_t* countOut);
+MTWN_NODISCARD MTWN_API mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity, uint32_t* countOut, uint64_t* droppedOut);
 ```
-Takes the oldest records off the queue, as many as fit.  @param context    The context. @param eventsOut  Receives the records; NULL only with a capacity of 0. @param capacity   Its length. @param countOut   Receives how many were taken. @return mtwn_success; mtwn_errorInvalid for a null context or countOut, or a null array with a capacity. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Takes the oldest records off the queue, as many as fit, and reports how many were dropped at a full queue since the last read.  @param context     The context. @param eventsOut   Receives the records; NULL only with a capacity of 0. @param capacity    Its length. @param countOut    Receives how many were taken. @param droppedOut  Receives the records dropped since the last read (the count then starts again); may be NULL. @return mtwn_success; mtwn_errorInvalid for a null context or countOut, or a null array with a capacity. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 uint32_t mtwnContext_GetEventCount(const mtwnContext* context);

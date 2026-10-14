@@ -216,6 +216,8 @@ struct mtwnContext
     uint32_t eventHead;
     uint32_t eventCount;
     uint64_t droppedEvents;
+    // Those dropped since the last read.
+    uint64_t droppedSinceRead;
     // Scratch for counting crossings: a chain of timelines and the node.
     mtwnLevel* levels;
     // The bytes the live clips' blocks hold.

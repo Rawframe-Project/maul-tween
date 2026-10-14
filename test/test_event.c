@@ -85,7 +85,7 @@ static void Update(World* w, double seconds)
 static uint32_t Read(World* w, mtwnEvent* events, uint32_t capacity)
 {
     uint32_t n = 0;
-    CHECK(mtwnReadEvents(w->context, events, capacity, &n) == mtwn_success, "read");
+    CHECK(mtwnReadEvents(w->context, events, capacity, &n, NULL) == mtwn_success, "read");
     return n;
 }
 
@@ -307,11 +307,78 @@ static void TestQueue(void)
               mtwnContext_GetEventCount(w.context) == 1,
           "read one at a time, the oldest first");
     uint32_t n = 0;
-    CHECK(mtwnReadEvents(w.context, NULL, 1, &n) == mtwn_errorInvalid &&
-              mtwnReadEvents(w.context, e, 2, NULL) == mtwn_errorInvalid &&
-              mtwnReadEvents(NULL, e, 2, &n) == mtwn_errorInvalid,
+    CHECK(mtwnReadEvents(w.context, NULL, 1, &n, NULL) == mtwn_errorInvalid &&
+              mtwnReadEvents(w.context, e, 2, NULL, NULL) == mtwn_errorInvalid &&
+              mtwnReadEvents(NULL, e, 2, &n, NULL) == mtwn_errorInvalid,
           "refusals");
-    CHECK(mtwnReadEvents(w.context, NULL, 0, &n) == mtwn_success && n == 0, "none asked");
+    CHECK(mtwnReadEvents(w.context, NULL, 0, &n, NULL) == mtwn_success && n == 0, "none asked");
+    mtwnDestroyContext(w.context);
+}
+
+static mtwnNode Endless(World* w, mtwnNode parent, double duration)
+{
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.parent = parent;
+    group.autoDuration = false;
+    group.timing.duration = duration;
+    group.timing.iterations = HUGE_VAL;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTimeline(w->context, w->clip, &group, &node) == mtwn_success, "endless");
+    return node;
+}
+
+static void TestOverflow(void)
+{
+    // Root > a 1 s endless repeat > a 0.25 s endless repeat, a mark in each,
+    // a 50 ms loop inside: an hour's sweep makes seven records (the outer
+    // iterations, the inner one restarting and iterating, the marks, the
+    // loop restarting and iterating), counted, into a queue of four.
+    World w = MakeWorld(4);
+    mtwnNode outer = Endless(&w, MTWN_ROOT_NODE, 1.0);
+    mtwnNode inner = Endless(&w, outer, 0.25);
+    mtwnNode outerMark = 0;
+    mtwnNode innerMark = 0;
+    CHECK(mtwnClip_AddMark(w.context, w.clip, outer, At(0.5), 1, &outerMark) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, inner, At(0.1), 2, &innerMark) == mtwn_success,
+          "marks");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.parent = inner;
+    track.timing.duration = 0.05;
+    track.timing.iterations = HUGE_VAL;
+    mtwnNode loop = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &loop) == mtwn_success, "a loop");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    mtwnEvent e[8];
+    uint32_t n = 0;
+    uint64_t dropped = 0;
+    CHECK(mtwnReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && dropped == 0,
+          "the starts fit");
+    Update(&w, 3600.0);
+    CHECK(mtwnContext_GetEventCount(w.context) == 4, "the queue full");
+    CHECK(mtwnReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 4 && dropped == 3 &&
+              mtwnContext_GetDroppedEvents(w.context) == 3,
+          "three past its capacity: dropped, and reported at the read");
+    bool sorted = true;
+    for (uint32_t i = 1; i < n; ++i)
+    {
+        sorted = sorted && e[i - 1].hostTime <= e[i].hostTime;
+    }
+    CHECK(sorted, "the first four made are kept, sorted");
+    CHECK(e[0].kind == mtwn_eventIteration && e[0].node == inner && e[0].count == 14400 &&
+              e[1].kind == mtwn_eventMark && e[1].node == outerMark && e[1].count == 3600,
+          "the inner repeat's iterations counted four times a second, the outer mark once");
+    CHECK(mtwnReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 0 && dropped == 0,
+          "the drops reported once");
+    (void)loop;
+    (void)innerMark;
     mtwnDestroyContext(w.context);
 }
 
@@ -347,6 +414,7 @@ int main(void)
     TestSameTime();
     TestTransitions();
     TestQueue();
+    TestOverflow();
     TestOrder();
     return s_failures == 0 ? 0 : 1;
 }

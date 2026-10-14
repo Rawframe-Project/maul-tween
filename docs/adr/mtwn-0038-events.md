@@ -17,8 +17,13 @@ Animations names them, marks, seeks and cancels.
   transition) and a mark's key, the count of crossings, whether they
   went backwards, the host's and the player's time of the first
   crossing, and the node's iteration (a mark's parent's) at the first
-  and last. `mtwnReadEvents` takes the oldest; a full queue drops the
-  newest arrivals and counts them.
+  and last. `mtwnReadEvents` takes the oldest. The queue holds the
+  context def's `eventCapacity` records; one arriving at a full queue
+  is dropped and counted, never silently: `mtwnReadEvents` reports the
+  drops since the last read and `mtwnContext_GetDroppedEvents` all of
+  them. Records arrive in the order made (players in creation order,
+  nodes in clip order), so a full queue keeps the first an update made;
+  those kept are sorted.
 - Each update sweeps a clip's player from the time its last sweep
   reached to its current time and counts, along the timelines above
   each node, its active start and end, its iteration starts, and the
