@@ -145,10 +145,10 @@ static void TestCatmullRom(void)
         keys[i].value.z = points[i][2];
     }
     keys[5].offset = 1.0;
-    static const double alphas[3] = {0.0, 0.5, 1.0};
+    static const double alphas[4] = {0.0, 0.5, 1.0, 0.25};
     double worst = 0.0;
     double kink = 0.0;
-    for (int a = 0; a < 3; ++a)
+    for (int a = 0; a < 4; ++a)
     {
         mtwnPath path;
         CHECK(mtwnMakePath(keys, 6, 3, alphas[a], NULL, &path) == mtwn_success, "made");
@@ -211,7 +211,7 @@ static void TestCatmullRom(void)
     {
         printf("  catmull-rom %.3g, kink %.3g\n", worst, kink);
     }
-    CHECK(worst <= 1e-13, "the Hermite form is Barry and Goldman's pyramid, alpha 0, 1/2, 1");
+    CHECK(worst <= 1e-13, "the Hermite form is Barry and Goldman's pyramid, alpha 0, 1/4, 1/2, 1");
     CHECK(kink <= 1e-10, "the direction continuous at every interior keyframe");
     // Coincident keyframes hold still rather than divide by zero.
     mtwnKeyframe same[4] = {
@@ -309,6 +309,132 @@ static void TestLength(void)
     CHECK(v[0] == 3.0 && v[1] == 14.0, "the end exactly");
 }
 
+static void TestEdges(void)
+{
+    // Ends exactly the keyframes' values, also where the arithmetic would
+    // round: non-dyadic values on every kind.
+    static const mtwnSegmentKind kinds[3] = {mtwn_segmentBezier, mtwn_segmentCatmullRom,
+                                             mtwn_segmentLinear};
+    int exact = 1;
+    for (int k = 0; k < 3; ++k)
+    {
+        mtwnKeyframe keys[3] = {Key(0.0, 0.1f, 0.7f, kinds[k]), Key(0.3, 0.3f, -0.9f, kinds[k]),
+                                Key(1.0, 1.1f, 0.13f, kinds[k])};
+        keys[0].out = (mtwnVec4){0.37f, 0.71f, 0, 0};
+        keys[1].in = (mtwnVec4){0.19f, -0.33f, 0, 0};
+        keys[1].out = (mtwnVec4){0.77f, 0.17f, 0, 0};
+        keys[2].in = (mtwnVec4){0.93f, 0.61f, 0, 0};
+        mtwnPath path;
+        exact &= mtwnMakePath(keys, 3, 2, 0.5, NULL, &path) == mtwn_success;
+        double v[4];
+        mtwnSamplePath(&path, 1.0, v, NULL);
+        exact &= v[0] == (double)1.1f && v[1] == (double)0.13f;
+        mtwnSamplePath(&path, 0.3, v, NULL);
+        exact &= v[0] == (double)0.3f && v[1] == (double)-0.9f;
+    }
+    CHECK(exact, "every kind gives its keyframes' values exactly");
+    // An easing at 1 inside a segment reaches the end keyframe exactly,
+    // where the Hermite polynomial at 1 is a few ulps off it.
+    float p[4] = {-0x1.0c3406p-2f, 0x1.d702d6p+2f, 0x1.da1122p+0f, -0x1.6d2be2p+2f};
+    mtwnKeyframe curve[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        curve[i] = Key(i / 3.0, p[i], 0.0f, mtwn_segmentCatmullRom);
+    }
+    curve[3].offset = 1.0;
+    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &curve[1].easing) == mtwn_success, "steps(1, start)");
+    mtwnPath early;
+    CHECK(mtwnMakePath(curve, 4, 1, 0.5, NULL, &early) == mtwn_success, "made");
+    double at[4];
+    mtwnSamplePath(&early, 0.5, at, NULL);
+    CHECK(at[0] == (double)p[2], "the end keyframe exactly, not the polynomial's rounding");
+    // Two keyframes at 1: the last wins there, no zero-width division.
+    mtwnKeyframe end[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
+                           Key(1.0, 5.0f, 0.0f, mtwn_segmentLinear),
+                           Key(1.0, 9.0f, 0.0f, mtwn_segmentLinear)};
+    mtwnPath path;
+    CHECK(mtwnMakePath(end, 3, 1, 0.5, NULL, &path) == mtwn_success, "two at 1");
+    double v[4];
+    mtwnSamplePath(&path, 1.0, v, NULL);
+    double half[4];
+    mtwnSamplePath(&path, 0.5, half, NULL);
+    CHECK(v[0] == 9.0 && half[0] == 2.5, "the last at 1, the line before it");
+    // Coincident keyframes at constant speed: a segment of no length.
+    mtwnKeyframe still[4] = {
+        Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear), Key(0.4, 3.0f, 0.0f, mtwn_segmentLinear),
+        Key(0.6, 3.0f, 0.0f, mtwn_segmentLinear), Key(1.0, 4.0f, 0.0f, mtwn_segmentLinear)};
+    double lengths[4];
+    CHECK(mtwnMakePath(still, 4, 1, 0.5, lengths, &path) == mtwn_success && lengths[3] == 4.0,
+          "a path with a segment of no length");
+    int finite = 1;
+    for (int k = 0; k <= 40; ++k)
+    {
+        mtwnSamplePath(&path, k / 40.0, v, NULL);
+        finite &= fabs(v[0] - k / 10.0) <= 1e-12;
+    }
+    CHECK(finite, "travels through it at constant speed");
+    // A speed falling to 0 at the end: Newton must stay in its bracket.
+    // The point is 1 - (1 - u)^3, its own arc length.
+    mtwnKeyframe slow[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                            Key(1.0, 1.0f, 0.0f, mtwn_segmentLinear)};
+    slow[0].out = (mtwnVec4){1.0f, 0, 0, 0};
+    slow[1].in = (mtwnVec4){1.0f, 0, 0, 0};
+    double slowLengths[2];
+    CHECK(mtwnMakePath(slow, 2, 1, 0.5, slowLengths, &path) == mtwn_success, "slowing");
+    double worst = 0.0;
+    for (int k = 0; k <= 200; ++k)
+    {
+        double share = k / 200.0;
+        mtwnSamplePath(&path, share, v, NULL);
+        double e = fabs(v[0] - share);
+        worst = e > worst ? e : worst;
+    }
+    CHECK(worst <= 1e-9, "every share at its place where the speed falls to 0");
+    // A speed rising from 0, u^3: Newton from the start overshoots the
+    // segment and must fall back into its bracket.
+    slow[0].out = (mtwnVec4){0.0f, 0, 0, 0};
+    slow[1].in = (mtwnVec4){0.0f, 0, 0, 0};
+    CHECK(mtwnMakePath(slow, 2, 1, 0.5, slowLengths, &path) == mtwn_success, "speeding");
+    worst = 0.0;
+    for (int k = 0; k <= 200; ++k)
+    {
+        double share = k / 200.0;
+        mtwnSamplePath(&path, share, v, NULL);
+        double e = fabs(v[0] - share);
+        worst = e > worst ? e : worst;
+    }
+    CHECK(worst <= 1e-9, "every share at its place where the speed rises from 0");
+    // A speed of 0 mid-segment, 0.5 + 4 (u - 1/2)^3: Newton there leaps,
+    // and the bracket keeps it to 1e-12 where it alone reaches 6e-10.
+    slow[0].out = (mtwnVec4){1.0f, 0, 0, 0};
+    slow[1].in = (mtwnVec4){0.0f, 0, 0, 0};
+    CHECK(mtwnMakePath(slow, 2, 1, 0.5, slowLengths, &path) == mtwn_success, "pausing");
+    worst = 0.0;
+    for (int k = 0; k <= 1000; ++k)
+    {
+        double share = k / 1000.0;
+        mtwnSamplePath(&path, share, v, NULL);
+        double e = fabs(v[0] - share);
+        worst = e > worst ? e : worst;
+    }
+    CHECK(worst <= 1e-10, "every share at its place through a pause");
+    // The last two keyframes coincident: a segment of no length at the end.
+    mtwnKeyframe tail[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
+                            Key(0.5, 3.0f, 0.0f, mtwn_segmentLinear),
+                            Key(1.0, 3.0f, 0.0f, mtwn_segmentLinear)};
+    double tailLengths[3];
+    CHECK(mtwnMakePath(tail, 3, 1, 0.5, tailLengths, &path) == mtwn_success, "a still end");
+    mtwnSamplePath(&path, 1.0, v, NULL);
+    CHECK(v[0] == 3.0, "its end reached, not 0 / 0");
+    // Channels past the path's are 0, whatever the keyframes hold there.
+    mtwnKeyframe loose[2] = {Key(0.0, 0.0f, NAN, mtwn_segmentCatmullRom),
+                             Key(1.0, 1.0f, NAN, mtwn_segmentCatmullRom)};
+    CHECK(mtwnMakePath(loose, 2, 1, 0.5, NULL, &path) == mtwn_success, "NaN past the channel");
+    double tangent[4];
+    mtwnSamplePath(&path, 0.5, v, tangent);
+    CHECK(v[0] == 0.5 && v[1] == 0.0 && tangent[1] == 0.0, "read as 0");
+}
+
 static void TestRefusals(void)
 {
     mtwnKeyframe keys[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentStep),
@@ -346,6 +472,9 @@ static void TestRefusals(void)
     keys[1].out.x = NAN;
     CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "a NaN control");
     keys[1].out.x = 0.0f;
+    keys[1].in.x = NAN;
+    CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "a NaN in control");
+    keys[1].in.x = 0.0f;
     keys[1].kind = 4;
     CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "an unknown kind");
 }
@@ -356,6 +485,7 @@ int main(void)
     TestBezier();
     TestCatmullRom();
     TestLength();
+    TestEdges();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;
 }

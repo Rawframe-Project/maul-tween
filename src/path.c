@@ -95,10 +95,6 @@ static double Gap(const double p[4], const double q[4], uint8_t channels, double
     {
         gap = sqrt(chord);
     }
-    else if (alpha == 1.0)
-    {
-        gap = chord;
-    }
     else if (alpha != 0.0)
     {
         gap = mtwnPow(chord, alpha);
@@ -247,10 +243,10 @@ static double Gauss(const Cubic* cubic, uint8_t channels, double a, double b,
     return half * sum;
 }
 
-// The arc length of the cubic from a to b, a <= b.
+// The arc length of the cubic from a to b, a < b.
 static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
 {
-    if (cubic->step || b <= a)
+    if (cubic->step)
     {
         return 0.0;
     }
