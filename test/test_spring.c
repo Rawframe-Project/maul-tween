@@ -590,6 +590,13 @@ static void TestSpringEasingRefusals(void)
           "a scaled velocity that overflows");
     CHECK(mtwnMakeSpringEasing(&spring, 1e200, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
           "a scaled frequency whose square overflows");
+    CHECK(mtwnMakeSpringEasing(&spring, 1e-170, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "a duration too short for the spring to move");
+    CHECK(mtwnMakeSpringEasing(&spring, (double)NAN, 0.0, mtwn_easeIn, &easing) ==
+              mtwn_errorInvalid,
+          "a NaN duration");
+    CHECK(mtwnMakeSpringEasing(&spring, 1.0, HUGE_VAL, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "an infinite velocity");
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
 }
 

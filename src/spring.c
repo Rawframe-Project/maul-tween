@@ -312,8 +312,9 @@ static double SpringEasingRaw(const double* parameters, uint32_t regime, double 
 mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, double velocity,
                                 mtwnEaseMode mode, mtwnEasing* easingOut)
 {
-    if (spring == NULL || easingOut == NULL || mode > mtwn_easeOutIn || !isfinite(duration) ||
-        duration <= 0.0 || !isfinite(velocity))
+    // A duration or velocity NaN or infinite leaves a scaled parameter
+    // that is not finite, refused below.
+    if (spring == NULL || easingOut == NULL || mode > mtwn_easeOutIn || !(duration > 0.0))
     {
         return mtwn_errorInvalid;
     }
@@ -332,7 +333,9 @@ mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, doubl
             return mtwn_errorInvalid;
         }
     }
-    if (!isfinite(range) || range == 0.0 || easing.parameters[s_easingSquared] == 0.0)
+    // A spring that has not moved by the duration, or is back where it
+    // started, has no range to normalize by.
+    if (!isfinite(range) || range == 0.0)
     {
         return mtwn_errorInvalid;
     }
