@@ -266,6 +266,229 @@ static void TestExactness(void)
     mtwnDestroyContext(context);
 }
 
+static mtwnTransitionDef SpringTo(mtwnTargetId target, mtwnVec4 value)
+{
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = target;
+    def.value = value;
+    def.spec = mtwn_transitionSpring;
+    return def;
+}
+
+static void TestSpring(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    mtwnPlayerId player = Start(context, &def);
+    double settle = mtwnSpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
+    CHECK(settle > 0.3 && settle < 2.0, "a critical spring settles within a second or so");
+    Update(context, 0);
+    double worst = 0.0;
+    for (int k = 1; k * 0.01 < settle; ++k)
+    {
+        uint64_t time = (uint64_t)k * 10000000u;
+        Update(context, time);
+        double offset = 0.0;
+        double velocity = 0.0;
+        mtwnSampleSpring(&def.spring, -1.0, 0.0, (double)time / 1e9, &offset, &velocity);
+        mtwnTargetState state = State(context, x);
+        double e = fabs((double)state.value.x - (1.0 + offset)) +
+                   fabs((double)state.velocity.x - velocity);
+        worst = e > worst ? e : worst;
+    }
+    CHECK(worst <= 1e-6, "the spring's value and its own velocity, to a float's rounding");
+    CHECK(mtwnPlayer_IsValid(context, player), "alive before it settles");
+    Update(context, (uint64_t)(settle * 1e9) + 1);
+    CHECK(!mtwnPlayer_IsValid(context, player) && State(context, x).base.x == 1.0f &&
+              State(context, x).velocity.x == 0.0f,
+          "at its settling time it snaps to the end, at rest");
+    mtwnDestroyContext(context);
+}
+
+static void TestHandover(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    mtwnTransitionDef def = Linear(x, (mtwnVec4){10.0f, 0, 0, 0}, 1.0);
+    Start(context, &def);
+    Update(context, 0);
+    Update(context, s_second / 2);
+    float velocity = State(context, x).velocity.x;
+    CHECK(fabsf(velocity - 10.0f) <= 1e-3f, "moving at 10 a second");
+    mtwnTransitionDef back = SpringTo(x, (mtwnVec4){0.0f, 0, 0, 0});
+    Start(context, &back);
+    Update(context, s_second / 2);
+    Update(context, s_second / 2 + 1000000);
+    double offset = 0.0;
+    double speed = 0.0;
+    mtwnSampleSpring(&back.spring, 5.0, (double)velocity, 0.001, &offset, &speed);
+    CHECK(fabs((double)State(context, x).value.x - offset) <= 1e-6 &&
+              fabs((double)State(context, x).velocity.x - speed) <= 1e-5,
+          "the spring takes the velocity the easing left");
+    // A given velocity, as a fling gives it.
+    back.velocitySource = mtwn_velocityGiven;
+    back.velocity = (mtwnVec4){-40.0f, 0, 0, 0};
+    float at = State(context, x).value.x;
+    Start(context, &back);
+    Update(context, s_second);
+    Update(context, s_second + 1000000);
+    mtwnSampleSpring(&back.spring, (double)at, -40.0, 0.001, &offset, &speed);
+    CHECK(fabs((double)State(context, x).value.x - offset) <= 1e-6, "or the one given");
+    mtwnDestroyContext(context);
+}
+
+static void TestDecay(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueVec2, (mtwnVec4){100.0f, -3.0f, 0, 0});
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = x;
+    def.spec = mtwn_transitionDecay;
+    def.velocitySource = mtwn_velocityGiven;
+    def.velocity = (mtwnVec4){2000.0f, -50.0f, 0, 0};
+    mtwnPlayerId player = Start(context, &def);
+    double stop = mtwnDecayStopTime(&def.decay, 2000.0, def.restSpeed);
+    CHECK(stop > mtwnDecayStopTime(&def.decay, -50.0, def.restSpeed),
+          "the faster channel stops last");
+    Update(context, 0);
+    Update(context, s_second / 4);
+    double position = 0.0;
+    double velocity = 0.0;
+    mtwnSampleDecay(&def.decay, 100.0, 2000.0, 0.25, &position, &velocity);
+    CHECK(State(context, x).value.x == (float)position &&
+              State(context, x).velocity.x == (float)velocity,
+          "the decay's position and velocity");
+    Update(context, (uint64_t)(stop * 1e9) + 1);
+    mtwnSampleDecay(&def.decay, 100.0, 2000.0, stop, &position, NULL);
+    CHECK(!mtwnPlayer_IsValid(context, player) && State(context, x).base.x == (float)position &&
+              State(context, x).velocity.x == 0.0f,
+          "it ends where it stopped, committed");
+    // An integer coasts to a whole number; an angle takes no turn.
+    mtwnTargetId n = Target(context, mtwn_valueInteger, (mtwnVec4){0});
+    def.target = n;
+    def.velocity = (mtwnVec4){7.0f, 0, 0, 0};
+    Start(context, &def);
+    Update(context, 100 * s_second);
+    Update(context, 200 * s_second);
+    float end = State(context, n).base.x;
+    CHECK(end == roundf(end) && end > 1.0f, "an integer stops on a whole number");
+    mtwnTargetId angle = Target(context, mtwn_valueAngle, (mtwnVec4){1.0f, 0, 0, 0});
+    def.target = angle;
+    def.angleMethod = mtwn_angleLonger;
+    def.velocity = (mtwnVec4){0.0f, 0, 0, 0};
+    Start(context, &def);
+    Update(context, 300 * s_second);
+    CHECK(State(context, angle).base.x == 1.0f, "a decay at rest stays, with no turn added");
+    mtwnDestroyContext(context);
+}
+
+static void TestPathSprings(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId color = Target(context, mtwn_valueColor, (mtwnVec4){1.0f, 0.0f, 0.0f, 1.0f});
+    mtwnTransitionDef def = Linear(color, (mtwnVec4){0.0f, 0.0f, 1.0f, 1.0f}, 1.0);
+    def.colorSpace = mtwn_colorSrgb;
+    Start(context, &def);
+    Update(context, 0);
+    Update(context, s_second / 2);
+    mtwnVec4 v = State(context, color).velocity;
+    mtwnVec4 at = State(context, color).value;
+    CHECK(fabsf(v.x + 1.0f) <= 1e-3f && fabsf(v.z - 1.0f) <= 1e-3f, "moving red to blue");
+    mtwnTransitionDef spring = SpringTo(color, (mtwnVec4){0.0f, 1.0f, 0.0f, 1.0f});
+    spring.colorSpace = mtwn_colorSrgb;
+    Start(context, &spring);
+    uint32_t index1 = mtwnTargetAt(context, color.index1)->header.link;
+    // The velocity projected on green minus the point reached.
+    double d[4] = {0.0 - (double)at.x, 1.0 - (double)at.y, 0.0 - (double)at.z, 1.0 - (double)at.w};
+    double along =
+        (double)v.x * d[0] + (double)v.y * d[1] + (double)v.z * d[2] + (double)v.w * d[3];
+    double length = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3];
+    CHECK(fabs(mtwnPlayerAt(context, index1)->velocity[0] - along / length) <= 1e-12,
+          "a path takes the velocity along it");
+    Update(context, s_second / 2);
+    Update(context, s_second);
+    double offset = 0.0;
+    mtwnSampleSpring(&spring.spring, -1.0, along / length, 0.5, &offset, NULL);
+    mtwnColorMix mix;
+    CHECK(mtwnMakeColorMix((mtwnColor){at.x, at.y, at.z, at.w}, (mtwnColor){0.0f, 1.0f, 0.0f, 1.0f},
+                           mtwn_colorSrgb, mtwn_hueShorter, &mix) == mtwn_success,
+          "the mix");
+    mtwnColor want = mtwnMixColor(&mix, 1.0 + offset);
+    mtwnVec4 got = State(context, color).value;
+    CHECK(got.x == want.red && got.y == want.green && got.z == want.blue,
+          "the color at the spring's progress along its path");
+    Update(context, 20 * s_second);
+    CHECK(State(context, color).base.y == 1.0f && State(context, color).base.x == 0.0f,
+          "and it ends exactly on green");
+    // An undamped spring never settles: it runs until replaced or stopped.
+    mtwnTargetId rotation = Target(context, mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
+    mtwnTransitionDef forever = SpringTo(rotation, (mtwnVec4){0, 0, 1.0f, 0});
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 0.0, &forever.spring) == mtwn_success, "undamped");
+    mtwnPlayerId player = Start(context, &forever);
+    Update(context, 1000 * s_second);
+    CHECK(mtwnPlayer_IsValid(context, player), "still swinging after 1000 seconds");
+    mtwnDestroyContext(context);
+}
+
+static void TestAngleTurns(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId angle = Target(context, mtwn_valueAngle, (mtwnVec4){1.0f, 0, 0, 0});
+    mtwnTransitionDef def = Linear(angle, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
+    def.angleMethod = mtwn_angleLonger;
+    Start(context, &def);
+    Update(context, 0);
+    Update(context, s_second - 1);
+    float near = State(context, angle).value.x;
+    Update(context, s_second);
+    float turned = (float)mtwnMixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
+    CHECK(State(context, angle).base.x == turned && fabsf(near - turned) <= 1e-6f,
+          "the end moved by its turn is what is committed: no jump of a turn");
+    mtwnDestroyContext(context);
+}
+
+static void TestSpecRefusals(void)
+{
+    mtwnContext* context = Make(8, 8);
+    mtwnTargetId flag = Target(context, mtwn_valueDiscrete, (mtwnVec4){0});
+    mtwnTargetId color = Target(context, mtwn_valueColor, (mtwnVec4){0, 0, 0, 1.0f});
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    mtwnPlayerId id;
+    mtwnTransitionDef def = SpringTo(flag, (mtwnVec4){1.0f, 0, 0, 0});
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a discrete spring");
+    def = SpringTo(color, (mtwnVec4){0, 0, 0, 1.0f});
+    def.spec = mtwn_transitionDecay;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a color decay");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.spring = (mtwnSpring){{0.0}, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spring not made");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.restOffset = 0.0;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "no rest offset");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.restSpeed = (double)NAN;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a NaN rest speed");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.spec = mtwn_transitionDecay;
+    def.decay.rate = 0.0;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a decay not made");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.velocitySource = mtwn_velocityGiven;
+    def.velocity = (mtwnVec4){INFINITY, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "an infinite velocity");
+    def.velocity = (mtwnVec4){0, NAN, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success,
+          "channels past the kind's are not read");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.velocitySource = 2;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a velocity source");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.spec = 3;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spec");
+    mtwnDestroyContext(context);
+}
+
 static void TestRefusals(void)
 {
     mtwnContext* context = Make(4, 1);
@@ -385,18 +608,24 @@ static uint64_t Scenario(uint64_t host, int* restoredOut)
                         {0.1f, 0.3f, 0.9f, 0.5f},
                         {(float)sin(pi / 3), 0, 0, (float)cos(pi / 3)},
                         {-1.0f, 1e-30f, 3.3f, 0}};
+    // The defs are made first: their default spring and decay compute,
+    // and arithmetic in the host's mode would set its status flags.
+    mtwnTransitionDef defs[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        defs[i] = mtwnDefaultTransitionDef();
+        defs[i].target = ids[i];
+        defs[i].value = ends[i];
+        defs[i].duration = 0.8;
+        defs[i].colorSpace = mtwn_colorOklch;
+    }
     uint64_t saved = mtwnFloatControlRead();
     int restored = 1;
     mtwnFloatControlWrite(host);
     for (int i = 0; i < 4; ++i)
     {
-        mtwnTransitionDef def = mtwnDefaultTransitionDef();
-        def.target = ids[i];
-        def.value = ends[i];
-        def.duration = 0.8;
-        def.colorSpace = mtwn_colorOklch;
         mtwnPlayerId id;
-        restored &= mtwnStartTransition(context, &def, &id) == mtwn_success &&
+        restored &= mtwnStartTransition(context, &defs[i], &id) == mtwn_success &&
                     mtwnFloatControlRead() == host;
     }
     for (int k = 0; k <= 60; ++k)
@@ -441,6 +670,12 @@ int main(void)
     TestInterruption();
     TestKinds();
     TestExactness();
+    TestSpring();
+    TestHandover();
+    TestDecay();
+    TestPathSprings();
+    TestAngleTurns();
+    TestSpecRefusals();
     TestRefusals();
     TestUpdateReport();
     TestFloatEnvironment();

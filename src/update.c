@@ -4,8 +4,9 @@
 // The update (records mtwn-0004, mtwn-0007 and mtwn-0029): every player
 // advanced to the host's time in the library's floating-point
 // environment, then the changed targets reported. A transition samples
-// its own curve, with the velocity of its last millisecond, and at its
-// end commits its end value as the target's base.
+// its easing, spring or decay, with the spring's or decay's own velocity
+// or else its curve's over the last millisecond, and at its end commits
+// its end value as the target's base (records mtwn-0029 and mtwn-0030).
 
 #include "context_internal.h"
 #include "fpenv.h"
@@ -16,10 +17,11 @@
 // The span the velocity is measured over, as Compose measures a tween's.
 static const double s_velocitySpan = 0.001;
 
-// The transition's value at t seconds into it, before rounding.
-static void Sample(const mtwnPlayerSlot* slot, double t, double out[4])
+// The value along the transition's path at a progress, before rounding:
+// a color's or rotation's mix, a discrete value's step, the others'
+// straight line (an angle's end already moved by its turns).
+static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
 {
-    double eased = mtwnEase(&slot->easing, t / slot->duration, false);
     const float* from = &slot->from.x;
     const float* to = &slot->to.x;
     out[0] = out[1] = out[2] = out[3] = 0.0;
@@ -27,7 +29,7 @@ static void Sample(const mtwnPlayerSlot* slot, double t, double out[4])
     {
     case mtwn_valueColor:
     {
-        mtwnColor color = mtwnMixColor(&slot->mix.color, eased);
+        mtwnColor color = mtwnMixColor(&slot->mix.color, progress);
         out[0] = (double)color.red;
         out[1] = (double)color.green;
         out[2] = (double)color.blue;
@@ -36,26 +38,70 @@ static void Sample(const mtwnPlayerSlot* slot, double t, double out[4])
     }
     case mtwn_valueRotation:
     {
-        mtwnQuat q = mtwnMixRotation(&slot->mix.rotation, eased);
+        mtwnQuat q = mtwnMixRotation(&slot->mix.rotation, progress);
         out[0] = (double)q.x;
         out[1] = (double)q.y;
         out[2] = (double)q.z;
         out[3] = (double)q.w;
         return;
     }
-    case mtwn_valueAngle:
-        out[0] = mtwnMixAngle((double)from[0], (double)to[0], slot->angleMethod, eased);
-        return;
     case mtwn_valueDiscrete:
-        out[0] = (double)(eased < 0.5 ? from[0] : to[0]);
+        out[0] = (double)(progress < 0.5 ? from[0] : to[0]);
         return;
     default:
         for (uint8_t i = 0; i < mtwnKindChannels(slot->kind); ++i)
         {
-            out[i] = (1.0 - eased) * (double)from[i] + eased * (double)to[i];
+            out[i] = (1.0 - progress) * (double)from[i] + progress * (double)to[i];
         }
         return;
     }
+}
+
+// The transition at t seconds after its delay, before rounding. A spring
+// or decay on channels gives its own velocity and returns true; the
+// others leave the velocity to the caller.
+static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double velocity[4])
+{
+    if (slot->spec == mtwn_transitionEasing)
+    {
+        PathAt(slot, mtwnEase(&slot->easing, t / slot->duration, false), value);
+        return false;
+    }
+    if (slot->spec == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))
+    {
+        double offset = 0.0;
+        mtwnSampleSpring(&slot->spring, -1.0, slot->velocity[0], t, &offset, NULL);
+        PathAt(slot, 1.0 + offset, value);
+        return false;
+    }
+    const float* from = &slot->from.x;
+    const float* to = &slot->to.x;
+    mtwnSpringMotion motion = {0};
+    if (slot->spec == mtwn_transitionSpring)
+    {
+        motion = mtwnSpringMotionAt(&slot->spring, t);
+    }
+    for (uint8_t i = 0; i < 4; ++i)
+    {
+        value[i] = velocity[i] = 0.0;
+        if (i >= mtwnKindChannels(slot->kind))
+        {
+            continue;
+        }
+        double v = slot->velocity[i];
+        if (slot->spec == mtwn_transitionSpring)
+        {
+            double offset = (double)from[i] - (double)to[i];
+            value[i] =
+                (double)to[i] + motion.offsetFromOffset * offset + motion.offsetFromVelocity * v;
+            velocity[i] = motion.velocityFromOffset * offset + motion.velocityFromVelocity * v;
+        }
+        else
+        {
+            mtwnSampleDecay(&slot->decay, (double)from[i], v, t, &value[i], &velocity[i]);
+        }
+    }
+    return true;
 }
 
 // Whether two values have the same bits, -0 and 0 apart.
@@ -91,7 +137,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         slot->startNs = timeNs;
     }
     double t = (double)(timeNs - slot->startNs) / 1e9 - slot->delay;
-    if (t >= slot->duration)
+    if (t >= slot->endTime)
     {
         // The end: committed as the base, and the transition freed.
         mtwnTargetSlot* written = mtwnTargetAt(context, target);
@@ -107,23 +153,33 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         return;
     }
     double now[4];
-    double before[4];
-    double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
-    Sample(slot, t, now);
-    Sample(slot, earlier, before);
-    // The velocity is the unrounded curve's; an integer's value rounds to
-    // nearest, ties away from zero.
-    double span = t - earlier;
+    double speed[4];
+    if (!Sample(slot, t, now, speed))
+    {
+        // The change over the curve's last millisecond, from its start
+        // before that; none for a discrete value.
+        double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
+        double before[4];
+        double unused[4];
+        Sample(slot, earlier, before, unused);
+        for (int i = 0; i < 4; ++i)
+        {
+            speed[i] =
+                slot->kind == mtwn_valueDiscrete ? 0.0 : (now[i] - before[i]) / (t - earlier);
+        }
+    }
+    // An integer's value rounds to nearest, ties away from zero; its
+    // velocity is the unrounded curve's.
     bool integer = slot->kind == mtwn_valueInteger;
-    float speed[4];
     float value[4];
+    float velocity[4];
     for (int i = 0; i < 4; ++i)
     {
         value[i] = (float)(integer && i == 0 ? round(now[i]) : now[i]);
-        speed[i] = slot->kind == mtwn_valueDiscrete ? 0.0f : (float)((now[i] - before[i]) / span);
+        velocity[i] = (float)speed[i];
     }
     Write(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
-          (mtwnVec4){speed[0], speed[1], speed[2], speed[3]});
+          (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
 }
 
 static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t timeNs)

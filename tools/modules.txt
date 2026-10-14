@@ -7,7 +7,8 @@ css_easing:
 easing: css_easing elementary spring_easing
 sample:
 spring_easing:
-spring: elementary spring_easing
+spring_internal:
+spring: elementary spring_easing spring_internal
 decay: elementary
 color: elementary
 rotation: elementary
@@ -19,5 +20,5 @@ pool:
 context_internal: pool
 context: allocator context_internal pool
 target: context_internal pool
-transition: context_internal fpenv pool
+transition: context_internal fpenv pool spring_internal
 update: context_internal fpenv pool

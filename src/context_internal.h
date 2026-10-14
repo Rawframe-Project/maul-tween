@@ -14,6 +14,7 @@
 #include "maul-tween/easing.h"
 #include "maul-tween/interpolate.h"
 #include "maul-tween/target.h"
+#include "maul-tween/transition.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -37,16 +38,26 @@ typedef struct mtwnPlayerSlot
 {
     mtwnSlotHeader header;
     mtwnValueKind kind;
+    mtwnTransitionSpec spec;
     // Whether the first update has fixed the start time.
     bool started;
-    mtwnAngleMethod angleMethod;
     uint8_t reserved;
     mtwnTargetId target;
     uint64_t startNs;
     double delay;
+    // Seconds after the delay to the end; infinity for a spring that never
+    // settles.
+    double endTime;
     double duration;
+    // The start velocity per channel; for a color or rotation, in progress
+    // in the first.
+    double velocity[4];
     mtwnEasing easing;
+    mtwnSpring spring;
+    mtwnDecay decay;
     mtwnVec4 from;
+    // The end value: an angle's moved by its turns, a decay's where it
+    // stops.
     mtwnVec4 to;
     union
     {
@@ -54,6 +65,12 @@ typedef struct mtwnPlayerSlot
         mtwnRotationMix rotation;
     } mix;
 } mtwnPlayerSlot;
+
+// Whether a kind moves along a path by its progress: colors and rotations.
+static inline bool mtwnIsPathKind(mtwnValueKind kind)
+{
+    return kind == mtwn_valueColor || kind == mtwn_valueRotation;
+}
 
 struct mtwnContext
 {

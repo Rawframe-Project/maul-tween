@@ -17,6 +17,7 @@
 
 #include "elementary.h"
 #include "spring_easing.h"
+#include "spring_internal.h"
 
 #include "generated/math_constants.h"
 
@@ -348,4 +349,12 @@ double mtwnSampleSpringEasing(const mtwnEasing* easing, double p)
 {
     return SpringEasingRaw(easing->parameters, easing->count, p) /
            easing->parameters[s_easingRange];
+}
+
+bool mtwnIsSpring(const mtwnSpring* spring)
+{
+    double frequency = spring->parameters[s_frequency];
+    double ratio = spring->parameters[s_ratio];
+    return isfinite(frequency) && frequency > 0.0 && isfinite(ratio) && ratio >= 0.0 &&
+           spring->regime <= s_overdamped;
 }
