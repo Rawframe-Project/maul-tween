@@ -217,7 +217,7 @@ static void TestKinds(void)
 
 static void TestExactness(void)
 {
-    mtwnContext* context = Make(4, 4);
+    mtwnContext* context = Make(8, 8);
     // An easing at 1 before the end gives the end exactly, and the end
     // that only commits the base is reported.
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0.1f, 0, 0, 0});
@@ -250,6 +250,16 @@ static void TestExactness(void)
     CHECK(State(context, y).value.x == 0.0625f &&
               fabsf(State(context, y).velocity.x - 125.0f) <= 1e-3f,
           "0.0625 in half a millisecond: 125 a second");
+    // Shorter than a millisecond: the velocity is from the start over the
+    // time elapsed, never infinite.
+    mtwnTargetId quick = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    def = Linear(quick, (mtwnVec4){1.0f, 0, 0, 0}, 0.0005);
+    Start(context, &def);
+    Update(context, 2 * s_second + 600000);
+    Update(context, 2 * s_second + 850000);
+    CHECK(State(context, quick).value.x == 0.5f &&
+              fabsf(State(context, quick).velocity.x - 2000.0f) <= 1e-2f,
+          "half of it in 0.25 ms: 2000 a second");
     // Negative ties round away from zero.
     mtwnTargetId n = Target(context, mtwn_valueInteger, (mtwnVec4){0});
     def = Linear(n, (mtwnVec4){-3.0f, 0, 0, 0}, 1.0);

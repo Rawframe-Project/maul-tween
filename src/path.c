@@ -6,7 +6,9 @@
 // knots spaced by the chord's length to the power alpha:
 //   m1 = d12 ((P1 - P0) / d01 - (P2 - P0) / (d01 + d12) + (P2 - P1) / d12)
 //   m2 = d12 ((P2 - P1) / d12 - (P3 - P1) / (d12 + d23) + (P3 - P2) / d23)
-// with the ends' missing neighbors reflected. Arc length is adaptive
+// with the ends' missing neighbors reflected, and each gap raised to
+// 1e-12 of the largest of the three, so the curve is the same at any
+// scale and coincident keyframes hold still. Arc length is adaptive
 // Gauss-Legendre, orders 5 and 10 agreeing to 1e-9 relative, and the
 // parameter at a length is safeguarded Newton on it.
 
@@ -18,7 +20,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-// The smallest knot gap: coincident keyframes hold still.
+// The smallest knot gap, as a share of the segment's largest.
 static const double s_smallestGap = 1e-12;
 // Two quadrature orders agreeing to this, relative, end the splitting.
 static const double s_lengthTolerance = 1e-9;
@@ -99,7 +101,7 @@ static double Gap(const double p[4], const double q[4], uint8_t channels, double
     {
         gap = mtwnPow(chord, alpha);
     }
-    return gap > s_smallestGap ? gap : s_smallestGap;
+    return gap;
 }
 
 // A Hermite segment from p1 to p2 with end tangents m1 and m2.
@@ -141,6 +143,14 @@ static void CatmullRom(const mtwnPath* path, uint32_t i, Cubic* out)
     double d01 = Gap(p0, p1, n, path->alpha);
     double d12 = Gap(p1, p2, n, path->alpha);
     double d23 = Gap(p2, p3, n, path->alpha);
+    // Gaps relative to the largest; all four points coincident, any gap
+    // gives the same still segment.
+    double largest = d01 > d12 ? d01 : d12;
+    largest = d23 > largest ? d23 : largest;
+    double least = largest > 0.0 ? s_smallestGap * largest : 1.0;
+    d01 = d01 > least ? d01 : least;
+    d12 = d12 > least ? d12 : least;
+    d23 = d23 > least ? d23 : least;
     double m1[4];
     double m2[4];
     for (int c = 0; c < 4; ++c)

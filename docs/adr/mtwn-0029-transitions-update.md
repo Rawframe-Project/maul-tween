@@ -26,7 +26,10 @@ flush-to-zero or rounding mode would silently break.
   nearest with ties away from zero, discrete values flip at eased
   progress 1/2. The start holds through the delay. Velocity is the
   change of the transition's own curve over its last millisecond, as
-  Compose measures a tween, 0 for discrete values. At its end a
+  Compose measures a tween, 0 for discrete values; within its first
+  millisecond, and so for a transition shorter than one, the change
+  from its start over the time elapsed, which is above 0, so a spring
+  taking over never sees an infinite speed. At its end a
   transition commits its end value as the target's base, with velocity
   0, and is freed; `mtwnDestroyPlayer` stops one, and the target shows
   its base again.

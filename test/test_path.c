@@ -232,6 +232,46 @@ static void TestCatmullRom(void)
         }
     }
     CHECK(finite, "coincident keyframes hold still, finite everywhere");
+    // The same curve at any scale: the gaps' floor is relative. Scales
+    // near 1e6, 1e-6 and 1e-24, powers of two so scaling is exact.
+    static const float scales[3] = {0x1p20f, 0x1p-20f, 0x1p-80f};
+    mtwnKeyframe base[5] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentCatmullRom),
+                            Key(0.25, 1.0f, 2.0f, mtwn_segmentCatmullRom),
+                            Key(0.5, 1.0f, 2.0f, mtwn_segmentCatmullRom),
+                            Key(0.75, 3.0f, -1.0f, mtwn_segmentCatmullRom),
+                            Key(1.0, 4.0f, 0.5f, mtwn_segmentCatmullRom)};
+    mtwnPath unit;
+    CHECK(mtwnMakePath(base, 5, 2, 0.5, NULL, &unit) == mtwn_success, "at scale 1");
+    double apart = 0.0;
+    for (int s = 0; s < 3; ++s)
+    {
+        mtwnKeyframe scaled[5];
+        memcpy(scaled, base, sizeof base);
+        for (int i = 0; i < 5; ++i)
+        {
+            scaled[i].value.x *= scales[s];
+            scaled[i].value.y *= scales[s];
+        }
+        mtwnPath other;
+        CHECK(mtwnMakePath(scaled, 5, 2, 0.5, NULL, &other) == mtwn_success, "scaled");
+        for (int k = 0; k <= 100; ++k)
+        {
+            double a[4];
+            double b[4];
+            mtwnSamplePath(&unit, k / 100.0, a, NULL);
+            mtwnSamplePath(&other, k / 100.0, b, NULL);
+            for (int c = 0; c < 2; ++c)
+            {
+                double e = fabs(b[c] / (double)scales[s] - a[c]);
+                apart = e > apart ? e : apart;
+            }
+        }
+    }
+    if (!(apart <= 1e-12))
+    {
+        printf("  scaled %.3g\n", apart);
+    }
+    CHECK(apart <= 1e-12, "scaled by 2^20, 2^-20 and 2^-80, the same curve, coincident keys too");
 }
 
 // The arc length of a cubic Bezier by polylines of n and 2n pieces,

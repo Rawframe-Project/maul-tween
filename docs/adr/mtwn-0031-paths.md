@@ -24,8 +24,9 @@ a host can bake a path with no context.
 - Catmull-Rom takes a knot exponent alpha from 0 to 1 (0.5
   centripetal, 0 uniform, 1 chordal), reflects the ends' missing
   neighbors, and is evaluated as a cubic Hermite with Yuksel, Schaefer
-  and Keyser's end tangents; knot gaps under 1e-12 are raised to it,
-  so coincident keyframes hold still.
+  and Keyser's end tangents; each knot gap is raised to 1e-12 of the
+  largest of the segment's three, so the curve is the same at any
+  scale and coincident keyframes hold still.
 - Arc length is adaptive Gauss-Legendre (orders 5 and 10 agreeing to
   1e-9 relative, a fixed stack bounding the splitting). At constant
   speed a progress is a share of the whole length; the segment is found
