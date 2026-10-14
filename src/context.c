@@ -135,6 +135,106 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     return mtwn_success;
 }
 
+static bool SameAllocator(const mtwnAllocator* a, const mtwnAllocator* b)
+{
+    return a->alloc == b->alloc && a->free == b->free && a->context == b->context;
+}
+
+// Whether a def holds at least what a context does.
+static bool Holds(const mtwnContextDef* def, const mtwnContext* context)
+{
+    const mtwnContextDef* now = &context->def;
+    return def->targetCapacity >= now->targetCapacity &&
+           def->playerCapacity >= now->playerCapacity && def->clipCapacity >= now->clipCapacity &&
+           def->eventCapacity >= now->eventCapacity &&
+           def->bindingCapacity >= now->bindingCapacity &&
+           def->clipStorageBytes >= now->clipStorageBytes &&
+           SameAllocator(&def->allocator, &context->allocator);
+}
+
+// A pool's slots in a new place, ids and free list kept.
+static void MovePool(mtwnPool* to, const mtwnPool* from)
+{
+    memcpy(to->slots, from->slots, (size_t)from->high * from->stride);
+    to->high = from->high;
+    to->free = from->free;
+    to->alive = from->alive;
+}
+
+// Moves what a context holds into a new block laid out for a larger def.
+static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* block,
+                     const Layout* layout)
+{
+    const mtwnContextDef* def = &to->def;
+    to->targets = MakePool(block + layout->targets, sizeof(mtwnTargetSlot), def->targetCapacity);
+    to->players = MakePool(block + layout->players, sizeof(mtwnPlayerSlot), def->playerCapacity);
+    to->clips = MakePool(block + layout->clips, sizeof(mtwnClipSlot), def->clipCapacity);
+    MovePool(&to->targets, &from->targets);
+    MovePool(&to->players, &from->players);
+    MovePool(&to->clips, &from->clips);
+    // The bindings keep their runs; the new tail is one more free run.
+    uint32_t had = from->bindings.capacity;
+    to->bindings = (mtwnRuns){(mtwnBound*)(block + layout->bindings), def->bindingCapacity,
+                              from->bindings.free};
+    memcpy(to->bindings.entries, from->bindings.entries, (size_t)had * sizeof(mtwnBound));
+    if (def->bindingCapacity > had)
+    {
+        mtwnGiveRun(&to->bindings, had, def->bindingCapacity - had);
+    }
+    // The queue's records in order, from the start of the new ring.
+    to->events = (mtwnEvent*)(block + layout->events);
+    to->eventAlong = (double*)(block + layout->eventAlong);
+    for (uint32_t i = 0; i < from->eventCount; ++i)
+    {
+        uint32_t at = (from->eventHead + i) % from->def.eventCapacity;
+        to->events[i] = from->events[at];
+        to->eventAlong[i] = from->eventAlong[at];
+    }
+    to->eventHead = 0;
+    to->levels = (mtwnLevel*)(block + layout->levels);
+    to->changed = (uint32_t*)(block + layout->changed);
+    memcpy(to->changed, from->changed, (size_t)from->changedCount * sizeof(uint32_t));
+}
+
+mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+{
+    if (contextInOut == NULL || *contextInOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnContext* from = *contextInOut;
+    mtwnResult checked = def == NULL ? mtwn_errorInvalid : CheckDef(def);
+    if (checked == mtwn_success && !Holds(def, from))
+    {
+        checked = mtwn_errorInvalid;
+    }
+    if (checked != mtwn_success)
+    {
+        ++from->misuse;
+        return checked;
+    }
+    Layout layout = {0};
+    if (!PlanBlock(def, &layout))
+    {
+        return mtwn_errorCapacity;
+    }
+    unsigned char* block = mtwnAllocate(&from->allocator, (size_t)layout.bytes, s_blockAlignment);
+    if (block == NULL)
+    {
+        return mtwn_errorCapacity;
+    }
+    memset(block, 0, (size_t)layout.bytes);
+    mtwnContext* to = (mtwnContext*)block;
+    *to = *from;
+    to->def = *def;
+    to->blockBytes = layout.bytes;
+    MoveInto(to, from, block, &layout);
+    mtwnAllocator allocator = from->allocator;
+    mtwnRelease(&allocator, from, (size_t)from->blockBytes, s_blockAlignment);
+    *contextInOut = to;
+    return mtwn_success;
+}
+
 void mtwnDestroyContext(mtwnContext* context)
 {
     if (context == NULL)

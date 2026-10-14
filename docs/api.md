@@ -116,6 +116,11 @@ void mtwnDestroyContext(mtwnContext* context);
 Destroys a context and everything it holds.  @param context  The context, or NULL. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def);
+```
+Grows a context to a def's capacities, each at least the context's own, with the allocator it was made with: the one time after its creation it allocates, and only when asked (it never grows by itself). Its objects move to one new block, their ids unchanged, and the old block is freed, so the context's address changes: the call writes the new one. On any failure nothing changes.  @param contextInOut  The context; receives the grown one. @param def           The capacities: start from the context's own. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a capacity below the context's or past its limit, or another allocator; mtwn_errorVersion for a def of another version; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
 uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
 ```
 Returns how many calls against the context were refused for an invalid argument or a stale id since it was made.  @param context  The context. @return The count. @par Thread safety Safe from any thread; the context is used by one thread at a time.
@@ -567,4 +572,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-102 functions across 13 headers.
+103 functions across 13 headers.
