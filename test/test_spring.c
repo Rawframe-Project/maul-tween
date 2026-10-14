@@ -141,6 +141,13 @@ static void TestMakersAgree(void)
         worst = d > worst ? d : worst;
     }
     CHECK(worst <= 1e-13, "stiffness, damping and mass; hertz and ratio; duration and bounce");
+    // k m overflows here, and its root does not.
+    mtwnSpring large;
+    mtwnSpring unit;
+    CHECK(mtwnMakeSpring(1e200, 2e200, 1e200, &large) == mtwn_success &&
+              mtwnMakeSpringFromFrequency(1.0 / s_twoPi, 1.0, &unit) == mtwn_success &&
+              Distance(&large, &unit, 1.5) <= 1e-15,
+          "a stiffness and a mass whose product overflows");
     mtwnSpring overdamped;
     mtwnSpring expected;
     CHECK(mtwnMakeSpringFromDuration(1.0, -0.5, &overdamped) == mtwn_success &&
@@ -194,6 +201,13 @@ static void TestEndsOfTime(void)
     CHECK(rest.offsetFromOffset == 0.0 && rest.offsetFromVelocity == 0.0 &&
               rest.velocityFromOffset == 0.0 && rest.velocityFromVelocity == 0.0,
           "at rest at infinity");
+    // Both bounds fall from the start here, the speed's from just under
+    // its tolerance: settled at once, not at a time before the start.
+    mtwnSpring firm;
+    double falling = -0.9 * s_twoPi * 1e-4 * 0.999;
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 0.9, &firm) == mtwn_success &&
+              mtwnSpringSettlingTime(&firm, 1e-4, falling, 1e-3, 1.01 * fabs(falling)) == 0.0,
+          "a start falling inside both is settled at once");
     mtwnSpring undamped;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0.0, &undamped) == mtwn_success, "undamped");
     CHECK(isnan(mtwnSpringMotionAt(&undamped, HUGE_VAL).offsetFromOffset),
@@ -222,6 +236,10 @@ static void TestRefusals(void)
     CHECK(mtwnMakeSpringFromFrequency(1.0, (double)NAN, &spring) == mtwn_errorInvalid, "NaN ratio");
     CHECK(mtwnMakeSpringFromFrequency(1e200, 1.0, &spring) == mtwn_errorInvalid,
           "a squared frequency that overflows");
+    CHECK(mtwnMakeSpringFromFrequency(1e-170, 1.0, &spring) == mtwn_errorInvalid,
+          "a squared frequency that underflows");
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 1e308, &spring) == mtwn_errorInvalid,
+          "a decay rate that overflows");
     CHECK(mtwnMakeSpringFromDuration(0.0, 0.0, &spring) == mtwn_errorInvalid, "no duration");
     CHECK(mtwnMakeSpringFromDuration(1.0, -1.0, &spring) == mtwn_errorInvalid, "bounce -1");
     CHECK(mtwnMakeSpringFromDuration(1.0, 1.01, &spring) == mtwn_errorInvalid, "bounce above 1");
@@ -243,9 +261,19 @@ typedef struct SettleCase
 } SettleCase;
 
 static const SettleCase s_settles[] = {
-    {1.0, 0.5, 1.0, 0.0},   {2.0, 0.1, -100.0, 30.0},  {1.5, 1.0, 1.0, 0.0},
-    {1.5, 1.0, 1.0, -40.0}, {1.0, 0.999999, 1.0, 0.0}, {1.0, 3.0, 1.0, 0.0},
-    {0.5, 50.0, 1.0, 5.0},  {4.0, 0.7, 0.0, 300.0},    {1.0, 1.5, 1e-6, 0.0},
+    {1.0, 0.5, 1.0, 0.0},
+    {2.0, 0.1, -100.0, 30.0},
+    {1.5, 1.0, 1.0, 0.0},
+    {1.5, 1.0, 1.0, -40.0},
+    {1.0, 0.999999, 1.0, 0.0},
+    {1.0, 3.0, 1.0, 0.0},
+    {0.5, 50.0, 1.0, 5.0},
+    {4.0, 0.7, 0.0, 300.0},
+    {1.0, 1.5, 1e-6, 0.0},
+    // Inside both and falling from the start: the offset bound peaks
+    // before 0, and above a ratio of sqrt(1/2) the velocity bound too.
+    {1.0, 0.5, 1e-4, -0.5 * 6.283185307179586 * 1e-4 * 0.999},
+    {1.0, 0.9, 1e-4, -0.9 * 6.283185307179586 * 1e-4 * 0.999},
 };
 
 static void TestSettling(void)
@@ -286,7 +314,179 @@ static void TestSettling(void)
           "a start within both is settled");
     CHECK(mtwnSpringSettlingTime(&spring, 0.0, 0.0, 1e-3, 1e-2) == 0.0, "at rest");
     CHECK(isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 0.0, 1e-2)), "a zero tolerance");
+    mtwnSpring undamped;
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 0.0, &undamped) == mtwn_success, "undamped");
+    CHECK(isinf(mtwnSpringSettlingTime(&undamped, 0.0, 0.009, 1e-3, 1e-2)),
+          "an undamped start inside both that swings out of them never settles");
+    CHECK(mtwnSpringSettlingTime(&undamped, 0.0, 0.001, 1e-3, 1e-2) == 0.0,
+          "one whose swing stays inside both is settled at once");
     CHECK(isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 1e-3, (double)NAN)), "a NaN one");
+}
+
+// The settling bounds of record mtwn-0023, written again: |x| <= e^(-r t)
+// (a + b min(t, cap)) for the offset, with a = |x0|, b = |v0 + alpha x0|,
+// and for the velocity with a = |v0|, b = |alpha v0 + w0^2 x0|; rate
+// alpha and cap 1 / w below critical damping, rate w0^2 / (alpha + w) and
+// cap 1 / (2 w) from it.
+typedef struct WideBound
+{
+    Wide a;
+    Wide b;
+    Wide rate;
+    Wide cap;
+} WideBound;
+
+static Wide BoundAt(const WideBound* bound, Wide t)
+{
+    Wide g = t < bound->cap ? t : bound->cap;
+    return expl(-(long double)(bound->rate * t)) * (long double)(bound->a + bound->b * g);
+}
+
+// Where a bound is largest, by ternary search: it is log-concave, so
+// unimodal.
+static Wide PeakTime(const WideBound* bound)
+{
+    Wide low = 0;
+    Wide high = 64 / bound->rate;
+    for (int i = 0; i < 300; ++i)
+    {
+        Wide a = low + (high - low) / 3;
+        Wide b = high - (high - low) / 3;
+        if (BoundAt(bound, a) < BoundAt(bound, b))
+        {
+            low = a;
+        }
+        else
+        {
+            high = b;
+        }
+    }
+    return (low + high) / 2;
+}
+
+static Wide BoundPeak(const WideBound* bound)
+{
+    return BoundAt(bound, PeakTime(bound));
+}
+
+// The last time the bound exceeds the tolerance: none if its peak does
+// not, else by bisection where it falls, past the peak.
+static double LastAbove(const WideBound* bound, Wide tolerance)
+{
+    Wide low = PeakTime(bound);
+    if (!(BoundAt(bound, low) > tolerance))
+    {
+        return 0.0;
+    }
+    Wide high = low + 1;
+    while (BoundAt(bound, high) > tolerance)
+    {
+        high = low + 2 * (high - low);
+    }
+    for (int i = 0; i < 200; ++i)
+    {
+        Wide middle = (low + high) / 2;
+        if (BoundAt(bound, middle) > tolerance)
+        {
+            low = middle;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return (double)high;
+}
+
+// The bounds of a start on a spring.
+static void MakeBounds(const SettleCase* sc, WideBound* offsetOut, WideBound* velocityOut)
+{
+    Wide w0 = (Wide)s_twoPi * (Wide)sc->hertz;
+    Wide ratio = (Wide)sc->ratio;
+    Wide alpha = ratio * w0;
+    Wide w = w0 * (Wide)sqrt((double)fabsl((long double)((1 - ratio) * (1 + ratio))));
+    Wide x0 = (Wide)sc->offset;
+    Wide v0 = (Wide)sc->velocity;
+    WideBound offset = {0, 0, alpha, (Wide)HUGE_VAL};
+    if (ratio < 1)
+    {
+        offset.cap = 1 / w;
+    }
+    else
+    {
+        offset.rate = w0 * w0 / (alpha + w);
+        offset.cap = w > 0 ? 1 / (2 * w) : (Wide)HUGE_VAL;
+    }
+    WideBound velocity = offset;
+    offset.a = x0 < 0 ? -x0 : x0;
+    offset.b = v0 + alpha * x0;
+    offset.b = offset.b < 0 ? -offset.b : offset.b;
+    velocity.a = v0 < 0 ? -v0 : v0;
+    velocity.b = alpha * v0 + w0 * w0 * x0;
+    velocity.b = velocity.b < 0 ? -velocity.b : velocity.b;
+    *offsetOut = offset;
+    *velocityOut = velocity;
+}
+
+static bool SettlesAsBounded(const SettleCase* sc, Wide offsetTolerance, Wide velocityTolerance)
+{
+    mtwnSpring spring;
+    if (mtwnMakeSpringFromFrequency(sc->hertz, sc->ratio, &spring) != mtwn_success)
+    {
+        return false;
+    }
+    WideBound offset;
+    WideBound velocity;
+    MakeBounds(sc, &offset, &velocity);
+    double expected = LastAbove(&offset, offsetTolerance);
+    double speed = LastAbove(&velocity, velocityTolerance);
+    expected = speed > expected ? speed : expected;
+    double settle = mtwnSpringSettlingTime(&spring, sc->offset, sc->velocity,
+                                           (double)offsetTolerance, (double)velocityTolerance);
+    bool close = fabs(settle - expected) <= 1e-12 * expected + 1e-13;
+    if (!close)
+    {
+        printf("  bound: %.17g, expected %.17g\n", settle, expected);
+    }
+    return close;
+}
+
+static void TestSettlingTimesAreTheBounds(void)
+{
+    int wrong = 0;
+    for (size_t c = 0; c < sizeof s_settles / sizeof s_settles[0]; ++c)
+    {
+        wrong += !SettlesAsBounded(&s_settles[c], (Wide)1e-3, (Wide)1e-2);
+    }
+    CHECK(wrong == 0, "a settling time is where its bounds cross the tolerances last");
+    // Starts inside both tolerances whose offset bound then rises: with
+    // the tolerance just above the bound's peak they are settled at once,
+    // just below it they are not.
+    static const SettleCase rising[] = {
+        {0.2, 1.0, 0.0, 0.005},
+        {0.2, 1.0, 2e-4, 0.004},
+        {0.3, 0.1, 0.0, 0.004},
+        {0.2, 2.0, 1e-4, 0.006},
+    };
+    wrong = 0;
+    for (size_t c = 0; c < sizeof rising / sizeof rising[0]; ++c)
+    {
+        WideBound offset;
+        WideBound velocity;
+        MakeBounds(&rising[c], &offset, &velocity);
+        Wide peak = BoundPeak(&offset);
+        Wide fast = BoundPeak(&velocity) * 2;
+        wrong += !SettlesAsBounded(&rising[c], peak * (Wide)(1.0 + 1e-9), fast);
+        wrong += !SettlesAsBounded(&rising[c], peak * (Wide)(1.0 - 1e-6), fast);
+        mtwnSpring spring;
+        wrong +=
+            mtwnMakeSpringFromFrequency(rising[c].hertz, rising[c].ratio, &spring) != mtwn_success;
+        wrong += mtwnSpringSettlingTime(&spring, rising[c].offset, rising[c].velocity,
+                                        (double)(peak * (Wide)(1.0 + 1e-9)), (double)fast) != 0.0;
+        wrong += !(mtwnSpringSettlingTime(&spring, rising[c].offset, rising[c].velocity,
+                                          (double)(peak * (Wide)(1.0 - 1e-6)), (double)fast) > 0.0);
+    }
+    CHECK(wrong == 0, "a start within both but rising is settled only if its peak is");
 }
 
 int main(void)
@@ -297,5 +497,6 @@ int main(void)
     TestEndsOfTime();
     TestRefusals();
     TestSettling();
+    TestSettlingTimesAreTheBounds();
     return s_failures == 0 ? 0 : 1;
 }

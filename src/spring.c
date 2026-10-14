@@ -5,12 +5,13 @@
 // decay rate a = zeta w0 and damped frequency w = w0 sqrt(|1 - zeta^2|),
 // a start (x0, v0) moves as x = e^(-a t) (x0 C + (v0 + a x0) S) and
 // v = e^(-a t) (v0 C - (a v0 + w0^2 x0) S), where C and S are cos(w t)
-// and sin(w t) / w below critical damping, 1 and t at it, cosh(w t) and
-// sinh(w t) / w above it. Below w t = 1/2, S is t times a series, so the
-// regimes meet without dividing by a vanishing w; above it an
-// overdamped spring is written in its two rates, the slow one as
-// w0^2 / (a + w), so nothing cancels or overflows however heavy the
-// damping.
+// and sin(w t) / w below critical damping, cosh(w t) and sinh(w t) / w
+// from it, where w is 0 at critical damping and S is t. sin(w t) / w
+// keeps its digits however small w is, as the sine does; sinh(w t) / w
+// is t times a series below w t = 1/2, so the regimes meet without
+// cancelling, and above it an overdamped spring is written in its two
+// rates, the slow one as w0^2 / (a + w), so nothing cancels or
+// overflows however heavy the damping.
 
 #include "maul-tween/spring.h"
 
@@ -32,21 +33,21 @@ enum
 enum
 {
     s_underdamped = 0,
-    s_critical = 1,
-    s_overdamped = 2,
+    // Critical damping and above.
+    s_overdamped = 1,
 };
 
-// Where the series take over from the closed forms of S.
+// Where the series of sinh(y) / y takes over.
 static const double s_seriesBelow = 0.5;
 // Newton's steps for a settling time, and when one is small enough.
 static const int s_newtonSteps = 64;
 static const double s_newtonStop = 0x1.0p-50;
 
-// sin(y) / y for |y| < 1/2, and sinh(y) / y with sign 1 instead of -1:
-// the series to y^12, whose next term is under 5e-17.
-static double SincSeries(double y, double sign)
+// sinh(y) / y for 0 <= y < 1/2: the series to y^12, whose next term is
+// under 5e-17.
+static double SinhcSeries(double y)
 {
-    double z = sign * y * y;
+    double z = y * y;
     double sum = 1.0 / 6227020800.0;
     sum = sum * z + 1.0 / 39916800.0;
     sum = sum * z + 1.0 / 362880.0;
@@ -76,7 +77,7 @@ static mtwnResult Finish(double frequency, double ratio, mtwnSpring* springOut)
     spring.parameters[s_decay] = decay;
     spring.parameters[s_damped] = damped;
     spring.parameters[s_squared] = squared;
-    spring.regime = ratio < 1.0 ? s_underdamped : (ratio == 1.0 ? s_critical : s_overdamped);
+    spring.regime = ratio < 1.0 ? s_underdamped : s_overdamped;
     *springOut = spring;
     return mtwn_success;
 }
@@ -155,26 +156,18 @@ mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds)
     }
     double envelope = mtwnExp(-decay * seconds);
     double y = damped * seconds;
-    switch (spring->regime)
-    {
-    case s_critical:
-        return FromTerms(spring, envelope, 1.0, seconds);
-    case s_underdamped:
+    if (spring->regime == s_underdamped)
     {
         double sine = 0.0;
         double cosine = 0.0;
         mtwnSinCos(y, &sine, &cosine);
-        double s = y < s_seriesBelow ? seconds * SincSeries(y, -1.0) : sine / damped;
-        return FromTerms(spring, envelope, cosine, s);
+        return FromTerms(spring, envelope, cosine, sine / damped);
     }
-    default:
-        if (y >= s_seriesBelow)
-        {
-            return Overdamped(spring, seconds);
-        }
-        return FromTerms(spring, envelope, 0.5 * (mtwnExp(y) + mtwnExp(-y)),
-                         seconds * SincSeries(y, 1.0));
+    if (y >= s_seriesBelow)
+    {
+        return Overdamped(spring, seconds);
     }
+    return FromTerms(spring, envelope, 0.5 * (mtwnExp(y) + mtwnExp(-y)), seconds * SinhcSeries(y));
 }
 
 void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity, double seconds,
@@ -203,21 +196,21 @@ typedef struct Bound
     double logTolerance;
 } Bound;
 
+// The bound's logarithm above ln tolerance at a time t at most the cap.
 static double Excess(const Bound* bound, double t)
 {
-    double g = t < bound->cap ? t : bound->cap;
-    return mtwnLog(bound->a + bound->b * g) - bound->rate * t - bound->logTolerance;
+    return mtwnLog(bound->a + bound->b * t) - bound->rate * t - bound->logTolerance;
 }
 
 // The time after which the bound stays at most the tolerance. Its
 // logarithm is concave, so it crosses the tolerance last where it is
-// falling, and Newton's iterates from the right never pass that time.
+// falling; Newton's first step from anywhere past the peak lands at or
+// after that time, as the tangent lies above the curve, and its iterates
+// then approach it from the right.
+// A bound of 0 is within at once; one that never decays, past its cap,
+// never.
 static double BoundTime(const Bound* bound)
 {
-    if (bound->a == 0.0 && bound->b == 0.0)
-    {
-        return 0.0;
-    }
     // The bound's largest value, where its logarithm's slope is 0.
     double peak = 0.0;
     if (bound->b > 0.0 && bound->rate > 0.0)
@@ -233,10 +226,6 @@ static double BoundTime(const Bound* bound)
     {
         return 0.0;
     }
-    if (bound->rate == 0.0)
-    {
-        return HUGE_VAL;
-    }
     if (isfinite(bound->cap))
     {
         // Past the cap the bound is a pure exponential.
@@ -248,10 +237,6 @@ static double BoundTime(const Bound* bound)
         }
     }
     double t = isfinite(bound->cap) ? bound->cap : (peak > 0.0 ? 2.0 * peak : 1.0 / bound->rate);
-    while (Excess(bound, t) > 0.0)
-    {
-        t *= 2.0;
-    }
     for (int i = 0; i < s_newtonSteps; ++i)
     {
         double slope = bound->b / (bound->a + bound->b * t) - bound->rate;
@@ -277,9 +262,10 @@ double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double ve
     Bound bound = {0.0, 0.0, decay, HUGE_VAL, 0.0};
     if (spring->regime == s_underdamped)
     {
+        // |sin(w t) / w| <= min(t, 1 / w).
         bound.cap = 1.0 / damped;
     }
-    else if (spring->regime == s_overdamped)
+    else
     {
         // e^(-a t) cosh(w t) <= e^(-(a - w) t), and e^(-a t) sinh(w t) / w
         // <= e^(-(a - w) t) min(t, 1 / (2 w)).
