@@ -120,6 +120,54 @@ static void TestDelaysAndRates(void)
     CHECK(fabs(first - 0.75) <= 2e-16, "first at 0.75, where the computed path reaches it");
 }
 
+static void TestExactEdges(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    mtwnLeaf end = Instant(1.0);
+    // The active end, from it backwards: its own point is left out.
+    level[0].timing = Timing(1.0, 1.0);
+    CHECK(Total(Count(level, 1, &end, 1.0, 0.5)) == 0.0, "a sweep back from the end leaves it");
+    // Within a delay, backwards: the end it holds was reached before.
+    level[0].timing = Timing(1.0, 2.0);
+    level[0].timing.repeatDelay = 0.5;
+    CHECK(Total(Count(level, 1, &end, 1.25, 0.5)) == 1.0, "from inside a delay back past its end");
+    // A rate of -1 with a delay: iteration 1 runs back over [0, 1], the
+    // delay over (1, 1.5], iteration 0 back over [1.5, 2.5]; iteration 0's
+    // end is reached at 1, as iteration 1's start is left.
+    level[0].timing.playbackRate = -1.0;
+    CHECK(Total(Count(level, 1, &end, 1.5, 0.5)) == 1.0 &&
+              Total(Count(level, 1, &end, 1.0, 1.5)) == 0.0,
+          "backwards, the delay's far edge after the end reached");
+    // Without a delay the end before a start shares its time.
+    level[0].timing.repeatDelay = 0.0;
+    CHECK(Total(Count(level, 1, &end, 0.5, 1.0)) == 1.0, "backwards, an end and a start together");
+    // No iterations: one point, at the iteration start's progress.
+    level[0].timing = Timing(1.0, 0.0);
+    level[0].timing.iterationStart = 0.5;
+    level[0].timing.delay = 1.0;
+    mtwnLeaf half = Instant(0.5);
+    mtwnLeaf quarter = Instant(0.25);
+    CHECK(Total(Count(level, 1, &half, 0.0, 2.0)) == 1.0 &&
+              Total(Count(level, 1, &quarter, 0.0, 2.0)) == 0.0,
+          "no iterations: its one point");
+    level[0].timing.iterationStart = 1.0;
+    mtwnLeaf zero = Instant(0.0);
+    CHECK(Total(Count(level, 1, &half, 0.0, 2.0)) == 0.0 &&
+              Total(Count(level, 1, &zero, 0.0, 2.0)) == 1.0,
+          "and at a whole iteration start, the start's point only");
+    // Iteration starts after a delay: at 1.5 and 3, left out by a sweep
+    // back from one.
+    mtwnLeaf node;
+    memset(&node, 0, sizeof node);
+    node.kind = mtwn_leafIterations;
+    node.timing = Timing(1.0, 3.0);
+    node.timing.repeatDelay = 0.5;
+    CHECK(Total(Count(level, 0, &node, 1.5, 1.2)) == 0.0 &&
+              Total(Count(level, 0, &node, 1.2, 1.5)) == 1.0,
+          "an iteration start after a delay, at the sweep's ends");
+}
+
 static void TestIterations(void)
 {
     mtwnLevel level[1];
@@ -336,6 +384,7 @@ int main(void)
     TestRepeats();
     TestDelaysAndRates();
     TestIterations();
+    TestExactEdges();
     TestOracle();
     return s_failures == 0 ? 0 : 1;
 }

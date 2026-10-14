@@ -172,19 +172,18 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
     return Part(j, q, true);
 }
 
-// What a local time reaches at an iteration's start: the previous end
-// shares the time without a delay, or going backwards (it is reached as
-// the start is left).
+// What a local time reaches at an iteration's start: going forwards the
+// previous end shares the time without a delay; going backwards it is
+// reached as the start is left, whatever lies between.
 static Reach AtStart(const mtwnTiming* timing, const Shape* shape, double j, bool strict)
 {
-    bool shared = !mtwnHasRepeatDelay(timing) || !shape->forwardRate;
     if (shape->forwardRate)
     {
         if (!strict)
         {
             return Part(j, 0.0, true);
         }
-        return shared ? Part(j - 1.0, 1.0, false) : Part(j, 0.0, false);
+        return mtwnHasRepeatDelay(timing) ? Part(j, 0.0, false) : Part(j - 1.0, 1.0, false);
     }
     return strict ? Part(j, 0.0, false) : Part(j - 1.0, 1.0, true);
 }
@@ -292,7 +291,8 @@ static double IterationsReached(const mtwnTiming* timing, double local, bool str
     {
         return k > shape.first ? k - shape.first - (start && !reach.inclusive ? 1.0 : 0.0) : 0.0;
     }
-    return shape.last - k + (start && reach.inclusive ? 1.0 : 0.0);
+    // Backwards a start reached is always followed by the end before it.
+    return shape.last - k;
 }
 
 static mtwnCrossings LeafBelow(const mtwnLeaf* leaf, double y, bool strict)
