@@ -26,11 +26,11 @@
 #include <string.h>
 
 // The scenario's hash, the same everywhere.
-static const uint64_t s_expected = 0xaa6c075218f269ebu;
+static const uint64_t s_expected = 0xd6055c98c6f0cbadu;
 
 enum
 {
-    TARGETS = 24,
+    TARGETS = 36,
     FRAMES = 600
 };
 
@@ -276,6 +276,17 @@ static World MakeWorld(void)
     return w;
 }
 
+// A seed for a target at a frame, its bits well mixed, so the choices
+// made from it by different moduli are apart.
+static uint32_t Seed(uint32_t i, uint32_t frame)
+{
+    uint32_t x = (i * 0x9E3779B1u) ^ (frame * 0x85EBCA77u);
+    x ^= x >> 15;
+    x *= 0x2C1B3C6Du;
+    x ^= x >> 12;
+    return x;
+}
+
 // The host's controls at a frame.
 static void Control(World* w, uint32_t frame)
 {
@@ -308,15 +319,17 @@ static void Control(World* w, uint32_t frame)
         break;
     }
     CHECK(r == mtwn_success, "a control");
-    // New transitions on the targets no clip player binds, now and then.
-    if (frame % 17 == 0)
+    // New transitions on the targets no clip player binds, now and then,
+    // often enough to replace running ones.
+    if (frame % 9 == 0)
     {
         for (uint32_t i = 0; i < TARGETS; ++i)
         {
-            if ((i + frame) % 3 == 0 && i != 0 && i != 1 && i != 4 && i != 6 && i != 9 && i != 10 &&
-                i != 13 && i != 15 && i != 18 && i != 22)
+            uint32_t seed = Seed(i, frame);
+            if ((seed >> 20) % 2 == 0 && i != 0 && i != 1 && i != 4 && i != 6 && i != 9 &&
+                i != 10 && i != 13 && i != 15 && i != 18 && i != 22)
             {
-                Start(w, i, i * 31 + frame);
+                Start(w, i, seed);
             }
         }
     }
