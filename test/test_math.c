@@ -83,13 +83,43 @@ static long double ReferenceLog(double x)
 #endif
 }
 
-static long double ReferenceCbrt(double x)
+// a times b = product + *errorOut exactly (Veltkamp's split, Dekker's
+// product), for operands well inside the range.
+static double ExactProduct(double a, double b, double* errorOut)
 {
-#if WIDE_REFERENCE
-    return cbrtl((long double)x);
-#else
-    return (long double)cbrt(x);
-#endif
+    double product = a * b;
+    double aSplit = a * 134217729.0;
+    double aHigh = aSplit - (aSplit - a);
+    double aLow = a - aHigh;
+    double bSplit = b * 134217729.0;
+    double bHigh = bSplit - (bSplit - b);
+    double bLow = b - bHigh;
+    *errorOut = ((aHigh * bHigh - product) + aHigh * bLow + aLow * bHigh) + aLow * bLow;
+    return product;
+}
+
+// The error of a cube root y of x in ulps of y, with no reference
+// function: (x - y^3) / (3 y^2) is the distance to the true root to
+// first order, and x - y^3 is computed exactly after scaling x by 2^(3k)
+// and y by 2^k into [1, 2). The C library's cbrt is not accurate enough
+// to judge half an ulp on every platform (Windows' is not).
+static double CbrtUlpError(double x, double y)
+{
+    int exponent = 0;
+    (void)frexp(y, &exponent);
+    double ys = fabs(ldexp(y, 1 - exponent));
+    double xs = fabs(ldexp(x, 3 * (1 - exponent)));
+    double squareLow = 0.0;
+    double square = ExactProduct(ys, ys, &squareLow);
+    double cubeLow = 0.0;
+    double cube = ExactProduct(square, ys, &cubeLow);
+    double cubeLowMore = 0.0;
+    double cubeTail = ExactProduct(squareLow, ys, &cubeLowMore);
+    long double residual = ((long double)xs - (long double)cube) - (long double)cubeLow -
+                           (long double)cubeTail - (long double)cubeLowMore;
+    double distance = (double)(residual / (3.0L * (long double)square));
+    double ulp = nextafter(ys, HUGE_VAL) - ys;
+    return fabs(distance) / ulp;
 }
 
 static long double ReferencePow(double x, double y)
@@ -434,8 +464,7 @@ static void TestCbrtSpecialValues(void)
         wrong += mtwnCbrt(cube) != (double)k;
     }
     CHECK(wrong == 0, "the cube root of an integer's cube is the integer");
-    CHECK(UlpError(mtwnCbrt(0x1.0p-1074), ReferenceCbrt(0x1.0p-1074)) <= Bound(0.55),
-          "the smallest subnormal");
+    CHECK(CbrtUlpError(0x1.0p-1074, mtwnCbrt(0x1.0p-1074)) <= 0.55, "the smallest subnormal");
 }
 
 static void TestCbrtWithinHalfAnUlp(void)
@@ -445,10 +474,10 @@ static void TestCbrtWithinHalfAnUlp(void)
     for (int i = 0; i < 200000; ++i)
     {
         double x = ldexp(Uniform(&state, -2.0, 2.0), (int)(Next(&state) % 2098) - 1074);
-        double error = UlpError(mtwnCbrt(x), ReferenceCbrt(x));
+        double error = CbrtUlpError(x, mtwnCbrt(x));
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= Bound(0.55), "cube root within 0.55 ulp");
+    CHECK(worst <= 0.55, "cube root within 0.55 ulp");
 }
 
 static void TestCbrtOnMaulUiInputs(void)
@@ -457,12 +486,12 @@ static void TestCbrtOnMaulUiInputs(void)
     for (int i = -400; i <= 400; ++i)
     {
         double x = pow(1.37, (double)i) * (1.0 + 1e-3 * (double)(i % 7));
-        double error = UlpError(mtwnCbrt(x), ReferenceCbrt(x));
-        double negative = UlpError(mtwnCbrt(-x), ReferenceCbrt(-x));
+        double error = CbrtUlpError(x, mtwnCbrt(x));
+        double negative = CbrtUlpError(-x, mtwnCbrt(-x));
         worst = error > worst ? error : worst;
         worst = negative > worst ? negative : worst;
     }
-    CHECK(worst <= Bound(0.55), "cube root within 0.55 ulp on Maul UI's inputs");
+    CHECK(worst <= 0.55, "cube root within 0.55 ulp on Maul UI's inputs");
 }
 
 static void TestPowSpecialValues(void)
