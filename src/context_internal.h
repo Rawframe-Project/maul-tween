@@ -250,7 +250,9 @@ struct mtwnContext
     // The first of the clips' players, 0 for none.
     uint32_t firstClipPlayer;
     // The clips' players' part of an update, set by the first clip's
-    // player made, NULL before (record mtwn-0047).
+    // player made, NULL before (record mtwn-0047). Never cleared: once a
+    // clip's player was made its part runs, over an empty chain when the
+    // last is gone.
     const struct mtwnClipUpdate* clipUpdate;
     // The players' bindings.
     mtwnRuns bindings;

@@ -422,6 +422,43 @@ static void TestClipChain(void)
     mtwnDestroyContext(f.context);
 }
 
+// After the last clip's player goes, the clips' part of an update stays
+// installed (record mtwn-0047): transitions alone update as before, and a
+// target a player wrote shows its base.
+static void TestAfterLastPlayer(void)
+{
+    Fixture f = Make(false, 8);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    Update(&f, 0.0);
+    Update(&f, 1.0);
+    mtwnPlayerState state;
+    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success, "played");
+    CHECK(mtwnDestroyPlayer(f.context, p) == mtwn_success, "the last player gone");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target for transitions");
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = x;
+    def.value = (mtwnVec4){1.0f, 0, 0, 0};
+    def.duration = 1.0;
+    def.easing = mtwnLinearEasing();
+    mtwnPlayerId transition;
+    CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
+    Update(&f, 1.5);
+    Update(&f, 2.0);
+    mtwnTargetState moved;
+    mtwnTargetState written;
+    CHECK(mtwnTarget_GetState(f.context, x, &moved) == mtwn_success && moved.value.x == 0.5f &&
+              mtwnTarget_GetState(f.context, f.target, &written) == mtwn_success &&
+              written.value.x == written.base.x,
+          "the transition half way; the player's target at its base");
+    Update(&f, 3.0);
+    CHECK(mtwnTarget_GetState(f.context, x, &moved) == mtwn_success && moved.value.x == 1.0f &&
+              !mtwnPlayer_IsValid(f.context, transition),
+          "ended and gone");
+    mtwnDestroyContext(f.context);
+}
+
 // The procedures' edges at a rate of 0 and at the ends (Level 1), found
 // by mutants.
 static void TestEdges(void)
@@ -549,6 +586,7 @@ int main(void)
     TestRateLimit();
     TestPendingRates();
     TestEdges();
+    TestAfterLastPlayer();
     TestPlayPause();
     TestSeeks();
     TestFinishReverse();

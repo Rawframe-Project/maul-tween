@@ -62,20 +62,23 @@ says what each shows. `docs/api.md` describes every public function.
 ## Size
 
 The code a program links, by the parts it uses: x86-64, GCC 14 `-O2`,
-the program linked with `--gc-sections`, `.text` of a program calling
-every function of the part, an empty program's subtracted. A program
-that never makes a clip's player links none of the players, clips'
-sampling, composition, paths or crossings (record mtwn-0047).
+the program linked with `--gc-sections`, `.text` of a program taking
+every function of the part's headers, an empty program's subtracted.
+`python3 tools/code_size.py <the built libmaul-tween.a>` measures it,
+and with `--map` shows what links a part in. A program that never makes
+a clip's player links none of the players, clips' sampling,
+composition, paths or crossings (record mtwn-0047).
 
 | The program uses | Default build | Built with `-ffunction-sections` |
 |---|---|---|
-| curves: easings and springs | 20.5 kB | 19.9 kB |
-| the values layer: curves, decay, colors, angles, rotations, paths, tracks, punch, shake, timing | 47.0 kB | 46.7 kB |
-| transitions: a context, targets and transitions, with the curves and values they use | 47.1 kB | 39.3 kB |
-| everything: clips, players, events | 110.2 kB | 110.2 kB |
+| curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing | 43.3 kB | 34.6 kB |
+| transitions: a context, targets and transitions | 46.8 kB | 39.0 kB |
+| clips: clips, players, events | 102.8 kB | 81.3 kB |
+| everything | 109.0 kB | 109.0 kB |
 
-About 12 kB of each is the library's own elementary functions, the
-same under every C library.
+Each part counts what it calls in the others; about 12 kB of each is
+the library's own elementary functions, the same under every C library.
 
 ## Design
 
