@@ -3,7 +3,8 @@
 //
 // The easings (records mtwn-0011 and mtwn-0021). Each kind has one
 // native curve: Penner's in curve for most, the out curve for elastic
-// and bounce, which GSAP and Penner define by it. A curve not exact at
+// and bounce, which GSAP and Penner define by it, and CSS's curves from
+// src/css_easing.c. A curve not exact at
 // both ends is normalized by its values there, computed when it is made
 // by the same code that samples it, so (g(p) - g(0)) / (g(1) - g(0)) is
 // exactly 0 and 1 at the ends. The modes are reflections of the native
@@ -11,6 +12,7 @@
 
 #include "maul-tween/easing.h"
 
+#include "css_easing.h"
 #include "elementary.h"
 
 #include "generated/math_constants.h"
@@ -109,21 +111,36 @@ static bool IsNativeOut(mtwnEasingKind kind)
     return kind == mtwn_easingElastic || kind == mtwn_easingBounce;
 }
 
-// The native curve, normalized to land exactly on 0 and 1.
-static double NativeCurve(const mtwnEasing* easing, double x)
+static bool IsCss(mtwnEasingKind kind)
 {
-    if (easing->kind == mtwn_easingHost)
+    return kind >= mtwn_easingCubicBezier;
+}
+
+// The native curve, Penner's normalized to land exactly on 0 and 1.
+// before reaches the curve only where x is progress unreflected.
+static double NativeCurve(const mtwnEasing* easing, double x, bool before)
+{
+    switch (easing->kind)
     {
+    case mtwn_easingHost:
         return easing->function(easing->context, x);
+    case mtwn_easingCubicBezier:
+        return mtwnSampleCubicBezier(easing->parameters, x);
+    case mtwn_easingSteps:
+        return mtwnSampleSteps(easing->count, easing->position, x, before);
+    case mtwn_easingLinearPoints:
+        return mtwnSampleLinearPoints(easing->points, easing->count, x);
+    default:
+        return (RawCurve(easing, x) - easing->parameters[s_start]) / easing->parameters[s_range];
     }
-    return (RawCurve(easing, x) - easing->parameters[s_start]) / easing->parameters[s_range];
 }
 
 // The in curve f(x) and the out curve 1 - f(1 - x), one of which is
 // native; circ has both.
-static double InCurve(const mtwnEasing* easing, double x)
+static double InCurve(const mtwnEasing* easing, double x, bool before)
 {
-    return IsNativeOut(easing->kind) ? 1.0 - NativeCurve(easing, 1.0 - x) : NativeCurve(easing, x);
+    return IsNativeOut(easing->kind) ? 1.0 - NativeCurve(easing, 1.0 - x, false)
+                                     : NativeCurve(easing, x, before);
 }
 
 static double OutCurve(const mtwnEasing* easing, double x)
@@ -134,7 +151,8 @@ static double OutCurve(const mtwnEasing* easing, double x)
         // of a small x where the curve is steepest; exact at both ends.
         return sqrt(x * (2.0 - x));
     }
-    return IsNativeOut(easing->kind) ? NativeCurve(easing, x) : 1.0 - NativeCurve(easing, 1.0 - x);
+    return IsNativeOut(easing->kind) ? NativeCurve(easing, x, false)
+                                     : 1.0 - NativeCurve(easing, 1.0 - x, false);
 }
 
 // Fills the normalization from the native curve's raw ends.
@@ -247,6 +265,76 @@ mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void
     return mtwn_success;
 }
 
+mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnEasing* easingOut)
+{
+    bool inside = x1 >= 0.0 && x1 <= 1.0 && x2 >= 0.0 && x2 <= 1.0;
+    if (easingOut == NULL || !inside || !isfinite(y1) || !isfinite(y2))
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnEasing easing = Blank(mtwn_easingCubicBezier, mtwn_easeIn);
+    easing.parameters[0] = x1;
+    easing.parameters[1] = y1;
+    easing.parameters[2] = x2;
+    easing.parameters[3] = y2;
+    *easingOut = easing;
+    return mtwn_success;
+}
+
+mtwnResult mtwnMakeSteps(uint32_t count, mtwnStepPosition position, mtwnEasing* easingOut)
+{
+    uint32_t fewest = position == mtwn_jumpNone ? 2u : 1u;
+    if (easingOut == NULL || position > mtwn_jumpBoth || count < fewest)
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnEasing easing = Blank(mtwn_easingSteps, mtwn_easeIn);
+    easing.count = count;
+    easing.position = position;
+    *easingOut = easing;
+    return mtwn_success;
+}
+
+mtwnResult mtwnMakeCssEasing(mtwnCssKeyword keyword, mtwnEasing* easingOut)
+{
+    // The keywords' curves, CSS Easing Level 2 section 2.
+    static const double s_beziers[4][4] = {
+        {0.25, 0.1, 0.25, 1.0},
+        {0.42, 0.0, 1.0, 1.0},
+        {0.0, 0.0, 0.58, 1.0},
+        {0.42, 0.0, 0.58, 1.0},
+    };
+    if (easingOut == NULL || keyword > mtwn_cssStepEnd)
+    {
+        return mtwn_errorInvalid;
+    }
+    if (keyword == mtwn_cssLinear)
+    {
+        *easingOut = mtwnLinearEasing();
+        return mtwn_success;
+    }
+    if (keyword == mtwn_cssStepStart || keyword == mtwn_cssStepEnd)
+    {
+        return mtwnMakeSteps(1, keyword == mtwn_cssStepStart ? mtwn_jumpStart : mtwn_jumpEnd,
+                             easingOut);
+    }
+    const double* c = s_beziers[keyword - mtwn_cssEase];
+    return mtwnMakeCubicBezier(c[0], c[1], c[2], c[3], easingOut);
+}
+
+mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count, mtwnEasing* easingOut)
+{
+    if (easingOut == NULL || !mtwnCanonicalizeLinearPoints(points, count))
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnEasing easing = Blank(mtwn_easingLinearPoints, mtwn_easeIn);
+    easing.points = points;
+    easing.count = count;
+    *easingOut = easing;
+    return mtwn_success;
+}
+
 mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
 {
     if (easing == NULL || !IsMode(mode))
@@ -266,6 +354,24 @@ bool mtwnIsEasingMonotonic(const mtwnEasing* easing)
     case mtwn_easingSine:
     case mtwn_easingExpo:
     case mtwn_easingCirc:
+    case mtwn_easingSteps:
+        return true;
+    case mtwn_easingCubicBezier:
+    {
+        // With both y in [0, 1] the y polynomial never decreases in t, as x
+        // does, nor do the end tangents.
+        double y1 = easing->parameters[1];
+        double y2 = easing->parameters[3];
+        return y1 >= 0.0 && y1 <= 1.0 && y2 >= 0.0 && y2 <= 1.0;
+    }
+    case mtwn_easingLinearPoints:
+        for (uint32_t i = 1; i < easing->count; ++i)
+        {
+            if (easing->points[i].output < easing->points[i - 1].output)
+            {
+                return false;
+            }
+        }
         return true;
     default:
         return false;
@@ -274,23 +380,26 @@ bool mtwnIsEasingMonotonic(const mtwnEasing* easing)
 
 double mtwnEase(const mtwnEasing* easing, double progress, bool before)
 {
-    (void)before;
     if (easing->kind == mtwn_easingLinear)
     {
         return progress;
     }
-    double p = progress < 0.0 ? 0.0 : (progress > 1.0 ? 1.0 : progress);
+    double p = progress;
+    if (!IsCss(easing->kind))
+    {
+        p = p < 0.0 ? 0.0 : (p > 1.0 ? 1.0 : p);
+    }
     switch (easing->mode)
     {
     case mtwn_easeIn:
-        return InCurve(easing, p);
+        return InCurve(easing, p, before);
     case mtwn_easeOut:
         return OutCurve(easing, p);
     case mtwn_easeInOut:
-        return p < 0.5 ? 0.5 * InCurve(easing, 2.0 * p)
+        return p < 0.5 ? 0.5 * InCurve(easing, 2.0 * p, before)
                        : 0.5 + 0.5 * OutCurve(easing, 2.0 * p - 1.0);
     default:
         return p < 0.5 ? 0.5 * OutCurve(easing, 2.0 * p)
-                       : 0.5 + 0.5 * InCurve(easing, 2.0 * p - 1.0);
+                       : 0.5 + 0.5 * InCurve(easing, 2.0 * p - 1.0, before);
     }
 }

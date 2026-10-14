@@ -3,4 +3,5 @@
 base:
 elementary:
 elementary_float:
-easing: elementary
+css_easing:
+easing: css_easing elementary

@@ -28,8 +28,8 @@ platform.
 ## Status
 
 Not released. The design is decided; the curves come first, and
-Penner's easings with their modes are in. The library has
-11 public functions.
+the easings are in: Penner's families and CSS Easing Level 2, in four
+modes. The library has 15 public functions.
 
 ## Building
 
