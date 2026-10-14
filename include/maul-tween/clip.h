@@ -65,9 +65,10 @@ extern "C"
         mtwn_positionAtLabel = 4,
     };
 
-    // A position, resolved to a start time when the child is added. The
-    // previous child is the last track or timeline added to the parent;
-    // labels and marks are not.
+    // A position, resolved to a start time when the child is added; one
+    // that resolves to no finite start is refused, as after the end of an
+    // endless timeline. The previous child is the last track or timeline
+    // added to the parent; labels and marks are not.
     typedef struct mtwnPosition
     {
         // Seconds, finite; may be negative.
@@ -182,7 +183,8 @@ extern "C"
         // The timeline it is added to.
         mtwnNode parent;
         // Whether its iteration duration is its latest child's end, kept as
-        // children arrive; otherwise the timing's duration, which clips.
+        // children arrive (infinite after an endless child, which makes the
+        // timeline endless); otherwise the timing's duration, which clips.
         bool autoDuration;
         uint8_t reserved[3];
         mtwnPosition position;

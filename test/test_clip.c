@@ -520,6 +520,76 @@ static void TestNesting(void)
     mtwnDestroyContext(context);
 }
 
+static void TestEndless(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    track.timing.iterations = HUGE_VAL;
+    // A set duration clips an endless child.
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 2.0;
+    mtwnNode fixed;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &fixed) == mtwn_success, "a fixed 2 s");
+    track.parent = fixed;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "an endless child");
+    track.parent = MTWN_ROOT_NODE;
+    track.timing.iterations = 1.0;
+    track.position = At(mtwn_positionAfterEnd, 0.0);
+    mtwnNode after;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &after) == mtwn_success,
+          "after the clipped timeline, at 2");
+    // One sized by its children becomes endless with it.
+    group = mtwnDefaultClipTimelineDef();
+    group.position = At(mtwn_positionAfterEnd, 0.0);
+    mtwnNode open;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &open) == mtwn_success, "at 3");
+    track.parent = open;
+    track.position = At(mtwn_positionAbsolute, 0.0);
+    track.timing.iterations = HUGE_VAL;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "an endless child");
+    track.timing.iterations = 1.0;
+    track.position = At(mtwn_positionAfterEnd, 0.0);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "nothing after its end");
+    track.position = At(mtwn_positionAfterPrevious, 0.0);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "nor after the endless child");
+    track.parent = MTWN_ROOT_NODE;
+    track.position = At(mtwn_positionAfterEnd, 0.0);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "nor after the endless clip");
+    CHECK(mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAfterPrevious, 0.0), 1,
+                           &node) == mtwn_errorInvalid,
+          "a mark neither");
+    track.position = At(mtwn_positionWithPrevious, 0.5);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "with the endless timeline's start");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnClipNodeInfo info;
+    double duration = 0.0;
+    CHECK(mtwnClip_GetNode(context, clip, fixed, &info) == mtwn_success && info.end == 2.0 &&
+              mtwnClip_GetNode(context, clip, after, &info) == mtwn_success && info.start == 2.0,
+          "the set duration holds");
+    CHECK(mtwnClip_GetNode(context, clip, open, &info) == mtwn_success && info.start == 3.0 &&
+              isinf(info.end) && isinf(info.timing.duration),
+          "the sized one endless");
+    CHECK(mtwnClip_GetNode(context, clip, node, &info) == mtwn_success && info.start == 3.5,
+          "with its start plus 0.5");
+    CHECK(mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && isinf(duration),
+          "an endless clip");
+    mtwnDestroyContext(context);
+}
+
 static void TestTimelineRefusals(void)
 {
     Counter counter = {0};
@@ -635,6 +705,7 @@ int main(void)
     TestRefusals();
     TestTimelines();
     TestNesting();
+    TestEndless();
     TestTimelineRefusals();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;

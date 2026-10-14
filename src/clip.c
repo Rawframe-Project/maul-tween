@@ -186,13 +186,6 @@ static uint32_t FindLabelIn(const mtwnClipSlot* clip, uint32_t parent, uint32_t 
     return 0;
 }
 
-static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
-{
-    return position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
-           (position.kind != mtwn_positionAtLabel ||
-            FindLabelIn(clip, parent, position.label) != 0);
-}
-
 // The start a position gives in a timeline.
 static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
 {
@@ -212,6 +205,16 @@ static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition po
     default:
         return position.offset;
     }
+}
+
+// Whether a position names a finite start: after an endless child (whose
+// timeline is endless too) there is none.
+static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
+{
+    return position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
+           (position.kind != mtwn_positionAtLabel ||
+            FindLabelIn(clip, parent, position.label) != 0) &&
+           isfinite(StartOf(clip, parent, position));
 }
 
 // A timeline's timing with its duration resolved.

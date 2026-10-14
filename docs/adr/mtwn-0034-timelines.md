@@ -27,6 +27,13 @@ built, labels for positions and seeking, and marks that give events.
   own end in its parent, up to the root; siblings already placed keep
   their starts. A child that would make a timeline played backwards
   infinitely long is refused, as it would leave no end to start from.
+- An endless child (infinite iterations or duration) makes a timeline
+  sized by its children endless, and so on up while the ancestors are
+  sized by theirs, as a Web Animations Level 2 group's intrinsic
+  duration and a GSAP timeline holding a `repeat: -1` tween are. A
+  timeline of set duration clips it. A position that resolves to no
+  finite start, after the end of an endless timeline or after an
+  endless previous child, is refused.
 - `mtwnClip_GetNode` reads any node (kind, parent, start, end, the
   timing with a timeline's duration resolved, slot, key) and
   `mtwnClip_FindLabel` a label's time.
