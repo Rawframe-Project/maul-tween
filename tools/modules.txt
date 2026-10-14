@@ -4,7 +4,8 @@ base:
 elementary:
 elementary_float:
 css_easing:
-easing: css_easing elementary
+easing: css_easing elementary spring_easing
 sample:
-spring: elementary
+spring_easing:
+spring: elementary spring_easing
 decay: elementary

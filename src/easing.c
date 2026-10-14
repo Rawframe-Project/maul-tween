@@ -14,6 +14,7 @@
 
 #include "css_easing.h"
 #include "elementary.h"
+#include "spring_easing.h"
 
 #include "generated/math_constants.h"
 
@@ -113,7 +114,8 @@ static bool IsNativeOut(mtwnEasingKind kind)
 
 static bool IsCss(mtwnEasingKind kind)
 {
-    return kind >= mtwn_easingCubicBezier;
+    return kind == mtwn_easingCubicBezier || kind == mtwn_easingSteps ||
+           kind == mtwn_easingLinearPoints;
 }
 
 // The native curve, Penner's normalized to land exactly on 0 and 1.
@@ -130,6 +132,8 @@ static double NativeCurve(const mtwnEasing* easing, double x, bool before)
         return mtwnSampleSteps(easing->count, easing->position, x, before);
     case mtwn_easingLinearPoints:
         return mtwnSampleLinearPoints(easing->points, easing->count, x);
+    case mtwn_easingSpring:
+        return mtwnSampleSpringEasing(easing, x);
     default:
         return (RawCurve(easing, x) - easing->parameters[s_start]) / easing->parameters[s_range];
     }

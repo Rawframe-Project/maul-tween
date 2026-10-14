@@ -10,6 +10,8 @@
 
 #include "test_harness.h"
 
+#include "maul-tween/easing.h"
+#include "maul-tween/sample.h"
 #include "maul-tween/spring.h"
 
 #include <float.h>
@@ -489,6 +491,108 @@ static void TestSettlingTimesAreTheBounds(void)
     CHECK(wrong == 0, "a start within both but rising is settled only if its peak is");
 }
 
+typedef struct EasingCase
+{
+    double hertz;
+    double ratio;
+    double duration;
+    double velocity;
+} EasingCase;
+
+static const EasingCase s_easings[] = {
+    {1.0, 0.5, 1.0, 0.0},  {2.0, 0.1, 1.5, 0.0}, {1.5, 1.0, 0.8, 2.0},
+    {1.0, 3.0, 2.0, -1.0}, {3.0, 0.0, 0.4, 0.0}, {1.0, 1.0 - 1e-9, 1.0, 0.0},
+};
+
+static void TestSpringEasings(void)
+{
+    static const mtwnEaseMode modes[] = {mtwn_easeIn, mtwn_easeOut, mtwn_easeInOut, mtwn_easeOutIn};
+    int wrong = 0;
+    double worst = 0.0;
+    for (size_t c = 0; c < sizeof s_easings / sizeof s_easings[0]; ++c)
+    {
+        const EasingCase* ec = &s_easings[c];
+        mtwnSpring spring;
+        mtwnEasing easing;
+        wrong += mtwnMakeSpringFromFrequency(ec->hertz, ec->ratio, &spring) != mtwn_success;
+        wrong += mtwnMakeSpringEasing(&spring, ec->duration, ec->velocity, mtwn_easeIn, &easing) !=
+                 mtwn_success;
+        // The spring from -1 sampled through its own functions, divided by
+        // its value at the duration.
+        double end = 0.0;
+        mtwnSampleSpring(&spring, -1.0, ec->velocity, ec->duration, &end, NULL);
+        for (int k = 0; k <= 1000; ++k)
+        {
+            double p = (double)k / 1000.0;
+            double offset = 0.0;
+            mtwnSampleSpring(&spring, -1.0, ec->velocity, p * ec->duration, &offset, NULL);
+            double error = fabs(mtwnEase(&easing, p, false) - (1.0 + offset) / (1.0 + end));
+            worst = error > worst ? error : worst;
+        }
+        for (int m = 0; m < 4; ++m)
+        {
+            wrong += mtwnSetEaseMode(&easing, modes[m]) != mtwn_success;
+            wrong += mtwnEase(&easing, 0.0, false) != 0.0 || mtwnEase(&easing, 1.0, false) != 1.0;
+            wrong += m >= 2 && mtwnEase(&easing, 0.5, false) != 0.5;
+            wrong += mtwnEase(&easing, -0.5, true) != 0.0 || mtwnEase(&easing, 2.0, false) != 1.0;
+        }
+        wrong += mtwnIsEasingMonotonic(&easing);
+    }
+    CHECK(wrong == 0, "a spring easing lands exactly on 0 and 1 in every mode, clamped outside");
+    CHECK(worst <= 1e-14, "and is the spring from -1 over its duration, normalized");
+}
+
+static void TestSpringEasingFitsLinear(void)
+{
+    mtwnSpring spring;
+    mtwnEasing easing;
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.3, &spring) == mtwn_success &&
+              mtwnMakeSpringEasing(&spring, 1.2, 0.0, mtwn_easeIn, &easing) == mtwn_success,
+          "SwiftUI's bouncy spring over 1.2 s");
+    static mtwnLinearPoint points[512];
+    uint32_t count = 0;
+    CHECK(mtwnFitLinearEasing(&easing, 1e-3, points, 512, &count) == mtwn_success, "fitted");
+    mtwnEasing fitted;
+    CHECK(mtwnMakeLinearEasing(points, count, &fitted) == mtwn_success, "as linear()");
+    double worst = 0.0;
+    for (int k = 0; k <= 100000; ++k)
+    {
+        double p = (double)k / 100000.0;
+        double error = fabs(mtwnEase(&fitted, p, false) - mtwnEase(&easing, p, false));
+        worst = error > worst ? error : worst;
+    }
+    if (!(worst <= 1e-3))
+    {
+        printf("  spring linear(): %u points, %.3g\n", count, worst);
+    }
+    CHECK(worst <= 1e-3, "a CSS linear() of a spring within its tolerance");
+}
+
+static void TestSpringEasingRefusals(void)
+{
+    mtwnSpring spring;
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 0.5, &spring) == mtwn_success, "made");
+    mtwnEasing easing = mtwnLinearEasing();
+    CHECK(mtwnMakeSpringEasing(&spring, 0.0, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "no duration");
+    CHECK(mtwnMakeSpringEasing(&spring, HUGE_VAL, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "an infinite duration");
+    CHECK(mtwnMakeSpringEasing(&spring, 1.0, (double)NAN, mtwn_easeIn, &easing) ==
+              mtwn_errorInvalid,
+          "a NaN velocity");
+    CHECK(mtwnMakeSpringEasing(&spring, 1.0, 0.0, 4, &easing) == mtwn_errorInvalid,
+          "an unknown mode");
+    CHECK(mtwnMakeSpringEasing(NULL, 1.0, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "no spring");
+    CHECK(mtwnMakeSpringEasing(&spring, 1.0, 0.0, mtwn_easeIn, NULL) == mtwn_errorInvalid,
+          "null out");
+    CHECK(mtwnMakeSpringEasing(&spring, 1e300, 1e300, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "a scaled velocity that overflows");
+    CHECK(mtwnMakeSpringEasing(&spring, 1e200, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
+          "a scaled frequency whose square overflows");
+    CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
+}
+
 int main(void)
 {
     TestAgainstIntegration();
@@ -498,5 +602,8 @@ int main(void)
     TestRefusals();
     TestSettling();
     TestSettlingTimesAreTheBounds();
+    TestSpringEasings();
+    TestSpringEasingFitsLinear();
+    TestSpringEasingRefusals();
     return s_failures == 0 ? 0 : 1;
 }

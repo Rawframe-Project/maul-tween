@@ -13,6 +13,7 @@
 #define MAUL_TWEEN_SPRING_H
 
 #include "maul-tween/base.h"
+#include "maul-tween/easing.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -128,6 +129,29 @@ extern "C"
     /// Safe from any thread.
     MTWN_API double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
                                            double offsetTolerance, double velocityTolerance);
+
+    /// Makes an easing of a spring over a duration: the spring from an
+    /// offset of -1 with a start velocity, sampled at progress times the
+    /// duration and divided by its value at the duration, so it is exactly
+    /// 0 at 0 and 1 at 1; a spring settled by then is changed by the
+    /// distance it had left. For CSS linear() (mtwnFitLinearEasing) and for
+    /// tracks timed by duration.
+    ///
+    /// @param spring     A spring made by this library.
+    /// @param duration   Seconds, finite and above 0.
+    /// @param velocity   The start velocity in units of the whole change a
+    ///                   second, finite: 0 from rest.
+    /// @param mode       The mode.
+    /// @param easingOut  Receives the easing.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
+    ///         unknown mode, a duration or velocity outside the above, or a
+    ///         spring back at its start at the duration.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring,
+                                                            double duration, double velocity,
+                                                            mtwnEaseMode mode,
+                                                            mtwnEasing* easingOut);
 
     // A decay: a velocity falling exponentially at a rate a second, as a
     // fling coasts to rest. Make one with mtwnMakeDecay or

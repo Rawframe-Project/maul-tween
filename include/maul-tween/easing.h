@@ -49,6 +49,8 @@ extern "C"
         mtwn_easingSteps = 10,
         // CSS's linear() with points.
         mtwn_easingLinearPoints = 11,
+        // A spring over a duration (maul-tween/spring.h).
+        mtwn_easingSpring = 12,
     };
 
     // Where CSS's steps() jumps.
@@ -295,8 +297,8 @@ extern "C"
     /// Tells whether an easing never decreases, as a timeline's easing
     /// must: linear, power, sine, expo, circ and steps in every mode, a
     /// cubic bezier with both y from 0 to 1, linear() with outputs that
-    /// never decrease; not back, elastic or bounce, and not a host
-    /// function, which the library cannot inspect.
+    /// never decrease; not back, elastic, bounce or a spring, and not a
+    /// host function, which the library cannot inspect.
     ///
     /// @param easing  An easing made by this library.
     /// @return Whether it never decreases.
@@ -305,8 +307,8 @@ extern "C"
     MTWN_API bool mtwnIsEasingMonotonic(const mtwnEasing* easing);
 
     /// Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0
-    /// to 1; Penner's curves and host functions see progress clamped to 0
-    /// to 1. The modes reflect the curve, and the before flag reaches it
+    /// to 1; Penner's curves, springs and host functions see progress
+    /// clamped to 0 to 1. The modes reflect the curve, and the before flag reaches it
     /// where it samples progress unreflected.
     ///
     /// @param easing    An easing made by this library.
@@ -314,8 +316,8 @@ extern "C"
     /// @param before    Whether the timing is in its before phase; it moves
     ///                  only curves that jump at their start.
     /// @return The eased progress: exactly 0 at 0 and 1 at 1 for Penner's
-    ///         curves, linear and cubic bezier; what CSS defines for steps
-    ///         and linear().
+    ///         curves, springs, linear and cubic bezier; what CSS defines
+    ///         for steps and linear().
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_API double mtwnEase(const mtwnEasing* easing, double progress, bool before);

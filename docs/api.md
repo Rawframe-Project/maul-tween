@@ -79,12 +79,12 @@ Changes an easing's mode, keeping its curve.  @param easing  An easing made by t
 ```c
 bool mtwnIsEasingMonotonic(const mtwnEasing* easing);
 ```
-Tells whether an easing never decreases, as a timeline's easing must: linear, power, sine, expo, circ and steps in every mode, a cubic bezier with both y from 0 to 1, linear() with outputs that never decrease; not back, elastic or bounce, and not a host function, which the library cannot inspect.  @param easing  An easing made by this library. @return Whether it never decreases. @par Thread safety Safe from any thread.
+Tells whether an easing never decreases, as a timeline's easing must: linear, power, sine, expo, circ and steps in every mode, a cubic bezier with both y from 0 to 1, linear() with outputs that never decrease; not back, elastic, bounce or a spring, and not a host function, which the library cannot inspect.  @param easing  An easing made by this library. @return Whether it never decreases. @par Thread safety Safe from any thread.
 
 ```c
 double mtwnEase(const mtwnEasing* easing, double progress, bool before);
 ```
-Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner's curves and host functions see progress clamped to 0 to 1. The modes reflect the curve, and the before flag reaches it where it samples progress unreflected.  @param easing    An easing made by this library. @param progress  The progress, finite. @param before    Whether the timing is in its before phase; it moves only curves that jump at their start. @return The eased progress: exactly 0 at 0 and 1 at 1 for Penner's curves, linear and cubic bezier; what CSS defines for steps and linear(). @par Thread safety Safe from any thread.
+Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0 to 1; Penner's curves, springs and host functions see progress clamped to 0 to 1. The modes reflect the curve, and the before flag reaches it where it samples progress unreflected.  @param easing    An easing made by this library. @param progress  The progress, finite. @param before    Whether the timing is in its before phase; it moves only curves that jump at their start. @return The eased progress: exactly 0 at 0 and 1 at 1 for Penner's curves, springs, linear and cubic bezier; what CSS defines for steps and linear(). @par Thread safety Safe from any thread.
 
 ## `sample.h`
 
@@ -135,6 +135,11 @@ double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double ve
 Returns the time after which a spring from a start stays within both tolerances of its target and of rest, by bounds on its offset and velocity that never end it early; the host then snaps it to the target.  @param spring             A spring made by this library. @param offset             The start's offset from the target. @param velocity           The start's velocity, per second. @param offsetTolerance    How far from the target is at rest, above 0. @param velocityTolerance  How fast is at rest, per second, above 0. @return Seconds from the start: 0 when it starts within both; infinity for an undamped spring that does not, or a tolerance not above 0. @par Thread safety Safe from any thread.
 
 ```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, double velocity, mtwnEaseMode mode, mtwnEasing* easingOut);
+```
+Makes an easing of a spring over a duration: the spring from an offset of -1 with a start velocity, sampled at progress times the duration and divided by its value at the duration, so it is exactly 0 at 0 and 1 at 1; a spring settled by then is changed by the distance it had left. For CSS linear() (mtwnFitLinearEasing) and for tracks timed by duration.  @param spring     A spring made by this library. @param duration   Seconds, finite and above 0. @param velocity   The start velocity in units of the whole change a second, finite: 0 from rest. @param mode       The mode. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown mode, a duration or velocity outside the above, or a spring back at its start at the duration. @par Thread safety Safe from any thread.
+
+```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeDecay(double rate, mtwnDecay* decayOut);
 ```
 Makes a decay whose velocity falls as e^(-rate t).  @param rate      The rate a second, finite and above 0. @param decayOut  Receives the decay. @return mtwn_success; mtwn_errorInvalid for a null pointer or a rate outside the above. @par Thread safety Safe from any thread.
@@ -171,4 +176,4 @@ The inverse of mtwnRubberBand: the drag that moves content an offset past a limi
 
 ---
 
-30 functions across 4 headers.
+31 functions across 4 headers.

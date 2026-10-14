@@ -30,8 +30,8 @@ platform.
 Not released. The design is decided; the curves come first, and
 the easings are in: Penner's families and CSS Easing Level 2, in four
 modes, with even tables and fitted CSS linear() points; springs in
-closed form, decay and the rubber band. The library has
-30 public functions.
+closed form, as easings too, decay and the rubber band. The library
+has 31 public functions.
 
 ## Building
 

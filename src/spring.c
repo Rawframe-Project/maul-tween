@@ -16,6 +16,7 @@
 #include "maul-tween/spring.h"
 
 #include "elementary.h"
+#include "spring_easing.h"
 
 #include "generated/math_constants.h"
 
@@ -283,4 +284,65 @@ double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double ve
     double offsetTime = BoundTime(&offsetBound);
     double velocityTime = BoundTime(&velocityBound);
     return offsetTime > velocityTime ? offsetTime : velocityTime;
+}
+
+// The spring easing's parameters: the spring's rates and velocity scaled
+// to progress (a T, w T, (w0 T)^2, v T), and its value at progress 1.
+enum
+{
+    s_easingDecay = 0,
+    s_easingDamped = 1,
+    s_easingSquared = 2,
+    s_easingVelocity = 3,
+    s_easingRange = 4,
+};
+
+// The spring in progress time an easing holds, and its unnormalized
+// value, 1 plus its offset, at p.
+static double SpringEasingRaw(const double* parameters, uint32_t regime, double p)
+{
+    mtwnSpring scaled = {{0.0}, regime, 0};
+    scaled.parameters[s_decay] = parameters[s_easingDecay];
+    scaled.parameters[s_damped] = parameters[s_easingDamped];
+    scaled.parameters[s_squared] = parameters[s_easingSquared];
+    mtwnSpringMotion motion = mtwnSpringMotionAt(&scaled, p);
+    return 1.0 - motion.offsetFromOffset + motion.offsetFromVelocity * parameters[s_easingVelocity];
+}
+
+mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, double velocity,
+                                mtwnEaseMode mode, mtwnEasing* easingOut)
+{
+    if (spring == NULL || easingOut == NULL || mode > mtwn_easeOutIn || !isfinite(duration) ||
+        duration <= 0.0 || !isfinite(velocity))
+    {
+        return mtwn_errorInvalid;
+    }
+    double frequency = spring->parameters[s_frequency] * duration;
+    mtwnEasing easing = {{0.0}, NULL, NULL, NULL, 0, mtwn_easingSpring, mode, 0, 0};
+    easing.parameters[s_easingDecay] = spring->parameters[s_decay] * duration;
+    easing.parameters[s_easingDamped] = spring->parameters[s_damped] * duration;
+    easing.parameters[s_easingSquared] = frequency * frequency;
+    easing.parameters[s_easingVelocity] = velocity * duration;
+    easing.count = spring->regime;
+    double range = SpringEasingRaw(easing.parameters, spring->regime, 1.0);
+    for (int i = 0; i < 4; ++i)
+    {
+        if (!isfinite(easing.parameters[i]))
+        {
+            return mtwn_errorInvalid;
+        }
+    }
+    if (!isfinite(range) || range == 0.0 || easing.parameters[s_easingSquared] == 0.0)
+    {
+        return mtwn_errorInvalid;
+    }
+    easing.parameters[s_easingRange] = range;
+    *easingOut = easing;
+    return mtwn_success;
+}
+
+double mtwnSampleSpringEasing(const mtwnEasing* easing, double p)
+{
+    return SpringEasingRaw(easing->parameters, easing->count, p) /
+           easing->parameters[s_easingRange];
 }
