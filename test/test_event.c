@@ -412,6 +412,32 @@ static void TestIterationStart(void)
     mtwnDestroyContext(w.context);
 }
 
+static void TestSettledBoundary(void)
+{
+    // A repeating track's time ending on, and turning at, an iteration's
+    // start: its iteration is the same at both ends of each sweep, yet the
+    // start is reached, so the count runs and the iteration is recorded.
+    World w = MakeWorld(16);
+    mtwnNode track = AddTrack(&w, 0.0, 1.0, 3.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, true, 1.0);
+    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    Update(&w, 0.5);
+    mtwnEvent e[8];
+    (void)Read(&w, e, 8);
+    CHECK(mtwnPlayer_Sweep(w.context, p, 1.5) == mtwn_success, "a sweep to 1.5");
+    (void)Read(&w, e, 8);
+    CHECK(mtwnPlayer_Sweep(w.context, p, 1.0) == mtwn_success, "back to 1");
+    CHECK(Read(&w, e, 8) == 1 && e[0].kind == mtwn_eventIteration && e[0].node == track &&
+              e[0].backwards && e[0].clipTime == 1.0 && e[0].firstIteration == 1.0,
+          "the iteration's start reached backwards");
+    CHECK(mtwnPlayer_Sweep(w.context, p, 1.25) == mtwn_success, "turned to 1.25");
+    CHECK(Read(&w, e, 8) == 1 && e[0].kind == mtwn_eventIteration && e[0].node == track &&
+              !e[0].backwards && e[0].clipTime == 1.0,
+          "turning there takes the start again");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestBoundaryPlay(void)
 {
     // From a random clip that once lost a record: a timeline sized by its
@@ -508,6 +534,7 @@ int main(void)
     TestOverflow();
     TestIterationStart();
     TestBoundaryPlay();
+    TestSettledBoundary();
     TestOrder();
     return s_failures == 0 ? 0 : 1;
 }
