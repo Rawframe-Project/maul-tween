@@ -183,6 +183,10 @@ mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
     {
         return Misuse(context, mtwn_errorBusy);
     }
+    // No path leaves a target lazy on a clip without players today (their
+    // destruction writes the bases, a finished player is at rest), so this
+    // only keeps a later one from reading a freed clip.
+    mtwnSettleClipVelocities(context, clip.index1);
     mtwnRelease(&context->allocator, slot->block, (size_t)slot->blockBytes, s_blockAlignment);
     context->clipStorageUsed -= slot->blockBytes;
     mtwnPoolRelease(&context->clips, clip.index1);

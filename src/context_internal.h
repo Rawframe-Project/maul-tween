@@ -43,6 +43,9 @@ typedef struct mtwnTargetSlot
 // time, computed when read (record mtwn-0042); its velocity field is
 // stale.
 #define MTWN_TARGET_LAZY 8u
+// The target's velocity is a clip track's, computed when read: its
+// velocity field holds an mtwnClipVelocity instead (src/clip_sample.c).
+#define MTWN_TARGET_CLIP_LAZY 16u
 
 // What a player is.
 #define MTWN_PLAYER_TRANSITION 1u
@@ -354,6 +357,8 @@ typedef struct mtwnClipUpdate
     void (*advance)(mtwnContext* context, uint32_t player, double before, double now);
     // After them: a target no clip's player wrote shows its base.
     void (*end)(mtwnContext* context);
+    // A target's velocity left to be computed when read by a clip's track.
+    mtwnVec4 (*velocity)(const mtwnContext* context, const mtwnTargetSlot* target);
 } mtwnClipUpdate;
 
 // Writes a target's value and velocity, marking it changed when its value
@@ -369,8 +374,17 @@ mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1);
 // time: 0 before it starts (src/update.c).
 double mtwnEasedProgress(const mtwnContext* context, uint32_t player);
 
-// Stores a lazy target's velocity in it, before its transition goes.
+// Stores a lazy target's velocity in it, before its transition goes, its
+// value changes or its clip goes.
 void mtwnSettleVelocity(mtwnContext* context, uint32_t index1);
+
+// Stores the velocities of the targets left lazy by a clip's tracks, before
+// the clip goes.
+void mtwnSettleClipVelocities(mtwnContext* context, uint32_t clip);
+
+// A target's velocity left to be computed by a clip's track
+// (src/clip_sample.c).
+mtwnVec4 mtwnClipTrackVelocity(const mtwnContext* context, const mtwnTargetSlot* target);
 
 // The live target a player's binding names, 0 for none.
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot);

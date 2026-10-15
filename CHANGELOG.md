@@ -28,6 +28,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - Tracks in a row with the same parent, start and timing share one
   timing result per sample: 9.4 to 8.0 million instructions a steady
   frame of the same players. The values are the same bits.
+- A clip track of numbers replacing its target at full weight leaves its
+  velocity to be worked out when read, as an eased transition's is
+  (record mtwn-0054): 8.0 to 5.9 million instructions a steady frame of
+  the same players. Velocities read are the same bits.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The

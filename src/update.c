@@ -130,7 +130,8 @@ static inline void WriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 v
                                mtwnVec4 velocity)
 {
     mtwnTargetSlot* target = mtwnTargetAt(context, index1);
-    target->header.flags &= (uint8_t)~(MTWN_TARGET_UNWRITTEN | MTWN_TARGET_LAZY);
+    target->header.flags &=
+        (uint8_t)~(MTWN_TARGET_UNWRITTEN | MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY);
     WriteValue(context, index1, value);
     target->velocity = velocity;
 }
@@ -202,13 +203,17 @@ static MTWN_NOINLINE mtwnVec4 LazyVelocity(const mtwnContext* context, uint32_t 
 mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
 {
     const mtwnTargetSlot* target = mtwnTargetAt(context, index1);
-    if ((target->header.flags & MTWN_TARGET_LAZY) == 0)
+    uint8_t lazy = target->header.flags & (MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY);
+    if (lazy == 0)
     {
         return target->velocity;
     }
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);
-    mtwnVec4 velocity = LazyVelocity(context, index1);
+    // A clip's track's only once a clip's player exists, so its part is
+    // there to compute it.
+    mtwnVec4 velocity = lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
+                                                 : context->clipUpdate->velocity(context, target);
     mtwnFloatEnvLeave(&env);
     return velocity;
 }
@@ -223,10 +228,10 @@ double mtwnEasedProgress(const mtwnContext* context, uint32_t player)
 void mtwnSettleVelocity(mtwnContext* context, uint32_t index1)
 {
     mtwnTargetSlot* target = mtwnTargetAt(context, index1);
-    if ((target->header.flags & MTWN_TARGET_LAZY) != 0)
+    if ((target->header.flags & (MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY)) != 0)
     {
         target->velocity = mtwnTargetVelocity(context, index1);
-        target->header.flags &= (uint8_t)~MTWN_TARGET_LAZY;
+        target->header.flags &= (uint8_t)~(MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY);
     }
 }
 

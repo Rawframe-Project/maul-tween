@@ -166,9 +166,11 @@ mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec
         return mtwn_errorInvalid;
     }
     slot->base = accepted;
-    // A target no transition writes shows its base at once.
+    // A target no transition writes shows its base at once; a clip track's
+    // velocity left lazy is the old value's, so it is kept first.
     if (slot->header.link == 0)
     {
+        mtwnSettleVelocity(context, target.index1);
         slot->value = accepted;
     }
     mtwnMarkChanged(context, target.index1);

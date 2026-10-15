@@ -403,7 +403,8 @@ static void EndClips(mtwnContext* context)
     }
 }
 
-static const mtwnClipUpdate s_clipUpdate = {BeginClips, AdvanceClip, EndClips};
+static const mtwnClipUpdate s_clipUpdate = {BeginClips, AdvanceClip, EndClips,
+                                            mtwnClipTrackVelocity};
 
 static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                                mtwnPlayerId* playerOut)
@@ -528,6 +529,7 @@ mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     mtwnEndTransition(context, player.index1);
     // The target shows its base again.
     mtwnTargetSlot* target = mtwnTargetAt(context, index1);
+    target->header.flags &= (uint8_t)~MTWN_TARGET_CLIP_LAZY;
     target->value = target->base;
     target->velocity = (mtwnVec4){0};
     mtwnMarkChanged(context, index1);
