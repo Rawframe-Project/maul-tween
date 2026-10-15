@@ -93,11 +93,24 @@ enum
 };
 
 // The time of the first (or last) crossing, of a way, in a sweep that has
-// one: the double t nearest 'from' (or 'to') such that the sweep to t
-// (from t) counts one, found exactly by halving the doubles between, in
-// their order as integers: at most 64 halvings, each a count.
+// one: a double t where the count flips, the sweep to t (from t, for the
+// last) counting one and to its neighbour toward 'from' (toward 'to')
+// not, found by halving the doubles between, in their order as integers:
+// at most 64 halvings, each a count. Where the count rises monotonically
+// that is the double nearest the near end; its rounding can flip it more
+// than once within a few doubles, and the halving's path then picks one.
 double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
                         double to, bool fromClosed, bool last, mtwnCrossingWay way);
+
+// The same search started from a guess: a guess past the near end, up to
+// the far one, is tested, and its neighbour toward the near end when it
+// counts, and the halving goes on between whatever they leave. The time
+// found flips the count as above; a right guess finds it in two counts.
+// Where the count flips more than once the guess can pick another of
+// those few doubles, the same one on every platform. NaN guesses nothing.
+double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                            double from, double to, bool fromClosed, bool last, mtwnCrossingWay way,
+                            double guess);
 
 // The iteration the last level is in at a time of the outermost level's
 // parent, each level filling both ways.

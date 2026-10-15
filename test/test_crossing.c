@@ -392,11 +392,86 @@ static mtwnTiming RandomTiming(void)
     return timing;
 }
 
+static double Way(mtwnCrossings c, mtwnCrossingWay way)
+{
+    return way == mtwn_crossingForwards    ? c.same
+           : way == mtwn_crossingBackwards ? c.opposite
+                                           : c.same + c.opposite;
+}
+
+// Whether a found time is where the count flips: the sweep to it (from
+// it, for the last) counts one, and to its neighbour toward the near end
+// does not; or it is the near end itself, which counts.
+static bool Flips(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double t1,
+                  double t2, bool last, mtwnCrossingWay way, double t)
+{
+    double near = last ? t2 : t1;
+    if (t == near)
+    {
+        return last && Way(mtwnCountCrossings(levels, count, leaf, t, t, true), way) >= 1.0;
+    }
+    double before = nextafter(t, near);
+    double at = last ? Way(mtwnCountCrossings(levels, count, leaf, t, t2, true), way)
+                     : Way(mtwnCountCrossings(levels, count, leaf, t1, t, false), way);
+    double short_ = last ? Way(mtwnCountCrossings(levels, count, leaf, before, t2, true), way)
+                         : Way(mtwnCountCrossings(levels, count, leaf, t1, before, false), way);
+    return at >= 1.0 && short_ < 1.0;
+}
+
+// For each way a sweep counts a crossing, first and last: the search
+// from guesses (the answer, its neighbours, the ends, the middle, a
+// random point, far outside, NaN) finds a time where the count flips,
+// within 1e-9 of the search from none (the count's rounding can flip it
+// more than once within a few doubles, and the halving's path picks one).
+// Returns the searches compared.
+static int GuessesAgree(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double t1,
+                        double t2, mtwnCrossings exact, int* mismatches)
+{
+    static const mtwnCrossingWay s_ways[3] = {mtwn_crossingEither, mtwn_crossingForwards,
+                                              mtwn_crossingBackwards};
+    int compared = 0;
+    for (int w = 0; w < 3; ++w)
+    {
+        double n = s_ways[w] == mtwn_crossingForwards    ? exact.same
+                   : s_ways[w] == mtwn_crossingBackwards ? exact.opposite
+                                                         : exact.same + exact.opposite;
+        if (n < 1.0)
+        {
+            continue;
+        }
+        for (int last = 0; last < 2; ++last)
+        {
+            double plain =
+                mtwnFindCrossing(levels, count, leaf, t1, t2, false, last == 1, s_ways[w]);
+            double guesses[9] = {plain,
+                                 nextafter(plain, HUGE_VAL),
+                                 nextafter(plain, -HUGE_VAL),
+                                 t1,
+                                 t2,
+                                 (t1 + t2) / 2.0,
+                                 t1 + Random() * (t2 - t1),
+                                 t2 + 1e6,
+                                 (double)NAN};
+            for (int g = 0; g < 9; ++g)
+            {
+                double from = mtwnFindCrossingFrom(levels, count, leaf, t1, t2, false, last == 1,
+                                                   s_ways[w], guesses[g]);
+                bool flips = Flips(levels, count, leaf, t1, t2, last == 1, s_ways[w], from);
+                *mismatches += flips && fabs(from - plain) <= 1e-9 ? 0 : 1;
+                ++compared;
+            }
+        }
+    }
+    return compared;
+}
+
 static void TestOracle(void)
 {
     int mismatches = 0;
     int timeMismatches = 0;
     int timed = 0;
+    int guessed = 0;
+    int guessMismatches = 0;
     for (int trial = 0; trial < 3000; ++trial)
     {
         mtwnLevel levels[3];
@@ -439,6 +514,7 @@ static void TestOracle(void)
                 }
                 timed++;
             }
+            guessed += GuessesAgree(levels, count, &leaf, t1, t2, exact, &guessMismatches);
             if (exact.same != oracle.same || exact.opposite != oracle.opposite)
             {
                 if (mismatches++ < 5)
@@ -467,6 +543,8 @@ static void TestOracle(void)
         }
     }
     CHECK(mismatches == 0, "random nested levels agree with the sampled oracle");
+    CHECK(guessMismatches == 0 && guessed > 20000,
+          "a search from any guess finds where the count flips, as one from none does");
     CHECK(timeMismatches == 0 && timed > 5000,
           "and the first crossing's time with where the oracle meets it");
 }

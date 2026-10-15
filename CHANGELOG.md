@@ -13,6 +13,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   track's iterations when its time stayed inside one iteration: about
   a fifth fewer instructions in a steady frame of a looping clip. The
   events are unchanged.
+- A record's crossing time is searched from a guess: the last crossing
+  the sweep found, or the record's own first. The frame where a looping
+  clip repeats costs a sixth of what it did (record mtwn-0053). Where
+  the count's rounding flips it more than once within a few doubles, a
+  record's time can be another of those doubles, the same on every
+  platform.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The

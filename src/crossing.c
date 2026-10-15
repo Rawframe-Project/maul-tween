@@ -574,18 +574,83 @@ static double Unordered(int64_t ordered)
     return x;
 }
 
-// Whether the sweep part a search tests counts a crossing: from the sweep's
-// start to t, or from t to its end.
-static bool Found(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
-                  double to, bool fromClosed, bool last, mtwnCrossingWay way, double t)
+// A search: the sweep, the way, which end it is near, and the bracket
+// of ordered doubles it halves. The count does not reach one at near and
+// does at far.
+typedef struct Search
 {
-    mtwnCrossings c = last ? mtwnCountCrossings(levels, count, leaf, t, to, true)
-                           : mtwnCountCrossings(levels, count, leaf, from, t, fromClosed);
-    return Of(c, way) >= 1.0;
+    const mtwnLevel* levels;
+    uint32_t count;
+    const mtwnLeaf* leaf;
+    double from;
+    double to;
+    bool fromClosed;
+    bool last;
+    bool up;
+    mtwnCrossingWay way;
+    int64_t near;
+    int64_t far;
+} Search;
+
+// Whether the sweep part a search tests counts a crossing: from the sweep's
+// start to the ordered double t, or from t to its end.
+static bool Found(const Search* search, int64_t t)
+{
+    double at = Unordered(t);
+    mtwnCrossings c = search->last ? mtwnCountCrossings(search->levels, search->count, search->leaf,
+                                                        at, search->to, true)
+                                   : mtwnCountCrossings(search->levels, search->count, search->leaf,
+                                                        search->from, at, search->fromClosed);
+    return Of(c, search->way) >= 1.0;
+}
+
+// Moves the bracket's end the ordered double t tests: far when it counts,
+// near when not.
+static void Test(Search* search, int64_t t)
+{
+    if (Found(search, t))
+    {
+        search->far = t;
+    }
+    else
+    {
+        search->near = t;
+    }
+}
+
+// Whether ordered b lies strictly beyond a, going up or down.
+static bool Beyond(bool up, int64_t a, int64_t b)
+{
+    return up ? b > a : b < a;
+}
+
+// A guess past the near end, up to the far one, is tested, and when it
+// counts so is its neighbour toward the near end: a right guess leaves
+// the two neighbours the halving ends with.
+static void TestGuess(Search* search, double guess)
+{
+    int64_t g = isnan(guess) ? search->near : Ordered(guess);
+    if (!Beyond(search->up, search->near, g) || Beyond(search->up, search->far, g))
+    {
+        return;
+    }
+    Test(search, g);
+    int64_t before = search->up ? g - 1 : g + 1;
+    if (search->far == g && Beyond(search->up, search->near, before))
+    {
+        Test(search, before);
+    }
 }
 
 double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
                         double to, bool fromClosed, bool last, mtwnCrossingWay way)
+{
+    return mtwnFindCrossingFrom(levels, count, leaf, from, to, fromClosed, last, way, (double)NAN);
+}
+
+double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                            double from, double to, bool fromClosed, bool last, mtwnCrossingWay way,
+                            double guess)
 {
     // The point at the near end itself.
     double end = last ? to : from;
@@ -594,28 +659,31 @@ double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf*
     {
         return end;
     }
-    // Found is false at the near end and true at the far one; halve the
-    // doubles between until they are neighbours.
-    int64_t near = Ordered(last ? to : from);
-    int64_t far = Ordered(last ? from : to);
-    bool up = far > near;
+    // The count is not reached at the near end and is at the far one;
+    // halve the doubles between until they are neighbours.
+    Search search = {levels,
+                     count,
+                     leaf,
+                     from,
+                     to,
+                     fromClosed,
+                     last,
+                     false,
+                     way,
+                     Ordered(last ? to : from),
+                     Ordered(last ? from : to)};
+    search.up = search.far > search.near;
+    TestGuess(&search, guess);
     for (;;)
     {
-        uint64_t distance = up ? (uint64_t)far - (uint64_t)near : (uint64_t)near - (uint64_t)far;
+        uint64_t distance = search.up ? (uint64_t)search.far - (uint64_t)search.near
+                                      : (uint64_t)search.near - (uint64_t)search.far;
         if (distance <= 1)
         {
-            return Unordered(far);
+            return Unordered(search.far);
         }
         int64_t half = (int64_t)(distance / 2);
-        int64_t mid = up ? near + half : near - half;
-        if (Found(levels, count, leaf, from, to, fromClosed, last, way, Unordered(mid)))
-        {
-            far = mid;
-        }
-        else
-        {
-            near = mid;
-        }
+        Test(&search, search.up ? search.near + half : search.near - half);
     }
 }
 

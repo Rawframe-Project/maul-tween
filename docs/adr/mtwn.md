@@ -57,3 +57,4 @@ are listed in [README.md](README.md).
 | [mtwn-0050](mtwn-0050-rival-oracles.md) | The rivals run as oracles | Accepted |
 | [mtwn-0051](mtwn-0051-size-budgets.md) | Size budgets, checked on every commit | Accepted |
 | [mtwn-0052](mtwn-0052-lowered-rate-when-finished.md) | A finished player given a lower rate plays again | Accepted |
+| [mtwn-0053](mtwn-0053-crossing-search-from-a-guess.md) | A crossing's time searched from a guess | Accepted |

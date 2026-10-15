@@ -31,6 +31,10 @@ typedef struct Sweep
     double hostTo;
     // The rate the player's time ran at since hostFrom.
     double rate;
+    // The last crossing found, NaN before any: records often share one
+    // (a track's end and the next one's start at a timeline's repeat), so
+    // the next search starts there.
+    double guess;
 } Sweep;
 
 // The host's time a player's time was reached at: from the sweep's start
@@ -59,8 +63,8 @@ typedef struct Kinds
 
 // Records a leaf's crossings, chain levels [0, count) above it and the
 // node whose iteration the records carry at levels[iterationLevel].
-static void Record(const Sweep* sweep, uint32_t count, uint32_t iterationLevels,
-                   const mtwnLeaf* leaf, Kinds kinds, mtwnNode node, uint32_t key)
+static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const mtwnLeaf* leaf,
+                   Kinds kinds, mtwnNode node, uint32_t key)
 {
     mtwnLevel* levels = sweep->context->levels;
     mtwnPrepareLevels(levels, count, leaf);
@@ -81,10 +85,12 @@ static void Record(const Sweep* sweep, uint32_t count, uint32_t iterationLevels,
         mtwnCrossingWay search = sweep->fromNone ? mtwn_crossingEither
                                  : way == 0      ? mtwn_crossingForwards
                                                  : mtwn_crossingBackwards;
-        double first = mtwnFindCrossing(levels, count, leaf, sweep->from, sweep->to,
-                                        sweep->fromClosed, false, search);
-        double last = mtwnFindCrossing(levels, count, leaf, sweep->from, sweep->to,
-                                       sweep->fromClosed, true, search);
+        // The last is the first when there is one: searched from it.
+        double first = mtwnFindCrossingFrom(levels, count, leaf, sweep->from, sweep->to,
+                                            sweep->fromClosed, false, search, sweep->guess);
+        double last = mtwnFindCrossingFrom(levels, count, leaf, sweep->from, sweep->to,
+                                           sweep->fromClosed, true, search, first);
+        sweep->guess = last;
         mtwnEvent event = {0};
         event.hostTime = HostAt(sweep, first);
         event.clipTime = first;
@@ -231,7 +237,7 @@ static bool Settled(const mtwnClipSlot* clip, uint32_t node, const mtwnNodeTime*
 // iterations and end. Those its parent certainly did not reach are not
 // counted, their counts being 0, nor its iterations when it settled in
 // one.
-static void NodeEvents(const Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
+static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
                        const mtwnNodeTime* parent)
 {
     const mtwnClipNode* n = &clip->nodes[node - 1];
@@ -297,7 +303,7 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
     play->sweptWay = way;
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     Sweep sweep = {context,  player, play, fromNone ? to : from, to, fromNone, fromNone || turning,
-                   hostFrom, hostTo, rate};
+                   hostFrom, hostTo, rate, (double)NAN};
     // The player's time is the root's parent's, and moves one way.
     mtwnNodeTime top = {to, sweep.from, false, true, true, {0}};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)
