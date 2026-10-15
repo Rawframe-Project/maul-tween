@@ -4,7 +4,8 @@
 // Determinism (record mtwn-0020): a fixed scenario of every value kind,
 // every transition spec and clips of nested repeating timelines, marks,
 // incremental and added tracks under seeks, reverses, rate changes and
-// pauses, updated over 600 irregular frames. The bits of every target's
+// pauses, with a spell of reduced motion, updated over 600 irregular
+// frames, and staggers of a grid and of a seeded order. The bits of every target's
 // value, velocity and base after each update, and of every event record,
 // are hashed (FNV-1a, 64 bits): the same constant from every compiler and
 // platform the library is built on. Run with an argument, it prints the
@@ -17,6 +18,7 @@
 #include "maul-tween/player.h"
 #include "maul-tween/spring.h"
 #include "maul-tween/target.h"
+#include "maul-tween/timing.h"
 #include "maul-tween/transition.h"
 
 #include <inttypes.h>
@@ -26,7 +28,7 @@
 #include <string.h>
 
 // The scenario's hash, the same everywhere.
-static const uint64_t s_expected = 0x6f25f92fac979002u;
+static const uint64_t s_expected = 0x8447c79306e011a4u;
 
 enum
 {
@@ -315,6 +317,12 @@ static void Control(World* w, uint32_t frame)
     case 400:
         r = mtwnPlayer_Sweep(c, w->players[2], 0.5);
         break;
+    case 450:
+        r = mtwnContext_SetReducedMotion(c, true);
+        break;
+    case 500:
+        r = mtwnContext_SetReducedMotion(c, false);
+        break;
     default:
         break;
     }
@@ -366,9 +374,37 @@ static void HashFrame(World* w)
     }
 }
 
+// Staggers: a grid from its centre, eased, and a seeded order, as
+// offsets hashed.
+static void HashStaggers(void)
+{
+    double offsets[TARGETS];
+    mtwnStagger grid = mtwnDefaultStagger();
+    grid.columns = 6;
+    grid.origin = mtwn_staggerCentre;
+    grid.easing = EasingFor(5);
+    CHECK(mtwnComputeStagger(&grid, TARGETS, offsets) == mtwn_success, "a grid stagger");
+    for (uint32_t i = 0; i < TARGETS; ++i)
+    {
+        HashDouble(offsets[i]);
+    }
+    mtwnStagger order = mtwnDefaultStagger();
+    order.origin = mtwn_staggerRandom;
+    order.seed = 0x5EEDu;
+    order.spacingKind = mtwn_staggerAmount;
+    order.spacing = 0.7;
+    order.easing = EasingFor(1);
+    CHECK(mtwnComputeStagger(&order, TARGETS, offsets) == mtwn_success, "a seeded stagger");
+    for (uint32_t i = 0; i < TARGETS; ++i)
+    {
+        HashDouble(offsets[i]);
+    }
+}
+
 int main(int argc, char** argv)
 {
     (void)argv;
+    HashStaggers();
     World w = MakeWorld();
     uint64_t now = 0;
     for (uint32_t frame = 0; frame < FRAMES; ++frame)
