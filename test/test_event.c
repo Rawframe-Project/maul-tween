@@ -412,6 +412,51 @@ static void TestIterationStart(void)
     mtwnDestroyContext(w.context);
 }
 
+static void TestSharedRecords(void)
+{
+    // Two tracks in a row of one timing: the sweep gives the second the
+    // first's records. Each has its own start, iterations and end, the
+    // same but for the node.
+    World w = MakeWorld(64);
+    mtwnNode first = AddTrack(&w, 0.5, 1.0, 3.0);
+    mtwnNode second = AddTrack(&w, 0.5, 1.0, 3.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w, true, 1.0);
+    mtwnEvent all[64];
+    uint32_t total = 0;
+    for (int f = 0; f <= 40; ++f)
+    {
+        Update(&w, f * 0.1);
+        total += Read(&w, all + total, 64 - total);
+    }
+    mtwnEvent a[16];
+    mtwnEvent b[16];
+    uint32_t na = 0;
+    uint32_t nb = 0;
+    for (uint32_t i = 0; i < total; ++i)
+    {
+        if (all[i].node == first && na < 16)
+        {
+            a[na++] = all[i];
+        }
+        else if (all[i].node == second && nb < 16)
+        {
+            b[nb++] = all[i];
+        }
+    }
+    bool same = na == nb && na >= 4;
+    for (uint32_t i = 0; same && i < na; ++i)
+    {
+        same = a[i].kind == b[i].kind && a[i].clipTime == b[i].clipTime &&
+               a[i].count == b[i].count && a[i].firstIteration == b[i].firstIteration &&
+               a[i].lastIteration == b[i].lastIteration;
+    }
+    CHECK(same, "each track its own records, the same but for the node");
+    CHECK(na >= 1 && a[0].kind == mtwn_eventStart && a[na - 1].kind == mtwn_eventEnd,
+          "from its start to its end");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestSettledBoundary(void)
 {
     // A repeating track's time ending on, and turning at, an iteration's
@@ -535,6 +580,7 @@ int main(void)
     TestIterationStart();
     TestBoundaryPlay();
     TestSettledBoundary();
+    TestSharedRecords();
     TestOrder();
     return s_failures == 0 ? 0 : 1;
 }
