@@ -27,9 +27,9 @@ platform.
 
 ## Status
 
-Not released. The design is decided; the curves come first, and
-the easings are in: Penner's families and CSS Easing Level 2, in four
-modes, with even tables and fitted CSS linear() points; springs in
+0.1.0, the first release (2026-10-15), holds the whole library:
+Penner's families and CSS Easing Level 2, in four modes, with even
+tables and fitted CSS linear() points; springs in
 closed form, as easings too, decay and the rubber band; colors as CSS
 Color 4 interpolates them; angles, rotations, integers, discrete
 values, punch and shake; Web Animations' timing with playback rate
