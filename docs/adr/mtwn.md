@@ -52,3 +52,4 @@ are listed in [README.md](README.md).
 | [mtwn-0045](mtwn-0045-css-reversal.md) | Shortened reversals, as CSS Transitions shortens them | Accepted |
 | [mtwn-0046](mtwn-0046-randomized-invariants.md) | Randomized invariants, and what they found | Accepted |
 | [mtwn-0047](mtwn-0047-transitions-link-alone.md) | A program of transitions links no clip code | Accepted |
+| [mtwn-0048](mtwn-0048-stagger.md) | Stagger offsets, one pure function | Accepted |

@@ -7,6 +7,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- Staggers: `mtwnComputeStagger` spreads offsets over a row or a grid
+  from the first or last item, the centre, the edges, an index, a
+  point, or a seeded order, eased (record mtwn-0048). The scope of
+  0.1.0 included them and the release lacked them.
+
 ## [0.1.0] - 2026-10-15
 
 The first release: the whole library, from the curves to clips,

@@ -242,6 +242,27 @@ easing of its child time, Web Animations' model); `mtwnClip_AddLabel`
 names a time to seek to, and `mtwnClip_AddMark` a time to be told of.
 `mtwnClip_Finish` closes the clip; a finished clip is read only.
 
+## Staggers
+
+A stagger spreads offsets over items by their distance from an
+origin: the first or last item, the centre, the edges, an index, a
+point of the grid, or an order from a seed.
+
+```c
+mtwnStagger stagger = mtwnDefaultStagger(); // 0.1 s apart, from the first
+stagger.columns = 4;                        // a grid of four columns
+stagger.origin = mtwn_staggerCentre;        // spreading from its centre
+double delays[12];
+mtwnResult spread = mtwnComputeStagger(&stagger, 12, delays);
+```
+
+The offsets go where a time does: a track's position offset, a
+transition's delay. Items one cell apart are the spacing apart, or the
+spacing is the whole spread (`mtwn_staggerAmount`); an axis measures
+along the columns or the rows only, and an easing redistributes the
+offsets. They may be values as well as times, such as a scale from
+item to item.
+
 ## Players
 
 A player plays a clip with its slots bound to targets. It follows Web

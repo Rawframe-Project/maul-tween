@@ -27,7 +27,7 @@ platform.
 
 ## Status
 
-0.1.0, the first release (2026-10-15), holds the whole library:
+0.1.0, the first release (2026-10-15), holds
 Penner's families and CSS Easing Level 2, in four modes, with even
 tables and fitted CSS linear() points; springs in
 closed form, as easings too, decay and the rubber band; colors as CSS
@@ -40,8 +40,9 @@ if asked, and tracks of every value kind over them; clips holding
 tracks on nested timelines with labels and marks; players controlling
 clips by Web Animations' procedures; events as counted records in a
 bounded queue; players layered by replace and add with weights; a
-context grown only when the host asks. The library has
-104 public functions.
+context grown only when the host asks. Since 0.1.0: staggers over a
+row or a grid (record mtwn-0048). The library has
+106 public functions.
 
 ## Building
 

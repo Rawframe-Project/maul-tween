@@ -5,6 +5,8 @@
 // calculation of a node's phase, iteration and progress from its local
 // time, with Level 2's effect playback rate, a repeat delay between
 // iterations and a choice of how reverse iterations ease.
+// Staggers (record mtwn-0048): offsets for items in a grid by their
+// distance from an origin.
 
 #ifndef MAUL_TWEEN_TIMING_H
 #define MAUL_TWEEN_TIMING_H
@@ -152,6 +154,107 @@ extern "C"
     /// Safe from any thread.
     MTWN_API void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
                                     mtwnTimingResult* resultOut);
+
+    // Where a stagger begins: the items nearest it get the first offsets.
+    typedef uint8_t mtwnStaggerOrigin;
+    enum
+    {
+        // The first item.
+        mtwn_staggerFirst = 0,
+        // The last item.
+        mtwn_staggerLast = 1,
+        // The grid's centre.
+        mtwn_staggerCentre = 2,
+        // The nearest edge, so the outermost items begin.
+        mtwn_staggerEdges = 3,
+        // The item at index.
+        mtwn_staggerIndex = 4,
+        // The point at pointX and pointY, ratios of the last column and
+        // row: 0 the first, 1 the last, any finite value.
+        mtwn_staggerPoint = 5,
+        // An order from the seed, each item its own step.
+        mtwn_staggerRandom = 6,
+    };
+
+    // Which distance a stagger measures.
+    typedef uint8_t mtwnStaggerAxis;
+    enum
+    {
+        // Straight across the grid.
+        mtwn_staggerBoth = 0,
+        // Along the columns only.
+        mtwn_staggerX = 1,
+        // Along the rows only.
+        mtwn_staggerY = 2,
+    };
+
+    // How a stagger's spacing spreads its offsets.
+    typedef uint8_t mtwnStaggerSpacing;
+    enum
+    {
+        // The spacing lies between items one cell apart.
+        mtwn_staggerEach = 0,
+        // The spacing is the whole spread, from the first offset to the
+        // last.
+        mtwn_staggerAmount = 1,
+    };
+
+    // A stagger: offsets for items in a grid, in reading order, by their
+    // distance from an origin, eased. Start from mtwnDefaultStagger and
+    // set what differs. The offsets are seconds when they are delays, or
+    // any unit when they are values.
+    typedef struct mtwnStagger
+    {
+        // The nearest items' offset.
+        double start;
+        // Each or the whole spread, by spacingKind; negative reverses the
+        // order.
+        double spacing;
+        // The point's ratios, for mtwn_staggerPoint.
+        double pointX;
+        double pointY;
+        // The easing of the distances, from 0 for the nearest items to 1
+        // for the farthest.
+        mtwnEasing easing;
+        // The order's seed, for mtwn_staggerRandom.
+        uint64_t seed;
+        // Items per row; 0 puts them all in one row.
+        uint32_t columns;
+        // The origin's item, for mtwn_staggerIndex.
+        uint32_t index;
+        mtwnStaggerOrigin origin;
+        mtwnStaggerAxis axis;
+        mtwnStaggerSpacing spacingKind;
+        uint8_t reserved[5];
+    } mtwnStagger;
+
+    /// Returns the default stagger: from the first item, 0.1 between
+    /// neighbours in one row, from 0, linear, both axes.
+    ///
+    /// @return The stagger.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API mtwnStagger mtwnDefaultStagger(void);
+
+    /// Computes a stagger's offsets (record mtwn-0048). Item i sits in
+    /// column i mod columns and row i / columns; its distance d from the
+    /// origin is Euclidean, or along one axis, or to the nearest edge;
+    /// t = (d - min) / (max - min), 0 when all are equal, and the offset
+    /// is start + span * ease(t), where span is the spacing for
+    /// mtwn_staggerAmount and the spacing times (max - min) for
+    /// mtwn_staggerEach. The offsets are the same bits on every platform.
+    ///
+    /// @param stagger     The stagger; its easing made by this library.
+    /// @param count       The items; 0 writes nothing.
+    /// @param offsetsOut  Receives count offsets.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer with a
+    ///         count, an unknown origin, axis or spacing, an index not below a count above 0
+    ///         for mtwn_staggerIndex, or a start, spacing or point not finite,
+    ///         writing nothing.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeStagger(const mtwnStagger* stagger,
+                                                          uint32_t count, double* offsetsOut);
 
 #ifdef __cplusplus
 }

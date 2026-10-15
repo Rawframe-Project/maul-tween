@@ -15,6 +15,7 @@ color: elementary
 rotation: elementary
 signal: elementary
 timing: timing_internal
+stagger:
 timing_internal:
 allocator:
 fpenv:

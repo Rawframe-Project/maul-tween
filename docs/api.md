@@ -544,7 +544,7 @@ Reads many targets' current values, in the order of their ids.  @param context  
 
 ## `timing.h`
 
-Timing (records mtwn-0012 and mtwn-0027): Web Animations Level 1's calculation of a node's phase, iteration and progress from its local time, with Level 2's effect playback rate, a repeat delay between iterations and a choice of how reverse iterations ease.
+Timing (records mtwn-0012 and mtwn-0027): Web Animations Level 1's calculation of a node's phase, iteration and progress from its local time, with Level 2's effect playback rate, a repeat delay between iterations and a choice of how reverse iterations ease. Staggers (record mtwn-0048): offsets for items in a grid by their distance from an origin.
 
 ```c
 mtwnTiming mtwnDefaultTiming(void);
@@ -560,6 +560,16 @@ Checks a timing: delays finite, iteration start finite and from 0, iterations an
 void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards, mtwnTimingResult* resultOut);
 ```
 Computes a node's timing at a local time, by Web Animations' steps.  @param timing     A timing mtwnValidateTiming accepts. @param localTime  The node's local time, seconds, finite. @param backwards  Whether the time is running backwards (the playing animation's rate is negative), which moves the active interval's boundaries. @param resultOut  Receives the result. @par Thread safety Safe from any thread.
+
+```c
+mtwnStagger mtwnDefaultStagger(void);
+```
+Returns the default stagger: from the first item, 0.1 between neighbours in one row, from 0, linear, both axes.  @return The stagger. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double* offsetsOut);
+```
+Computes a stagger's offsets (record mtwn-0048). Item i sits in column i mod columns and row i / columns; its distance d from the origin is Euclidean, or along one axis, or to the nearest edge; t = (d - min) / (max - min), 0 when all are equal, and the offset is start + span * ease(t), where span is the spacing for mtwn_staggerAmount and the spacing times (max - min) for mtwn_staggerEach. The offsets are the same bits on every platform.  @param stagger     The stagger; its easing made by this library. @param count       The items; 0 writes nothing. @param offsetsOut  Receives count offsets. @return mtwn_success; mtwn_errorInvalid for a null pointer with a count, an unknown origin, axis or spacing, an index not below a count above 0 for mtwn_staggerIndex, or a start, spacing or point not finite, writing nothing. @par Thread safety Safe from any thread.
 
 ## `transition.h`
 
@@ -577,4 +587,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-104 functions across 13 headers.
+106 functions across 13 headers.

@@ -62,6 +62,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/sample.c
     src/signal.c
     src/spring.c
+    src/stagger.c
     src/target.c
     src/timing.c
     src/transition.c
@@ -88,6 +89,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(color)
     maul_add_test(rotation)
     maul_add_test(signal)
+    maul_add_test(stagger)
     maul_add_test(timing)
     maul_add_test(context WHITEBOX)
     maul_add_test(transition WHITEBOX)

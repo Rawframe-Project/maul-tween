@@ -15,6 +15,7 @@
 #include "maul-tween/player.h"
 #include "maul-tween/spring.h"
 #include "maul-tween/target.h"
+#include "maul-tween/timing.h"
 #include "maul-tween/transition.h"
 
 #include <math.h>
@@ -54,6 +55,17 @@ static void TestValues(void)
     CHECK(made == mtwn_success && between.alpha == 1.0f && between.red > 0.0f &&
               between.blue > 0.0f,
           "a color between red and blue");
+}
+
+static void TestStagger(void)
+{
+    mtwnStagger stagger = mtwnDefaultStagger(); // 0.1 s apart, from the first
+    stagger.columns = 4;                        // a grid of four columns
+    stagger.origin = mtwn_staggerCentre;        // spreading from its centre
+    double delays[12];
+    mtwnResult spread = mtwnComputeStagger(&stagger, 12, delays);
+    CHECK(spread == mtwn_success && delays[5] == 0.0 && delays[6] == 0.0 && delays[0] > delays[1],
+          "the centre's cells first, the corners last");
 }
 
 static void TestHost(void)
@@ -181,6 +193,7 @@ int main(void)
     TestEasing();
     TestSprings();
     TestValues();
+    TestStagger();
     TestHost();
     return s_failures == 0 ? 0 : 1;
 }
