@@ -527,29 +527,58 @@ void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf)
     }
 }
 
-static mtwnCrossings Reached(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
-                             double t, bool strict)
+static bool SameBits(double a, double b)
 {
-    double local = count > 0 ? t - levels[0].start : t;
-    return Below(levels, count, leaf, 0, local, strict);
+    uint64_t x = 0;
+    uint64_t y = 0;
+    memcpy(&x, &a, sizeof x);
+    memcpy(&y, &b, sizeof y);
+    return x == y;
 }
 
-mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
-                                 double from, double to, bool fromClosed)
+static mtwnCrossings Reached(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                             double t, bool strict, mtwnCrossingMemo* memo)
+{
+    if (memo != NULL)
+    {
+        for (uint32_t k = 0; k < memo->count; ++k)
+        {
+            if (memo->strict[k] == strict && SameBits(memo->at[k], t))
+            {
+                return memo->reached[k];
+            }
+        }
+    }
+    double local = count > 0 ? t - levels[0].start : t;
+    mtwnCrossings reached = Below(levels, count, leaf, 0, local, strict);
+    if (memo != NULL)
+    {
+        uint32_t k = memo->count < 8 ? memo->count++ : memo->next;
+        memo->next = (k + 1) % 8;
+        memo->at[k] = t;
+        memo->strict[k] = strict;
+        memo->reached[k] = reached;
+    }
+    return reached;
+}
+
+mtwnCrossings mtwnCountCrossingsMemo(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                     double from, double to, bool fromClosed,
+                                     mtwnCrossingMemo* memo)
 {
     mtwnCrossings sum = {0.0, 0.0};
     if (to >= from)
     {
-        sum = Reached(levels, count, leaf, to, false);
-        Add(&sum, -1.0, false, Reached(levels, count, leaf, from, fromClosed));
+        sum = Reached(levels, count, leaf, to, false, memo);
+        Add(&sum, -1.0, false, Reached(levels, count, leaf, from, fromClosed, memo));
         if (to == from && !fromClosed)
         {
             return (mtwnCrossings){0.0, 0.0};
         }
         return sum;
     }
-    sum = Reached(levels, count, leaf, from, !fromClosed);
-    Add(&sum, -1.0, false, Reached(levels, count, leaf, to, true));
+    sum = Reached(levels, count, leaf, from, !fromClosed, memo);
+    Add(&sum, -1.0, false, Reached(levels, count, leaf, to, true, memo));
     // The sweep runs against the coordinate: the leaf moves the other way.
     return (mtwnCrossings){sum.opposite, sum.same};
 }
@@ -594,6 +623,7 @@ typedef struct Search
     mtwnCrossingWay way;
     int64_t near;
     int64_t far;
+    mtwnCrossingMemo* memo;
 } Search;
 
 // Whether the sweep part a search tests counts a crossing: from the sweep's
@@ -601,10 +631,11 @@ typedef struct Search
 static bool Found(const Search* search, int64_t t)
 {
     double at = Unordered(t);
-    mtwnCrossings c = search->last ? mtwnCountCrossings(search->levels, search->count, search->leaf,
-                                                        at, search->to, true)
-                                   : mtwnCountCrossings(search->levels, search->count, search->leaf,
-                                                        search->from, at, search->fromClosed);
+    mtwnCrossings c =
+        search->last ? mtwnCountCrossingsMemo(search->levels, search->count, search->leaf, at,
+                                              search->to, true, search->memo)
+                     : mtwnCountCrossingsMemo(search->levels, search->count, search->leaf,
+                                              search->from, at, search->fromClosed, search->memo);
     return Of(c, search->way) >= 1.0;
 }
 
@@ -646,20 +677,14 @@ static void TestGuess(Search* search, double guess)
     }
 }
 
-double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
-                        double to, bool fromClosed, bool last, mtwnCrossingWay way)
-{
-    return mtwnFindCrossingFrom(levels, count, leaf, from, to, fromClosed, last, way, (double)NAN);
-}
-
 double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
                             double from, double to, bool fromClosed, bool last, mtwnCrossingWay way,
-                            double guess)
+                            double guess, mtwnCrossingMemo* memo)
 {
     // The point at the near end itself.
     double end = last ? to : from;
     if ((last || fromClosed) &&
-        Of(mtwnCountCrossings(levels, count, leaf, end, end, true), way) >= 1.0)
+        Of(mtwnCountCrossingsMemo(levels, count, leaf, end, end, true, memo), way) >= 1.0)
     {
         return end;
     }
@@ -675,7 +700,8 @@ double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnL
                      false,
                      way,
                      Ordered(last ? to : from),
-                     Ordered(last ? from : to)};
+                     Ordered(last ? from : to),
+                     memo};
     search.up = search.far > search.near;
     TestGuess(&search, guess);
     for (;;)

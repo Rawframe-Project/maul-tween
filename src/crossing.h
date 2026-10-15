@@ -19,7 +19,9 @@
 #include "maul-tween/clip.h"
 #include "maul-tween/timing.h"
 
+#include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 // Crossings of a leaf: moving the same way as the coordinate counted in,
@@ -86,8 +88,29 @@ void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf);
 // from 'from' to 'to': (from, to] forwards, [to, from) backwards, closed
 // at 'from' too when asked (a sweep from no time). The result's same is
 // the crossings with the leaf moving forwards.
-mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
-                                 double from, double to, bool fromClosed);
+// The walks a count makes, remembered for the next counts of the same
+// prepared levels and leaf: a search's fixed end is walked once. Each is
+// the same bits worked out again; set count to 0 at each preparation.
+typedef struct mtwnCrossingMemo
+{
+    uint32_t count;
+    uint32_t next;
+    double at[8];
+    bool strict[8];
+    mtwnCrossings reached[8];
+} mtwnCrossingMemo;
+
+// mtwnCountCrossings, its walks remembered in a memo (NULL for none).
+mtwnCrossings mtwnCountCrossingsMemo(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                     double from, double to, bool fromClosed,
+                                     mtwnCrossingMemo* memo);
+
+static inline mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count,
+                                               const mtwnLeaf* leaf, double from, double to,
+                                               bool fromClosed)
+{
+    return mtwnCountCrossingsMemo(levels, count, leaf, from, to, fromClosed, NULL);
+}
 
 // Which crossings a search counts.
 typedef uint8_t mtwnCrossingWay;
@@ -105,18 +128,25 @@ enum
 // at most 64 halvings, each a count. Where the count rises monotonically
 // that is the double nearest the near end; its rounding can flip it more
 // than once within a few doubles, and the halving's path then picks one.
-double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double from,
-                        double to, bool fromClosed, bool last, mtwnCrossingWay way);
-
-// The same search started from a guess: a guess past the near end, up to
+// The search starts from a guess: a guess past the near end, up to
 // the far one, is tested, and its neighbour toward the near end when it
 // counts, and the halving goes on between whatever they leave. The time
 // found flips the count as above; a right guess finds it in two counts.
 // Where the count flips more than once the guess can pick another of
 // those few doubles, the same one on every platform. NaN guesses nothing.
+// Its counts' walks are remembered in a memo (NULL for none).
 double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
                             double from, double to, bool fromClosed, bool last, mtwnCrossingWay way,
-                            double guess);
+                            double guess, mtwnCrossingMemo* memo);
+
+// The search from no guess.
+static inline double mtwnFindCrossing(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                      double from, double to, bool fromClosed, bool last,
+                                      mtwnCrossingWay way)
+{
+    return mtwnFindCrossingFrom(levels, count, leaf, from, to, fromClosed, last, way, (double)NAN,
+                                NULL);
+}
 
 // The iteration the last level is in at a time of the outermost level's
 // parent, each level filling both ways.
