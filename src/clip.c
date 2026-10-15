@@ -602,6 +602,37 @@ mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode pare
     return AddInstant(context, clip, mtwn_nodeMark, parent, position, key, nodeOut);
 }
 
+// Whether two doubles are the same bits (a signed zero is not the other).
+static bool SameBits(double a, double b)
+{
+    uint64_t x = 0;
+    uint64_t y = 0;
+    memcpy(&x, &a, sizeof x);
+    memcpy(&y, &b, sizeof y);
+    return x == y;
+}
+
+// Whether two timings give the same results for the same inputs: every
+// field the same, doubles as bits. A host easing is never the same, as
+// nothing says calling it fewer times is allowed.
+static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
+{
+    const mtwnEasing* e = &a->easing;
+    const mtwnEasing* f = &b->easing;
+    bool easing = e->kind != mtwn_easingHost && e->kind == f->kind && e->mode == f->mode &&
+                  e->position == f->position && e->count == f->count && e->points == f->points;
+    for (int k = 0; k < 5; ++k)
+    {
+        easing = easing && SameBits(e->parameters[k], f->parameters[k]);
+    }
+    return easing && SameBits(a->delay, b->delay) && SameBits(a->endDelay, b->endDelay) &&
+           SameBits(a->iterationStart, b->iterationStart) &&
+           SameBits(a->iterations, b->iterations) && SameBits(a->duration, b->duration) &&
+           SameBits(a->repeatDelay, b->repeatDelay) && SameBits(a->playbackRate, b->playbackRate) &&
+           a->fill == b->fill && a->direction == b->direction &&
+           a->alternateEasing == b->alternateEasing;
+}
+
 static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
 {
     // Timelines sized by their children take the size for good; every node
@@ -619,6 +650,11 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
             mtwnComputeTiming(&node->timing, 0.0, false, &shape);
             node->activeDuration = shape.activeDuration;
         }
+        const mtwnClipNode* before = i > 0 ? &slot->nodes[i - 1] : NULL;
+        node->sharesTiming = node->kind == mtwn_nodeTrack && before != NULL &&
+                             before->kind == mtwn_nodeTrack && before->parent == node->parent &&
+                             SameBits(before->start, node->start) &&
+                             SameTiming(&before->timing, &node->timing);
     }
     slot->finished = true;
 }

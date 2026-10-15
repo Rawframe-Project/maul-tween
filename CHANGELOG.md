@@ -25,6 +25,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   counted, and a path evaluates only its own channels and no tangent
   unless asked. 11.0 to 9.4 million instructions a steady frame of
   1,000 four-track players.
+- Tracks in a row with the same parent, start and timing share one
+  timing result per sample: 9.4 to 8.0 million instructions a steady
+  frame of the same players. The values are the same bits.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The

@@ -76,6 +76,16 @@ static double ChildTime(const mtwnTiming* timing, double local, bool backwards, 
     return result.transformedProgress * timing->duration;
 }
 
+// A track's progress and iteration now and a moment ago (NaN when it has
+// none), from its parent's times.
+typedef struct TrackTimes
+{
+    double progress;
+    double iteration;
+    double earlier;
+    double earlierIteration;
+} TrackTimes;
+
 // A track's progress at a local time, NaN when it has no effect, and its
 // current iteration.
 static double TrackProgress(const mtwnClipNode* node, double local, bool backwards,
@@ -148,25 +158,32 @@ static mtwnVec4 Unrounded(const mtwnTrack* track, double progress)
 // Writes a track's value, and its velocity when it had a value a moment
 // ago, into its target, composed onto what lies under it there: what
 // earlier players wrote in this update, or the base.
-static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t target,
-                       const mtwnBound* bound, double weight, const mtwnNodeTime* parent,
-                       bool moving, bool commit)
+static TrackTimes TimesOf(const mtwnClipNode* node, const mtwnNodeTime* parent, bool moving)
 {
-    double iteration = 0.0;
-    double progress = TrackProgress(node, parent->now - node->start, parent->backwards, &iteration);
+    TrackTimes t = {(double)NAN, 0.0, (double)NAN, 0.0};
+    t.progress = TrackProgress(node, parent->now - node->start, parent->backwards, &t.iteration);
+    if (moving && !isnan(t.progress))
+    {
+        t.earlier = TrackProgress(node, parent->before - node->start, parent->backwards,
+                                  &t.earlierIteration);
+    }
+    return t;
+}
+
+static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t target,
+                       const mtwnBound* bound, double weight, const TrackTimes* times, bool commit)
+{
+    double progress = times->progress;
     if (isnan(progress))
     {
         return;
     }
-    mtwnVec4 value = Moved(node, Unrounded(&node->track, progress), iteration);
+    mtwnVec4 value = Moved(node, Unrounded(&node->track, progress), times->iteration);
     float velocity[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    double earlierIteration = 0.0;
-    double earlier = moving ? TrackProgress(node, parent->before - node->start, parent->backwards,
-                                            &earlierIteration)
-                            : (double)NAN;
+    double earlier = times->earlier;
     if (!isnan(earlier) && node->track.kind != mtwn_valueDiscrete)
     {
-        mtwnVec4 before = Moved(node, Unrounded(&node->track, earlier), earlierIteration);
+        mtwnVec4 before = Moved(node, Unrounded(&node->track, earlier), times->earlierIteration);
         const float* a = &value.x;
         const float* b = &before.x;
         for (int i = 0; i < 4; ++i)
@@ -219,6 +236,10 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
     // The player's time is the root's parent's.
     mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, false, {0}};
     TimelineTimes(&clip->nodes[0], &player, moving, &times[0]);
+    // The last track's timing results, for the tracks after it that share
+    // its timing; 0 when none is kept.
+    TrackTimes kept = {0.0, 0.0, 0.0, 0.0};
+    uint32_t keptFor = 0;
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* node = &clip->nodes[i];
@@ -232,9 +253,14 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
             uint32_t target = mtwnBoundTarget(context, play, node->slot);
             if (target != 0)
             {
+                if (!(node->sharesTiming && keptFor == i))
+                {
+                    kept = TimesOf(node, parent, moving);
+                }
+                keptFor = i + 1;
                 const mtwnBound* bound =
                     &context->bindings.entries[play->bindingStart + node->slot];
-                WriteTrack(context, node, target, bound, play->weight, parent, moving, commit);
+                WriteTrack(context, node, target, bound, play->weight, &kept, commit);
             }
         }
     }

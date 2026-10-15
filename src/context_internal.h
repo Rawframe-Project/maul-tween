@@ -190,6 +190,9 @@ typedef struct mtwnClipNode
     // last keyframe minus its first, or for a rotation the rotation from
     // its first to its last.
     bool incremental;
+    // For a track: the node before it is a track of the same parent,
+    // start and timing, so its timing results are that track's.
+    bool sharesTiming;
     mtwnVec4 step;
 } mtwnClipNode;
 
