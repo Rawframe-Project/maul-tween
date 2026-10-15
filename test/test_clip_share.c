@@ -1,0 +1,233 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Tracks in a row share one timing result only when they would compute
+// the same one: each track below differs from the one before it in one
+// way (its start, its duration, its easing's exponent, its parent), one
+// sharing track follows an unbound one, and every target is checked
+// against the values layer's own timing and sample of its track. Host
+// easings are called as often in a row as apart.
+
+#include "test_harness.h"
+
+#include "maul-tween/clip.h"
+#include "maul-tween/player.h"
+#include "maul-tween/target.h"
+#include "maul-tween/timing.h"
+
+#include <math.h>
+#include <string.h>
+
+enum
+{
+    TRACKS = 8,
+    UNBOUND = 6
+};
+
+static mtwnPosition At(double offset)
+{
+    mtwnPosition position;
+    memset(&position, 0, sizeof position);
+    position.offset = offset;
+    return position;
+}
+
+static mtwnNode AddTrack(mtwnContext* context, mtwnClipId clip, mtwnNode parent, double start,
+                         double duration, double exponent, uint32_t slot)
+{
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 10.0f + (float)slot;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = parent;
+    track.slot = slot;
+    track.position = At(start);
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = duration;
+    CHECK(mtwnMakePowerEasing(mtwn_easeOut, exponent, &track.timing.easing) == mtwn_success,
+          "an easing");
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
+    return node;
+}
+
+// The time a node's parent gives it at a player's time: the root's is
+// the player's, a timeline's its transformed progress times its duration.
+static double ParentTime(mtwnContext* context, mtwnClipId clip, mtwnNode parent, double t)
+{
+    if (parent == MTWN_ROOT_NODE)
+    {
+        return t;
+    }
+    mtwnClipNodeInfo info;
+    CHECK(mtwnClip_GetNode(context, clip, parent, &info) == mtwn_success, "a timeline");
+    mtwnTimingResult result;
+    mtwnComputeTiming(&info.timing, t - info.start, false, &result);
+    return result.transformedProgress * info.timing.duration;
+}
+
+// What a track's target holds at a player's time, by the values layer:
+// its sample at its progress, or 0 (the base) with no effect.
+static float Expected(mtwnContext* context, mtwnClipId clip, mtwnNode node, double t)
+{
+    mtwnClipTrack track;
+    CHECK(mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success, "the track");
+    double local = ParentTime(context, clip, track.parent, t) - track.start;
+    mtwnTimingResult result;
+    mtwnComputeTiming(&track.timing, local, false, &result);
+    if (isnan(result.transformedProgress))
+    {
+        return 0.0f;
+    }
+    return mtwnSampleTrack(&track.track, result.transformedProgress).x;
+}
+
+static void TestDiffering(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip = {0, 0};
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.timing.delay = 0.3;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &timeline) == mtwn_success, "a timeline");
+    mtwnNode nodes[TRACKS];
+    // Each differs from the one before in one way; 7 matches the unbound 6.
+    nodes[0] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.5, 0);
+    nodes[1] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.25, 1.0, 2.5, 1);
+    // Exponents not whole, which an easing keeps in its parameters alone.
+    nodes[2] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.25, 2.0, 2.5, 2);
+    nodes[3] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.25, 2.0, 3.5, 3);
+    nodes[4] = AddTrack(context, clip, timeline, 0.25, 2.0, 3.5, 4);
+    nodes[5] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.5, 2.0, 5);
+    nodes[6] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 0.5, 4.0, UNBOUND);
+    nodes[7] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 0.5, 4.0, 7);
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnTargetId targets[TRACKS];
+    mtwnBinding bindings[TRACKS - 1];
+    uint32_t bound = 0;
+    for (uint32_t i = 0; i < TRACKS; ++i)
+    {
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &targets[i]) ==
+                  mtwn_success,
+              "a target");
+        if (i != UNBOUND)
+        {
+            bindings[bound++] = mtwnBind(i, targets[i]);
+        }
+    }
+    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    player.clip = clip;
+    player.bindings = bindings;
+    player.bindingCount = bound;
+    player.keep = true;
+    mtwnPlayerId id = {0, 0};
+    CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    static const double s_times[] = {0.0, 0.1, 0.3, 0.45, 0.7, 1.1, 1.6, 2.4};
+    int wrong = 0;
+    for (size_t k = 0; k < sizeof s_times / sizeof s_times[0]; ++k)
+    {
+        CHECK(mtwnUpdate(context, (uint64_t)llround(s_times[k] * 1e9), NULL, 0, NULL) ==
+                  mtwn_success,
+              "an update");
+        for (uint32_t i = 0; i < TRACKS; ++i)
+        {
+            if (i == UNBOUND)
+            {
+                continue;
+            }
+            mtwnVec4 value = {0};
+            CHECK(mtwnTarget_GetValue(context, targets[i], &value) == mtwn_success, "a value");
+            float expected = Expected(context, clip, nodes[i], s_times[k]);
+            if (fabsf(value.x - expected) > 1e-5f)
+            {
+                printf("  track %u at %g: %.9g, expected %.9g\n", i, s_times[k], (double)value.x,
+                       (double)expected);
+                ++wrong;
+            }
+        }
+    }
+    CHECK(wrong == 0, "every track as the values layer samples it, whatever it shares");
+    mtwnDestroyContext(context);
+}
+
+static int s_calls;
+
+static double Counted(void* context, double progress)
+{
+    (void)context;
+    ++s_calls;
+    return progress * progress;
+}
+
+// A player of three tracks with one host easing: the middle one of
+// another easing when apart. Returns the host function's calls in an
+// update once it runs.
+static int HostCalls(bool apart)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip = {0, 0};
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnEasing host;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Counted, NULL, &host) == mtwn_success, "a host easing");
+    mtwnBinding bindings[3];
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        keys[1].value.x = 1.0f;
+        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.slot = i;
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 1.0;
+        track.timing.easing = apart && i == 1 ? mtwnLinearEasing() : host;
+        mtwnNode node = 0;
+        CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        bindings[i] = mtwnBind(i, target);
+    }
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    player.clip = clip;
+    player.bindings = bindings;
+    player.bindingCount = 3;
+    mtwnPlayerId id = {0, 0};
+    CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
+    s_calls = 0;
+    CHECK(mtwnUpdate(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
+    int calls = s_calls;
+    mtwnDestroyContext(context);
+    return calls;
+}
+
+static void TestHostEasing(void)
+{
+    // Apart, two host-eased tracks; in a row, three. Each is called as
+    // often per track either way.
+    int apart = HostCalls(true);
+    int together = HostCalls(false);
+    CHECK(apart > 0 && together * 2 == apart * 3,
+          "a host easing called for every track, sharing none of them");
+}
+
+int main(void)
+{
+    TestDiffering();
+    TestHostEasing();
+    return s_failures == 0 ? 0 : 1;
+}
