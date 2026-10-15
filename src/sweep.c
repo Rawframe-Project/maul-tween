@@ -35,6 +35,14 @@ typedef struct Sweep
     // (a track's end and the next one's start at a timeline's repeat), so
     // the next search starts there.
     double guess;
+    // The records the last track made, for the next one when it shares its
+    // timing: its start, iterations and end are then the same leaves on
+    // the same chain, so the same records but for the node. replayNode is
+    // that track, 0 when none is kept.
+    uint32_t replayNode;
+    uint32_t replayCount;
+    mtwnEvent replay[6];
+    double replayAlong[6];
 } Sweep;
 
 // The host's time a player's time was reached at: from the sweep's start
@@ -105,6 +113,12 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         // Its place along the sweep: how far from the sweep's start.
         double along = fabs(first - sweep->from);
         mtwnPushEvent(sweep->context, &event, along);
+        if (sweep->replayNode == node && sweep->replayCount < 6)
+        {
+            sweep->replay[sweep->replayCount] = event;
+            sweep->replayAlong[sweep->replayCount] = along;
+            ++sweep->replayCount;
+        }
     }
 }
 
@@ -233,6 +247,44 @@ static bool Settled(const mtwnClipSlot* clip, uint32_t node, const mtwnNodeTime*
     return own.sure;
 }
 
+// Where in the sweep the parent's child time likely reached x, as the next
+// search's guess: the sweep's ends interpolated, the parent having moved
+// one way in one iteration. Kept as the guess unless the parent stood still
+// or did not stay in one iteration; a wrong guess only narrows a search.
+static void GuessAt(Sweep* sweep, const mtwnNodeTime* parent, double x)
+{
+    double moved = parent->now - parent->before;
+    if (!parent->steady || moved == 0.0 || !isfinite(x))
+    {
+        return;
+    }
+    double guess = sweep->from + (x - parent->before) / moved * (sweep->to - sweep->from);
+    if (isfinite(guess))
+    {
+        sweep->guess = guess;
+    }
+}
+
+// Where in its parent a node's iteration starts between the sweep's ends,
+// roughly (a repeat delay and a negative rate not reckoned): NaN for none.
+static double IterationStartIn(const mtwnClipNode* n, const mtwnNodeTime* parent)
+{
+    const mtwnTiming* t = &n->timing;
+    double rate = fabs(t->playbackRate);
+    if (!(t->duration > 0.0) || isinf(t->duration))
+    {
+        return (double)NAN;
+    }
+    double a = ((parent->before - n->start) - t->delay) * rate / t->duration + t->iterationStart;
+    double b = ((parent->now - n->start) - t->delay) * rate / t->duration + t->iterationStart;
+    double k = floor(a > b ? a : b);
+    if (!(k > (a < b ? a : b)))
+    {
+        return (double)NAN;
+    }
+    return n->start + t->delay + (k - t->iterationStart) * t->duration / rate;
+}
+
 // A node's records: a mark's crossings, or a track's or timeline's start,
 // iterations and end. Those its parent certainly did not reach are not
 // counted, their counts being 0, nor its iterations when it settled in
@@ -247,6 +299,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         if (!Missed(parent, n->start, n->start))
         {
             mtwnLeaf mark = InstantAt(n->start);
+            GuessAt(sweep, parent, n->start);
             uint32_t count = Chain(levels, clip, node);
             Record(sweep, count, count, &mark, (Kinds){mtwn_eventMark, mtwn_eventMark}, node,
                    n->key);
@@ -257,6 +310,19 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     {
         return;
     }
+    if (n->kind == mtwn_nodeTrack && n->sharesTiming && sweep->replayNode == node - 1)
+    {
+        for (uint32_t i = 0; i < sweep->replayCount; ++i)
+        {
+            mtwnEvent event = sweep->replay[i];
+            event.node = node;
+            mtwnPushEvent(sweep->context, &event, sweep->replayAlong[i]);
+        }
+        sweep->replayNode = node;
+        return;
+    }
+    sweep->replayNode = n->kind == mtwn_nodeTrack ? node : 0;
+    sweep->replayCount = 0;
     double activeStart = n->start + n->timing.delay;
     double activeEnd = activeStart + n->activeDuration;
     // The levels below the chain hold the node itself, for its iteration;
@@ -265,6 +331,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     if (!Missed(parent, activeStart, activeStart))
     {
         mtwnLeaf start = InstantAt(activeStart);
+        GuessAt(sweep, parent, activeStart);
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
     }
@@ -275,6 +342,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         iterations.at = n->start;
         iterations.timing = n->timing;
         iterations.kind = mtwn_leafIterations;
+        GuessAt(sweep, parent, IterationStartIn(n, parent));
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &iterations,
                (Kinds){mtwn_eventIteration, mtwn_eventIteration}, node, 0);
@@ -282,6 +350,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     if (!Missed(parent, activeEnd, activeEnd))
     {
         mtwnLeaf end = InstantAt(activeEnd);
+        GuessAt(sweep, parent, activeEnd);
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
     }
@@ -302,8 +371,21 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
     bool turning = !fromNone && play->sweptWay != 0 && play->sweptWay != way;
     play->sweptWay = way;
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-    Sweep sweep = {context,  player, play, fromNone ? to : from, to, fromNone, fromNone || turning,
-                   hostFrom, hostTo, rate, (double)NAN};
+    // Set field by field: the kept records need no clearing.
+    Sweep sweep;
+    sweep.context = context;
+    sweep.player = player;
+    sweep.play = play;
+    sweep.from = fromNone ? to : from;
+    sweep.to = to;
+    sweep.fromNone = fromNone;
+    sweep.fromClosed = fromNone || turning;
+    sweep.hostFrom = hostFrom;
+    sweep.hostTo = hostTo;
+    sweep.rate = rate;
+    sweep.guess = (double)NAN;
+    sweep.replayNode = 0;
+    sweep.replayCount = 0;
     // The player's time is the root's parent's, and moves one way.
     mtwnNodeTime top = {to, sweep.from, false, true, true, {0}};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)

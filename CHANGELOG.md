@@ -32,6 +32,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   velocity to be worked out when read, as an eased transition's is
   (record mtwn-0054): 8.0 to 5.9 million instructions a steady frame of
   the same players. Velocities read are the same bits.
+- A sweep's records cost less at a repeat: a track sharing the one
+  before it's timing takes that track's records for its own node, and a
+  record's first search starts where its parent, moving steadily,
+  reached the leaf. The frame where a looping clip of 1,000 players
+  repeats costs 40 million instructions instead of 170. The times are
+  where the count flips, as before (record mtwn-0053).
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The
