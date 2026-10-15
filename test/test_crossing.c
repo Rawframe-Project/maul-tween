@@ -419,8 +419,9 @@ static bool Flips(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
 }
 
 // For each way a sweep counts a crossing, first and last: the search
-// from guesses (the answer, its neighbours, the ends, the middle, a
-// random point, far outside, NaN) finds a time where the count flips,
+// from guesses (the ends, the middle, a random point, far outside either
+// way, NaN, and every double within four of the answer) finds a time
+// where the count flips,
 // within 1e-9 of the search from none (the count's rounding can flip it
 // more than once within a few doubles, and the halving's path picks one).
 // Returns the searches compared.
@@ -443,16 +444,20 @@ static int GuessesAgree(const mtwnLevel* levels, uint32_t count, const mtwnLeaf*
         {
             double plain =
                 mtwnFindCrossing(levels, count, leaf, t1, t2, false, last == 1, s_ways[w]);
-            double guesses[9] = {plain,
-                                 nextafter(plain, HUGE_VAL),
-                                 nextafter(plain, -HUGE_VAL),
-                                 t1,
-                                 t2,
-                                 (t1 + t2) / 2.0,
-                                 t1 + Random() * (t2 - t1),
-                                 t2 + 1e6,
-                                 (double)NAN};
-            for (int g = 0; g < 9; ++g)
+            // The answer and every double within four of it, where the
+            // count's rounding can flip it back and forth.
+            double guesses[16] = {t1,       t2,       (t1 + t2) / 2.0, t1 + Random() * (t2 - t1),
+                                  t2 + 1e6, t1 - 1e6, (double)NAN,     plain};
+            double up = plain;
+            double down = plain;
+            for (int k = 0; k < 4; ++k)
+            {
+                up = nextafter(up, HUGE_VAL);
+                down = nextafter(down, -HUGE_VAL);
+                guesses[8 + 2 * k] = up;
+                guesses[9 + 2 * k] = down;
+            }
+            for (int g = 0; g < 16; ++g)
             {
                 double from = mtwnFindCrossingFrom(levels, count, leaf, t1, t2, false, last == 1,
                                                    s_ways[w], guesses[g]);
