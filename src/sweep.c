@@ -140,6 +140,9 @@ static uint32_t Chain(mtwnLevel* levels, const mtwnClipSlot* clip, uint32_t node
         levels[i] = (mtwnLevel){0};
         levels[i].timing = n->timing;
         levels[i].start = n->start;
+        // Kept when its clip was finished, for timelines and tracks.
+        levels[i].activeDuration = n->activeDuration;
+        levels[i].activeKnown = n->kind == mtwn_nodeTimeline || n->kind == mtwn_nodeTrack;
         if (i == 0)
         {
             break;
@@ -344,6 +347,8 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         iterations.at = n->start;
         iterations.timing = n->timing;
         iterations.kind = mtwn_leafIterations;
+        iterations.activeDuration = n->activeDuration;
+        iterations.activeKnown = true;
         GuessAt(sweep, parent, IterationStartIn(n, parent));
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &iterations,

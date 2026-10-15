@@ -270,9 +270,10 @@ static void Between(const mtwnTiming* timing, double a, double b, double* forwar
 }
 
 // The iteration starts of a node a local time has reached.
-static double IterationsReached(const mtwnTiming* timing, double local, bool strict)
+static double IterationsReached(const mtwnLeaf* leaf, double local, bool strict)
 {
-    Shape shape = ShapeOf(timing, ActiveOf(timing));
+    const mtwnTiming* timing = &leaf->timing;
+    Shape shape = ShapeOf(timing, leaf->activeKnown ? leaf->activeDuration : ActiveOf(timing));
     if (shape.point || shape.unbounded)
     {
         return 0.0;
@@ -300,7 +301,7 @@ static mtwnCrossings LeafBelow(const mtwnLeaf* leaf, double y, bool strict)
 {
     if (leaf->kind == mtwn_leafIterations)
     {
-        return (mtwnCrossings){IterationsReached(&leaf->timing, y - leaf->at, strict), 0.0};
+        return (mtwnCrossings){IterationsReached(leaf, y - leaf->at, strict), 0.0};
     }
     bool reached = strict ? leaf->at < y : leaf->at <= y;
     return (mtwnCrossings){reached ? 1.0 : 0.0, 0.0};
@@ -466,7 +467,10 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
 {
     mtwnLevel* level = &levels[i];
     const mtwnTiming* timing = &level->timing;
-    level->activeDuration = ActiveOf(timing);
+    if (!level->activeKnown)
+    {
+        level->activeDuration = ActiveOf(timing);
+    }
     Shape shape = ShapeOf(timing, level->activeDuration);
     level->firstIteration = shape.first;
     level->firstProgress = shape.firstProgress;

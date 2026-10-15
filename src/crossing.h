@@ -46,8 +46,12 @@ typedef struct mtwnLeaf
     double at;
     // The node's timing, its duration resolved, for iterations.
     mtwnTiming timing;
+    // Its active duration when known (a finished clip's node keeps it),
+    // else worked out from the timing at each use.
+    double activeDuration;
     mtwnLeafKind kind;
-    uint8_t reserved[7];
+    bool activeKnown;
+    uint8_t reserved[6];
 } mtwnLeaf;
 
 // A timeline on the way down: its timing, its duration resolved, its
@@ -56,8 +60,10 @@ typedef struct mtwnLevel
 {
     mtwnTiming timing;
     double start;
-    // Filled by mtwnPrepareLevels.
+    // Filled by mtwnPrepareLevels, unless known as filled (a finished
+    // clip's node keeps it).
     double activeDuration;
+    bool activeKnown;
     double firstIteration;
     double firstProgress;
     double lastIteration;

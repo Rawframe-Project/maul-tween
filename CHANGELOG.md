@@ -38,6 +38,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   reached the leaf. The frame where a looping clip of 1,000 players
   repeats costs 40 million instructions instead of 170. The times are
   where the count flips, as before (record mtwn-0053).
+- The crossing count takes a finished node's active duration as its clip
+  keeps it, where it worked it out again at every step of a count: the
+  repeat frame 37.6 to 33.4 million instructions, the same bits.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The
