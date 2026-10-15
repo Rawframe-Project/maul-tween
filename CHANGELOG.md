@@ -9,6 +9,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- A clip player's update no longer counts a repeating timeline's or
+  track's iterations when its time stayed inside one iteration: about
+  a fifth fewer instructions in a steady frame of a looping clip. The
+  events are unchanged.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The

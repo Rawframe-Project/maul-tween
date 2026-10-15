@@ -170,9 +170,67 @@ static bool Iterates(const mtwnTiming* timing)
     return floor(timing->iterationStart) + 1.0 < timing->iterationStart + timing->iterations;
 }
 
+// Whether a child time lies clearly inside an iteration of a duration:
+// off 0 and the duration by more than the margin Missed leaves. False for
+// NaN.
+static bool Inside(double child, double duration)
+{
+    double margin = s_missedMargin * (1.0 + fabs(child));
+    bool offStart = fabs(child) > margin;
+    bool offEnd = isinf(duration) || fabs(child - duration) > margin;
+    return offStart && offEnd;
+}
+
+// A timeline's child times at the sweep's ends, and whether it stayed in
+// one iteration.
+static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTime* out)
+{
+    mtwnTiming timing = n->timing;
+    timing.fill = mtwn_fillBoth;
+    double ends[2] = {parent->now, parent->before};
+    double iterations[2] = {0.0, 0.0};
+    double children[2] = {0.0, 0.0};
+    for (int k = 0; k < 2; ++k)
+    {
+        mtwnTimingResult result;
+        mtwnComputeTiming(&timing, ends[k] - n->start, false, &result);
+        iterations[k] = result.iteration;
+        children[k] = isinf(timing.duration)
+                          ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)
+                          : result.transformedProgress * timing.duration;
+    }
+    out->now = children[0];
+    out->before = children[1];
+    out->steady = parent->steady && iterations[0] == iterations[1];
+    out->sure = parent->sure && out->steady && Inside(children[0], timing.duration) &&
+                Inside(children[1], timing.duration);
+}
+
+// Whether no iteration of a node started over the sweep: its parent sure,
+// its own time stayed in one iteration, clearly inside it, so it moved
+// one way between two points of that iteration (record mtwn-0042's
+// argument one level down). A timeline's times are worked out already; a
+// track's are worked out here.
+static bool Settled(const mtwnClipSlot* clip, uint32_t node, const mtwnNodeTime* parent)
+{
+    if (!parent->sure)
+    {
+        return false;
+    }
+    const mtwnClipNode* n = &clip->nodes[node - 1];
+    if (n->kind == mtwn_nodeTimeline)
+    {
+        return clip->times[node - 1].sure;
+    }
+    mtwnNodeTime own;
+    Times(n, parent, &own);
+    return own.sure;
+}
+
 // A node's records: a mark's crossings, or a track's or timeline's start,
 // iterations and end. Those its parent certainly did not reach are not
-// counted, their counts being 0.
+// counted, their counts being 0, nor its iterations when it settled in
+// one.
 static void NodeEvents(const Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
                        const mtwnNodeTime* parent)
 {
@@ -209,7 +267,8 @@ static void NodeEvents(const Sweep* sweep, const mtwnClipSlot* clip, uint32_t no
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
     }
-    if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd))
+    if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd) &&
+        !Settled(clip, node, parent))
     {
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &iterations,
@@ -220,42 +279,6 @@ static void NodeEvents(const Sweep* sweep, const mtwnClipSlot* clip, uint32_t no
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
     }
-}
-
-// Whether a child time lies clearly inside an iteration of a duration:
-// off 0 and the duration by more than the margin Missed leaves. False for
-// NaN.
-static bool Inside(double child, double duration)
-{
-    double margin = s_missedMargin * (1.0 + fabs(child));
-    bool offStart = fabs(child) > margin;
-    bool offEnd = isinf(duration) || fabs(child - duration) > margin;
-    return offStart && offEnd;
-}
-
-// A timeline's child times at the sweep's ends, and whether it stayed in
-// one iteration.
-static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTime* out)
-{
-    mtwnTiming timing = n->timing;
-    timing.fill = mtwn_fillBoth;
-    double ends[2] = {parent->now, parent->before};
-    double iterations[2] = {0.0, 0.0};
-    double children[2] = {0.0, 0.0};
-    for (int k = 0; k < 2; ++k)
-    {
-        mtwnTimingResult result;
-        mtwnComputeTiming(&timing, ends[k] - n->start, false, &result);
-        iterations[k] = result.iteration;
-        children[k] = isinf(timing.duration)
-                          ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)
-                          : result.transformedProgress * timing.duration;
-    }
-    out->now = children[0];
-    out->before = children[1];
-    out->steady = parent->steady && iterations[0] == iterations[1];
-    out->sure = parent->sure && out->steady && Inside(children[0], timing.duration) &&
-                Inside(children[1], timing.duration);
 }
 
 void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double rate, double hostFrom,
