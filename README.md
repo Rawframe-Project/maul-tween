@@ -27,7 +27,7 @@ platform.
 
 ## Status
 
-0.2.0 (2026-10-15) holds the whole library: Penner's families and
+0.2.1 (2026-10-15) holds the whole library: Penner's families and
 CSS Easing Level 2, in four modes, with even tables and fitted CSS
 linear() points; springs in closed form, as easings too, decay and the
 rubber band; colors as CSS Color 4 interpolates them; angles,

@@ -7,6 +7,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-15
+
+Three defects the randomized invariants found once they covered 0.2.0's
+additions.
+
 ### Fixed
 
 - `mtwnPlayer_Finish` holds the player exactly at its end. The start
