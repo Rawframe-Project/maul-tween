@@ -206,22 +206,30 @@ static void SegmentCubic(const mtwnPath* path, uint32_t i, Cubic* out)
     }
 }
 
-// The cubic's value at u, exact at its ends: at 0 its start, at 1 the
-// end keyframe's value; a step holds its start until u reaches 1.
-static void Evaluate(const Cubic* cubic, const double end[4], double u, double value[4],
-                     double tangent[4])
+// The cubic's value at u in its first channels, exact at its ends: at 0
+// its start, at 1 the end keyframe's value; a step holds its start until
+// u reaches 1. The tangent too, unless it is NULL.
+static void Evaluate(const Cubic* cubic, const double end[4], double u, uint8_t channels,
+                     double value[4], double* tangent)
 {
-    for (int c = 0; c < 4; ++c)
+    for (uint8_t c = 0; c < channels; ++c)
     {
         if (cubic->step)
         {
             value[c] = u >= 1.0 ? end[c] : cubic->a[c];
-            tangent[c] = 0.0;
             continue;
         }
         value[c] = u == 1.0 ? end[c]
                             : cubic->a[c] + u * (cubic->b[c] + u * (cubic->c[c] + u * cubic->d[c]));
-        tangent[c] = cubic->b[c] + u * (2.0 * cubic->c[c] + u * 3.0 * cubic->d[c]);
+    }
+    if (tangent == NULL)
+    {
+        return;
+    }
+    for (uint8_t c = 0; c < channels; ++c)
+    {
+        tangent[c] =
+            cubic->step ? 0.0 : cubic->b[c] + u * (2.0 * cubic->c[c] + u * 3.0 * cubic->d[c]);
     }
 }
 
@@ -429,19 +437,20 @@ static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, 
 
 void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
 {
-    double unused[4];
-    double* tangent = tangentOut != NULL ? tangentOut : unused;
     Cubic cubic;
     uint32_t i = 0;
     double u = 0.0;
     Locate(path, progress, &i, &u, &cubic);
     double end[4];
     Load(path->keyframes[i + 1].value, end);
-    Evaluate(&cubic, end, u, valueOut, tangent);
+    Evaluate(&cubic, end, u, path->channels, valueOut, tangentOut);
     for (uint8_t c = path->channels; c < 4; ++c)
     {
         valueOut[c] = 0.0;
-        tangent[c] = 0.0;
+        if (tangentOut != NULL)
+        {
+            tangentOut[c] = 0.0;
+        }
     }
 }
 
@@ -652,9 +661,8 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
     else
     {
         double end[4];
-        double tangent[4];
         Load(k[i + 1].value, end);
-        Evaluate(&cubic, end, u, value, tangent);
+        Evaluate(&cubic, end, u, 4, value, NULL);
     }
     return Normalized(value, k[i].value);
 }

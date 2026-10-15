@@ -19,6 +19,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   the count's rounding flips it more than once within a few doubles, a
   record's time can be another of those doubles, the same on every
   platform.
+- A steady frame of a clip's player is cheaper again, with the same
+  bits: the timing steps take a fraction without `fmod` and write
+  their result in place, a node's event leaves are made only when
+  counted, and a path evaluates only its own channels and no tangent
+  unless asked. 11.0 to 9.4 million instructions a steady frame of
+  1,000 four-track players.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The

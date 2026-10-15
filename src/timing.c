@@ -172,8 +172,10 @@ bool mtwnIterationForwards(mtwnDirection direction, double iteration)
         {
             return true;
         }
+        // Even: fmod(d, 2) == 0 for the whole numbers an iteration is,
+        // without the division (halving is exact); false for NaN.
         double d = direction == mtwn_directionAlternateReverse ? iteration + 1.0 : iteration;
-        return fmod(d, 2.0) == 0.0;
+        return floor(d * 0.5) * 2.0 == d;
     }
     }
 }
@@ -189,7 +191,9 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     double overall = result->overallProgress;
     overall = overall > ends ? ends : (overall < start ? start : overall);
     result->overallProgress = overall;
-    double simple = isinf(overall) ? fmod(start, 1.0) : fmod(overall, 1.0);
+    // fmod(x, 1) for the x >= +0 these are: a double's fraction is a
+    // double, so x - floor(x) is exact.
+    double simple = isinf(overall) ? start - floor(start) : overall - floor(overall);
     // The iterations' end: the active end, or for a negative rate (which
     // begins there, Level 2) the active start.
     bool atEnd =
@@ -206,62 +210,63 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
 void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
                        mtwnTimingResult* resultOut)
 {
-    mtwnTimingResult result = {0};
+    // Built in place: a copy out of a local read back the fields it had
+    // just stored, in wider loads than the stores.
+    *resultOut = (mtwnTimingResult){0};
+    mtwnTimingResult* result = resultOut;
     double active = ActiveDuration(timing);
-    result.activeDuration = active;
+    result->activeDuration = active;
     double end = timing->delay + active + timing->endDelay;
-    result.endTime = end > 0.0 ? end : 0.0;
-    double beforeActive = timing->delay < result.endTime ? timing->delay : result.endTime;
+    result->endTime = end > 0.0 ? end : 0.0;
+    double beforeActive = timing->delay < result->endTime ? timing->delay : result->endTime;
     beforeActive = beforeActive > 0.0 ? beforeActive : 0.0;
     double activeEnd = timing->delay + active;
-    double activeAfter = activeEnd < result.endTime ? activeEnd : result.endTime;
+    double activeAfter = activeEnd < result->endTime ? activeEnd : result->endTime;
     activeAfter = activeAfter > 0.0 ? activeAfter : 0.0;
-    result.phase = Phase(localTime, beforeActive, activeAfter, backwards);
-    result.activeTime = ActiveTime(timing, result.phase, localTime, active);
-    if (isnan(result.activeTime))
+    result->phase = Phase(localTime, beforeActive, activeAfter, backwards);
+    result->activeTime = ActiveTime(timing, result->phase, localTime, active);
+    if (isnan(result->activeTime))
     {
-        result.overallProgress = (double)NAN;
-        result.simpleProgress = (double)NAN;
-        result.iteration = (double)NAN;
-        result.directedProgress = (double)NAN;
-        result.transformedProgress = (double)NAN;
-        *resultOut = result;
+        result->overallProgress = (double)NAN;
+        result->simpleProgress = (double)NAN;
+        result->iteration = (double)NAN;
+        result->directedProgress = (double)NAN;
+        result->transformedProgress = (double)NAN;
         return;
     }
     double n = timing->iterations;
     double held = 0.0;
-    result.overallProgress = OverallProgress(timing, &result, &held);
-    double simple = SimpleProgress(timing, &result);
-    double overall = result.overallProgress;
-    result.simpleProgress = simple;
+    result->overallProgress = OverallProgress(timing, result, &held);
+    double simple = SimpleProgress(timing, result);
+    double overall = result->overallProgress;
+    result->simpleProgress = simple;
     // The current iteration.
-    if (result.inRepeatDelay)
+    if (result->inRepeatDelay)
     {
-        result.iteration = held;
+        result->iteration = held;
     }
-    else if (result.phase == mtwn_phaseAfter && isinf(n))
+    else if (result->phase == mtwn_phaseAfter && isinf(n))
     {
-        result.iteration = HUGE_VAL;
+        result->iteration = HUGE_VAL;
     }
     else
     {
-        result.iteration = simple == 1.0 ? floor(overall) - 1.0 : floor(overall);
+        result->iteration = simple == 1.0 ? floor(overall) - 1.0 : floor(overall);
     }
     // The directed and transformed progress.
-    bool forwards = mtwnIterationForwards(timing->direction, result.iteration);
-    result.forwards = forwards;
-    result.directedProgress = forwards ? simple : 1.0 - simple;
+    bool forwards = mtwnIterationForwards(timing->direction, result->iteration);
+    result->forwards = forwards;
+    result->directedProgress = forwards ? simple : 1.0 - simple;
     bool goingForwards = forwards == (timing->playbackRate > 0.0);
-    result.before = (result.phase == mtwn_phaseBefore && goingForwards) ||
-                    (result.phase == mtwn_phaseAfter && !goingForwards);
+    result->before = (result->phase == mtwn_phaseBefore && goingForwards) ||
+                     (result->phase == mtwn_phaseAfter && !goingForwards);
     if (!forwards && timing->alternateEasing == mtwn_alternateRepeatsShape)
     {
-        result.transformedProgress = 1.0 - mtwnEase(&timing->easing, simple, result.before);
+        result->transformedProgress = 1.0 - mtwnEase(&timing->easing, simple, result->before);
     }
     else
     {
-        result.transformedProgress =
-            mtwnEase(&timing->easing, result.directedProgress, result.before);
+        result->transformedProgress =
+            mtwnEase(&timing->easing, result->directedProgress, result->before);
     }
-    *resultOut = result;
 }

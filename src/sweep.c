@@ -259,29 +259,29 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     }
     double activeStart = n->start + n->timing.delay;
     double activeEnd = activeStart + n->activeDuration;
-    mtwnLeaf start = InstantAt(activeStart);
-    mtwnLeaf end = InstantAt(activeEnd);
-    mtwnLeaf iterations = {0};
-    iterations.at = n->start;
-    iterations.timing = n->timing;
-    iterations.kind = mtwn_leafIterations;
     // The levels below the chain hold the node itself, for its iteration;
     // preparing a leaf leaves them be, so the chain is filled again for
-    // each.
+    // each. A leaf, with its timing, is made only when it is counted.
     if (!Missed(parent, activeStart, activeStart))
     {
+        mtwnLeaf start = InstantAt(activeStart);
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
     }
     if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd) &&
         !Settled(clip, node, parent))
     {
+        mtwnLeaf iterations = {0};
+        iterations.at = n->start;
+        iterations.timing = n->timing;
+        iterations.kind = mtwn_leafIterations;
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &iterations,
                (Kinds){mtwn_eventIteration, mtwn_eventIteration}, node, 0);
     }
     if (!Missed(parent, activeEnd, activeEnd))
     {
+        mtwnLeaf end = InstantAt(activeEnd);
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
     }
