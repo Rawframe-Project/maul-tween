@@ -140,7 +140,7 @@ static uint32_t Chain(mtwnLevel* levels, const mtwnClipSlot* clip, uint32_t node
     for (uint32_t at = node; at != 0; at = clip->nodes[at - 1].parent)
     {
         const mtwnClipNode* n = &clip->nodes[at - 1];
-        levels[i] = (mtwnLevel){0};
+        // Its preparation writes the rest.
         levels[i].timing = n->timing;
         levels[i].start = n->start;
         // Kept when its clip was finished, for timelines and tracks.

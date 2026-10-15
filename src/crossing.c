@@ -373,10 +373,19 @@ typedef struct Partial
     uint32_t start;
 } Partial;
 
+// A prepared level's shape, as its preparation kept it.
+static Shape LevelShape(const mtwnLevel* level)
+{
+    Shape shape = {level->activeDuration, level->firstIteration, level->firstProgress,
+                   level->lastIteration,  level->lastProgress,   level->forwardRate,
+                   level->point,          level->unbounded};
+    return shape;
+}
+
 static bool Reaching(const mtwnLevel* level, Walk* walk, Partial* partial)
 {
     const mtwnTiming* timing = &level->timing;
-    Shape shape = ShapeOf(timing, level->activeDuration);
+    Shape shape = LevelShape(level);
     double a = walk->x - timing->delay;
     if (a < 0.0 || (a == 0.0 && walk->strict))
     {
@@ -384,7 +393,7 @@ static bool Reaching(const mtwnLevel* level, Walk* walk, Partial* partial)
     }
     if (shape.point)
     {
-        Add(&walk->sum, walk->sign, walk->swap, level->point);
+        Add(&walk->sum, walk->sign, walk->swap, level->pointBelow);
         return false;
     }
     if (shape.unbounded)
@@ -476,14 +485,22 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
     level->firstProgress = shape.firstProgress;
     level->lastIteration = shape.last;
     level->lastProgress = shape.lastProgress;
+    level->forwardRate = shape.forwardRate;
+    level->point = shape.point;
+    level->unbounded = shape.unbounded;
+    // Every count below a count can read is written, those this shape
+    // leaves unread as 0, so the level needs no clearing first.
+    memset(level->cover, 0, sizeof level->cover);
+    memset(level->startBelow, 0, sizeof level->startBelow);
+    level->pointBelow = (mtwnCrossings){0.0, 0.0};
     double next = NextStart(levels, count, i);
     if (shape.point)
     {
         double at = timing->duration == 0.0
                         ? 0.0
                         : ChildAt(timing, Forwards(timing, shape.first), shape.firstProgress);
-        level->point = Below(levels, count, leaf, i + 1, at - next, false);
-        Add(&level->point, -1.0, false, Below(levels, count, leaf, i + 1, at - next, true));
+        level->pointBelow = Below(levels, count, leaf, i + 1, at - next, false);
+        Add(&level->pointBelow, -1.0, false, Below(levels, count, leaf, i + 1, at - next, true));
         return;
     }
     if (shape.unbounded)

@@ -66,6 +66,10 @@ typedef struct mtwnLevel
     // clip's node keeps it).
     double activeDuration;
     bool activeKnown;
+    // Its iterations' shape, with the four below, kept for the counts.
+    bool forwardRate;
+    bool point;
+    bool unbounded;
     double firstIteration;
     double firstProgress;
     double lastIteration;
@@ -77,7 +81,7 @@ typedef struct mtwnLevel
     // one's, a reversed one's), closed and strict.
     mtwnCrossings startBelow[3][2];
     // Below at the single point a zero-length level has.
-    mtwnCrossings point;
+    mtwnCrossings pointBelow;
 } mtwnLevel;
 
 // Prepares the levels, outermost first, for counting the leaf: each keeps

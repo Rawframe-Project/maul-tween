@@ -44,6 +44,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - A record's counts remember their walks: the searches' fixed ends are
   walked once instead of at every test. The repeat frame 33.4 to 27.3
   million instructions, the same bits.
+- A prepared level keeps its iterations' shape for the counts, and its
+  preparation writes every count below, so a chain needs no clearing:
+  the repeat frame 27.3 to 25.6 million instructions, the same bits.
 - `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The
