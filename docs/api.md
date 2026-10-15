@@ -167,7 +167,7 @@ Makes the power easing p^k: quad for k = 2, cubic 3, quart 4, quint 5. GSAP's po
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakePennerEasing(mtwnEasingKind kind, mtwnEaseMode mode, mtwnEasing* easingOut);
 ```
-Makes one of Penner's easings without parameters: sine, expo, circ or bounce. Each lands exactly on 0 at 0 and on 1 at 1; expo is normalized to do so and differs from Penner's by at most 2^-10.  @param kind       mtwn_easingSine, mtwn_easingExpo, mtwn_easingCirc or mtwn_easingBounce. @param mode       The mode. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null pointer, another kind or an unknown mode. @par Thread safety Safe from any thread.
+Makes one of Penner's easings without parameters: sine, expo, circ or bounce. Each lands exactly on 0 at 0 and on 1 at 1; expo is normalized to do so and differs from Penner's by at most 2^-10. GSAP 3's expo is not Penner's but a blend of its own, 2^(10 (p - 1)) p + p^6 (1 - p), up to 2^-7 from this one.  @param kind       mtwn_easingSine, mtwn_easingExpo, mtwn_easingCirc or mtwn_easingBounce. @param mode       The mode. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null pointer, another kind or an unknown mode. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeBackEasing(mtwnEaseMode mode, double overshoot, mtwnEasing* easingOut);
@@ -177,7 +177,7 @@ Makes the back easing p^2 ((s + 1) p - s), normalized to land on 1. GSAP's back(
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeElasticEasing(mtwnEaseMode mode, double amplitude, double period, mtwnEasing* easingOut);
 ```
-Makes the elastic easing, GSAP's elastic(amplitude, period): out is 1 + a 2^(-10 p) sin((p - c) 2 pi / P) with c = P asin(1 / a) / (2 pi), normalized to land on 0 and 1, and in its reflection. An amplitude below 1 is 1 with the period divided by it, as GSAP does. GSAP's defaults are amplitude 1 with period 0.3, or 0.45 in-out; Penner's is amplitude 1.  @param mode       The mode. @param amplitude  a, finite and above 0. @param period     P, finite and above 0, in units of progress. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown mode or a parameter outside the above. @par Thread safety Safe from any thread.
+Makes the elastic easing, GSAP's elastic(amplitude, period): out is 1 + a 2^(-10 p) sin((p - c) 2 pi / P) with c = P asin(1 / a) / (2 pi), normalized to land on 0 and 1, and in its reflection. An amplitude below 1 is 1 with the period divided by it, as GSAP does. GSAP's defaults are amplitude 1 with period 0.3, or 0.45 in-out; Penner's and tween.js's are amplitude 1, period 0.4. GSAP and tween.js miss 1 at the end by up to a 2^-10 and set it there, so they differ from this by at most a (1 + a) 2^-10.  @param mode       The mode. @param amplitude  a, finite and above 0. @param period     P, finite and above 0, in units of progress. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null pointer, an unknown mode or a parameter outside the above. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void* context, mtwnEasing* easingOut);

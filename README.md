@@ -60,6 +60,20 @@ program uses it. The programs in `samples/` show it at work, from a
 button's states to layered clips; [the samples page](docs/samples.md)
 says what each shows. `docs/api.md` describes every public function.
 
+## Testing
+
+`ctest` runs every test. Some tests check against references made by
+other means, kept in `tools/oracle/` and run by hand. Their outputs are
+committed under `test/generated/`, and CI checks the library against
+them:
+
+- `timing_oracle.py`: Web Animations' timing steps, written again in
+  Python.
+- `rivals.mjs`: GSAP 3.15.0 and tween.js 25.0.0, run under Node. Each
+  is fetched by its pinned version and checked against its pinned
+  SHA-512 before it runs. Neither is kept in this repository or linked
+  into the library.
+
 ## Size
 
 The code a program links, by the parts it uses: x86-64, GCC 14 `-O2`,
