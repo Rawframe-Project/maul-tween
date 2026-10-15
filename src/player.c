@@ -227,7 +227,10 @@ static mtwnResult Finish(mtwnClipPlay* play, double now, double end)
         play->startTime = now - limit / play->rate;
     }
     play->pending = false;
-    UpdateFinished(play, now, end, true);
+    // Held exactly at the limit, as Level 1's exact arithmetic leaves it:
+    // a start rebased by limit / rate can round the time just short of it.
+    Hold(play, now, end, true, limit);
+    play->previousTime = CurrentTime(play, now);
     return mtwn_success;
 }
 
@@ -291,9 +294,11 @@ static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, 
             }
         }
     }
+    UpdateFinished(play, now, end, false);
     // Under reduced motion one not essential finishes, as a finish does,
     // what lies between crossed at this time (record mtwn-0049); one with
-    // an infinite end cannot and plays on.
+    // an infinite end cannot and plays on. It is judged after the finished
+    // state's update, by the state this update leaves.
     double reached = CurrentTime(play, now);
     if (context->reducedMotion && !play->essential && StateOf(play, now, end) == mtwn_playRunning &&
         Finish(play, now, end) == mtwn_success)
@@ -307,7 +312,6 @@ static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, 
         ranAt = 0.0;
         before = now;
     }
-    UpdateFinished(play, now, end, false);
     mtwnPlayState state = StateOf(play, now, end);
     if (state == mtwn_playIdle)
     {

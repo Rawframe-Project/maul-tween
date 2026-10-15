@@ -233,6 +233,21 @@ static void TestMisuse(void)
     bad = good;
     bad.pointY = (double)NAN;
     CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid, "a point not finite");
+    bad = good;
+    bad.origin = mtwn_staggerPoint;
+    bad.pointX = 0x1.0p20;
+    CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_success, "a point at the limit");
+    got[0] = got[1] = got[2] = -1.0;
+    bad.pointX = 1e300;
+    CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid, "a point beyond 2^20");
+    bad = good;
+    bad.spacing = 1e308;
+    CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid,
+          "a spread past the largest double");
+    bad.spacingKind = mtwn_staggerAmount;
+    double kept[3];
+    CHECK(mtwnComputeStagger(&bad, 3, kept) == mtwn_success && isfinite(kept[2]),
+          "the same spacing as an amount, finite");
     CHECK(got[0] == -1.0 && got[1] == -1.0 && got[2] == -1.0, "nothing written");
 }
 

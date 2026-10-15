@@ -5,9 +5,11 @@
 // the sanitizers in CI: the timing model over random timings and times,
 // valid or not; the clip builder over random calls, valid or not; and
 // random clips played under random controls, and random transitions on
-// every value kind, frame by frame. What each must keep is checked, not
-// what it computes: refusals change nothing, results stay in their
-// ranges, values stay finite, records come in order.
+// every value kind, frame by frame, reduced motion switched on and off
+// among them; and random staggers, valid or not. What each must keep is
+// checked, not what it computes: refusals change nothing, results stay
+// in their ranges, values stay finite, records come in order, and under
+// reduced motion nothing that can finish is left moving.
 
 #include "context_internal.h"
 #include "test_harness.h"
@@ -321,6 +323,7 @@ static void TestPlaying(void)
     s_state = 3;
     uint32_t bad = 0;
     uint32_t records = 0;
+    uint32_t stillRunning = 0;
     for (uint32_t c = 0; c < 150; ++c)
     {
         mtwnContextDef contextDef = mtwnDefaultContextDef();
@@ -368,6 +371,7 @@ static void TestPlaying(void)
         playerDef.bindings = bindings;
         playerDef.bindingCount = slots;
         playerDef.keep = Next() % 2 == 0;
+        playerDef.essential = Next() % 4 == 0;
         mtwnPlayerId player;
         CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
         uint64_t now = 0;
@@ -399,6 +403,9 @@ static void TestPlaying(void)
                 case 6:
                     r = mtwnPlayer_Finish(context, player);
                     break;
+                case 7:
+                    r = mtwnContext_SetReducedMotion(context, Next() % 2 == 0);
+                    break;
                 default:
                     break;
                 }
@@ -407,6 +414,18 @@ static void TestPlaying(void)
             uint64_t before = now;
             now += 1000000u + (uint64_t)(Next() % 50) * 1000000u;
             CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
+            // Under reduced motion a player still running is essential,
+            // or one that cannot finish: an infinite end ahead, or a rate
+            // of 0.
+            mtwnPlayerState played;
+            if (mtwnContext_IsReducedMotion(context) && !playerDef.essential &&
+                mtwnPlayer_GetState(context, player, &played) == mtwn_success &&
+                played.state == mtwn_playRunning)
+            {
+                bool cannot = played.rate == 0.0 || (played.rate > 0.0 && isinf(played.duration));
+                bad += cannot ? 0u : 1u;
+                stillRunning += cannot ? 1u : 0u;
+            }
             for (uint32_t s = 0; s < slots; ++s)
             {
                 mtwnTargetState state;
@@ -435,7 +454,9 @@ static void TestPlaying(void)
         mtwnDestroyContext(context);
     }
     CHECK(records > 1000, "records made");
-    CHECK(bad == 0, "values finite, records ordered, counted and in their update's span");
+    CHECK(stillRunning > 0, "players that cannot finish met under reduced motion");
+    CHECK(bad == 0, "values finite, records ordered, counted and in their update's span, "
+                    "and under reduced motion only what cannot finish still running");
 }
 
 // Random transitions of every value kind and spec, replacing each other:
@@ -456,8 +477,17 @@ static void TestTransitions(void)
               "a target");
     }
     uint64_t now = 0;
+    // Whether each target's latest transition is essential.
+    bool essential[9] = {false};
+    uint32_t reducedFrames = 0;
     for (uint32_t f = 0; f < 3000; ++f)
     {
+        if (Next() % 50 == 0)
+        {
+            CHECK(mtwnContext_SetReducedMotion(context, !mtwnContext_IsReducedMotion(context)) ==
+                      mtwn_success,
+                  "reduced motion switched");
+        }
         uint32_t k = Next() % 9;
         if (Next() % 4 == 0)
         {
@@ -469,6 +499,7 @@ static void TestTransitions(void)
             def.duration = 0.3 * Unit();
             def.delay = Next() % 3 == 0 ? 0.1 * Unit() : 0.0;
             def.reverses = Next() % 2 == 0;
+            def.essential = Next() % 3 == 0;
             uint32_t spec = Next() % 3;
             if (spec == 1 && k != mtwn_valueDiscrete)
             {
@@ -485,7 +516,9 @@ static void TestTransitions(void)
                 def.velocity = (mtwnVec4){(float)(4.0 * Unit() - 2.0), 1.0f, -1.0f, 0.5f};
             }
             mtwnPlayerId player;
-            bad += mtwnStartTransition(context, &def, &player) == mtwn_success ? 0u : 1u;
+            bool started = mtwnStartTransition(context, &def, &player) == mtwn_success;
+            bad += started ? 0u : 1u;
+            essential[k] = started && def.essential;
         }
         now += 1000000u + (uint64_t)(Next() % 30) * 1000000u;
         CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
@@ -496,11 +529,93 @@ static void TestTransitions(void)
             bool resting = mtwnTargetAt(context, targets[t].index1)->header.link == 0;
             bool ok = read && Finite(state.value) && Finite(state.velocity) && Finite(state.base) &&
                       (!resting || SameBits(state.value, state.base));
-            bad += ok ? 0u : 1u;
+            // Reduced: nothing but an essential transition is left moving.
+            bool reducedOk = !mtwnContext_IsReducedMotion(context) || resting || essential[t];
+            bad += ok && reducedOk ? 0u : 1u;
         }
+        reducedFrames += mtwnContext_IsReducedMotion(context) ? 1u : 0u;
     }
-    CHECK(bad == 0, "every transition started, values finite, each at rest on its base");
+    CHECK(reducedFrames > 300 && reducedFrames < 2700, "reduced motion on and off by turns");
+    CHECK(bad == 0, "every transition started, values finite, each at rest on its base, "
+                    "under reduced motion only essential ones moving");
     mtwnDestroyContext(context);
+}
+
+// Random staggers, valid or not: a refusal writes nothing; an accepted
+// one gives finite offsets, the nearest item's at the start, and with an
+// amount and a monotonic easing every offset within the spread.
+static void TestStaggers(void)
+{
+    s_state = 5;
+    uint32_t bad = 0;
+    uint32_t accepted = 0;
+    uint32_t refused = 0;
+    static double offsets[203];
+    for (uint32_t c = 0; c < 4000; ++c)
+    {
+        mtwnStagger stagger = mtwnDefaultStagger();
+        uint32_t count = Next() % 201;
+        stagger.start = Next() % 8 == 0 ? Wild(10.0) : 10.0 * Unit() - 5.0;
+        stagger.spacing = Next() % 8 == 0 ? Wild(2.0) : 2.0 * Unit() - 1.0;
+        stagger.pointX = Next() % 8 == 0 ? Wild(2.0) : 2.0 * Unit() - 0.5;
+        stagger.pointY = Next() % 8 == 0 ? Wild(2.0) : 2.0 * Unit() - 0.5;
+        stagger.columns = Next() % 12;
+        stagger.origin = (mtwnStaggerOrigin)(Next() % 8);
+        stagger.axis = (mtwnStaggerAxis)(Next() % 4);
+        stagger.spacingKind = (mtwnStaggerSpacing)(Next() % 3);
+        stagger.index = count == 0 ? Next() % 3 : Next() % (count + 2);
+        stagger.seed = Next();
+        bool monotonic = Next() % 2 == 0;
+        if (!monotonic)
+        {
+            CHECK(mtwnMakeBackEasing(mtwn_easeInOut, 1.70158, &stagger.easing) == mtwn_success,
+                  "a back easing");
+        }
+        else if (Next() % 2 == 0)
+        {
+            CHECK(mtwnMakePowerEasing(mtwn_easeOut, 1.0 + 3.0 * Unit(), &stagger.easing) ==
+                      mtwn_success,
+                  "a power easing");
+        }
+        for (uint32_t i = 0; i < 203; ++i)
+        {
+            offsets[i] = -12345.0;
+        }
+        if (mtwnComputeStagger(&stagger, count, offsets) != mtwn_success)
+        {
+            ++refused;
+            for (uint32_t i = 0; i < 203; ++i)
+            {
+                bad += offsets[i] == -12345.0 ? 0u : 1u;
+            }
+            continue;
+        }
+        ++accepted;
+        bool atStart = count == 0;
+        double low = stagger.start;
+        double high = stagger.start + stagger.spacing;
+        if (low > high)
+        {
+            double swap = low;
+            low = high;
+            high = swap;
+        }
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            bad += isfinite(offsets[i]) ? 0u : 1u;
+            atStart = atStart || offsets[i] == stagger.start;
+            if (monotonic && stagger.spacingKind == mtwn_staggerAmount)
+            {
+                double slack = 1e-12 * (1.0 + fabs(low) + fabs(high));
+                bad += offsets[i] >= low - slack && offsets[i] <= high + slack ? 0u : 1u;
+            }
+        }
+        bad += offsets[count] == -12345.0 ? 0u : 1u;
+        bad += atStart ? 0u : 1u;
+    }
+    CHECK(accepted > 1000 && refused > 500, "staggers accepted and refused");
+    CHECK(bad == 0, "refusals write nothing; offsets finite, the nearest at the start, "
+                    "within an amount's spread");
 }
 
 int main(void)
@@ -509,5 +624,6 @@ int main(void)
     TestBuilder();
     TestPlaying();
     TestTransitions();
+    TestStaggers();
     return s_failures == 0 ? 0 : 1;
 }

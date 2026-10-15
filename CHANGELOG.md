@@ -7,6 +7,18 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Fixed
+
+- `mtwnPlayer_Finish` holds the player exactly at its end. The start
+  rebased by end / rate could round its time just short of the end,
+  leaving it running until the next update.
+- Under reduced motion, a player is judged by the state the update
+  leaves: a finished player whose rate was lowered, released from its
+  hold by that update, now finishes in it too.
+- `mtwnComputeStagger` refuses a point beyond 2^20 and a spread that is
+  not finite, writing nothing. Before, they gave NaN offsets from finite
+  inputs.
+
 ## [0.2.0] - 2026-10-15
 
 The two parts of the library's scope that 0.1.0 left out: its notes

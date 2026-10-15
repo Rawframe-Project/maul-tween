@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Staggers (record mtwn-0048). Each item's distance from the origin is
-// written into the caller's offsets, then normalized, eased and scaled
-// in place, so nothing is allocated. The distances use only exactly
+// Staggers (record mtwn-0048). The distances' least and range are found
+// first, without writing, so a spread that is not finite is refused with
+// nothing written; then each item's distance is written into the
+// caller's offsets and normalized, eased and scaled in place, so nothing
+// is allocated. The distances use only exactly
 // rounded operations and the easing is the library's own, so the
 // offsets are the same bits on every platform. A random order is an
 // inside-out shuffle driven by SplitMix64 of the seed.
@@ -12,6 +14,10 @@
 
 #include <math.h>
 #include <stdbool.h>
+
+// A point's ratios within this size keep every distance far from
+// overflow: 2^20 rows or columns beyond the grid, which has at most 2^32.
+static const double s_pointLimit = 0x1.0p20;
 
 // The grid the items fill, and the origin's place in it.
 typedef struct Grid
@@ -40,7 +46,7 @@ static bool IsValid(const mtwnStagger* stagger, uint32_t count, const double* of
     bool known = stagger->origin <= mtwn_staggerRandom && stagger->axis <= mtwn_staggerY &&
                  stagger->spacingKind <= mtwn_staggerAmount;
     bool finite = isfinite(stagger->start) && isfinite(stagger->spacing) &&
-                  isfinite(stagger->pointX) && isfinite(stagger->pointY);
+                  fabs(stagger->pointX) <= s_pointLimit && fabs(stagger->pointY) <= s_pointLimit;
     bool index = stagger->origin != mtwn_staggerIndex || count == 0 || stagger->index < count;
     return known && finite && index;
 }
@@ -141,6 +147,29 @@ static void Shuffle(uint64_t seed, uint32_t count, double* out)
     }
 }
 
+// The distances' least and range, nothing written; a random order's are
+// 0 and count - 1.
+static void Spread(const mtwnStagger* stagger, uint32_t count, double* leastOut, double* rangeOut)
+{
+    if (stagger->origin == mtwn_staggerRandom)
+    {
+        *leastOut = 0.0;
+        *rangeOut = (double)(count - 1u);
+        return;
+    }
+    Grid grid = MakeGrid(stagger, count);
+    double least = Distance(&grid, stagger, 0);
+    double most = least;
+    for (uint32_t i = 1; i < count; ++i)
+    {
+        double d = Distance(&grid, stagger, i);
+        least = Least(least, d);
+        most = d > most ? d : most;
+    }
+    *leastOut = least;
+    *rangeOut = most - least;
+}
+
 mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double* offsetsOut)
 {
     if (!IsValid(stagger, count, offsetsOut))
@@ -150,6 +179,15 @@ mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double
     if (count == 0)
     {
         return mtwn_success;
+    }
+    double least = 0.0;
+    double range = 0.0;
+    Spread(stagger, count, &least, &range);
+    double span =
+        stagger->spacingKind == mtwn_staggerAmount ? stagger->spacing : stagger->spacing * range;
+    if (!isfinite(span))
+    {
+        return mtwn_errorInvalid;
     }
     if (stagger->origin == mtwn_staggerRandom)
     {
@@ -163,16 +201,6 @@ mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double
             offsetsOut[i] = Distance(&grid, stagger, i);
         }
     }
-    double least = offsetsOut[0];
-    double most = offsetsOut[0];
-    for (uint32_t i = 1; i < count; ++i)
-    {
-        least = Least(least, offsetsOut[i]);
-        most = offsetsOut[i] > most ? offsetsOut[i] : most;
-    }
-    double range = most - least;
-    double span =
-        stagger->spacingKind == mtwn_staggerAmount ? stagger->spacing : stagger->spacing * range;
     for (uint32_t i = 0; i < count; ++i)
     {
         double t = range > 0.0 ? (offsetsOut[i] - least) / range : 0.0;

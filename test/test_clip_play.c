@@ -462,8 +462,36 @@ static void TestCommitReported(void)
     mtwnDestroyContext(w.context);
 }
 
+// A finish holds the player at its end exactly, whatever the rate and the
+// time: a start rebased by end / rate could round the time just short of
+// the end, leaving it running until the next update (found by the
+// randomized invariants).
+static void TestFinishExact(void)
+{
+    int wrong = 0;
+    for (int k = 0; k < 200; ++k)
+    {
+        World w = MakeWorld();
+        AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 1.0f, 0.3 + 0.0137 * k,
+                 mtwn_fillForwards, 0.0);
+        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        double rate = 0.11 + 0.0173 * k;
+        mtwnPlayerId p = Play(&w, w.target, true, rate);
+        Update(&w, 1.0 + 0.001 * k);
+        Update(&w, 1.0 + 0.0013 * k + 0.05);
+        mtwnPlayerState state;
+        CHECK(mtwnPlayer_Finish(w.context, p) == mtwn_success &&
+                  mtwnPlayer_GetState(w.context, p, &state) == mtwn_success,
+              "a finish");
+        wrong += state.state != mtwn_playFinished || state.currentTime != state.duration;
+        mtwnDestroyContext(w.context);
+    }
+    CHECK(wrong == 0, "finished at once, exactly at the end");
+}
+
 int main(void)
 {
+    TestFinishExact();
     TestValues();
     TestEnd();
     TestTree();

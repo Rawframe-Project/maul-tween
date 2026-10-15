@@ -170,7 +170,7 @@ extern "C"
         // The item at index.
         mtwn_staggerIndex = 4,
         // The point at pointX and pointY, ratios of the last column and
-        // row: 0 the first, 1 the last, any finite value.
+        // row: 0 the first, 1 the last, any value within 2^20.
         mtwn_staggerPoint = 5,
         // An order from the seed, each item its own step.
         mtwn_staggerRandom = 6,
@@ -249,8 +249,10 @@ extern "C"
     /// @param offsetsOut  Receives count offsets.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer with a
     ///         count, an unknown origin, axis or spacing, an index not below a count above 0
-    ///         for mtwn_staggerIndex, or a start, spacing or point not finite,
-    ///         writing nothing.
+    ///         for mtwn_staggerIndex, a start or spacing not finite, a
+    ///         point beyond 2^20, or a spread (the spacing, or for
+    ///         mtwn_staggerEach the spacing times the distances' range)
+    ///         not finite, writing nothing.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeStagger(const mtwnStagger* stagger,
