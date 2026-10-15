@@ -69,10 +69,12 @@ them:
 
 - `timing_oracle.py`: Web Animations' timing steps, written again in
   Python.
-- `rivals.mjs`: GSAP 3.15.0 and tween.js 25.0.0, run under Node. Each
-  is fetched by its pinned version and checked against its pinned
-  SHA-512 before it runs. Neither is kept in this repository or linked
-  into the library.
+- `rivals.mjs`: GSAP 3.15.0, tween.js 25.0.0, Motion's springs
+  (motion-dom 14.2.0 with motion-utils 14.1.1) and CSS Color 4's
+  `conversions.js` (w3c/csswg-drafts at af8661b), run under Node. Each
+  is fetched by its pinned version and checked against its pinned hash
+  before it runs. None is kept in this repository or linked into the
+  library.
 
 ## Size
 

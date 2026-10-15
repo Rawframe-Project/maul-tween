@@ -34,3 +34,23 @@ The mappings the easing header states are checked against the rivals'
 own code. Running the oracle found two facts, now in the header: GSAP 3's
 expo is not Penner's, and the elastic difference grows with the
 amplitude. Updating a rival is a change of its pin and hash, and a rerun.
+
+## Extended: springs and colors
+
+- Motion's spring (motion-dom 14.2.0 and motion-utils 14.1.1, pinned by
+  SHA-512) is sampled by stiffness, damping and mass, its rest
+  thresholds set so small it never snaps: eight springs, underdamped,
+  near and at critical damping and overdamped, with and without a
+  starting velocity, every 20 ms for 2 s, in `rival_spring.h`. The
+  values agree within 64 ulps of the motion's scale (its offset plus
+  its velocity over the undamped frequency), and the velocities within
+  that times the frequency.
+- CSS Color 4's `conversions.js` and `multiply-matrices.js`, at the
+  commit `src/generated/color_matrices.h` was made from and pinned by
+  SHA-256, convert 729 gamma sRGB colors (extended channels among them)
+  to linear sRGB, Oklab and OkLCh, in `rival_color.h`. The coordinates
+  agree within 16 ulps of their size, the hue within that over the
+  chroma, and the nine grays are powerless on both sides.
+- Each test fails on a change far below what a user would see: a
+  stiffness one part in 10^9 off, one channel one float step off.
+
