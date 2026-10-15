@@ -86,16 +86,18 @@ and with `--map` shows what links a part in. A program that never makes
 a clip's player links none of the players, clips' sampling,
 composition, paths or crossings (record mtwn-0047).
 
-| The program uses | Default build | Built with `-ffunction-sections` |
-|---|---|---|
-| curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing | 43.3 kB | 34.6 kB |
-| transitions: a context, targets and transitions | 46.8 kB | 39.0 kB |
-| clips: clips, players, events | 102.8 kB | 81.3 kB |
-| everything | 109.0 kB | 109.0 kB |
+| The program uses | Default build | Built with `-ffunction-sections` | Budget |
+|---|---|---|---|
+| curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 23 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.3 kB | 36.7 kB | 48 kB |
+| transitions: a context, targets and transitions | 47.1 kB | 39.3 kB | 50 kB |
+| clips: clips, players, events | 104.2 kB | 82.4 kB | 110 kB |
+| everything | 112.5 kB | 112.5 kB | 120 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
-the library's own elementary functions, the same under every C library.
+the library's own elementary functions, the same under every C library. The budgets
+apply to the default build (record mtwn-0051): `--budget` fails past
+one, and growing past one takes a recorded decision.
 
 ## Design
 

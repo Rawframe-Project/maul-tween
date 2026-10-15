@@ -10,10 +10,12 @@
 # headers, grouped; every public function must fall in one.
 #
 #   python3 tools/code_size.py build/libmaul-tween.a [--cc gcc-14]
-#       [--map PART]
+#       [--map PART] [--budget]
 #
 # --map PART also prints that part's code by the library's object files,
-# read from the linker's map: what links it in.
+# read from the linker's map: what links it in. --budget fails when a
+# part is over its budget (record mtwn-0051), for a library built in
+# Release with GCC 14 by default options; growth past one is a decision.
 
 import argparse
 import os
@@ -31,6 +33,15 @@ PARTS = [
     ("transitions", ["base.h", "context.h", "target.h", "transition.h"]),
     ("clips", ["clip.h", "player.h", "event.h"]),
 ]
+
+# Each part's budget in bytes, about 6% over its size at 0.2.0.
+BUDGETS = {
+    "curves": 23000,
+    "values": 48000,
+    "transitions": 50000,
+    "clips": 110000,
+    "everything": 120000,
+}
 
 
 def functions(header):
@@ -94,7 +105,9 @@ def main():
     parser.add_argument("library")
     parser.add_argument("--cc", default="gcc-14")
     parser.add_argument("--map", choices=[name for name, _ in PARTS] + ["everything"])
+    parser.add_argument("--budget", action="store_true")
     args = parser.parse_args()
+    over = []
     check_parts()
     rows = [(name, [f for h in headers for f in functions(h)]) for name, headers in PARTS]
     rows.append(("everything", [f for _, names in rows for f in names]))
@@ -104,9 +117,14 @@ def main():
             map_path = os.path.join(work, "host.map") if args.map == name else None
             size = text_size(args.cc, args.library, names, work, map_path) - empty
             print("%-12s %3d functions %8.1f kB" % (name, len(names), size / 1000.0))
+            if size > BUDGETS[name]:
+                over.append("%s %.1f kB over its %.1f kB" % (name, size / 1000.0,
+                                                             BUDGETS[name] / 1000.0))
             if map_path:
                 for member, bytes_ in by_object(map_path):
                     print("    %-18s %7d" % (member, bytes_))
+    if args.budget and over:
+        sys.exit("code_size.py: " + "; ".join(over))
 
 
 if __name__ == "__main__":
