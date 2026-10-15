@@ -7,6 +7,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-15
+
+The two parts of the library's scope that 0.1.0 left out: its notes
+said it held the whole library, and it did not.
+
 ### Added
 
 - Staggers: `mtwnComputeStagger` spreads offsets over a row or a grid
