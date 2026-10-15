@@ -112,8 +112,13 @@ static void TestGrid(void)
           "the corners at the diagonal");
     stagger.origin = mtwn_staggerEdges;
     CHECK(mtwnComputeStagger(&stagger, 9, got) == mtwn_success && got[4] == 0.1 && got[0] == 0.0 &&
-              got[1] == 0.0 && got[3] == 0.0,
-          "from the edges of a grid, the centre last");
+              got[1] == 0.0 && got[3] == 0.0 && got[5] == 0.0 && got[7] == 0.0 && got[8] == 0.0,
+          "from the edges of a grid, every border cell first, the centre last");
+    stagger.columns = 1;
+    CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[0] == 0.0 && got[4] == 0.0 &&
+              Near(got[1], 0.1) && Near(got[2], 0.2) && Near(got[3], 0.1),
+          "from the edges of one column, by its rows");
+    stagger.columns = 3;
     stagger.origin = mtwn_staggerFirst;
     stagger.axis = mtwn_staggerX;
     CHECK(mtwnComputeStagger(&stagger, 6, got) == mtwn_success && got[3] == got[0] &&
@@ -123,6 +128,17 @@ static void TestGrid(void)
     CHECK(mtwnComputeStagger(&stagger, 6, got) == mtwn_success && got[0] == got[2] &&
               got[3] == got[5] && Near(got[3], 0.1),
           "along the rows only");
+    // From the centre, so items lie on both sides of the origin.
+    stagger.origin = mtwn_staggerCentre;
+    stagger.axis = mtwn_staggerX;
+    CHECK(mtwnComputeStagger(&stagger, 6, got) == mtwn_success && got[1] == 0.0 &&
+              Near(got[0], 0.1) && got[0] == got[2] && got[3] == got[5],
+          "along the columns, either side of the centre");
+    stagger.axis = mtwn_staggerY;
+    CHECK(mtwnComputeStagger(&stagger, 9, got) == mtwn_success && got[4] == 0.0 &&
+              Near(got[1], 0.1) && got[1] == got[7],
+          "along the rows, either side of the centre");
+    stagger.origin = mtwn_staggerFirst;
     stagger.axis = mtwn_staggerBoth;
     stagger.origin = mtwn_staggerPoint;
     stagger.pointX = 1.0;
