@@ -258,6 +258,38 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
                (mtwnVec4){(float)now[0], (float)now[1], (float)now[2], (float)now[3]});
 }
 
+// Records a transition's start once its delay ends, and ends it at its end:
+// true when it ended. Under reduced motion one not essential ends now, its
+// delay skipped, its records at this time (record mtwn-0049).
+static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t timeNs)
+{
+    mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+    bool reduced = context->reducedMotion && !slot->essential;
+    if ((t >= 0.0 || reduced) && !slot->begun)
+    {
+        // Its delay has ended: its start, at that time.
+        slot->begun = true;
+        double begin = t >= 0.0 ? Begin(slot) : (double)timeNs / 1e9;
+        mtwnPlayerEvent(context, index1, mtwn_eventStart, begin, 0.0);
+    }
+    if (t < slot->endTime && !reduced)
+    {
+        return false;
+    }
+    bool ran = t >= slot->endTime;
+    double ended = ran ? Begin(slot) + slot->endTime : (double)timeNs / 1e9;
+    double along = ran || isfinite(slot->endTime) ? slot->endTime : (t > 0.0 ? t : 0.0);
+    mtwnPlayerEvent(context, index1, mtwn_eventEnd, ended, along);
+    // The end: committed as the base, and the transition freed.
+    uint32_t target = slot->header.link;
+    mtwnTargetSlot* written = mtwnTargetAt(context, target);
+    written->base = slot->to;
+    WriteTarget(context, target, slot->to, (mtwnVec4){0});
+    mtwnMarkChanged(context, target);
+    mtwnEndTransition(context, index1);
+    return true;
+}
+
 static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
 {
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
@@ -268,21 +300,8 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         slot->startNs = timeNs;
     }
     double t = Elapsed(slot, timeNs);
-    if (t >= 0.0 && !slot->begun)
+    if (StartOrEnd(context, index1, t, timeNs))
     {
-        // Its delay has ended: its start, at that time.
-        slot->begun = true;
-        mtwnPlayerEvent(context, index1, mtwn_eventStart, Begin(slot), 0.0);
-    }
-    if (t >= slot->endTime)
-    {
-        mtwnPlayerEvent(context, index1, mtwn_eventEnd, Begin(slot) + slot->endTime, slot->endTime);
-        // The end: committed as the base, and the transition freed.
-        mtwnTargetSlot* written = mtwnTargetAt(context, target);
-        written->base = slot->to;
-        WriteTarget(context, target, slot->to, (mtwnVec4){0});
-        mtwnMarkChanged(context, target);
-        mtwnEndTransition(context, index1);
         return;
     }
     // The delay holds the start at rest. At its end a spring or decay of

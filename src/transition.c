@@ -147,6 +147,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
 {
     out->kind = target->kind;
     out->spec = def->spec;
+    out->essential = def->essential;
     out->from = target->value;
     mtwnVec4 end = def->spec == mtwn_transitionDecay ? target->value : def->value;
     if (!mtwnAcceptValue(target->kind, end, &out->to) || !IsTime(def->delay) ||

@@ -53,3 +53,4 @@ are listed in [README.md](README.md).
 | [mtwn-0046](mtwn-0046-randomized-invariants.md) | Randomized invariants, and what they found | Accepted |
 | [mtwn-0047](mtwn-0047-transitions-link-alone.md) | A program of transitions links no clip code | Accepted |
 | [mtwn-0048](mtwn-0048-stagger.md) | Stagger offsets, one pure function | Accepted |
+| [mtwn-0049](mtwn-0049-reduced-motion.md) | Reduced motion: what can finish, finishes | Accepted |

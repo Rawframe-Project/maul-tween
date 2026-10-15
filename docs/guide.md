@@ -179,6 +179,20 @@ An eased transition with `reverses` set is shortened when it reverses
 one still running, as CSS Transitions shortens it: a hover left a
 quarter of the way in returns in a quarter of the time.
 
+Under reduced motion every transition, and every playing clip with an
+end, finishes at its next update, its records at that update's time,
+as if it had played; one marked essential plays on:
+
+```c
+bool reduce = true; // the platform's preference, as the host reads it
+mtwnResult set = mtwnContext_SetReducedMotion(context, reduce);
+fade.essential = true; // an opacity change is not motion: it may play on
+```
+
+The library cannot tell motion from a fade, so marking is the host's.
+A looping clip has no end to finish at; the host keeps it, seeks it to
+a still frame or stops it.
+
 ## The update
 
 Each frame the host updates the context to its clock and redraws the

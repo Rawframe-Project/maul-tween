@@ -11,6 +11,8 @@
 
 #include "maul-tween/base.h"
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -146,6 +148,30 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
+
+    /// Sets reduced motion (record mtwn-0049), off when a context is made.
+    /// While it is on, every transition and every running clip's player
+    /// with a finite end finishes at the next update, its delay skipped and
+    /// its events at that update's time, unless its def marks it
+    /// essential; a player with an infinite end plays on, the host's to
+    /// keep, seek or stop. Turning it off reaches what has not finished.
+    /// The host reads the platform's preference and sets it.
+    ///
+    /// @param context  The context.
+    /// @param reduced  Whether motion is reduced.
+    /// @return mtwn_success; mtwn_errorInvalid for a null context.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context,
+                                                                    bool reduced);
+
+    /// Returns whether motion is reduced.
+    ///
+    /// @param context  The context, or NULL.
+    /// @return Whether it is; false for a null context.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_API bool mtwnContext_IsReducedMotion(const mtwnContext* context);
 
     /// Advances every player to the host's time, in the order they were
     /// made, later ones writing over earlier ones: transitions sample their

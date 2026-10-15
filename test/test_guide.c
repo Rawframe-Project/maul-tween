@@ -97,6 +97,12 @@ static void TestHost(void)
     sprung = mtwnStartTransition(context, &settle, &settling);
     CHECK(sprung == mtwn_success && !mtwnPlayer_IsValid(context, fading),
           "a spring replacing the fade");
+    bool reduce = true; // the platform's preference, as the host reads it
+    mtwnResult set = mtwnContext_SetReducedMotion(context, reduce);
+    fade.essential = true; // an opacity change is not motion: it may play on
+    CHECK(set == mtwn_success && mtwnContext_IsReducedMotion(context) && fade.essential,
+          "reduced motion set");
+    CHECK(mtwnContext_SetReducedMotion(context, false) == mtwn_success, "and unset");
     nowNs = 200000000u;
     mtwnTargetId changed[64];
     uint32_t total = 0;

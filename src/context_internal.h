@@ -77,7 +77,9 @@ typedef struct mtwnClipPlay
     // The way the last sweep went: 1 forwards, -1 backwards, 0 none (or a
     // jump since). A sweep turning back takes its start again.
     int8_t sweptWay;
-    uint8_t reserved[5];
+    // Plays on under reduced motion.
+    bool essential;
+    uint8_t reserved[4];
 } mtwnClipPlay;
 
 // A player: a transition or a clip's player. A transition's header link
@@ -108,7 +110,9 @@ typedef struct mtwnPlayerSlot
             // otherwise 0.
             uint8_t power;
             mtwnEaseMode powerMode;
-            uint8_t reserved[5];
+            // Plays on under reduced motion.
+            bool essential;
+            uint8_t reserved[4];
             uint64_t startNs;
             double delay;
             // Seconds after the delay to the end; infinity for a spring that
@@ -275,6 +279,8 @@ struct mtwnContext
     // The index1 of each target changed since the last report, in order.
     uint32_t* changed;
     uint32_t changedCount;
+    // Whether motion is reduced (record mtwn-0049).
+    bool reducedMotion;
 };
 
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)

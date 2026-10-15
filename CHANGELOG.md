@@ -13,6 +13,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   from the first or last item, the centre, the edges, an index, a
   point, or a seeded order, eased (record mtwn-0048). The scope of
   0.1.0 included them and the release lacked them.
+- Reduced motion: `mtwnContext_SetReducedMotion` finishes every
+  transition, and every running clip's player with a finite end, at
+  its next update, its records at that update's time; `essential` in
+  the transition and player defs keeps one playing (record mtwn-0049).
+  Also in 0.1.0's scope and missing from it.
 
 ## [0.1.0] - 2026-10-15
 

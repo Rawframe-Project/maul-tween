@@ -91,7 +91,10 @@ extern "C"
         // the other covered, eased: a hover left half way takes half the
         // time back.
         bool reverses;
-        uint8_t reserved;
+        // Whether it plays on under reduced motion (record mtwn-0049): a
+        // fade, a color, or motion essential to what it shows; the others
+        // finish at once.
+        bool essential;
     } mtwnTransitionDef;
 
 // The cookie mtwnDefaultTransitionDef sets and mtwnStartTransition checks.

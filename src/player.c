@@ -291,6 +291,22 @@ static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, 
             }
         }
     }
+    // Under reduced motion one not essential finishes, as a finish does,
+    // what lies between crossed at this time (record mtwn-0049); one with
+    // an infinite end cannot and plays on.
+    double reached = CurrentTime(play, now);
+    if (context->reducedMotion && !play->essential && StateOf(play, now, end) == mtwn_playRunning &&
+        Finish(play, now, end) == mtwn_success)
+    {
+        // A sweep not yet begun takes where the player was first, as a
+        // first update does, so its starts are crossed.
+        if (isnan(play->swept))
+        {
+            mtwnSweepEvents(context, player, reached, 0.0, now, now);
+        }
+        ranAt = 0.0;
+        before = now;
+    }
     UpdateFinished(play, now, end, false);
     mtwnPlayState state = StateOf(play, now, end);
     if (state == mtwn_playIdle)
@@ -440,7 +456,8 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                            .nextClip = play->nextClip,
                            .bindingStart = start,
                            .bindingCount = clip->slotCount,
-                           .keep = def->keep};
+                           .keep = def->keep,
+                           .essential = def->essential};
     ++clip->users;
     context->clipUpdate = &s_clipUpdate;
     if (def->play)

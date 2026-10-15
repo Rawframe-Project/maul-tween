@@ -263,3 +263,18 @@ uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context)
 {
     return context->blockBytes;
 }
+
+mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
+{
+    if (context == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    context->reducedMotion = reduced;
+    return mtwn_success;
+}
+
+bool mtwnContext_IsReducedMotion(const mtwnContext* context)
+{
+    return context != NULL && context->reducedMotion;
+}

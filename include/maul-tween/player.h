@@ -92,7 +92,11 @@ extern "C"
         // Whether it is kept when it finishes; otherwise it commits what it
         // fills forward as its targets' bases and is freed.
         bool keep;
-        uint8_t reserved[2];
+        // Whether it plays on under reduced motion (record mtwn-0049): a
+        // fade, a color, or motion essential to what it shows; the others
+        // finish at once if their end is finite.
+        bool essential;
+        uint8_t reserved;
         // The playback rate, at most MTWN_RATE_LIMIT in size; negative
         // plays backwards, 0 holds.
         double rate;

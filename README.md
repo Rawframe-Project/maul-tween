@@ -41,8 +41,9 @@ tracks on nested timelines with labels and marks; players controlling
 clips by Web Animations' procedures; events as counted records in a
 bounded queue; players layered by replace and add with weights; a
 context grown only when the host asks. Since 0.1.0: staggers over a
-row or a grid (record mtwn-0048). The library has
-106 public functions.
+row or a grid (record mtwn-0048) and reduced motion (record mtwn-0049).
+The library has
+108 public functions.
 
 ## Building
 
