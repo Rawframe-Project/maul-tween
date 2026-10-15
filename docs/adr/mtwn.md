@@ -56,3 +56,4 @@ are listed in [README.md](README.md).
 | [mtwn-0049](mtwn-0049-reduced-motion.md) | Reduced motion: what can finish, finishes | Accepted |
 | [mtwn-0050](mtwn-0050-rival-oracles.md) | The rivals run as oracles | Accepted |
 | [mtwn-0051](mtwn-0051-size-budgets.md) | Size budgets, checked on every commit | Accepted |
+| [mtwn-0052](mtwn-0052-lowered-rate-when-finished.md) | A finished player given a lower rate plays again | Accepted |

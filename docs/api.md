@@ -403,7 +403,7 @@ Seeks a clip's player to a label of its clip's root.  @param context  The contex
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate);
 ```
-Sets a clip's player's rate, keeping its current time: as Web Animations keeps it, by the start time, so to within an ulp of the host time times the rate (see MTWN_RATE_LIMIT).  @param context  The context. @param player   A clip's player. @param rate     At most MTWN_RATE_LIMIT in size; negative plays backwards, 0 holds. A larger one or NaN is refused as misuse, the player unchanged. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Sets a clip's player's rate, keeping its current time: as Web Animations keeps it, by the start time, so to within an ulp of the host time times the rate (see MTWN_RATE_LIMIT). A finished player held at its end keeps its start time too, as Web Animations' steps say: given a lower rate, the next update finds it short of its end and it plays again from there, as Firefox does (Chrome keeps a player that played to its end finished). To stay finished at a new rate, set the rate before the end (record mtwn-0052).  @param context  The context. @param player   A clip's player. @param rate     At most MTWN_RATE_LIMIT in size; negative plays backwards, 0 holds. A larger one or NaN is refused as misuse, the player unchanged. @return As mtwnPlayer_Seek. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight);

@@ -294,7 +294,12 @@ extern "C"
 
     /// Sets a clip's player's rate, keeping its current time: as Web
     /// Animations keeps it, by the start time, so to within an ulp of the
-    /// host time times the rate (see MTWN_RATE_LIMIT).
+    /// host time times the rate (see MTWN_RATE_LIMIT). A finished player
+    /// held at its end keeps its start time too, as Web Animations' steps
+    /// say: given a lower rate, the next update finds it short of its end
+    /// and it plays again from there, as Firefox does (Chrome keeps a
+    /// player that played to its end finished). To stay finished at a new
+    /// rate, set the rate before the end (record mtwn-0052).
     ///
     /// @param context  The context.
     /// @param player   A clip's player.

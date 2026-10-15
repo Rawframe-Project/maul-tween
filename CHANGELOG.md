@@ -7,6 +7,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- `mtwnPlayer_SetRate`'s documentation says what a lower rate does to a
+  finished player: it plays again from the time the new rate gives, as
+  Web Animations' steps and Firefox have it (record mtwn-0052). The
+  behavior is unchanged.
+
 ## [0.2.1] - 2026-10-15
 
 Three defects the randomized invariants found once they covered 0.2.0's
