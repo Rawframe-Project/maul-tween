@@ -103,7 +103,9 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         event.hostTime = HostAt(sweep, first);
         event.clipTime = first;
         event.firstIteration = mtwnIterationAt(levels, iterationLevels, first);
-        event.lastIteration = mtwnIterationAt(levels, iterationLevels, last);
+        // One crossing's iteration is looked up once.
+        event.lastIteration =
+            last == first ? event.firstIteration : mtwnIterationAt(levels, iterationLevels, last);
         event.count = n >= 18446744073709549568.0 ? UINT64_MAX : (uint64_t)n;
         event.player = mtwnPlayerIdAt(sweep->context, sweep->player);
         event.node = node;
