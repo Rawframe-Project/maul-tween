@@ -1,0 +1,18 @@
+# The reference numbers for bench/bench_main.c, written from the
+# benchmark's own output: GCC 14.2.0, Release (-O2), AMD Ryzen 9 5900X
+# 12-Core Processor pinned to one core (taskset -c 0), Linux
+# 6.8.0-142-generic, 2026-10-15, maul-tween 180a804, on a quiet machine
+# (load averages 4.32 17.22 48.60 at the start; the minute's 4.32 to
+# 4.32, 4.32 to 4.32 and 4.32 to 4.37 over the three runs), the best of
+# three runs line by line. Wall time differs between runs by a few percent and
+# between days by more: compare runs on one core of one machine, as
+# information, never as a gate, and compare code by instruction counts.
+# Compare with: taskset -c 0 maul-tween_bench bench/baseline.txt
+create 64,000 transitions               3.876 ms
+update 64,000 transitions               0.686 ms
+update 64,000, changed reported         0.698 ms
+cubic bezier sample                    27.024 ns
+spring sample                          40.066 ns
+Penner sample, arithmetic               7.317 ns
+Penner sample, exp and sin             40.011 ns
+update 1,000 clip players               1.306 ms
