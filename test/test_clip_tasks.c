@@ -21,6 +21,16 @@
 #include <math.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+typedef HANDLE Thread;
+#elif !defined(__EMSCRIPTEN__)
+#include <pthread.h>
+typedef pthread_t Thread;
+#else
+typedef int Thread;
+#endif
+
 enum
 {
     s_slots = 6,
@@ -83,6 +93,70 @@ typedef struct Pending
 static Pending s_pending;
 static uint32_t s_enqueued;
 
+// Each range on a thread of its own, joined at the wait; the web build
+// has no threads, so there they run one after another.
+static bool s_threaded;
+#if !defined(__EMSCRIPTEN__)
+static Thread s_threads[16];
+#endif
+
+typedef struct Range
+{
+    mtwnTaskFn* task;
+    void* taskContext;
+    int32_t start;
+    int32_t end;
+} Range;
+
+static Range s_ranges[16];
+
+#if defined(_WIN32)
+static DWORD WINAPI RunRange(LPVOID range)
+{
+    const Range* r = (const Range*)range;
+    r->task(r->start, r->end, r->taskContext);
+    return 0;
+}
+#elif !defined(__EMSCRIPTEN__)
+static void* RunRange(void* range)
+{
+    const Range* r = (const Range*)range;
+    r->task(r->start, r->end, r->taskContext);
+    return NULL;
+}
+#endif
+
+static void StartThreads(void)
+{
+    for (int32_t i = 0; i < s_pending.count; ++i)
+    {
+        s_ranges[i] =
+            (Range){s_pending.task, s_pending.taskContext, s_pending.starts[i], s_pending.ends[i]};
+#if defined(_WIN32)
+        s_threads[i] = CreateThread(NULL, 0, RunRange, &s_ranges[i], 0, NULL);
+        CHECK(s_threads[i] != NULL, "a thread");
+#elif !defined(__EMSCRIPTEN__)
+        CHECK(pthread_create(&s_threads[i], NULL, RunRange, &s_ranges[i]) == 0, "a thread");
+#else
+        s_ranges[i].task(s_ranges[i].start, s_ranges[i].end, s_ranges[i].taskContext);
+#endif
+    }
+}
+
+static void JoinThreads(void)
+{
+    for (int32_t i = 0; i < s_pending.count; ++i)
+    {
+#if defined(_WIN32)
+        WaitForSingleObject(s_threads[i], INFINITE);
+        CloseHandle(s_threads[i]);
+#elif !defined(__EMSCRIPTEN__)
+        pthread_join(s_threads[i], NULL);
+#endif
+    }
+    s_pending.count = 0;
+}
+
 static void RunPending(void)
 {
     for (int32_t i = 0; i < s_pending.count; ++i)
@@ -121,6 +195,11 @@ static void* Enqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void
         s_pending.starts[j] = start;
         s_pending.ends[j] = end;
     }
+    if (s_threaded)
+    {
+        StartThreads();
+        return &s_pending;
+    }
     if (NextOf(&s_host) % 2u == 0u)
     {
         RunPending();
@@ -133,6 +212,11 @@ static void Finish(void* userTask, void* userContext)
 {
     (void)userContext;
     CHECK(userTask == &s_pending, "the wait gets the handle");
+    if (s_threaded)
+    {
+        JoinThreads();
+        return;
+    }
     RunPending();
 }
 
@@ -798,11 +882,34 @@ static void TestOneTimeOrder(void)
           "finished players' ends committed as the base alike");
 }
 
+// The groups on real threads, at once: the same bits as the serial twin.
+// Under ThreadSanitizer (the CI's TSan job) any memory two groups touch
+// is reported.
+static void TestThreads(void)
+{
+    s_threaded = true;
+    Taken taken = {0, 0, 0, 0, 0, 0};
+    uint32_t differences = 0;
+    for (uint64_t seed = 41; seed <= 44; ++seed)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.playerCapacity = 128;
+        def.clipStorageBytes = 8u * 1024u * 1024u;
+        def.eventCapacity = seed % 2 == 0 ? 4096u : 64u;
+        def.bindingCapacity = 2000u;
+        differences += Run(def, seed, seed == 44 ? 240u : 0u, &taken);
+    }
+    s_threaded = false;
+    CHECK(differences == 0 && taken.staged > 1000,
+          "groups on threads at once, the same bits as serial");
+}
+
 int main(void)
 {
     TestStagingBounds();
     TestOneTimeOrder();
     TestReplayOff();
+    TestThreads();
     TestTwins();
     return s_failures == 0 ? 0 : 1;
 }
