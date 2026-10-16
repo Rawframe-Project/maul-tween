@@ -33,7 +33,8 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
     {
         return mtwn_errorVersion;
     }
-    bool oneFunction = (def->allocator.alloc == NULL) != (def->allocator.free == NULL);
+    bool oneFunction = (def->allocator.alloc == NULL) != (def->allocator.free == NULL) ||
+                       (def->enqueueTask == NULL) != (def->finishTask == NULL);
     bool valid = !oneFunction && IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
                  IsCount(def->bindingCapacity) && def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
@@ -50,7 +51,17 @@ typedef struct Layout
     uint64_t events;
     uint64_t eventAlong;
     uint64_t levels;
+    uint64_t serial;
     uint64_t changed;
+    // With a task system: the groups' works and scratch, each kind for
+    // every group in turn, and the clips' players' staging.
+    uint64_t works;
+    uint64_t groupLevels;
+    uint64_t groupTimes;
+    uint64_t groupRecords;
+    uint64_t groupAlong;
+    uint64_t groupTracks;
+    uint64_t staged;
     uint64_t bytes;
 } Layout;
 
@@ -70,6 +81,38 @@ static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offset
     return !ckd_add(end, start, bytes);
 }
 
+// A group's staging: its records, up to the queue's capacity, and its
+// share of twice the bindings' track results.
+static uint32_t GroupRecords(const mtwnContextDef* def)
+{
+    return def->eventCapacity < MTWN_GROUP_RECORDS ? def->eventCapacity : MTWN_GROUP_RECORDS;
+}
+
+static uint32_t GroupTracks(const mtwnContextDef* def)
+{
+    return (uint32_t)(((uint64_t)def->bindingCapacity * 2u + MTWN_GROUPS - 1u) / MTWN_GROUPS);
+}
+
+static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
+{
+    if (def->enqueueTask == NULL)
+    {
+        return true;
+    }
+    uint64_t levels = (uint64_t)MTWN_GROUPS * (MTWN_MAX_CLIP_DEPTH + 2u);
+    return Place(end, MTWN_GROUPS, sizeof(mtwnWork), &layout->works) &&
+           Place(end, levels, sizeof(mtwnLevel), &layout->groupLevels) &&
+           Place(end, (uint64_t)MTWN_GROUPS * MTWN_GROUP_NODES, sizeof(mtwnNodeTime),
+                 &layout->groupTimes) &&
+           Place(end, (uint64_t)MTWN_GROUPS * GroupRecords(def), sizeof(mtwnEvent),
+                 &layout->groupRecords) &&
+           Place(end, (uint64_t)MTWN_GROUPS * GroupRecords(def), sizeof(double),
+                 &layout->groupAlong) &&
+           Place(end, (uint64_t)MTWN_GROUPS * GroupTracks(def), sizeof(mtwnTrackOut),
+                 &layout->groupTracks) &&
+           Place(end, def->playerCapacity, sizeof(mtwnStaged), &layout->staged);
+}
+
 static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
 {
     uint64_t end = sizeof(mtwnContext);
@@ -80,9 +123,42 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
                   Place(&end, def->eventCapacity, sizeof(mtwnEvent), &layout->events) &&
                   Place(&end, def->eventCapacity, sizeof(double), &layout->eventAlong) &&
                   Place(&end, MTWN_MAX_CLIP_DEPTH + 2u, sizeof(mtwnLevel), &layout->levels) &&
-                  Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed);
+                  Place(&end, 1, sizeof(mtwnWork), &layout->serial) &&
+                  Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed) &&
+                  PlanGroups(def, &end, layout);
     layout->bytes = end;
     return placed && end <= SIZE_MAX;
+}
+
+// Points the groups' works at their scratch, staging in each.
+static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* layout)
+{
+    const mtwnContextDef* def = &context->def;
+    context->serial = (mtwnWork*)(block + layout->serial);
+    *context->serial = (mtwnWork){0};
+    context->serial->levels = context->levels;
+    context->works = NULL;
+    context->staged = NULL;
+    if (def->enqueueTask == NULL)
+    {
+        return;
+    }
+    context->works = (mtwnWork*)(block + layout->works);
+    context->staged = (mtwnStaged*)(block + layout->staged);
+    uint32_t records = GroupRecords(def);
+    uint32_t tracks = GroupTracks(def);
+    for (uint32_t g = 0; g < MTWN_GROUPS; ++g)
+    {
+        mtwnWork* work = &context->works[g];
+        *work = (mtwnWork){0};
+        work->levels = (mtwnLevel*)(block + layout->groupLevels) + g * (MTWN_MAX_CLIP_DEPTH + 2u);
+        work->times = (mtwnNodeTime*)(block + layout->groupTimes) + g * MTWN_GROUP_NODES;
+        work->records = (mtwnEvent*)(block + layout->groupRecords) + (size_t)g * records;
+        work->recordAlong = (double*)(block + layout->groupAlong) + (size_t)g * records;
+        work->tracks = (mtwnTrackOut*)(block + layout->groupTracks) + (size_t)g * tracks;
+        work->recordCapacity = records;
+        work->trackCapacity = tracks;
+    }
 }
 
 static mtwnPool MakePool(unsigned char* slots, uint32_t stride, uint32_t capacity)
@@ -131,6 +207,7 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     context->eventAlong = (double*)(block + layout.eventAlong);
     context->levels = (mtwnLevel*)(block + layout.levels);
     context->changed = (uint32_t*)(block + layout.changed);
+    SetGroups(context, block, &layout);
     *contextOut = context;
     return mtwn_success;
 }
@@ -193,6 +270,7 @@ static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* bl
     to->levels = (mtwnLevel*)(block + layout->levels);
     to->changed = (uint32_t*)(block + layout->changed);
     memcpy(to->changed, from->changed, (size_t)from->changedCount * sizeof(uint32_t));
+    SetGroups(to, block, layout);
 }
 
 mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)

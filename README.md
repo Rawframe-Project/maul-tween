@@ -90,9 +90,9 @@ composition, paths or crossings (record mtwn-0047).
 |---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 23 kB |
 | values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.3 kB | 36.7 kB | 48 kB |
-| transitions: a context, targets and transitions | 47.3 kB | 39.5 kB | 50 kB |
-| clips: clips, players, events | 110.2 kB | 87.0 kB | 118 kB |
-| everything | 119.0 kB | 118.9 kB | 128 kB |
+| transitions: a context, targets and transitions | 48.5 kB | 40.4 kB | 50 kB |
+| clips: clips, players, events | 113.8 kB | 90.6 kB | 118 kB |
+| everything | 123.5 kB | 123.5 kB | 128 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets

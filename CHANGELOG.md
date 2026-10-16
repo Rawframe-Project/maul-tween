@@ -7,6 +7,15 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- `mtwnContextDef` takes a task system, Maul VFX's hook pair
+  (`enqueueTask`, `finishTask`, `userTaskContext`): `mtwnUpdate` then
+  advances the clip players in up to 16 groups on the host's threads,
+  staging what they make, and composes them in creation order after.
+  Every output is the same bits as a serial update's (record
+  mtwn-0056). The def's layout changes.
+
 ### Changed
 
 - A clip player's update no longer counts a repeating timeline's or

@@ -45,6 +45,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/base.c
     src/clip.c
     src/clip_sample.c
+    src/clip_tasks.c
     src/compose.c
     src/color.c
     src/context.c
@@ -102,6 +103,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(player WHITEBOX)
     maul_add_test(clip_play)
     maul_add_test(clip_share)
+    maul_add_test(clip_tasks WHITEBOX)
     maul_add_test(clip_velocity)
     maul_add_test(reduced)
     maul_add_test(threads THREADS)

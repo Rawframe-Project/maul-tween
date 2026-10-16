@@ -60,3 +60,4 @@ are listed in [README.md](README.md).
 | [mtwn-0053](mtwn-0053-crossing-search-from-a-guess.md) | A crossing's time searched from a guess | Accepted |
 | [mtwn-0054](mtwn-0054-clip-velocity-when-read.md) | A clip track's velocity worked out when read | Accepted |
 | [mtwn-0055](mtwn-0055-size-budgets-for-clip-speed-and-tasks.md) | Size budgets for the clip players' speed and their tasks | Accepted |
+| [mtwn-0056](mtwn-0056-clip-players-on-the-hosts-tasks.md) | Clip players on the host's task system | Accepted |

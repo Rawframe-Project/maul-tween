@@ -108,12 +108,12 @@ The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, 
 ```c
 static inline mtwnContextDef mtwnDefaultContextDef(void);
 ```
-Makes a context def for a medium host: 1024 targets, 256 players, 16 clips, 256 events, 1024 bindings and 208 KiB of clip storage, which holds 16 clips of the default clip def, the C library's allocator. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a context def for a medium host: 1024 targets, 256 players, 16 clips, 256 events, 1024 bindings and 208 KiB of clip storage, which holds 16 clips of the default clip def, the C library's allocator and no task system. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut);
 ```
-Makes a context: checks the def and allocates everything the context holds in one block.  @param def         The def. @param contextOut  Receives the context, or NULL on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, an allocator with one function of the two, or a capacity past its maximum; mtwn_errorVersion for a def built against another major or minor version, before anything else in it is read; mtwn_errorCapacity when the allocator fails or the block's size does not fit. @par Thread safety Safe from any thread.
+Makes a context: checks the def and allocates everything the context holds in one block.  @param def         The def. @param contextOut  Receives the context, or NULL on failure. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, an allocator or a task system with one function of the two, or a capacity past its maximum; mtwn_errorVersion for a def built against another major or minor version, before anything else in it is read; mtwn_errorCapacity when the allocator fails or the block's size does not fit. @par Thread safety Safe from any thread.
 
 ```c
 void mtwnDestroyContext(mtwnContext* context);
@@ -123,7 +123,7 @@ Destroys a context and everything it holds.  @param context  The context, or NUL
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def);
 ```
-Grows a context to a def's capacities, each at least the context's own, with the allocator it was made with: the one time after its creation it allocates, and only when asked (it never grows by itself). Its objects move to one new block, their ids unchanged, and the old block is freed, so the context's address changes: the call writes the new one. On any failure nothing changes.  @param contextInOut  The context; receives the grown one. @param def           The capacities: start from the context's own. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a capacity below the context's or past its limit, or another allocator; mtwn_errorVersion for a def of another version; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Grows a context to a def's capacities, each at least the context's own, and takes the def's task system, with the allocator it was made with: the one time after its creation it allocates, and only when asked (it never grows by itself). Its objects move to one new block, their ids unchanged, and the old block is freed, so the context's address changes: the call writes the new one. On any failure nothing changes.  @param contextInOut  The context; receives the grown one. @param def           The capacities: start from the context's own. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a capacity below the context's or past its limit, another allocator, or a task system with one function of the two; mtwn_errorVersion for a def of another version; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);

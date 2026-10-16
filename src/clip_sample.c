@@ -258,23 +258,9 @@ typedef struct TrackPlace
     bool moving;
 } TrackPlace;
 
-// A track's result for its target before it is composed there: its own
-// value and velocity, or, left lazy, its lazy velocity's bytes.
-typedef struct TrackOut
-{
-    mtwnVec4 value;
-    mtwnVec4 velocity;
-    double weight;
-    uint32_t target;
-    mtwnValueKind kind;
-    mtwnComposite composite;
-    bool lazy;
-    bool commit;
-} TrackOut;
-
 // A track's result, which reads no target: false when it has no effect.
 static bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound, double weight,
-                        const TrackPlace* place, TrackTimes* times, TrackOut* out)
+                        const TrackPlace* place, TrackTimes* times, mtwnTrackOut* out)
 {
     double progress = times->progress;
     if (isnan(progress))
@@ -302,9 +288,9 @@ static bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound, double
     return true;
 }
 
-// Writes a track's result into its target, composed onto what lies under
-// it there: what earlier players wrote in this update, or the base.
-static void ApplyTrack(mtwnContext* context, const TrackOut* out)
+// What lies under a track in its target: what earlier players wrote in
+// this update, or the base.
+static void ApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
 {
     uint32_t target = out->target;
     mtwnTargetSlot* slot = mtwnTargetAt(context, target);
@@ -352,11 +338,43 @@ static void TimelineTimes(const mtwnClipNode* node, const mtwnNodeTime* parent, 
     out->backwards = parent->backwards != reversed;
 }
 
-void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double current, double rate,
-                    bool backwards, bool commit)
+void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
+{
+    ApplyTrack(context, out);
+}
+
+// Applies a track's result, or stages it in a staging work.
+static void Put(mtwnContext* context, mtwnWork* work, const mtwnTrackOut* out)
+{
+    if (work->tracks == NULL)
+    {
+        ApplyTrack(context, out);
+    }
+    else if (work->trackCount < work->trackCapacity)
+    {
+        // Field by field: a whole copy kept the serial path's result in
+        // memory too, 21 instructions a track.
+        mtwnTrackOut* to = &work->tracks[work->trackCount++];
+        to->value = out->value;
+        to->velocity = out->velocity;
+        to->weight = out->weight;
+        to->target = out->target;
+        to->kind = out->kind;
+        to->composite = out->composite;
+        to->lazy = out->lazy;
+        to->commit = out->commit;
+    }
+    else
+    {
+        work->overflow = true;
+    }
+}
+
+void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play, double current,
+                    double rate, bool backwards, bool commit)
 {
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-    mtwnNodeTime* times = clip->times;
+    mtwnNodeTime* times = work->times != NULL ? work->times : clip->times;
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
     mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, false, {0}};
@@ -386,12 +404,12 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
                 const mtwnBound* bound =
                     &context->bindings.entries[play->bindingStart + node->slot];
                 TrackPlace place = {play->clip.index1, i, parent, moving};
-                TrackOut out;
+                mtwnTrackOut out;
                 out.target = target;
                 out.commit = commit;
                 if (TrackResult(node, bound, play->weight, &place, &kept, &out))
                 {
-                    ApplyTrack(context, &out);
+                    Put(context, work, &out);
                 }
             }
         }

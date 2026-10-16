@@ -20,6 +20,9 @@
 typedef struct Sweep
 {
     mtwnContext* context;
+    // Its scratch, and where its records go.
+    mtwnWork* work;
+    mtwnNodeTime* times;
     uint32_t player;
     const mtwnClipPlay* play;
     double from;
@@ -74,7 +77,7 @@ typedef struct Kinds
 static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const mtwnLeaf* leaf,
                    Kinds kinds, mtwnNode node, uint32_t key)
 {
-    mtwnLevel* levels = sweep->context->levels;
+    mtwnLevel* levels = sweep->work->levels;
     mtwnPrepareLevels(levels, count, leaf);
     mtwnCrossingMemo memo;
     memo.count = 0;
@@ -117,7 +120,7 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         event.backwards = way != 0;
         // Its place along the sweep: how far from the sweep's start.
         double along = fabs(first - sweep->from);
-        mtwnPushEvent(sweep->context, &event, along);
+        mtwnWorkEvent(sweep->context, sweep->work, &event, along);
         if (sweep->replayNode == node && sweep->replayCount < 6)
         {
             sweep->replay[sweep->replayCount] = event;
@@ -239,7 +242,8 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
 // one way between two points of that iteration (record mtwn-0042's
 // argument one level down). A timeline's times are worked out already; a
 // track's are worked out here.
-static bool Settled(const mtwnClipSlot* clip, uint32_t node, const mtwnNodeTime* parent)
+static bool Settled(const mtwnClipSlot* clip, const mtwnNodeTime* times, uint32_t node,
+                    const mtwnNodeTime* parent)
 {
     if (!parent->sure)
     {
@@ -248,7 +252,7 @@ static bool Settled(const mtwnClipSlot* clip, uint32_t node, const mtwnNodeTime*
     const mtwnClipNode* n = &clip->nodes[node - 1];
     if (n->kind == mtwn_nodeTimeline)
     {
-        return clip->times[node - 1].sure;
+        return times[node - 1].sure;
     }
     mtwnNodeTime own;
     Times(n, parent, &own);
@@ -301,7 +305,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
                        const mtwnNodeTime* parent)
 {
     const mtwnClipNode* n = &clip->nodes[node - 1];
-    mtwnLevel* levels = sweep->context->levels;
+    mtwnLevel* levels = sweep->work->levels;
     if (n->kind == mtwn_nodeMark)
     {
         if (!Missed(parent, n->start, n->start))
@@ -324,7 +328,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         {
             mtwnEvent event = sweep->replay[i];
             event.node = node;
-            mtwnPushEvent(sweep->context, &event, sweep->replayAlong[i]);
+            mtwnWorkEvent(sweep->context, sweep->work, &event, sweep->replayAlong[i]);
         }
         sweep->replayNode = node;
         return;
@@ -344,7 +348,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
     }
     if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd) &&
-        !Settled(clip, node, parent))
+        !Settled(clip, sweep->times, node, parent))
     {
         mtwnLeaf iterations = {0};
         iterations.at = n->start;
@@ -366,8 +370,8 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     }
 }
 
-void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double rate, double hostFrom,
-                     double hostTo)
+void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, double to, double rate,
+                     double hostFrom, double hostTo)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double from = play->swept;
@@ -382,8 +386,11 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
     play->sweptWay = way;
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     // Set field by field: the kept records need no clearing.
+    mtwnNodeTime* times = work->times != NULL ? work->times : clip->times;
     Sweep sweep;
     sweep.context = context;
+    sweep.work = work;
+    sweep.times = times;
     sweep.player = player;
     sweep.play = play;
     sweep.from = fromNone ? to : from;
@@ -401,17 +408,17 @@ void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double ra
     for (uint32_t i = 0; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* n = &clip->nodes[i];
-        const mtwnNodeTime* parent = i == 0 ? &top : &clip->times[n->parent - 1];
+        const mtwnNodeTime* parent = i == 0 ? &top : &times[n->parent - 1];
         bool still = !fromNone && parent->steady && parent->now == parent->before;
         if (n->kind == mtwn_nodeTimeline)
         {
             if (still)
             {
-                clip->times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, {0}};
+                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, {0}};
             }
             else
             {
-                Times(n, parent, &clip->times[i]);
+                Times(n, parent, &times[i]);
             }
         }
         if (!still)

@@ -258,7 +258,8 @@ static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
     }
 }
 
-static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, double now)
+bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
+                           double now)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double end = EffectEnd(context, play);
@@ -307,7 +308,7 @@ static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, 
         // first update does, so its starts are crossed.
         if (isnan(play->swept))
         {
-            mtwnSweepEvents(context, player, reached, 0.0, now, now);
+            mtwnSweepEvents(context, work, player, reached, 0.0, now, now);
         }
         ranAt = 0.0;
         before = now;
@@ -317,11 +318,11 @@ static bool AdvancePlayer(mtwnContext* context, uint32_t player, double before, 
     {
         return false;
     }
-    mtwnSweepEvents(context, player, CurrentTime(play, now), ranAt, before, now);
+    mtwnSweepEvents(context, work, player, CurrentTime(play, now), ranAt, before, now);
     // Only a running player moves; one not kept commits its end and goes.
     bool done = state == mtwn_playFinished && !play->keep;
     double rate = state == mtwn_playRunning ? play->rate : 0.0;
-    mtwnSampleClip(context, play, CurrentTime(play, now), rate, play->rate < 0.0, done);
+    mtwnSampleClip(context, work, play, CurrentTime(play, now), rate, play->rate < 0.0, done);
     return done;
 }
 
@@ -374,7 +375,7 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
     return result;
 }
 
-static void BeginClips(mtwnContext* context)
+static void BeginClips(mtwnContext* context, double before, double now)
 {
     for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
     {
@@ -382,11 +383,15 @@ static void BeginClips(mtwnContext* context)
         mtwnMarkUnwritten(context, &slot->play);
         index1 = slot->play.nextClip;
     }
+    mtwnRunClipGroups(context, before, now);
 }
 
 static void AdvanceClip(mtwnContext* context, uint32_t player, double before, double now)
 {
-    if (AdvancePlayer(context, player, before, now))
+    bool done = context->stagedCount > 0
+                    ? mtwnApplyStaged(context, player, before, now)
+                    : mtwnAdvanceClipPlayer(context, context->serial, player, before, now);
+    if (done)
     {
         mtwnResetUnwritten(context, &mtwnPlayerAt(context, player)->play);
         mtwnFreePlayer(context, player);
@@ -401,6 +406,7 @@ static void EndClips(mtwnContext* context)
         mtwnResetUnwritten(context, &slot->play);
         index1 = slot->play.nextClip;
     }
+    mtwnEndClipGroups(context);
 }
 
 static const mtwnClipUpdate s_clipUpdate = {BeginClips, AdvanceClip, EndClips,
@@ -579,7 +585,7 @@ static void Swept(mtwnContext* context, uint32_t player, double before, double n
     if (!isnan(after))
     {
         uint32_t queued = context->eventCount;
-        mtwnSweepEvents(context, player, after, 0.0, now, now);
+        mtwnSweepEvents(context, context->serial, player, after, 0.0, now, now);
         mtwnSortEvents(context, queued);
     }
 }

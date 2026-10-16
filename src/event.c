@@ -25,6 +25,30 @@ void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
     ++context->eventCount;
 }
 
+void mtwnWorkEvent(mtwnContext* context, mtwnWork* work, const mtwnEvent* event, double along)
+{
+    if (work->records == NULL)
+    {
+        mtwnPushEvent(context, event, along);
+    }
+    else if (work->recordCount < work->recordCapacity)
+    {
+        work->records[work->recordCount] = *event;
+        work->recordAlong[work->recordCount] = along;
+        ++work->recordCount;
+    }
+    else if (work->recordCapacity == context->def.eventCapacity)
+    {
+        // As many records came before it in this update: the queue is full
+        // when it would be pushed.
+        ++work->dropped;
+    }
+    else
+    {
+        work->overflow = true;
+    }
+}
+
 static uint32_t SlotOf(const mtwnContext* context, uint32_t i)
 {
     return (context->eventHead + i) % context->def.eventCapacity;

@@ -243,6 +243,10 @@ typedef struct mtwnClipSlot
     uint32_t users;
 } mtwnClipSlot;
 
+// A clip's player's scratch and staging (below).
+typedef struct mtwnWork mtwnWork;
+typedef struct mtwnStaged mtwnStaged;
+
 struct mtwnContext
 {
     mtwnAllocator allocator;
@@ -280,6 +284,16 @@ struct mtwnContext
     uint64_t droppedSinceRead;
     // Scratch for counting crossings: a chain of timelines and the node.
     mtwnLevel* levels;
+    // The serial work: those levels, each clip's own node times, no staging.
+    mtwnWork* serial;
+    // With the host's task system (record mtwn-0056): each group's scratch
+    // and staging, and the clips' players in creation order as the last
+    // update's parallel phase left them, the serial phase at 'next'; NULL
+    // without, or 0 players when the phase did not run.
+    mtwnWork* works;
+    mtwnStaged* staged;
+    uint32_t stagedCount;
+    uint32_t stagedNext;
     // The bytes the live clips' blocks hold.
     uint64_t clipStorageUsed;
     // The index1 of each target changed since the last report, in order.
@@ -349,8 +363,9 @@ void mtwnEndTransition(mtwnContext* context, uint32_t player);
 // (record mtwn-0047).
 typedef struct mtwnClipUpdate
 {
-    // Before the players: their targets marked unwritten.
-    void (*begin)(mtwnContext* context);
+    // Before the players: their targets marked unwritten, and with the
+    // host's task system the parallel phase run.
+    void (*begin)(mtwnContext* context, double before, double now);
     // A clip's player advanced from the last update's host time to this
     // one's, what it crossed recorded and it sampled; freed when it has
     // finished and is not kept.
@@ -400,8 +415,8 @@ void mtwnSortEvents(mtwnContext* context, uint32_t count);
 // Records what a clip's player's time crossed sweeping from its swept
 // time to 'to' at a rate, the host's time running from hostFrom to hostTo;
 // a sweep from no time takes 'to' itself.
-void mtwnSweepEvents(mtwnContext* context, uint32_t player, double to, double rate, double hostFrom,
-                     double hostTo);
+void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, double to, double rate,
+                     double hostFrom, double hostTo);
 
 // Records a player's event of the player itself: a seek, a cancel, a
 // transition's start or end.
@@ -412,8 +427,98 @@ void mtwnPlayerEvent(mtwnContext* context, uint32_t player, mtwnEventKind kind, 
 // rate is how fast its time moves (0 when held), backwards its playback
 // direction; committing writes the values as the bases too
 // (src/clip_sample.c).
-void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double current, double rate,
-                    bool backwards, bool commit);
+void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play, double current,
+                    double rate, bool backwards, bool commit);
+
+// The groups of clips' players the parallel phase hands the host, and the
+// node times each group keeps: a clip of more nodes plays serially.
+#define MTWN_GROUPS      16u
+#define MTWN_GROUP_NODES 128u
+// The most event records a group stages.
+#define MTWN_GROUP_RECORDS 1024u
+
+// A clip track's result for its target before it is composed there: its
+// own value and velocity, or, left lazy, its lazy velocity's bytes
+// (src/clip_sample.c).
+typedef struct mtwnTrackOut
+{
+    mtwnVec4 value;
+    mtwnVec4 velocity;
+    double weight;
+    uint32_t target;
+    mtwnValueKind kind;
+    mtwnComposite composite;
+    bool lazy;
+    bool commit;
+    uint8_t reserved[4];
+} mtwnTrackOut;
+
+// What a clip's player's advance works in: the crossing levels and node
+// times it uses as scratch, and, staging, where its records and track
+// results go instead of the queue and the targets. The serial work stages
+// nothing and uses the context's levels and each clip's own node times.
+typedef struct mtwnWork
+{
+    mtwnLevel* levels;
+    // NULL for each clip's own.
+    mtwnNodeTime* times;
+    // NULL to apply as made; else staged up to their capacities.
+    mtwnEvent* records;
+    double* recordAlong;
+    mtwnTrackOut* tracks;
+    uint32_t recordCapacity;
+    uint32_t recordCount;
+    uint32_t trackCapacity;
+    uint32_t trackCount;
+    // Records past a capacity equal to the queue's, which a full queue
+    // would drop in the serial order anyway.
+    uint64_t dropped;
+    // Whether staging ran out for the player being advanced.
+    bool overflow;
+    uint8_t reserved[7];
+} mtwnWork;
+
+// A clip's player as the parallel phase left it: its staged records and
+// track results in its group's work, ending at the next one's start.
+typedef struct mtwnStaged
+{
+    uint32_t player;
+    uint32_t recordStart;
+    uint32_t recordEnd;
+    uint32_t trackStart;
+    uint32_t trackEnd;
+    uint8_t group;
+    // Left whole to the serial phase.
+    bool serial;
+    // Finished and not kept: freed once applied.
+    bool done;
+    uint8_t reserved;
+} mtwnStaged;
+
+// Writes a track's result into its target, composed onto what lies under
+// it there (src/clip_sample.c).
+void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out);
+
+// Advances a clip's player from the last update's host time to this one's
+// in a work, what it crossed recorded and it sampled: true when it has
+// finished and is not kept, to be freed (src/player.c).
+bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
+                           double now);
+
+// The parallel phase: the clips' players in creation order, in groups on
+// the host's task system, staged; nothing without one (src/clip_tasks.c).
+void mtwnRunClipGroups(mtwnContext* context, double before, double now);
+
+// The serial pass's part for the next clip's player the phase staged: its
+// records queued and its results applied, or, left to this pass, advanced
+// here; true when it has finished and is not kept.
+bool mtwnApplyStaged(mtwnContext* context, uint32_t player, double before, double now);
+
+// After the serial pass: the records the groups dropped counted.
+void mtwnEndClipGroups(mtwnContext* context);
+
+// Queues a record, or stages it in a staging work (src/event.c).
+void mtwnWorkEvent(mtwnContext* context, mtwnWork* work, const mtwnEvent* event, double along);
 
 // Marks a clip's player's targets unwritten, before the update's players
 // run.

@@ -365,7 +365,7 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     // Set when the first clip's player is made (record mtwn-0047).
     if (context->clipUpdate != NULL)
     {
-        context->clipUpdate->begin(context);
+        context->clipUpdate->begin(context, before, now);
     }
     // In creation order, the composite order; a player may free itself.
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)

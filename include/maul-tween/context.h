@@ -32,8 +32,25 @@ extern "C"
 #define MTWN_MAX_COUNT        16777216u
 #define MTWN_MAX_CLIP_STORAGE 2147483648u
 
-    // What a context holds: its allocator and every capacity. Start from
-    // mtwnDefaultContextDef and set what differs.
+    // A range of work items, [startIndex, endIndex), run by the host on any
+    // thread. The library passes taskContext through unchanged.
+    typedef void mtwnTaskFn(int32_t startIndex, int32_t endIndex, void* taskContext);
+
+    // Hands the host itemCount items of work: the host splits [0, itemCount)
+    // into ranges of at least minRange items (the last may be shorter),
+    // runs task once on each range, on any thread and in any order, and
+    // returns a handle that finishTask waits on. A host that ran every range
+    // before returning may return NULL, and finishTask is then not called.
+    // Results never depend on the split or the order: each item writes only
+    // its own memory.
+    typedef void* mtwnEnqueueTaskFn(mtwnTaskFn* task, int32_t itemCount, int32_t minRange,
+                                    void* taskContext, void* userContext);
+
+    // Waits until every range of the work behind userTask has run.
+    typedef void mtwnFinishTaskFn(void* userTask, void* userContext);
+
+    // What a context holds: its allocator, the host's task system and every
+    // capacity. Start from mtwnDefaultContextDef and set what differs.
     typedef struct mtwnContextDef
     {
         // Set by mtwnDefaultContextDef; checked by mtwnCreateContext.
@@ -42,6 +59,17 @@ extern "C"
         uint32_t version;
         // The allocator; zeroed means the C library's.
         mtwnAllocator allocator;
+        // The host's task system, which mtwnUpdate hands the clips' players
+        // to in up to 16 groups (record mtwn-0056); both NULL, the default,
+        // runs every player on the calling thread. One without the other is
+        // invalid. With them the context holds each group's scratch: about
+        // 16 KB, 72 bytes for each event record up to 1,024 and 56 for each
+        // of a sixteenth of twice the bindings (about 660 KB more for the
+        // default def), and 24 bytes a player.
+        mtwnEnqueueTaskFn* enqueueTask;
+        mtwnFinishTaskFn* finishTask;
+        // Passed to enqueueTask and finishTask as their userContext.
+        void* userTaskContext;
         // Targets alive at once, up to MTWN_MAX_COUNT.
         uint32_t targetCapacity;
         // Players alive at once, transitions included, up to
@@ -65,7 +93,8 @@ extern "C"
 
     /// Makes a context def for a medium host: 1024 targets, 256 players, 16
     /// clips, 256 events, 1024 bindings and 208 KiB of clip storage, which
-    /// holds 16 clips of the default clip def, the C library's allocator.
+    /// holds 16 clips of the default clip def, the C library's allocator and
+    /// no task system.
     /// Built in the program, so it carries the version of the headers the
     /// program includes.
     ///
@@ -96,8 +125,8 @@ extern "C"
     /// @param def         The def.
     /// @param contextOut  Receives the context, or NULL on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie, an allocator with one function of the
-    ///         two, or a capacity past its maximum; mtwn_errorVersion for a
+    ///         without its cookie, an allocator or a task system with one
+    ///         function of the two, or a capacity past its maximum; mtwn_errorVersion for a
     ///         def built against another major or minor version, before
     ///         anything else in it is read; mtwn_errorCapacity when the
     ///         allocator fails or the block's size does not fit.
@@ -114,19 +143,19 @@ extern "C"
     MTWN_API void mtwnDestroyContext(mtwnContext* context);
 
     /// Grows a context to a def's capacities, each at least the context's
-    /// own, with the allocator it was made with: the one time after its
-    /// creation it allocates, and only when asked (it never grows by
-    /// itself). Its objects move to one new block, their ids unchanged, and
-    /// the old block is freed, so the context's address changes: the call
-    /// writes the new one. On any failure nothing changes.
+    /// own, and takes the def's task system, with the allocator it was made
+    /// with: the one time after its creation it allocates, and only when
+    /// asked (it never grows by itself). Its objects move to one new block, their ids unchanged,
+    /// and the old block is freed, so the context's address changes: the call writes the new one.
+    /// On any failure nothing changes.
     ///
     /// @param contextInOut  The context; receives the grown one.
     /// @param def           The capacities: start from the context's own.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie, a capacity below the context's or past
-    ///         its limit, or another allocator; mtwn_errorVersion for a
-    ///         def of another version; mtwn_errorCapacity when the
-    ///         allocator fails.
+    ///         its limit, another allocator, or a task system with one
+    ///         function of the two; mtwn_errorVersion for a def of another
+    ///         version; mtwn_errorCapacity when the allocator fails.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut,
