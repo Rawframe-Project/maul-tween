@@ -1,10 +1,14 @@
 # Instructions a frame or a sample takes in maul-tween_bench, counted by
 # tools/bench_counts.py, and the bound each may not pass (record
-# mtwn-0043). Counted on the gate's build: x86-64, GCC 14, Release
-# (-O3), Linux. Each bound is about 3% over its count when set, at
+# mtwn-0043). Counted on the gate's build: x86-64, the compiler below
+# (Ubuntu's 14.2.0-4ubuntu2~24.04.1), Release (-O3), Linux. Another
+# release of it may move the counts with no change of ours: the check
+# names both compilers when they differ or a bound fails. Each bound is about 3% over its count when set, at
 # maul-tween 0.3.1 with the reviews' slice that added this file; a
 # bound moves only with a recorded reason.
 #
+compiler GCC 14.2.0
+
 # name   runs   bound     period
 step     300    1815000
 spread   300    6120000

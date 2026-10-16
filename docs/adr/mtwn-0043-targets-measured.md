@@ -60,3 +60,11 @@ start's shortcut off, the clips at a period of 0.032 s count 12.2
 million against a bound of 11.43; measuring a path's length from the
 far end, 2,324 against 1,990. A bound is restated by a record when a
 change costs more on purpose.
+
+## Amended 2026-10-17: the compiler beside the bounds
+
+The bounds hold for one compiler's code: `bench/counts.txt` names it
+on its `compiler` line (GCC 14.2.0, Ubuntu's 14.2.0-4ubuntu2~24.04.1),
+the bench prints its own with `--compiler`, and the check names both
+when they differ or a bound fails, so a compiler's point release that
+moves the counts is seen as the compiler's.

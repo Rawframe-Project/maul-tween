@@ -10,7 +10,10 @@
 # many and a run of none, counted by `perf stat -e instructions:u`
 # (Linux); a fourth column gives the clip's period, for a layout whose
 # players repeat more often than each second. The bounds are for one
-# build, named in the file; another compiler or flags give other counts.
+# build: the file's `compiler` line names the compiler they were set
+# with, and the check names the bench's own (its --compiler) beside it
+# when they differ or a bound fails; another compiler or flags give
+# other counts.
 #
 #   python3 tools/bench_counts.py <maul-tween_bench> bench/counts.txt
 
@@ -32,6 +35,9 @@ def main():
     if len(sys.argv) != 3:
         sys.exit("usage: bench_counts.py <maul-tween_bench> <counts.txt>")
     bench, table = sys.argv[1], sys.argv[2]
+    built = subprocess.run([bench, "--compiler"], capture_output=True, text=True,
+                           check=True).stdout.strip()
+    bounded = "not named"
     over = []
     with open(table, encoding="utf-8") as lines:
         for line in lines:
@@ -39,6 +45,9 @@ def main():
             if not line:
                 continue
             fields = line.split()
+            if fields[0] == "compiler":
+                bounded = " ".join(fields[1:])
+                continue
             name, n, bound = fields[0], int(fields[1]), int(fields[2])
             period = fields[3:4]
             label = name + (" at %s s" % period[0] if period else "")
@@ -46,8 +55,11 @@ def main():
             print("%-14s %10d instructions, bound %10d" % (label, each, bound))
             if each > bound:
                 over.append("%s %d over its %d" % (label, each, bound))
+    compilers = "counted with %s, the bounds set with %s" % (built, bounded)
+    if built != bounded:
+        print("bench_counts.py: the compilers differ: " + compilers)
     if over:
-        sys.exit("bench_counts.py: " + "; ".join(over))
+        sys.exit("bench_counts.py: " + "; ".join(over) + " (" + compilers + ")")
 
 
 if __name__ == "__main__":

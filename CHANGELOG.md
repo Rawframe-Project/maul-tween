@@ -7,6 +7,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- The bench prints the compiler it was built with (`--compiler`), and
+  the count check names it beside the one `bench/counts.txt` was set
+  with when they differ or a bound fails.
+
 ## [0.4.0] - 2026-10-17
 
 The clip players on the host's task system cheaper and their memory

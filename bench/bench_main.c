@@ -17,7 +17,8 @@
 // (step, spread, clips, repeat, churn; -tasks after one runs it in groups
 // on the calling thread) and a number of updates, and the clip's period
 // if not 1 s, or a values case (oklab, oklch, slerp, path, track) and a
-// number of samples, it runs only those, for an instruction counter.
+// number of samples, it runs only those, for an instruction counter;
+// --compiler prints the compiler it was built with.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -600,6 +601,18 @@ int main(int argc, char** argv)
     if (argc == 4 && strcmp(argv[1], "--count") == 0)
     {
         return Count(argv[2], atoi(argv[3]));
+    }
+    if (argc == 2 && strcmp(argv[1], "--compiler") == 0)
+    {
+        // What tools/bench_counts.py names beside the bounds it checks.
+#if defined(__clang__)
+        printf("Clang %d.%d.%d\n", __clang_major__, __clang_minor__, __clang_patchlevel__);
+#elif defined(__GNUC__)
+        printf("GCC %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+#else
+        printf("unknown\n");
+#endif
+        return 0;
     }
     if (argc > 1)
     {
