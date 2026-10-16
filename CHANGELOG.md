@@ -28,6 +28,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   from the segment's nearer end, a short last step by the length's
   Taylor series (record mtwn-0031, amended). The bench's path through
   eight points from 5,250 to 2,026 instructions a sample.
+- A linear segment is sampled straight from its keyframes, without
+  making its cubic, the same bits (record mtwn-0058, amended): the
+  bench's track of three keyframes from 344 to 237 instructions a
+  sample, clip frames 7.6% fewer.
 
 ### Added
 

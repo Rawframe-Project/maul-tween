@@ -78,6 +78,15 @@ static void TestLinearAndStep(void)
     CHECK(mtwnMakePath(eased, 2, 1, 0.5, NULL, &path) == mtwn_success, "eased");
     mtwnSamplePath(&path, 0.5, v, NULL);
     CHECK(v[0] == 0.25, "eased by the segment's easing");
+    // The end exactly where start + (end - start) is not it, and the
+    // tangent 0 past the path's channels whatever they hold (found by
+    // mutants).
+    mtwnKeyframe wide[2] = {Key(0.0, 1e30f, NAN, mtwn_segmentLinear),
+                            Key(1.0, 1.0f, NAN, mtwn_segmentLinear)};
+    CHECK(mtwnMakePath(wide, 2, 1, 0.5, NULL, &path) == mtwn_success, "a wide line");
+    mtwnSamplePath(&path, 1.0, v, t);
+    CHECK(v[0] == 1.0, "its end exactly at 1");
+    CHECK(v[1] == 0.0 && t[1] == 0.0, "value and tangent 0 past its channel");
 }
 
 static void TestBezier(void)

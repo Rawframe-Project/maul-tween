@@ -45,3 +45,12 @@ A target missed is fixed, or changed by a record that says why.
 
 The bench prints a time for each case and counts each alone. Wall
 times stay information; instruction counts compare code.
+
+## Amended 2026-10-16: the track's target met
+
+A track's sample built its segment's cubic every time, where a linear
+segment needs two values and one mix. A linear segment is now mixed
+straight from its keyframes by the expression the cubic gave (the end
+exact at 1), the same bits. The track 344 to 237 instructions, the
+target met. Clip frames, whose tracks sample the same way, take 7.6%
+fewer instructions (the bench's spread players 6.21 to 5.74 million).

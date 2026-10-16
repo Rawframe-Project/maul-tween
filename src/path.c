@@ -542,11 +542,19 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
     return u;
 }
 
+// Segment i's parameter at a progress: its local progress eased.
+static double Eased(const mtwnPath* path, uint32_t i, double progress)
+{
+    const mtwnKeyframe* k = path->keyframes;
+    double width = k[i + 1].offset - k[i].offset;
+    double local = width > 0.0 ? (progress - k[i].offset) / width : 1.0;
+    return mtwnEase(&k[i].easing, local, false);
+}
+
 // The segment a progress falls in and the parameter within it.
 static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
                    Cubic* cubic)
 {
-    const mtwnKeyframe* k = path->keyframes;
     uint32_t i = 0;
     double u = 0.0;
     if (path->lengths != NULL)
@@ -563,16 +571,45 @@ static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, 
     {
         i = FindSegment(path, progress, false);
         SegmentCubic(path, i, cubic);
-        double width = k[i + 1].offset - k[i].offset;
-        double local = width > 0.0 ? (progress - k[i].offset) / width : 1.0;
-        u = mtwnEase(&k[i].easing, local, false);
+        u = Eased(path, i, progress);
     }
     *segmentOut = i;
     *uOut = u;
 }
 
+// A linear segment's value and tangent, as Evaluate gives them for its
+// cubic (a = p0, b = p1 - p0), the same bits without making it.
+static void SampleLinear(const mtwnPath* path, uint32_t i, double u, double valueOut[4],
+                         double tangentOut[4])
+{
+    double p0[4];
+    double p1[4];
+    Load(path->keyframes[i].value, p0);
+    Load(path->keyframes[i + 1].value, p1);
+    double tangent[4];
+    for (int c = 0; c < 4; ++c)
+    {
+        tangent[c] = c < path->channels ? p1[c] - p0[c] : 0.0;
+        valueOut[c] = c >= path->channels ? 0.0 : (u == 1.0 ? p1[c] : p0[c] + u * tangent[c]);
+    }
+    if (tangentOut != NULL)
+    {
+        memcpy(tangentOut, tangent, sizeof tangent);
+    }
+}
+
 void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
 {
+    if (path->lengths == NULL)
+    {
+        // A linear segment needs no cubic.
+        uint32_t s = FindSegment(path, progress, false);
+        if (path->keyframes[s].kind == mtwn_segmentLinear)
+        {
+            SampleLinear(path, s, Eased(path, s, progress), valueOut, tangentOut);
+            return;
+        }
+    }
     Cubic cubic;
     uint32_t i = 0;
     double u = 0.0;
