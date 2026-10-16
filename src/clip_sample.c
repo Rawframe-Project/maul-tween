@@ -159,9 +159,6 @@ static mtwnVec4 Unrounded(const mtwnTrack* track, double progress)
     return mtwnSampleTrack(&scalar, progress);
 }
 
-// Writes a track's value, and its velocity when it had a value a moment
-// ago, into its target, composed onto what lies under it there: what
-// earlier players wrote in this update, or the base.
 // A clip track's velocity left lazy: the parent's time a moment ago, and
 // which track, the top bit of its node index whether time ran backwards in
 // its parent. It is stored in the target's velocity field, which it fits.
@@ -261,44 +258,77 @@ typedef struct TrackPlace
     bool moving;
 } TrackPlace;
 
-static void WriteTrack(mtwnContext* context, const mtwnClipNode* node, uint32_t target,
-                       const mtwnBound* bound, double weight, const TrackPlace* place,
-                       TrackTimes* times, bool commit)
+// A track's result for its target before it is composed there: its own
+// value and velocity, or, left lazy, its lazy velocity's bytes.
+typedef struct TrackOut
+{
+    mtwnVec4 value;
+    mtwnVec4 velocity;
+    double weight;
+    uint32_t target;
+    mtwnValueKind kind;
+    mtwnComposite composite;
+    bool lazy;
+    bool commit;
+} TrackOut;
+
+// A track's result, which reads no target: false when it has no effect.
+static bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound, double weight,
+                        const TrackPlace* place, TrackTimes* times, TrackOut* out)
 {
     double progress = times->progress;
     if (isnan(progress))
     {
-        return;
+        return false;
     }
-    mtwnVec4 value = Moved(node, Unrounded(&node->track, progress), times->iteration);
-    mtwnTargetSlot* slot = mtwnTargetAt(context, target);
-    if (place->moving && LeavesVelocity(node, bound, weight))
+    out->value = Moved(node, Unrounded(&node->track, progress), times->iteration);
+    out->weight = weight * (double)bound->weight;
+    out->kind = node->track.kind;
+    out->composite = bound->composite;
+    out->lazy = place->moving && LeavesVelocity(node, bound, weight);
+    if (out->lazy)
     {
         // Replacing at full weight composes to the track's value; its
         // velocity is worked out when read.
-        mtwnWriteTarget(context, target, value, (mtwnVec4){0});
         mtwnClipVelocity lazy = {place->parent->before, place->clip,
                                  place->node | (place->parent->backwards ? s_backwardsBit : 0u)};
-        memcpy(&slot->velocity, &lazy, sizeof lazy);
-        slot->header.flags |= MTWN_TARGET_CLIP_LAZY;
+        memcpy(&out->velocity, &lazy, sizeof lazy);
     }
     else
     {
         KnowEarlier(times, node, place->parent, place->moving);
+        out->velocity = TrackVelocity(node, out->value, times->earlier, times->earlierIteration);
+    }
+    return true;
+}
+
+// Writes a track's result into its target, composed onto what lies under
+// it there: what earlier players wrote in this update, or the base.
+static void ApplyTrack(mtwnContext* context, const TrackOut* out)
+{
+    uint32_t target = out->target;
+    mtwnTargetSlot* slot = mtwnTargetAt(context, target);
+    mtwnVec4 value = out->value;
+    if (out->lazy)
+    {
+        mtwnWriteTarget(context, target, value, (mtwnVec4){0});
+        memcpy(&slot->velocity, &out->velocity, sizeof slot->velocity);
+        slot->header.flags |= MTWN_TARGET_CLIP_LAZY;
+    }
+    else
+    {
         bool unwritten = (slot->header.flags & MTWN_TARGET_UNWRITTEN) != 0;
         mtwnMoving under = {unwritten ? slot->base : slot->value,
                             unwritten ? (mtwnVec4){0.0f, 0.0f, 0.0f, 0.0f}
                                       : mtwnTargetVelocity(context, target)};
-        mtwnMoving effect = {value,
-                             TrackVelocity(node, value, times->earlier, times->earlierIteration)};
-        mtwnMoving composed = mtwnCompose(node->track.kind, bound->composite,
-                                          weight * (double)bound->weight, under, effect);
+        mtwnMoving effect = {value, out->velocity};
+        mtwnMoving composed = mtwnCompose(out->kind, out->composite, out->weight, under, effect);
         value = composed.value;
         mtwnWriteTarget(context, target, value, composed.velocity);
     }
     bool rebased = slot->base.x != value.x || slot->base.y != value.y || slot->base.z != value.z ||
                    slot->base.w != value.w;
-    if (commit && rebased)
+    if (out->commit && rebased)
     {
         slot->base = value;
         mtwnMarkChanged(context, target);
@@ -356,7 +386,13 @@ void mtwnSampleClip(mtwnContext* context, const mtwnClipPlay* play, double curre
                 const mtwnBound* bound =
                     &context->bindings.entries[play->bindingStart + node->slot];
                 TrackPlace place = {play->clip.index1, i, parent, moving};
-                WriteTrack(context, node, target, bound, play->weight, &place, &kept, commit);
+                TrackOut out;
+                out.target = target;
+                out.commit = commit;
+                if (TrackResult(node, bound, play->weight, &place, &kept, &out))
+                {
+                    ApplyTrack(context, &out);
+                }
             }
         }
     }
