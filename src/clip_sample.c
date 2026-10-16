@@ -633,7 +633,7 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
                     double rate, bool backwards, bool commit)
 {
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-    mtwnNodeTime* times = work->times != NULL ? work->times : clip->times;
+    mtwnNodeTime* times = mtwnTimesFor(work, clip);
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
     mtwnNodeTime player = {
@@ -702,7 +702,6 @@ void mtwnSampleClipNear(mtwnContext* context, mtwnWork* work, const mtwnClipPlay
     sharing->backwards = backwards;
     if (keep)
     {
-        KeepTracks(context, sharing, play, clip, work->times != NULL ? work->times : clip->times,
-                   moving);
+        KeepTracks(context, sharing, play, clip, mtwnTimesFor(work, clip), moving);
     }
 }

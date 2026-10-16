@@ -503,7 +503,7 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     play->sweptWay = way;
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     // Set field by field: the kept records need no clearing.
-    mtwnNodeTime* times = work->times != NULL ? work->times : clip->times;
+    mtwnNodeTime* times = mtwnTimesFor(work, clip);
     Sweep sweep;
     sweep.context = context;
     sweep.work = work;

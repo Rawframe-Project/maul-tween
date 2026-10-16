@@ -648,6 +648,16 @@ void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out, mtwnWork* gro
 bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
                            double now);
 
+// The node times a work samples and sweeps a clip in: a group's own, but
+// a clip's own when the clip has one player, which no other group can
+// then touch; they lie beside its nodes, which the serial update walks
+// one after the other, and a group's apart from them took twice the
+// cache misses on one worker (record mtwn-0056).
+static inline mtwnNodeTime* mtwnTimesFor(const mtwnWork* work, mtwnClipSlot* clip)
+{
+    return work->times != NULL && clip->users != 1u ? work->times : clip->times;
+}
+
 // Whether a target's writers need an order among them: two clips'
 // players' bindings or more, or one beside a transition. One binding alone
 // is composed in its player's group (record mtwn-0056).

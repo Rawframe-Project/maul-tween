@@ -218,3 +218,21 @@ the hooks (9% before), those a millisecond apart 2.5% (5.7%), the
 repeat 2.0%, though their instructions are within 0.8%. The hooks'
 update misses the second-level cache twice as often; the instruction
 cache and the TLB do not move. At 8 workers the speed-ups are 4.2, 3.8 and 6.1 as before.
+
+## Amended 2026-10-17: a clip of one player in its own node times
+
+The doubled misses on one worker were demand fills from the shared
+cache, about 4.5 K more cache lines an update (counted alone with
+`perf stat`, each event in its own run, as several at once are
+multiplexed). Built with the hooks but running no groups, the update
+fetched as many as without the hooks, so the data was the groups'. A
+group samples and sweeps a clip in its own scratch of node times,
+because players of one clip may run in two groups at once; the serial
+update writes each clip's own times, which lie beside its nodes, so its
+walk through a clip stays in one place. With the group taking the
+clip's own times when the clip has one player (no other group can then
+touch them), the fills came back to within about 10% of the update
+without the hooks, the instructions the same. Clips with players in
+several groups keep the scratch; the twin tests poison every clip's
+own times and require that groups touch only those of a clip with one
+player, a clip of two included.

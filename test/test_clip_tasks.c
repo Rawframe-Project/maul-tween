@@ -54,6 +54,10 @@ static uint32_t s_refused;
 static uint64_t s_hostDraws;
 // Players bind targets of their own too, so the groups write those.
 static bool s_ownTargets;
+// The first clip played by one player at a time, so a group samples it
+// in the clip's own node times, and the second by two at most, which
+// must not be.
+static bool s_lonelyClip;
 static uint64_t s_alone;
 
 static uint32_t NextOf(uint64_t* state)
@@ -379,6 +383,11 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
 static void MakePlayer(Twin* twin, uint32_t p)
 {
     uint32_t c = Next() % s_clips;
+    // Clip 0 has one player at most, clip 1 two.
+    if (s_lonelyClip && c < 2u && mtwnClipAt(twin->context, twin->clips[c].index1)->users > c)
+    {
+        c = 2u + Next() % (s_clips - 2u);
+    }
     const mtwnClipSlot* clip = mtwnClipAt(twin->context, twin->clips[c].index1);
     // A binding for each slot the clip's tracks use; one no track uses is
     // refused.
@@ -495,6 +504,9 @@ typedef struct Taken
     // twin's.
     uint64_t serialUnhooked;
     uint64_t advances;
+    // Updates in which a group sampled a clip of one player in its own
+    // node times.
+    uint32_t ownTimes;
 } Taken;
 
 // The clips' players before an update, in creation order: the order the
@@ -540,8 +552,13 @@ static void Count(const Twin* twin, const Order* order, Taken* taken)
         return;
     }
     bool serialClip[s_clips] = {false};
+    uint32_t players[s_clips] = {0};
     for (uint32_t i = 0; i < order->count; ++i)
     {
+        for (uint32_t c = 0; c < s_clips; ++c)
+        {
+            players[c] += twin->clips[c].index1 == order->clips[i] ? 1u : 0u;
+        }
         bool serial = context->staged[i].serial;
         taken->serial += serial ? 1u : 0u;
         taken->staged += serial ? 0u : 1u;
@@ -556,11 +573,15 @@ static void Count(const Twin* twin, const Order* order, Taken* taken)
     for (uint32_t c = 0; c < s_clips; ++c)
     {
         const mtwnClipSlot* clip = mtwnClipAt(context, twin->clips[c].index1);
+        uint32_t written = 0;
         for (uint32_t k = 0; k < clip->nodeCount && !serialClip[c]; ++k)
         {
-            taken->touched +=
-                memcmp(&clip->times[k].now, &s_poison, sizeof s_poison) == 0 ? 0u : 1u;
+            written += memcmp(&clip->times[k].now, &s_poison, sizeof s_poison) == 0 ? 0u : 1u;
         }
+        // A clip of one player is sampled in its own times; another's are
+        // left alone, as groups may sample it side by side.
+        taken->touched += players[c] == 1 ? 0u : written;
+        taken->ownTimes += players[c] == 1 && written > 0 ? 1u : 0u;
     }
     for (uint32_t g = 0; g < MTWN_GROUPS; ++g)
     {
@@ -765,7 +786,24 @@ static void TestTwins(void)
     CHECK(taken.ranOut > 10, "players whose staging ran out put back and left to it");
     CHECK(taken.dropped > 0, "records past a group's staging dropped as the queue would");
     CHECK(taken.bigStaged == 0, "a clip of more nodes than a group keeps plays serially");
-    CHECK(taken.touched == 0, "the groups leave each clip's own node times alone");
+    CHECK(taken.touched == 0, "the groups leave a clip's own node times alone if it has players");
+
+    // A clip of one player: its group samples it in the clip's own times.
+    s_lonelyClip = true;
+    Taken lonely = {0};
+    uint32_t lonelyDifferences = 0;
+    for (uint64_t seed = 1; seed <= 6; ++seed)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.playerCapacity = 128;
+        def.clipStorageBytes = 8u * 1024u * 1024u;
+        def.eventCapacity = seed % 2 == 0 ? 2u : 4096u;
+        def.bindingCapacity = 2000u;
+        lonelyDifferences += Run(def, seed, 0, &lonely);
+    }
+    s_lonelyClip = false;
+    CHECK(lonelyDifferences == 0 && lonely.touched == 0 && lonely.ownTimes > 10,
+          "a clip of one player sampled in its own node times, the same bits");
     CHECK(taken.serialUnhooked == 0 && taken.advances == taken.serial,
           "every advance left serial counted, none without a task system");
 

@@ -9,6 +9,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- With the host's task system, a clip with one player is sampled in
+  its own node times beside its nodes, not in its group's: on one
+  worker the bench's players on clips of their own fetched twice the
+  cache lines from the shared cache that the update without the hooks
+  did, and now about 10% more (record mtwn-0056).
 - The bench prints the compiler it was built with (`--compiler`), and
   the count check names it beside the one `bench/counts.txt` was set
   with when they differ or a bound fails.
