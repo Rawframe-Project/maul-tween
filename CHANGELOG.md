@@ -14,6 +14,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   worker the bench's players on clips of their own fetched twice the
   cache lines from the shared cache that the update without the hooks
   did, and now about 10% more (record mtwn-0056).
+- With the host's task system, a clip with one player runs in its
+  group however many nodes it has; only a clip of more than 128 nodes
+  with other players is left to the calling thread (record mtwn-0056).
 - The count check bounds the second-level cache misses of the bench's
   players with the task hooks on one worker over those without them,
   the median of three tries, so the misses that composing in the

@@ -236,3 +236,14 @@ without the hooks, the instructions the same. Clips with players in
 several groups keep the scratch; the twin tests poison every clip's
 own times and require that groups touch only those of a clip with one
 player, a clip of two included.
+
+## Amended 2026-10-17: a clip of one player past 128 nodes
+
+A group keeps node times for 128 nodes, so a player of a larger clip
+was left to the calling thread. A clip's one player now samples in the
+clip's own node times, so its size no longer keeps it from its group;
+a larger clip with other players still plays on the calling thread.
+The group's other bounds hold as before: a player whose results or
+records might not fit its group's staging is left there too. The twin
+tests run a 240-node clip of one player in its group, with the same
+bits.

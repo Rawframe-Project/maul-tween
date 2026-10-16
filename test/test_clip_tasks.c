@@ -496,8 +496,10 @@ typedef struct Taken
     // Left to the serial pass for staging that ran out.
     uint32_t ranOut;
     uint32_t dropped;
-    // A clip of more nodes than a group keeps, staged anyway.
+    // A clip of more nodes than a group keeps, staged anyway: with other
+    // players, which must not be, or alone, in its own node times.
     uint32_t bigStaged;
+    uint32_t bigAlone;
     // A clip's own node times written by a group.
     uint32_t touched;
     // The serial twin's mtwnContext_GetSerialAdvances, and the hooked
@@ -559,11 +561,20 @@ static void Count(const Twin* twin, const Order* order, Taken* taken)
         {
             players[c] += twin->clips[c].index1 == order->clips[i] ? 1u : 0u;
         }
+    }
+    for (uint32_t i = 0; i < order->count; ++i)
+    {
+        uint32_t of = 0;
+        for (uint32_t c = 0; c < s_clips; ++c)
+        {
+            of += twin->clips[c].index1 == order->clips[i] ? players[c] : 0u;
+        }
         bool serial = context->staged[i].serial;
         taken->serial += serial ? 1u : 0u;
         taken->staged += serial ? 0u : 1u;
         bool big = mtwnClipAt(context, order->clips[i])->nodeCount > MTWN_GROUP_NODES;
-        taken->bigStaged += big && !serial ? 1u : 0u;
+        taken->bigStaged += big && !serial && of != 1 ? 1u : 0u;
+        taken->bigAlone += big && !serial && of == 1 ? 1u : 0u;
         taken->ranOut += serial && !big ? 1u : 0u;
         for (uint32_t c = 0; c < s_clips; ++c)
         {
@@ -785,7 +796,8 @@ static void TestTwins(void)
     CHECK(taken.serial > 10, "players left to the serial pass");
     CHECK(taken.ranOut > 10, "players whose staging ran out put back and left to it");
     CHECK(taken.dropped > 0, "records past a group's staging dropped as the queue would");
-    CHECK(taken.bigStaged == 0, "a clip of more nodes than a group keeps plays serially");
+    CHECK(taken.bigStaged == 0,
+          "a clip of more nodes than a group keeps and other players plays serially");
     CHECK(taken.touched == 0, "the groups leave a clip's own node times alone if it has players");
 
     // A clip of one player: its group samples it in the clip's own times.
@@ -799,11 +811,14 @@ static void TestTwins(void)
         def.clipStorageBytes = 8u * 1024u * 1024u;
         def.eventCapacity = seed % 2 == 0 ? 2u : 4096u;
         def.bindingCapacity = 2000u;
-        lonelyDifferences += Run(def, seed, 0, &lonely);
+        // Half with the lonely clip past the nodes a group keeps times for.
+        lonelyDifferences += Run(def, seed, seed % 2 == 0 ? 240u : 0u, &lonely);
     }
     s_lonelyClip = false;
     CHECK(lonelyDifferences == 0 && lonely.touched == 0 && lonely.ownTimes > 10,
           "a clip of one player sampled in its own node times, the same bits");
+    CHECK(lonely.bigStaged == 0 && lonely.bigAlone > 10,
+          "a clip of one player in a group past the nodes a group keeps times for");
     CHECK(taken.serialUnhooked == 0 && taken.advances == taken.serial,
           "every advance left serial counted, none without a task system");
 

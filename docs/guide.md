@@ -411,7 +411,8 @@ times faster on six workers and the frame where they all repeat about
 that serial rest is about four times shorter since.
 
 Some players stay on the calling thread. One whose clip has more than
-128 nodes plays there wholly: a group keeps times for 128. A group
+128 nodes and other players plays there wholly: a group keeps times for
+128, and only a clip's one player uses the clip's own. A group
 stages up to 1,024 records, or the queue's capacity when that is
 smaller: with a queue of 1,024 or less, records past it are dropped
 and counted, as the queue would drop them; with a larger queue, a

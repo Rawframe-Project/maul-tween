@@ -133,7 +133,7 @@ Returns how many calls against the context were refused for an invalid argument 
 ```c
 uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context);
 ```
-Returns how many clip players' advances a context with a task system ran on the calling thread since it was made (record mtwn-0056): a player whose clip has more than 128 nodes, one whose targets of its own might not fit its group's staging, one whose staging ran out, and those after it in its group. A count that grows asks for larger binding or event capacities, or smaller clips.  @param context  The context. @return The count; 0 without a task system. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Returns how many clip players' advances a context with a task system ran on the calling thread since it was made (record mtwn-0056): a player whose clip has more than 128 nodes and other players, one whose targets of its own might not fit its group's staging, one whose staging ran out, and those after it in its group. A count that grows asks for larger binding or event capacities, or smaller clips.  @param context  The context. @return The count; 0 without a task system. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);

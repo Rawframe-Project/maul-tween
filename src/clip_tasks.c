@@ -46,7 +46,8 @@ static bool Fits(const mtwnContext* context, const mtwnWork* work, const mtwnCli
 
 // Advances a group's players, staging what they make; their alone targets
 // are marked, written and shown their bases here. One whose clip has more
-// nodes than a group keeps times for is left to the serial pass, as is one
+// nodes than a group keeps times for and other players is left to the
+// serial pass, as is one
 // with alone targets that might not fit, and one whose staging ran out,
 // put back as it was, and every one after it.
 static MTWN_NOINLINE void RunGroup(const GroupTask* task, uint32_t group)
@@ -71,8 +72,10 @@ static MTWN_NOINLINE void RunGroup(const GroupTask* task, uint32_t group)
             mtwnMarkUnwrittenOf(context, play, true, &layered) > 0 && !Fits(context, work, play);
         staged->layered = layered > 0;
         full = full || unfit;
-        staged->serial =
-            full || mtwnClipAt(context, play->clip.index1)->nodeCount > MTWN_GROUP_NODES;
+        // The group keeps times for MTWN_GROUP_NODES nodes; a clip of one
+        // player uses its own (mtwnTimesFor), however many.
+        const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
+        staged->serial = full || (clip->nodeCount > MTWN_GROUP_NODES && clip->users != 1u);
         if (!staged->serial)
         {
             mtwnClipPlay was = *play;
