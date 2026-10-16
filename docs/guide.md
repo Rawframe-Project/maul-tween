@@ -393,7 +393,7 @@ scratch and holds what they make; afterwards the update composes it
 into the targets in creation order, between the transitions. Records,
 values, velocities and the changed list are the same bits as without
 the hooks, whatever the split and the order. The groups cost memory
-(about 660 KB more for the default def, see `mtwnContextDef`), so a
+(about 900 KB more for the default def, see `mtwnContextDef`), so a
 host with a few players leaves the hooks unset. Transitions and
 composing stay on the calling thread, and the composing bounds the
 gain: measured on a 12-core desktop, 1,000 players of four tracks

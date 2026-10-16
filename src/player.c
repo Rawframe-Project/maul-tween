@@ -413,10 +413,26 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
 static void BeginClips(mtwnContext* context, double before, double now)
 {
     context->playingOn = 0;
-    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
+    // With groups to run (two players at least), each marks its players'
+    // alone targets itself.
+    uint32_t first = context->firstClipPlayer;
+    bool grouped =
+        context->works != NULL && first != 0 && mtwnPlayerAt(context, first)->play.nextClip != 0;
+    if (grouped && context->writersStale)
+    {
+        mtwnCountWriters(context);
+    }
+    for (uint32_t index1 = grouped && context->layeredBindings == 0 ? 0 : first; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        mtwnMarkUnwritten(context, &slot->play);
+        if (grouped)
+        {
+            (void)mtwnMarkUnwrittenOf(context, &slot->play, false, NULL);
+        }
+        else
+        {
+            mtwnMarkUnwritten(context, &slot->play);
+        }
         index1 = slot->play.nextClip;
     }
     mtwnRunClipGroups(context, before, now);
@@ -435,14 +451,26 @@ static void AdvanceClip(mtwnContext* context, uint32_t player, double before, do
     }
     if (done)
     {
-        mtwnResetUnwritten(context, &mtwnPlayerAt(context, player)->play);
+        const mtwnClipPlay* ended = &mtwnPlayerAt(context, player)->play;
+        if (context->stagedCount > 0)
+        {
+            mtwnResetStaged(context, ended);
+        }
+        else
+        {
+            mtwnResetUnwritten(context, ended);
+        }
         mtwnFreePlayer(context, player);
     }
 }
 
 static void EndClips(mtwnContext* context)
 {
-    for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
+    if (context->stagedCount > 0)
+    {
+        mtwnResetEveryStaged(context);
+    }
+    for (uint32_t index1 = context->stagedCount > 0 ? 0 : context->firstClipPlayer; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
         mtwnResetUnwritten(context, &slot->play);
@@ -488,14 +516,15 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     mtwnBound* bound = &context->bindings.entries[start];
     for (uint32_t s = 0; s < clip->slotCount; ++s)
     {
-        bound[s] = (mtwnBound){{0, 0}, 0.0f, mtwn_compositeReplace, {0}};
+        bound[s] = (mtwnBound){.composite = mtwn_compositeReplace};
     }
     for (uint32_t i = 0; i < def->bindingCount; ++i)
     {
         const mtwnBinding* binding = &def->bindings[i];
-        bound[binding->slot] =
-            (mtwnBound){binding->target, binding->weight, binding->composite, {0}};
+        bound[binding->slot] = (mtwnBound){
+            .target = binding->target, .weight = binding->weight, .composite = binding->composite};
     }
+    context->writersStale = true;
     mtwnClipPlay* play = &mtwnPlayerAt(context, index1)->play;
     *play = (mtwnClipPlay){.clip = def->clip,
                            .startTime = (double)NAN,

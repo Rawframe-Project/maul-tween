@@ -80,3 +80,42 @@ workers). On one worker the hooks cost 2% to 8% over none. Sixteen
 groups stay: more would shorten only the groups' span, already below
 the composing from 8 workers. Composing in the groups what one player
 alone writes is the next step to measure.
+
+## Amended 2026-10-16: what one player alone writes is composed in its group
+
+The serial composing bounded the update on threads: every binding was
+composed on the calling thread from values staged on other cores, its
+target marked unwritten before and shown its base after, each read of a
+target a cache miss. Bevy's animation composes in parallel per target
+because a target has one player by rule; LitMotion applies serially.
+Here the property is a fast path, not a rule:
+
+- A clip's player's binding is its target's alone when no other binding
+  names the target and no transition is on it. Who writes a target
+  changes only by calls between updates (a player made or destroyed, a
+  transition started or ended, a target destroyed, the context grown),
+  so the update counts the bindings again only after such a call, never
+  on a steady frame.
+- A group marks its players' alone targets unwritten, composes and
+  commits them in place and shows their bases where nothing wrote them,
+  staging only each target's index for the changed list. The serial
+  pass puts those indexes on the list where it would have, between the
+  results it composes for targets that several write; with no such
+  target it walks no player's bindings.
+- A group cannot undo what it wrote in place, so a player with alone
+  targets goes to its group only if all it can make fits the group's
+  staging (a result per node, six records a node); otherwise it is left
+  to the serial pass before it starts.
+- Records, values, velocities, bases and the changed list stay the same
+  bits as without the hooks; the twin tests now give the players
+  targets of their own beside shared ones, and empty each staging in
+  turn.
+
+Measured under load (load average 160 to 200, the builds alternated),
+the serial rest of the bench's update fell from 96 to 219 microseconds
+to 27 to 38 at 1, 8 and 16 workers. The context holds about 12 KB more
+with the hooks at the default def (the staging 36 bytes a player, 4
+more a sixteenth of twice the bindings); the earlier figure of about
+660 KB in all was stale, the measure now about 900 KB. Without the
+hooks the bench's frames cost up to 0.9% more instructions. The clips'
+code grew 4.0 kB (mtwn-0055, amended).

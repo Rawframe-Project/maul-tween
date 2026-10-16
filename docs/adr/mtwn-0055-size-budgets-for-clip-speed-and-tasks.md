@@ -47,3 +47,21 @@ among them);
 transitions grew 1.2 kB with the context's planning of the groups'
 scratch.
 
+
+## Amended 2026-10-16: the clips' budget for composing in the groups
+
+After 0.3.0 the clips part grew from 114.3 to 120.7 kB with the values'
+speed (mtwn-0058) and the crossings' fixes (mtwn-0037, mtwn-0038,
+mtwn-0042, mtwn-0053), inside its 121 kB budget. Composing in the
+groups what one player alone writes (mtwn-0056, amended) takes it to
+124.7 kB and the whole library to 135.1: the counting of writers, the
+groups' marking, composing and showing bases with their changes
+staged, the serial pass's merge, and the checks that a player fits.
+Savings were looked for first: keeping `mtwnSampleClip` out of line
+saved nothing, and a smaller form whose shared and own paths both
+called one function cost the bench's frames 2% more instructions
+without the hooks, so it was not taken.
+
+Until 0.4.0 the clips part's budget is 127 kB and the whole library's
+138 kB; the other parts keep theirs. At 0.4.0 every budget is restated
+by mtwn-0051's rule.

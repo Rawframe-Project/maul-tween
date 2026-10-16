@@ -28,7 +28,10 @@ typedef struct mtwnTargetSlot
 {
     mtwnSlotHeader header;
     mtwnValueKind kind;
-    uint8_t reserved[3];
+    // With the host's task system: the clips' players' bindings naming it
+    // when last counted, 2 for two or more (src/clip_tasks.c).
+    uint8_t clipWriters;
+    uint8_t reserved[2];
     mtwnVec4 base;
     mtwnVec4 value;
     mtwnVec4 velocity;
@@ -82,7 +85,8 @@ typedef struct mtwnClipPlay
     int8_t sweptWay;
     // Plays on under reduced motion.
     bool essential;
-    uint8_t reserved[4];
+    // Its place in this update's staging plus 1, 0 for none.
+    uint32_t stagedAt;
 } mtwnClipPlay;
 
 // A player: a transition or a clip's player. A transition's header link
@@ -315,6 +319,12 @@ struct mtwnContext
     // Whether motion is reduced (record mtwn-0049), and the clips' players
     // the last update left running under it though not essential.
     bool reducedMotion;
+    // Whether who writes the clips' players' targets may have changed since
+    // their bindings' alone was last worked out (src/clip_tasks.c).
+    bool writersStale;
+    // The clips' players' bindings to a target others write too, as last
+    // counted: none, and the serial pass marks no target unwritten.
+    uint32_t layeredBindings;
     // For tests: every record counted, none left out as certainly missed
     // or settled, to check that leaving them out changes nothing.
     bool countEvery;
@@ -477,7 +487,9 @@ typedef struct mtwnTrackOut
     mtwnComposite composite;
     bool lazy;
     bool commit;
-    uint8_t reserved[4];
+    // Staged: how many changed targets its group had staged before it, so
+    // the serial pass keeps their order with the results'.
+    uint32_t changesBefore;
 } mtwnTrackOut;
 
 // A clip track's result as the last player of its clip in a work made it,
@@ -576,6 +588,10 @@ typedef struct mtwnWork
     // Records past a capacity equal to the queue's, which a full queue
     // would drop in the serial order anyway.
     uint64_t dropped;
+    // The changed targets staged for its players' alone targets.
+    uint32_t* changes;
+    uint32_t changeCapacity;
+    uint32_t changeCount;
     // Whether staging ran out for the player being advanced.
     bool overflow;
     uint8_t reserved[7];
@@ -592,23 +608,46 @@ typedef struct mtwnStaged
     uint32_t recordEnd;
     uint32_t trackStart;
     uint32_t trackEnd;
+    // The changed targets its group staged for its alone targets: from its
+    // composing [changeStart, resetStart), from showing their bases
+    // [resetStart, changeEnd).
+    uint32_t changeStart;
+    uint32_t resetStart;
+    uint32_t changeEnd;
     uint8_t group;
     // Left whole to the serial phase.
     bool serial;
     // Finished and not kept: freed once applied.
     bool done;
-    uint8_t reserved;
+    // Bound to a target others write too.
+    bool layered;
 } mtwnStaged;
 
 // Writes a track's result into its target, composed onto what lies under
-// it there (src/clip_sample.c).
-void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out);
+// it there; the target put on the changed list, or for a group's alone
+// target staged in the group's work (src/clip_sample.c).
+void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out, mtwnWork* group);
 
 // Advances a clip's player from the last update's host time to this one's
 // in a work, what it crossed recorded and it sampled: true when it has
 // finished and is not kept, to be freed (src/player.c).
 bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
                            double now);
+
+// With the host's task system, when stale: each clip's player's binding
+// alone or not, its target alive, named by no other binding and without a
+// transition (src/clip_tasks.c).
+void mtwnCountWriters(mtwnContext* context);
+
+// The clips' players' bindings to a target may have changed writers:
+// counted again before the next update's groups.
+static inline void mtwnWritersChanged(mtwnContext* context, uint32_t target)
+{
+    if (target == 0 || mtwnTargetAt(context, target)->clipWriters != 0)
+    {
+        context->writersStale = true;
+    }
+}
 
 // The parallel phase: the clips' players in creation order, in groups on
 // the host's task system, staged; nothing without one (src/clip_tasks.c).
@@ -629,7 +668,26 @@ void mtwnWorkEvent(mtwnContext* context, mtwnWork* work, const mtwnEvent* event,
 // run.
 void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play);
 
+// Marks unwritten those of a clip's player's targets whose binding's alone
+// is as given: how many it marked; othersOut, when not NULL, receives how
+// many bindings name a target and are of the other kind.
+uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, bool alone,
+                             uint32_t* othersOut);
+
 // Shows their bases in a clip's player's targets no player wrote.
 void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play);
+
+// Shows their bases in a clip's player's alone targets it did not write, in
+// its group, their changes staged in the group's work.
+void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* group);
+
+// After the serial pass: the bases shown in the targets of the clips'
+// players the groups staged, in the clips' chain's order (src/clip_tasks.c).
+void mtwnResetEveryStaged(mtwnContext* context);
+
+// Shows their bases in a clip's player's targets no player wrote, after
+// the groups: what its group showed is put on the changed list in the
+// bindings' order, the rest shown here (src/clip_tasks.c).
+void mtwnResetStaged(mtwnContext* context, const mtwnClipPlay* play);
 
 #endif

@@ -47,6 +47,16 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   of their own, repeating every other frame, from 11.8 to 11.0 million
   instructions a frame on average, their repeat frame at 1 s from 18.1
   to 16.5 million. A clip's node holds 16 bytes more.
+- With the host's task system, a clip player's target that no other
+  player and no transition writes is composed in the player's group,
+  in place, instead of on the calling thread from values staged on
+  other cores (record mtwn-0056, amended): the serial rest of the
+  bench's update from about 100 to 220 microseconds to 27 to 38 at 1, 8
+  and 16 workers, measured under load. The context holds about 12 KB
+  more with the hooks at the default def; without them the bench's
+  frames cost up to 0.9% more instructions. The clips' size budget is
+  127 kB and the whole library's 138 kB until 0.4.0 (record mtwn-0055,
+  amended).
 
 ### Added
 

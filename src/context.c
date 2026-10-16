@@ -65,6 +65,7 @@ typedef struct Layout
     uint64_t groupRecords;
     uint64_t groupAlong;
     uint64_t groupTracks;
+    uint64_t groupChanges;
     uint64_t staged;
     uint64_t bytes;
 } Layout;
@@ -133,6 +134,8 @@ static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
                  &layout->groupAlong) &&
            Place(end, (uint64_t)MTWN_GROUPS * GroupTracks(def), sizeof(mtwnTrackOut),
                  &layout->groupTracks) &&
+           Place(end, (uint64_t)MTWN_GROUPS * GroupTracks(def), sizeof(uint32_t),
+                 &layout->groupChanges) &&
            Place(end, def->playerCapacity, sizeof(mtwnStaged), &layout->staged);
 }
 
@@ -167,6 +170,7 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
     SetSharing(context->serial, block, layout, 0);
     context->works = NULL;
     context->staged = NULL;
+    context->writersStale = true;
     if (def->enqueueTask == NULL)
     {
         return;
@@ -184,6 +188,8 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
         work->records = (mtwnEvent*)(block + layout->groupRecords) + (size_t)g * records;
         work->recordAlong = (double*)(block + layout->groupAlong) + (size_t)g * records;
         work->tracks = (mtwnTrackOut*)(block + layout->groupTracks) + (size_t)g * tracks;
+        work->changes = (uint32_t*)(block + layout->groupChanges) + (size_t)g * tracks;
+        work->changeCapacity = tracks;
         work->recordCapacity = records;
         work->trackCapacity = tracks;
         SetSharing(work, block, layout, 1u + g);

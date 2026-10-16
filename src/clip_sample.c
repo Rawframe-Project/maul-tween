@@ -52,6 +52,30 @@ void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play)
     }
 }
 
+uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, bool alone,
+                             uint32_t* othersOut)
+{
+    uint32_t marked = 0;
+    uint32_t others = 0;
+    for (uint32_t s = 0; s < play->bindingCount; ++s)
+    {
+        const mtwnBound* bound = &context->bindings.entries[play->bindingStart + s];
+        bool taken = bound->alone == alone;
+        others += !taken && bound->target.index1 != 0 ? 1u : 0u;
+        uint32_t target = taken ? mtwnBoundTarget(context, play, s) : 0;
+        if (target != 0)
+        {
+            mtwnTargetAt(context, target)->header.flags |= MTWN_TARGET_UNWRITTEN;
+            ++marked;
+        }
+    }
+    if (othersOut != NULL)
+    {
+        *othersOut = others;
+    }
+    return marked;
+}
+
 void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play)
 {
     for (uint32_t s = 0; s < play->bindingCount; ++s)
@@ -61,6 +85,58 @@ void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play)
             (mtwnTargetAt(context, target)->header.flags & MTWN_TARGET_UNWRITTEN) != 0)
         {
             mtwnWriteTarget(context, target, mtwnTargetAt(context, target)->base, (mtwnVec4){0});
+        }
+    }
+}
+
+// Puts a group's alone target on the group's changed targets, once.
+static void MarkChangedIn(mtwnContext* context, mtwnWork* group, uint32_t index1)
+{
+    mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
+    if ((slot->header.flags & MTWN_TARGET_CHANGED) == 0)
+    {
+        slot->header.flags |= MTWN_TARGET_CHANGED;
+        group->changes[group->changeCount++] = index1;
+    }
+}
+
+// Writes a target's value and velocity as mtwnWriteTarget does; for a
+// group's alone target, its change staged in the group's work.
+static MTWN_ALWAYS_INLINE void WriteTargetIn(mtwnContext* context, mtwnWork* group, uint32_t index1,
+                                             mtwnVec4 value, mtwnVec4 velocity)
+{
+    if (group == NULL)
+    {
+        mtwnWriteTarget(context, index1, value, velocity);
+        return;
+    }
+    mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
+    slot->header.flags &=
+        (uint8_t)~(MTWN_TARGET_UNWRITTEN | MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY);
+    uint32_t was[4];
+    uint32_t now[4];
+    memcpy(was, &slot->value, sizeof was);
+    memcpy(now, &value, sizeof now);
+    if (was[0] != now[0] || was[1] != now[1] || was[2] != now[2] || was[3] != now[3])
+    {
+        slot->value = value;
+        MarkChangedIn(context, group, index1);
+    }
+    slot->velocity = velocity;
+}
+
+void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* group)
+{
+    for (uint32_t s = 0; s < play->bindingCount; ++s)
+    {
+        uint32_t target = context->bindings.entries[play->bindingStart + s].alone
+                              ? mtwnBoundTarget(context, play, s)
+                              : 0;
+        if (target != 0 &&
+            (mtwnTargetAt(context, target)->header.flags & MTWN_TARGET_UNWRITTEN) != 0)
+        {
+            WriteTargetIn(context, group, target, mtwnTargetAt(context, target)->base,
+                          (mtwnVec4){0});
         }
     }
 }
@@ -300,14 +376,15 @@ static MTWN_ALWAYS_INLINE bool TrackResult(const mtwnClipNode* node, const mtwnB
 
 // What lies under a track in its target: what earlier players wrote in
 // this update, or the base.
-static MTWN_ALWAYS_INLINE void ApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
+static MTWN_ALWAYS_INLINE void ApplyTrack(mtwnContext* context, const mtwnTrackOut* out,
+                                          mtwnWork* group)
 {
     uint32_t target = out->target;
     mtwnTargetSlot* slot = mtwnTargetAt(context, target);
     mtwnVec4 value = out->value;
     if (out->lazy)
     {
-        mtwnWriteTarget(context, target, value, (mtwnVec4){0});
+        WriteTargetIn(context, group, target, value, (mtwnVec4){0});
         memcpy(&slot->velocity, &out->velocity, sizeof slot->velocity);
         slot->header.flags |= MTWN_TARGET_CLIP_LAZY;
     }
@@ -320,14 +397,21 @@ static MTWN_ALWAYS_INLINE void ApplyTrack(mtwnContext* context, const mtwnTrackO
         mtwnMoving effect = {value, out->velocity};
         mtwnMoving composed = mtwnCompose(out->kind, out->composite, out->weight, under, effect);
         value = composed.value;
-        mtwnWriteTarget(context, target, value, composed.velocity);
+        WriteTargetIn(context, group, target, value, composed.velocity);
     }
     bool rebased = slot->base.x != value.x || slot->base.y != value.y || slot->base.z != value.z ||
                    slot->base.w != value.w;
     if (out->commit && rebased)
     {
         slot->base = value;
-        mtwnMarkChanged(context, target);
+        if (group == NULL)
+        {
+            mtwnMarkChanged(context, target);
+        }
+        else
+        {
+            MarkChangedIn(context, group, target);
+        }
     }
 }
 
@@ -348,9 +432,9 @@ static void TimelineTimes(const mtwnClipNode* node, const mtwnNodeTime* parent, 
     out->backwards = parent->backwards != reversed;
 }
 
-void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
+void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out, mtwnWork* group)
 {
-    ApplyTrack(context, out);
+    ApplyTrack(context, out, group);
 }
 
 // Stages a track's result in a staging work.
@@ -369,6 +453,7 @@ static void Stage(mtwnWork* work, const mtwnTrackOut* out)
         to->composite = out->composite;
         to->lazy = out->lazy;
         to->commit = out->commit;
+        to->changesBefore = work->changeCount;
     }
     else
     {
@@ -376,12 +461,17 @@ static void Stage(mtwnWork* work, const mtwnTrackOut* out)
     }
 }
 
-// Applies a track's result, or stages it in a staging work.
-static void Put(mtwnContext* context, mtwnWork* work, const mtwnTrackOut* out)
+// Applies a track's result, or in a group, applies it to its alone target
+// or stages it.
+static void Put(mtwnContext* context, mtwnWork* work, const mtwnTrackOut* out, bool alone)
 {
     if (work->tracks == NULL)
     {
-        ApplyTrack(context, out);
+        ApplyTrack(context, out, NULL);
+    }
+    else if (alone)
+    {
+        mtwnApplyTrack(context, out, work);
     }
     else
     {
@@ -473,9 +563,9 @@ static bool SampleShared(mtwnContext* context, mtwnWork* work, const mtwnClipPla
         out.commit = commit;
         SharedResult(node, bound, play->weight, &place, shared, &out);
         // The library's own call, not the loop's copy of it.
-        if (work->tracks == NULL)
+        if (work->tracks == NULL || bound->alone)
         {
-            mtwnApplyTrack(context, &out);
+            mtwnApplyTrack(context, &out, work->tracks == NULL ? NULL : work);
         }
         else
         {
@@ -557,7 +647,7 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
                 out.commit = commit;
                 if (TrackResult(node, bound, play->weight, &place, &kept, &out))
                 {
-                    Put(context, work, &out);
+                    Put(context, work, &out, bound->alone);
                 }
             }
         }

@@ -63,9 +63,9 @@ extern "C"
         // to in up to 16 groups (record mtwn-0056); both NULL, the default,
         // runs every player on the calling thread. One without the other is
         // invalid. With them the context holds each group's scratch: about
-        // 16 KB, 72 bytes for each event record up to 1,024 and 56 for each
-        // of a sixteenth of twice the bindings (about 660 KB more for the
-        // default def), and 24 bytes a player.
+        // 16 KB, 72 bytes for each event record up to 1,024 and 60 for each
+        // of a sixteenth of twice the bindings (about 900 KB more for the
+        // default def), and 36 bytes a player.
         mtwnEnqueueTaskFn* enqueueTask;
         mtwnFinishTaskFn* finishTask;
         // Passed to enqueueTask and finishTask as their userContext.

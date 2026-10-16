@@ -35,13 +35,14 @@ PARTS = [
 ]
 
 # Each part's budget in bytes, about 6% over its size at 0.3.0 (records
-# mtwn-0051 and mtwn-0055).
+# mtwn-0051 and mtwn-0055), the clips' and the whole library's restated
+# for composing in the groups (mtwn-0055, amended).
 BUDGETS = {
     "curves": 23000,
     "values": 48000,
     "transitions": 51000,
-    "clips": 121000,
-    "everything": 132000,
+    "clips": 127000,
+    "everything": 138000,
 }
 
 

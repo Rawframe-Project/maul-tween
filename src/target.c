@@ -126,6 +126,7 @@ mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
         }
         context->changedCount = kept;
     }
+    mtwnWritersChanged(context, target.index1);
     mtwnPoolRelease(&context->targets, target.index1);
     return mtwn_success;
 }
