@@ -65,3 +65,13 @@ without the hooks, so it was not taken.
 Until 0.4.0 the clips part's budget is 127 kB and the whole library's
 138 kB; the other parts keep theirs. At 0.4.0 every budget is restated
 by mtwn-0051's rule.
+
+## Amended 2026-10-17: restated at 0.4.0
+
+At 0.4.0 every budget is restated by mtwn-0051's rule, about 6% over
+each part's size then (GCC 14, x86-64, `-O2`): curves 21.8 kB, budget
+23 kB; values 45.6, 48; transitions 49.5, 52 (51 before); clips 125.1,
+132 (127); everything 135.8, 144 (138). Since 0.3.1 the parts grew by
+the sharing's capacities in the def, the count of advances left
+serial, and the writers kept as they change (transitions 0.3 kB, clips
+0.4 kB).

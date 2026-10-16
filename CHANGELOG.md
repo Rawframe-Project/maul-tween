@@ -7,6 +7,17 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
+The clip players on the host's task system cheaper and their memory
+the host's to set: on one worker the hooks cost 0.8% more instructions
+than none for the bench's 1,000 players (5.5% before), and 1.3% with a
+tenth of them made and freed each frame (9.3%); the sharing's
+capacities are in the context def, 0 turning it off, and a count of
+the players left serial is read from the context. The def grew by 8
+bytes, so programs are built again against these headers. The gate
+holds the bench's frames to instruction bounds.
+
 ### Added
 
 - `mtwnContextDef.sharedNodeCapacity` and `sharedRecordCapacity`

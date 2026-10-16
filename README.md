@@ -27,7 +27,7 @@ platform.
 
 ## Status
 
-0.3.1 (2026-10-16) holds the whole library: Penner's families and
+0.4.0 (2026-10-17) holds the whole library: Penner's families and
 CSS Easing Level 2, in four modes, with even tables and fitted CSS
 linear() points; springs in closed form, as easings too, decay and the
 rubber band; colors as CSS Color 4 interpolates them; angles,
@@ -41,11 +41,12 @@ timelines with labels and marks; players controlling clips by Web
 Animations' procedures; events as counted records in a bounded queue;
 players layered by replace and add with weights; reduced motion; a
 context grown only when the host asks; clips' players run on the
-host's task system if it gives one. 0.3.0, the same day, was the same
-library with slower clip players and records that could miss a
-crossing where a frame landed on a held time's edge; 0.2.1, the day
-before, ran them on the calling thread only and several times slower;
-0.1.0 lacked staggers and reduced motion. The library has
+host's task system if it gives one. 0.3.1, the day before, had the
+same features, the sharing's memory fixed and the task hooks costing up
+to 9% on one worker; 0.3.0, earlier that day, had slower clip players
+and records that could miss a crossing where a frame landed on a held
+time's edge; 0.2.1, on 2026-10-15, ran them on the calling thread only
+and several times slower; 0.1.0 lacked staggers and reduced motion. The library has
 110 public functions.
 
 ## Building
@@ -93,10 +94,10 @@ composition, paths or crossings (record mtwn-0047).
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 18.6 kB | 23 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.5 kB | 36.8 kB | 38.9 kB | 48 kB |
-| transitions: a context, targets and transitions | 49.2 kB | 41.1 kB | 40.6 kB | 51 kB |
-| clips: clips, players, events | 124.7 kB | 102.6 kB | 103.0 kB | 127 kB |
-| everything | 135.1 kB | 134.9 kB | 113.1 kB | 138 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.6 kB | 36.9 kB | 39.0 kB | 48 kB |
+| transitions: a context, targets and transitions | 49.5 kB | 41.4 kB | 40.9 kB | 52 kB |
+| clips: clips, players, events | 125.1 kB | 103.2 kB | 103.6 kB | 132 kB |
+| everything | 135.8 kB | 135.6 kB | 113.7 kB | 144 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets
