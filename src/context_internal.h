@@ -219,7 +219,12 @@ typedef struct mtwnNodeTime
     // there) and every one's time there lay inside its active interval,
     // off a repeat delay: moving from there, held nowhere.
     bool openStart;
-    uint8_t reserved[4];
+    // For events: whether one's time at either end of the sweep lay near
+    // where a hold meets the time's motion (an active start or end, an
+    // iteration's start): held at both ends, it may still have crossed what
+    // lies at the held time.
+    bool atEdge;
+    uint8_t reserved[3];
 } mtwnNodeTime;
 
 typedef struct mtwnClipSlot

@@ -6,7 +6,8 @@
 // marks are counted by the crossing engine (record mtwn-0037) along the
 // chain of timelines above it; a subtree whose timelines all stayed in one
 // iteration without their time moving cannot have been crossed and is
-// passed over. Records are pushed in the order they are made (clip order,
+// passed over, unless the sweep ends where that time's hold meets its
+// motion (an active start or end). Records are pushed in the order they are made (clip order,
 // then start, iteration, end); src/event.c sorts them once the update is
 // done. Apart from the queue, so that a host with no clip's player links
 // none of it (record mtwn-0047).
@@ -244,13 +245,21 @@ static bool Inside(double child, double duration)
     return offStart && offEnd;
 }
 
+// Whether a lies within the margin Missed leaves of b.
+static bool Near(double a, double b)
+{
+    return fabs(a - b) <= s_missedMargin * (1.0 + fabs(b));
+}
+
 // A timeline's child times at the sweep's ends, whether it stayed in one
 // iteration, and whether it moved at the sweep's start.
 static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTime* out)
 {
     bool movingAtStart = false;
+    bool atEdge = parent->atEdge;
     mtwnTiming timing = n->timing;
     timing.fill = mtwn_fillBoth;
+    double activeStart = n->start + n->timing.delay;
     double ends[2] = {parent->now, parent->before};
     double iterations[2] = {0.0, 0.0};
     double children[2] = {0.0, 0.0};
@@ -259,19 +268,30 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
         mtwnTimingResult result;
         mtwnComputeTiming(&timing, ends[k] - n->start, false, &result);
         iterations[k] = result.iteration;
-        if (k == 1)
-        {
-            // Inside its active interval, off a repeat delay: not held.
-            movingAtStart = result.phase == mtwn_phaseActive && !result.inRepeatDelay;
-        }
         children[k] = isinf(timing.duration)
                           ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)
                           : result.transformedProgress * timing.duration;
+        // Near where a hold meets its time's motion: its active start or
+        // end, an iteration's start (also the end of the one before, and
+        // of a repeat delay), within the margin Missed leaves, as the
+        // count's own times may fall a double either side.
+        atEdge = atEdge || Near(ends[k], activeStart) ||
+                 Near(ends[k], activeStart + n->activeDuration) ||
+                 (result.phase == mtwn_phaseActive && !Inside(children[k], timing.duration));
+        if (k == 1)
+        {
+            // Inside its active interval, off its ends and a repeat delay:
+            // not held. At the active start itself the count may reach the
+            // start a double later (rounding through the levels above).
+            movingAtStart = result.phase == mtwn_phaseActive && result.activeTime > 0.0 &&
+                            result.activeTime < result.activeDuration && !result.inRepeatDelay;
+        }
     }
     out->now = children[0];
     out->before = children[1];
     out->steady = parent->steady && iterations[0] == iterations[1];
     out->openStart = parent->openStart && movingAtStart;
+    out->atEdge = atEdge;
     // Its time at the sweep's start may lie on an iteration's start or end
     // when that start is open and it moves from there: the sweep before
     // crossed the boundary, and this one's crossings are one child time
@@ -490,17 +510,21 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     sweep.replayCount = 0;
     // The player's time is the root's parent's, and moves one way; unsure
     // when a test asks every record counted, so nothing is left out.
-    mtwnNodeTime top = {to, sweep.from, false, true, !context->countEvery, !sweep.fromClosed, {0}};
+    mtwnNodeTime top = {to,    sweep.from, false, true, !context->countEvery, !sweep.fromClosed,
+                        false, {0}};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* n = &clip->nodes[i];
         const mtwnNodeTime* parent = i == 0 ? &top : &times[n->parent - 1];
-        bool still = !fromNone && parent->steady && parent->now == parent->before;
+        // Held over the sweep, and not on a hold's edge at its end, where a
+        // point at the held time is crossed.
+        bool still =
+            !fromNone && parent->steady && parent->now == parent->before && !parent->atEdge;
         if (n->kind == mtwn_nodeTimeline)
         {
             if (still)
             {
-                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, false, {0}};
+                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, false, false, {0}};
             }
             else
             {

@@ -9,7 +9,9 @@
 // rates and repeat delays on times of 1/64 s; frames of 1/64 s start on
 // their boundaries, irregular ones do not; players run forwards, and
 // backwards from 2.5 s into what they held after their end, some turning
-// or slowing on the way.
+// or slowing on the way. And counts add up over any cut of the time
+// (records mtwn-0037, mtwn-0038): each clip in both kinds of frame, to
+// the same time, crosses the same points as many times each way.
 
 #include "context_internal.h"
 #include "test_harness.h"
@@ -107,10 +109,11 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
     {
         AddTrack(context, clip, nodes[Pick(timelines)]);
     }
+    // Drawn in order, not as arguments, whose order C leaves open.
+    mtwnNode markParent = nodes[Pick(timelines)];
+    mtwnPosition markAt = At(Sixtyfourths());
     mtwnNode mark = 0;
-    CHECK(mtwnClip_AddMark(context, clip, nodes[Pick(timelines)], At(Sixtyfourths()), 7, &mark) ==
-              mtwn_success,
-          "a mark");
+    CHECK(mtwnClip_AddMark(context, clip, markParent, markAt, 7, &mark) == mtwn_success, "a mark");
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
@@ -131,7 +134,8 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
 }
 
 // FNV-1a over a frame's records.
-static void HashRecords(mtwnContext* context, uint64_t* hash, uint32_t* records)
+static void HashRecords(mtwnContext* context, uint64_t* hash, uint32_t* records,
+                        uint64_t (*sums)[8][2])
 {
     mtwnEvent e[256];
     uint32_t n = 0;
@@ -140,6 +144,10 @@ static void HashRecords(mtwnContext* context, uint64_t* hash, uint32_t* records)
     {
         double times[4] = {e[i].hostTime, e[i].clipTime, e[i].firstIteration, e[i].lastIteration};
         uint64_t fields[5] = {e[i].count, e[i].node, e[i].key, e[i].kind, e[i].backwards ? 1u : 0u};
+        if (sums != NULL && e[i].node < 16 && e[i].kind < 8)
+        {
+            sums[e[i].node][e[i].kind][e[i].backwards ? 1 : 0] += e[i].count;
+        }
         const unsigned char* bytes[2] = {(const unsigned char*)times, (const unsigned char*)fields};
         size_t sizes[2] = {sizeof times, sizeof fields};
         for (int part = 0; part < 2; ++part)
@@ -153,18 +161,26 @@ static void HashRecords(mtwnContext* context, uint64_t* hash, uint32_t* records)
     *records += n;
 }
 
-// A clip's records over 3 s, in frames of 1/64 s or irregular ones.
-static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, uint32_t* records)
+// Counts summed by node, kind and way.
+typedef uint64_t Sums[16][8][2];
+
+// A clip's records to 3.001 s from an update at 0, in frames of 1/64 s or
+// irregular ones, the rate changed on the way unless counts are summed:
+// hashed, and their counts summed when sums is not NULL.
+static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, uint32_t* records,
+                     Sums* sums)
 {
     mtwnPlayerId id;
     mtwnContext* context = MakeClip(seed, rate, countEvery, &id);
     s_state = seed * 2654435761u + 1u;
     uint64_t hash = 14695981039346656037u;
     uint64_t now = 0;
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    HashRecords(context, &hash, records, sums != NULL ? *sums : NULL);
     // A turn at about 1 s for some, half speed from about 2 s for others.
-    double turn = seed % 4 == 1 ? -rate : 0.0;
-    double slow = seed % 5 == 2 ? 0.5 * rate : 0.0;
-    while (now < 3000000000u)
+    double turn = seed % 4 == 1 && sums == NULL ? -rate : 0.0;
+    double slow = seed % 5 == 2 && sums == NULL ? 0.5 * rate : 0.0;
+    while (now < 3001000000u)
     {
         if (now >= 1000000000u && turn != 0.0)
         {
@@ -177,8 +193,10 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
             slow = 0.0;
         }
         now += aligned ? 15625000u : 5000000u + (uint64_t)Pick(20000000);
+        // Both cuts end at 3.001 s, off every boundary.
+        now = now > 3001000000u ? 3001000000u : now;
         CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "updated");
-        HashRecords(context, &hash, records);
+        HashRecords(context, &hash, records, sums != NULL ? *sums : NULL);
     }
     mtwnDestroyContext(context);
     return hash;
@@ -195,8 +213,8 @@ static void TestLeftOutChangesNothing(void)
         {
             uint32_t counted = 0;
             uint32_t left = 0;
-            uint64_t every = Play(seed, rate, aligned != 0, true, &counted);
-            uint64_t some = Play(seed, rate, aligned != 0, false, &left);
+            uint64_t every = Play(seed, rate, aligned != 0, true, &counted, NULL);
+            uint64_t some = Play(seed, rate, aligned != 0, false, &left, NULL);
             differ += every != some || counted != left ? 1u : 0u;
             records += counted;
         }
@@ -208,8 +226,38 @@ static void TestLeftOutChangesNothing(void)
     CHECK(records > 10000 && differ == 0, "the same records, bit for bit");
 }
 
+// Counts add up over any cut of the time into frames (record mtwn-0037):
+// each clip played in frames of 1/64 s, which land on its boundaries and
+// on its holds' edges, and in irregular ones, to the same time, crosses
+// the same points as many times each way. A frame landing exactly where
+// a held time starts to move lost the crossings at the held time (found
+// this way).
+static void TestCountsAcrossCuts(void)
+{
+    // Clips 1 to 300, then clips found to need the margin of the edges.
+    static const uint64_t hard[] = {454, 619, 1682, 2884};
+    uint32_t differ = 0;
+    for (uint64_t n = 1; n <= 300 + sizeof hard / sizeof hard[0]; ++n)
+    {
+        uint64_t seed = n <= 300 ? n : hard[n - 301];
+        double rate = seed % 3 == 0 ? -1.0 : 1.0;
+        Sums sums[2];
+        memset(sums, 0, sizeof sums);
+        uint32_t records = 0;
+        (void)Play(seed, rate, true, false, &records, &sums[0]);
+        (void)Play(seed, rate, false, false, &records, &sums[1]);
+        differ += memcmp(sums[0], sums[1], sizeof sums[0]) != 0 ? 1u : 0u;
+    }
+    if (differ != 0)
+    {
+        printf("  %u of 304 clips crossed otherwise in other frames\n", differ);
+    }
+    CHECK(differ == 0, "the same crossings whatever the frames");
+}
+
 int main(void)
 {
     TestLeftOutChangesNothing();
+    TestCountsAcrossCuts();
     return s_failures == 0 ? 0 : 1;
 }

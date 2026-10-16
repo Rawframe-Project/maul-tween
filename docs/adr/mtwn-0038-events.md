@@ -48,3 +48,25 @@ Animations names them, marks, seeks and cancels.
 A stall over an endless fast repeat is one iteration record with its
 count; records never call host code, so the update never meets a host
 destroying what it walks.
+
+## Amended 2026-10-16: a subtree passed over only away from a hold's edge
+
+A subtree whose parent's time was the same at both ends of a sweep was
+passed over even when the parent's time was held at one end of the
+sweep and moving at the other within it, or on its active start or
+end, or on an iteration's start (the end of the iteration before, in
+other time): a point at the held time is then crossed. A track at the
+start of a timeline delayed by 0.25 s did not start in the frame
+landing on 0.25 s; played backwards, a timeline held after its end did
+not end, backwards, in the frame landing on its end. Counts then
+depended on where the frames fell, against record mtwn-0037.
+
+Now a subtree is passed over only when no timeline above it, at either
+end of the sweep, lies within the margin Missed leaves (record
+mtwn-0042) of its active start or end or, in its active interval, of
+an iteration's start. A test plays 304 random clips in frames of 1/64
+s, which land on their edges, and in irregular ones, and checks the
+same crossings by node, kind and way; it found every case here, and
+20,000 such clips agree. Clip frames cost about 2% more instructions:
+the bench's players on clips of their own 5.77 to 5.91 million a
+frame.

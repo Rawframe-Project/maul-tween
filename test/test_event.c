@@ -468,6 +468,76 @@ static void TestOneCrossingIterations(void)
     mtwnDestroyContext(w.context);
 }
 
+// A timeline of the root's with a track at its start, played in frames
+// of 1/64 s, the timeline's delay and length on them; returns the track.
+static mtwnNode HeldEdges(World* w, double delay, double iterations)
+{
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 0.46875;
+    group.timing.iterations = iterations;
+    group.timing.delay = delay;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w->context, w->clip, &group, &timeline) == mtwn_success,
+          "a timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = timeline;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.25;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w->context, w->clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w->context, w->clip) == mtwn_success, "finished");
+    return node;
+}
+
+// The count of a node's records of a kind and way over frames of 1/64 s.
+static uint64_t CountOverFrames(World* w, mtwnNode node, mtwnEventKind kind, bool backwards,
+                                int frames)
+{
+    uint64_t n = 0;
+    for (int f = 0; f <= frames; ++f)
+    {
+        Update(w, f / 64.0);
+        mtwnEvent e[16];
+        uint32_t read = Read(w, e, 16);
+        for (uint32_t i = 0; i < read; ++i)
+        {
+            n += e[i].node == node && e[i].kind == kind && e[i].backwards == backwards ? e[i].count
+                                                                                       : 0u;
+        }
+    }
+    return n;
+}
+
+// A frame ending exactly where a held time starts to move crosses what
+// lies at the held time: a track at the start of a timeline delayed by
+// 0.25 s starts in the frame landing on 0.25 s; played backwards from
+// 2.5 s, a timeline held after its end at 1.40625 s ends, backwards, in
+// the frame landing there. Both were lost (found playing clips in two
+// cuts of time).
+static void TestHoldEdges(void)
+{
+    World w = MakeWorld(16);
+    mtwnNode track = HeldEdges(&w, 0.25, 1.0);
+    Play(&w, true, 1.0);
+    CHECK(CountOverFrames(&w, track, mtwn_eventStart, false, 32) == 1,
+          "the track starts as the timeline's delay ends");
+    mtwnDestroyContext(w.context);
+    w = MakeWorld(16);
+    (void)HeldEdges(&w, 0.0, 3.0);
+    mtwnPlayerId player = Play(&w, true, -1.0);
+    CHECK(mtwnPlayer_Seek(w.context, player, 2.5) == mtwn_success, "sought");
+    // The timeline is node 2; its end crossed backwards records a start.
+    CHECK(CountOverFrames(&w, 2, mtwn_eventStart, true, 80) == 1,
+          "the timeline's end crossed backwards where it was held");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestSharedRecords(void)
 {
     // Two tracks in a row of one timing: the sweep gives the second the
@@ -767,6 +837,7 @@ static void TestPaths(void)
 
 int main(void)
 {
+    TestHoldEdges();
     TestOneCrossingIterations();
     TestPlayed();
     TestStall();

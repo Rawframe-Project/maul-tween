@@ -57,6 +57,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - At constant speed the lengths of the parameter's steps, summed, no
   longer drift from the length measured afresh: on a random curve a
   point came 1.6e-7 off.
+- A frame ending exactly where a held time starts to move, or on a
+  timeline's iteration boundary, recorded what lies at the held time:
+  a track at the start of a delayed timeline did not start in the frame
+  landing on the delay's end, and a timeline held after its end, played
+  backwards, did not end in the frame landing on its end (record
+  mtwn-0038, amended). Counts no longer depend on where frames fall;
+  clip frames cost about 2% more.
 - A record of one crossing could report a last iteration one before its
   first, its two searches landing a double apart through nested
   timelines' rounding.
