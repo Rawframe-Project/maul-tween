@@ -7,6 +7,17 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- Clip players in step share their work: a player of the same clip at
+  the same time, rate and direction as the last in its work takes that
+  one's track results and records instead of working them out, with
+  the same bits (record mtwn-0057). The bench's 1,000 players in step
+  from 6.02 to 1.75 million instructions a frame, the frame where they
+  all repeat from 25.8 to 2.14 million; players out of step cost 0.4%
+  more. A context holds 14.5 KB more for it, and as much again for
+  each of the 16 groups when given a task system.
+
 ## [0.3.0] - 2026-10-16
 
 Clip players on the host's task system, and clip players several times

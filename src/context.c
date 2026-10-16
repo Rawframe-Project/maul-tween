@@ -52,6 +52,10 @@ typedef struct Layout
     uint64_t eventAlong;
     uint64_t levels;
     uint64_t serial;
+    // What each work shares among players in step: the serial work's
+    // first, then every group's.
+    uint64_t sharedTracks;
+    uint64_t sharedRecords;
     uint64_t changed;
     // With a task system: the groups' works and scratch, each kind for
     // every group in turn, and the clips' players' staging.
@@ -93,6 +97,25 @@ static uint32_t GroupTracks(const mtwnContextDef* def)
     return (uint32_t)(((uint64_t)def->bindingCapacity * 2u + MTWN_GROUPS - 1u) / MTWN_GROUPS);
 }
 
+// The works a context holds: the serial one, and with a task system each
+// group's.
+static uint32_t Works(const mtwnContextDef* def)
+{
+    return def->enqueueTask != NULL ? 1u + MTWN_GROUPS : 1u;
+}
+
+// Points a work's sharing at the k-th share of the block's.
+static void SetSharing(mtwnWork* work, unsigned char* block, const Layout* layout, uint32_t k)
+{
+    work->sharing = (mtwnSharing){0};
+    work->sharing.tracks =
+        (mtwnSharedTrack*)(block + layout->sharedTracks) + (size_t)k * MTWN_SHARED_NODES;
+    work->sharing.records =
+        (mtwnSharedRecord*)(block + layout->sharedRecords) + (size_t)k * MTWN_SHARED_RECORDS;
+    work->sharing.trackCapacity = MTWN_SHARED_NODES;
+    work->sharing.recordCapacity = MTWN_SHARED_RECORDS;
+}
+
 static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
 {
     if (def->enqueueTask == NULL)
@@ -124,6 +147,10 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
                   Place(&end, def->eventCapacity, sizeof(double), &layout->eventAlong) &&
                   Place(&end, MTWN_MAX_CLIP_DEPTH + 2u, sizeof(mtwnLevel), &layout->levels) &&
                   Place(&end, 1, sizeof(mtwnWork), &layout->serial) &&
+                  Place(&end, (uint64_t)Works(def) * MTWN_SHARED_NODES, sizeof(mtwnSharedTrack),
+                        &layout->sharedTracks) &&
+                  Place(&end, (uint64_t)Works(def) * MTWN_SHARED_RECORDS, sizeof(mtwnSharedRecord),
+                        &layout->sharedRecords) &&
                   Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed) &&
                   PlanGroups(def, &end, layout);
     layout->bytes = end;
@@ -137,6 +164,7 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
     context->serial = (mtwnWork*)(block + layout->serial);
     *context->serial = (mtwnWork){0};
     context->serial->levels = context->levels;
+    SetSharing(context->serial, block, layout, 0);
     context->works = NULL;
     context->staged = NULL;
     if (def->enqueueTask == NULL)
@@ -158,6 +186,7 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
         work->tracks = (mtwnTrackOut*)(block + layout->groupTracks) + (size_t)g * tracks;
         work->recordCapacity = records;
         work->trackCapacity = tracks;
+        SetSharing(work, block, layout, 1u + g);
     }
 }
 

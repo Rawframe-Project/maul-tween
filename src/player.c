@@ -265,14 +265,10 @@ static bool PlaysOn(const mtwnContext* context, const mtwnClipPlay* play, mtwnPl
     return context->reducedMotion && !play->essential && state == mtwn_playRunning;
 }
 
-bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
-                           double now)
+// Applies a pending rate from the time reached, and starts a pending play
+// at this update's time, its ready time.
+static void StartPending(mtwnClipPlay* play, double now)
 {
-    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
-    double end = EffectEnd(context, play);
-    // The rate its time ran at since the last update, 0 if it was held.
-    double ranAt =
-        !play->pending && !isnan(play->startTime) && isnan(play->holdTime) ? play->rate : 0.0;
     if (!isnan(play->pendingRate) && !play->pending)
     {
         // The old rate ran until now; the new one runs from the time reached.
@@ -302,6 +298,17 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
             }
         }
     }
+}
+
+bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
+                           double now)
+{
+    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    double end = EffectEnd(context, play);
+    // The rate its time ran at since the last update, 0 if it was held.
+    double ranAt =
+        !play->pending && !isnan(play->startTime) && isnan(play->holdTime) ? play->rate : 0.0;
+    StartPending(play, now);
     UpdateFinished(play, now, end, false);
     // Under reduced motion one not essential finishes, as a finish does,
     // what lies between crossed at this time (record mtwn-0049); one with
@@ -325,11 +332,32 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     {
         return false;
     }
-    mtwnSweepEvents(context, work, player, CurrentTime(play, now), ranAt, before, now);
+    // A player of the same clip at the same time as the last the work
+    // advanced is near it, and may take its results (record mtwn-0057).
+    double current = CurrentTime(play, now);
+    mtwnSharing* sharing = &work->sharing;
+    bool near = sharing->nearClip == play->clip.index1 && sharing->nearCurrent == current;
+    sharing->nearClip = play->clip.index1;
+    sharing->nearCurrent = current;
+    if (near)
+    {
+        mtwnSweepEventsNear(context, work, player, current, ranAt, before, now);
+    }
+    else
+    {
+        mtwnSweepEvents(context, work, player, current, ranAt, before, now);
+    }
     // Only a running player moves; one not kept commits its end and goes.
     bool done = state == mtwn_playFinished && !play->keep;
     double rate = state == mtwn_playRunning ? play->rate : 0.0;
-    mtwnSampleClip(context, work, play, CurrentTime(play, now), rate, play->rate < 0.0, done);
+    if (near)
+    {
+        mtwnSampleClipNear(context, work, play, current, rate, play->rate < 0.0, done);
+    }
+    else
+    {
+        mtwnSampleClip(context, work, play, current, rate, play->rate < 0.0, done);
+    }
     return done;
 }
 

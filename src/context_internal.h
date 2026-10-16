@@ -419,6 +419,11 @@ void mtwnSortEvents(mtwnContext* context, uint32_t count);
 // a sweep from no time takes 'to' itself.
 void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, double to, double rate,
                      double hostFrom, double hostTo);
+// The same for a player near the last the work advanced: one in step with
+// the last noted takes its records, the second in step keeps its own
+// (record mtwn-0057).
+void mtwnSweepEventsNear(mtwnContext* context, mtwnWork* work, uint32_t player, double to,
+                         double rate, double hostFrom, double hostTo);
 
 // Records a player's event of the player itself: a seek, a cancel, a
 // transition's start or end.
@@ -431,6 +436,10 @@ void mtwnPlayerEvent(mtwnContext* context, uint32_t player, mtwnEventKind kind, 
 // (src/clip_sample.c).
 void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play, double current,
                     double rate, bool backwards, bool commit);
+// The same for a player near the last the work advanced, as
+// mtwnSweepEventsNear: its track results taken or kept.
+void mtwnSampleClipNear(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play,
+                        double current, double rate, bool backwards, bool commit);
 
 // The groups of clips' players the parallel phase hands the host, and the
 // node times each group keeps: a clip of more nodes plays serially.
@@ -455,6 +464,82 @@ typedef struct mtwnTrackOut
     uint8_t reserved[4];
 } mtwnTrackOut;
 
+// A clip track's result as the last player of its clip in a work made it,
+// for the next player in step (record mtwn-0057): its own value and
+// timing results, its parent's time a moment ago and way, and its
+// velocity once worked out.
+typedef struct mtwnSharedTrack
+{
+    mtwnVec4 value;
+    mtwnVec4 velocity;
+    double progress;
+    double iteration;
+    double earlier;
+    double earlierIteration;
+    double parentBefore;
+    bool earlierKnown;
+    bool parentBackwards;
+    // Worked out for the last player; with an effect; velocity known.
+    bool known;
+    bool effect;
+    bool velocityKnown;
+    uint8_t reserved[3];
+} mtwnSharedTrack;
+
+// A clip's player's records as the last player of its clip in a work made
+// them, for the next one sweeping the same way.
+typedef struct mtwnSharedRecord
+{
+    mtwnEvent event;
+    double along;
+} mtwnSharedRecord;
+
+// The most nodes and records a work shares among players in step.
+#define MTWN_SHARED_NODES   128u
+#define MTWN_SHARED_RECORDS 64u
+
+// What the last player in a work left for the next in step: the sample's
+// key and its tracks, and the sweep's key and its records. A player only
+// notes its key; the next in step with it keeps its results, for the rest
+// to take, so players out of step keep nothing. A clip of more nodes, or a
+// sweep of more records, is not shared.
+typedef struct mtwnSharing
+{
+    mtwnSharedTrack* tracks;
+    mtwnSharedRecord* records;
+    uint32_t trackCapacity;
+    uint32_t recordCapacity;
+    // The last player's clip by index and its time: a player of both is
+    // near it, and only one near checks the keys below.
+    uint32_t nearClip;
+    double nearCurrent;
+    // The sample's key: the clip by index and generation, since a slot is
+    // reused by a later clip. Whether a player commits is its own.
+    mtwnClipId sampleClip;
+    double current;
+    double rate;
+    bool backwards;
+    // Whether a key is noted, and whether the tracks hold its results.
+    bool sampleValid;
+    bool sampleKept;
+    // The sweep's key, noted, and whether the records hold its records.
+    bool sweepValid;
+    bool sweepKept;
+    // Whether the sweep running keeps its records.
+    bool capture;
+    mtwnClipId sweepClip;
+    uint32_t recordCount;
+    double from;
+    double to;
+    double sweepRate;
+    double hostFrom;
+    double hostTo;
+    bool fromNone;
+    bool turning;
+    bool negative;
+    uint8_t reserved[3];
+} mtwnSharing;
+
 // What a clip's player's advance works in: the crossing levels and node
 // times it uses as scratch, and, staging, where its records and track
 // results go instead of the queue and the targets. The serial work stages
@@ -478,6 +563,8 @@ typedef struct mtwnWork
     // Whether staging ran out for the player being advanced.
     bool overflow;
     uint8_t reserved[7];
+    // What players in step share in this work.
+    mtwnSharing sharing;
 } mtwnWork;
 
 // A clip's player as the parallel phase left it: its staged records and

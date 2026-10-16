@@ -21,6 +21,15 @@
 // The span the velocity is measured over, as a transition's.
 static const double s_velocitySpan = 0.001;
 
+// The sampling loop's track result stays in it though the sharing calls
+// it too: left out of line, as GCC 14 leaves it, the loop costs every
+// player 2% more (record mtwn-0057).
+#if defined(_MSC_VER) && !defined(__clang__)
+#define MTWN_ALWAYS_INLINE __forceinline
+#else
+#define MTWN_ALWAYS_INLINE inline __attribute__((always_inline))
+#endif
+
 uint32_t mtwnBoundTarget(const mtwnContext* context, const mtwnClipPlay* play, uint32_t slot)
 {
     mtwnTargetId id = context->bindings.entries[play->bindingStart + slot].target;
@@ -259,8 +268,9 @@ typedef struct TrackPlace
 } TrackPlace;
 
 // A track's result, which reads no target: false when it has no effect.
-static bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound, double weight,
-                        const TrackPlace* place, TrackTimes* times, mtwnTrackOut* out)
+static MTWN_ALWAYS_INLINE bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound,
+                                           double weight, const TrackPlace* place,
+                                           TrackTimes* times, mtwnTrackOut* out)
 {
     double progress = times->progress;
     if (isnan(progress))
@@ -290,7 +300,7 @@ static bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound, double
 
 // What lies under a track in its target: what earlier players wrote in
 // this update, or the base.
-static void ApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
+static MTWN_ALWAYS_INLINE void ApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
 {
     uint32_t target = out->target;
     mtwnTargetSlot* slot = mtwnTargetAt(context, target);
@@ -343,14 +353,10 @@ void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out)
     ApplyTrack(context, out);
 }
 
-// Applies a track's result, or stages it in a staging work.
-static void Put(mtwnContext* context, mtwnWork* work, const mtwnTrackOut* out)
+// Stages a track's result in a staging work.
+static void Stage(mtwnWork* work, const mtwnTrackOut* out)
 {
-    if (work->tracks == NULL)
-    {
-        ApplyTrack(context, out);
-    }
-    else if (work->trackCount < work->trackCapacity)
+    if (work->trackCount < work->trackCapacity)
     {
         // Field by field: a whole copy kept the serial path's result in
         // memory too, 21 instructions a track.
@@ -368,6 +374,147 @@ static void Put(mtwnContext* context, mtwnWork* work, const mtwnTrackOut* out)
     {
         work->overflow = true;
     }
+}
+
+// Applies a track's result, or stages it in a staging work.
+static void Put(mtwnContext* context, mtwnWork* work, const mtwnTrackOut* out)
+{
+    if (work->tracks == NULL)
+    {
+        ApplyTrack(context, out);
+    }
+    else
+    {
+        Stage(work, out);
+    }
+}
+
+// A shared track's result for this player: the value and velocity data
+// the last player in step worked out, its own binding's weight and
+// composite. Worked out here only what this player alone needs.
+static void SharedResult(const mtwnClipNode* node, const mtwnBound* bound, double weight,
+                         const TrackPlace* place, mtwnSharedTrack* shared, mtwnTrackOut* out)
+{
+    out->value = shared->value;
+    out->weight = weight * (double)bound->weight;
+    out->kind = node->track.kind;
+    out->composite = bound->composite;
+    out->lazy = place->moving && LeavesVelocity(node, bound, weight);
+    if (out->lazy)
+    {
+        mtwnClipVelocity lazy = {shared->parentBefore, place->clip,
+                                 place->node | (shared->parentBackwards ? s_backwardsBit : 0u)};
+        memcpy(&out->velocity, &lazy, sizeof lazy);
+        return;
+    }
+    if (!shared->velocityKnown)
+    {
+        TrackTimes t = {shared->progress, shared->iteration, shared->earlier,
+                        shared->earlierIteration, shared->earlierKnown};
+        mtwnNodeTime parent = {0.0, shared->parentBefore, shared->parentBackwards, false, false,
+                               {0}};
+        KnowEarlier(&t, node, &parent, place->moving);
+        shared->earlier = t.earlier;
+        shared->earlierIteration = t.earlierIteration;
+        shared->earlierKnown = true;
+        shared->velocity = TrackVelocity(node, out->value, t.earlier, t.earlierIteration);
+        shared->velocityKnown = true;
+    }
+    out->velocity = shared->velocity;
+}
+
+// Keeps a track's result for the next player in step.
+static void Share(mtwnSharedTrack* shared, const TrackTimes* t, const mtwnNodeTime* parent,
+                  const mtwnTrackOut* out, bool effect)
+{
+    shared->known = true;
+    shared->effect = effect;
+    shared->progress = t->progress;
+    shared->iteration = t->iteration;
+    shared->earlier = t->earlier;
+    shared->earlierIteration = t->earlierIteration;
+    shared->earlierKnown = t->earlierKnown;
+    shared->parentBefore = parent->before;
+    shared->parentBackwards = parent->backwards;
+    shared->value = effect ? out->value : (mtwnVec4){0};
+    shared->velocityKnown = effect && !out->lazy;
+    shared->velocity = shared->velocityKnown ? out->velocity : (mtwnVec4){0};
+}
+
+// Samples a player in step with the last of its clip in the work from
+// what that one left: false when a track it needs was not worked out.
+static bool SampleShared(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play,
+                         const mtwnClipSlot* clip, bool moving, bool commit)
+{
+    mtwnSharing* sharing = &work->sharing;
+    for (uint32_t i = 1; i < clip->nodeCount; ++i)
+    {
+        const mtwnClipNode* node = &clip->nodes[i];
+        if (node->kind == mtwn_nodeTrack && mtwnBoundTarget(context, play, node->slot) != 0 &&
+            !sharing->tracks[i].known)
+        {
+            return false;
+        }
+    }
+    for (uint32_t i = 1; i < clip->nodeCount; ++i)
+    {
+        const mtwnClipNode* node = &clip->nodes[i];
+        uint32_t target =
+            node->kind == mtwn_nodeTrack ? mtwnBoundTarget(context, play, node->slot) : 0;
+        mtwnSharedTrack* shared = &sharing->tracks[i];
+        if (target == 0 || !shared->effect)
+        {
+            continue;
+        }
+        const mtwnBound* bound = &context->bindings.entries[play->bindingStart + node->slot];
+        TrackPlace place = {play->clip.index1, i, NULL, moving};
+        mtwnTrackOut out;
+        out.target = target;
+        out.commit = commit;
+        SharedResult(node, bound, play->weight, &place, shared, &out);
+        // The library's own call, not the loop's copy of it.
+        if (work->tracks == NULL)
+        {
+            mtwnApplyTrack(context, &out);
+        }
+        else
+        {
+            Stage(work, &out);
+        }
+    }
+    return true;
+}
+
+// Keeps every bound track's result of a player for the next in step, from
+// the node times its sample left.
+static void KeepTracks(const mtwnContext* context, mtwnSharing* sharing, const mtwnClipPlay* play,
+                       const mtwnClipSlot* clip, const mtwnNodeTime* times, bool moving)
+{
+    for (uint32_t i = 1; i < clip->nodeCount; ++i)
+    {
+        const mtwnClipNode* node = &clip->nodes[i];
+        sharing->tracks[i].known = false;
+        if (node->kind != mtwn_nodeTrack || mtwnBoundTarget(context, play, node->slot) == 0)
+        {
+            continue;
+        }
+        const mtwnNodeTime* parent = &times[node->parent - 1];
+        TrackTimes t = TimesOf(node, parent);
+        const mtwnBound* bound = &context->bindings.entries[play->bindingStart + node->slot];
+        TrackPlace place = {play->clip.index1, i, parent, moving};
+        mtwnTrackOut out;
+        bool effect = TrackResult(node, bound, play->weight, &place, &t, &out);
+        Share(&sharing->tracks[i], &t, parent, &out, effect);
+    }
+}
+
+// Whether a player is in step with the last of its clip the work sampled.
+static bool InStep(const mtwnSharing* sharing, const mtwnClipPlay* play, double current,
+                   double rate, bool backwards)
+{
+    return sharing->sampleValid && sharing->sampleClip.index1 == play->clip.index1 &&
+           sharing->sampleClip.generation == play->clip.generation && sharing->current == current &&
+           sharing->rate == rate && sharing->backwards == backwards;
 }
 
 void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play, double current,
@@ -413,5 +560,33 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
                 }
             }
         }
+    }
+}
+
+void mtwnSampleClipNear(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play,
+                        double current, double rate, bool backwards, bool commit)
+{
+    mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
+    mtwnSharing* sharing = &work->sharing;
+    bool moving = rate != 0.0;
+    bool same = InStep(sharing, play, current, rate, backwards);
+    if (same && sharing->sampleKept && SampleShared(context, work, play, clip, moving, commit))
+    {
+        return;
+    }
+    mtwnSampleClip(context, work, play, current, rate, backwards, commit);
+    // One near notes its key; the second in step keeps its results for
+    // the rest, worked out again from the node times its sample left.
+    bool keep = same && clip->nodeCount <= sharing->trackCapacity;
+    sharing->sampleValid = true;
+    sharing->sampleKept = keep;
+    sharing->sampleClip = play->clip;
+    sharing->current = current;
+    sharing->rate = rate;
+    sharing->backwards = backwards;
+    if (keep)
+    {
+        KeepTracks(context, sharing, play, clip, work->times != NULL ? work->times : clip->times,
+                   moving);
     }
 }

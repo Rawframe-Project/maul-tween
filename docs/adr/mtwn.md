@@ -61,3 +61,4 @@ are listed in [README.md](README.md).
 | [mtwn-0054](mtwn-0054-clip-velocity-when-read.md) | A clip track's velocity worked out when read | Accepted |
 | [mtwn-0055](mtwn-0055-size-budgets-for-clip-speed-and-tasks.md) | Size budgets for the clip players' speed and their tasks | Accepted |
 | [mtwn-0056](mtwn-0056-clip-players-on-the-hosts-tasks.md) | Clip players on the host's task system | Accepted |
+| [mtwn-0057](mtwn-0057-players-in-step-share-their-work.md) | Players in step share their work | Accepted |

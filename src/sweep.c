@@ -48,6 +48,23 @@ typedef struct Sweep
     double replayAlong[6];
 } Sweep;
 
+// Keeps a record for the next player in step while the work captures;
+// past the sharing's capacity none of this sweep's are kept.
+static void Capture(Sweep* sweep, const mtwnEvent* event, double along)
+{
+    mtwnSharing* sharing = &sweep->work->sharing;
+    if (!sharing->capture)
+    {
+        return;
+    }
+    if (sharing->recordCount == sharing->recordCapacity)
+    {
+        sharing->capture = false;
+        return;
+    }
+    sharing->records[sharing->recordCount++] = (mtwnSharedRecord){*event, along};
+}
+
 // The host's time a player's time was reached at: from the sweep's start
 // at the rate that ran since (which the sweep runs with), within the
 // sweep; the sweep's end when no time passed or none ran. Within it even
@@ -121,6 +138,7 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         // Its place along the sweep: how far from the sweep's start.
         double along = fabs(first - sweep->from);
         mtwnWorkEvent(sweep->context, sweep->work, &event, along);
+        Capture(sweep, &event, along);
         if (sweep->replayNode == node && sweep->replayCount < 6)
         {
             sweep->replay[sweep->replayCount] = event;
@@ -329,6 +347,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
             mtwnEvent event = sweep->replay[i];
             event.node = node;
             mtwnWorkEvent(sweep->context, sweep->work, &event, sweep->replayAlong[i]);
+            Capture(sweep, &event, sweep->replayAlong[i]);
         }
         sweep->replayNode = node;
         return;
@@ -368,6 +387,46 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
     }
+}
+
+// The sweep's key: what decides its records but the player.
+typedef struct SweepKey
+{
+    mtwnClipId clip;
+    double from;
+    double to;
+    double rate;
+    double hostFrom;
+    double hostTo;
+    bool fromNone;
+    bool turning;
+    bool negative;
+} SweepKey;
+
+static bool SameSweep(const mtwnSharing* sharing, const SweepKey* key)
+{
+    return sharing->sweepValid && sharing->sweepClip.index1 == key->clip.index1 &&
+           sharing->sweepClip.generation == key->clip.generation &&
+           sharing->fromNone == key->fromNone && (key->fromNone || sharing->from == key->from) &&
+           sharing->to == key->to && sharing->sweepRate == key->rate &&
+           sharing->hostFrom == key->hostFrom && sharing->hostTo == key->hostTo &&
+           sharing->turning == key->turning && sharing->negative == key->negative;
+}
+
+static void KeepSweep(mtwnSharing* sharing, const SweepKey* key)
+{
+    sharing->sweepClip = key->clip;
+    sharing->from = key->from;
+    sharing->to = key->to;
+    sharing->sweepRate = key->rate;
+    sharing->hostFrom = key->hostFrom;
+    sharing->hostTo = key->hostTo;
+    sharing->fromNone = key->fromNone;
+    sharing->turning = key->turning;
+    sharing->negative = key->negative;
+    sharing->recordCount = 0;
+    sharing->sweepValid = true;
+    sharing->sweepKept = false;
 }
 
 void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, double to, double rate,
@@ -426,4 +485,58 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
             NodeEvents(&sweep, clip, i + 1, parent);
         }
     }
+}
+
+// A sweep's key, the player's swept time and way left as they are: false
+// when its time did not move.
+static bool KeyOf(const mtwnClipPlay* play, double to, double rate, double hostFrom, double hostTo,
+                  SweepKey* key, int8_t* way)
+{
+    double from = play->swept;
+    bool fromNone = isnan(from);
+    if (!fromNone && from == to)
+    {
+        return false;
+    }
+    *way = fromNone ? (int8_t)(play->rate < 0.0 ? -1 : 1) : (int8_t)(to > from ? 1 : -1);
+    bool turning = !fromNone && play->sweptWay != 0 && play->sweptWay != *way;
+    *key = (SweepKey){play->clip,      from, to, rate, hostFrom, hostTo, fromNone, turning,
+                      play->rate < 0.0};
+    return true;
+}
+
+void mtwnSweepEventsNear(mtwnContext* context, mtwnWork* work, uint32_t player, double to,
+                         double rate, double hostFrom, double hostTo)
+{
+    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    mtwnSharing* sharing = &work->sharing;
+    SweepKey key;
+    int8_t way = 0;
+    bool moves = KeyOf(play, to, rate, hostFrom, hostTo, &key, &way);
+    bool same = moves && SameSweep(sharing, &key);
+    if (same && sharing->sweepKept)
+    {
+        // One in step with the last noted makes its records, but for its id.
+        play->swept = to;
+        play->sweptWay = way;
+        mtwnPlayerId id = mtwnPlayerIdAt(context, player);
+        for (uint32_t r = 0; r < sharing->recordCount; ++r)
+        {
+            mtwnEvent event = sharing->records[r].event;
+            event.player = id;
+            mtwnWorkEvent(context, work, &event, sharing->records[r].along);
+        }
+        return;
+    }
+    if (!moves)
+    {
+        mtwnSweepEvents(context, work, player, to, rate, hostFrom, hostTo);
+        return;
+    }
+    KeepSweep(sharing, &key);
+    // The second in step keeps its records for the rest.
+    sharing->capture = same && sharing->recordCapacity > 0;
+    mtwnSweepEvents(context, work, player, to, rate, hostFrom, hostTo);
+    sharing->sweepKept = sharing->capture;
+    sharing->capture = false;
 }
