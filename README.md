@@ -90,14 +90,15 @@ composition, paths or crossings (record mtwn-0047).
 |---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 23 kB |
 | values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.3 kB | 36.7 kB | 48 kB |
-| transitions: a context, targets and transitions | 47.1 kB | 39.3 kB | 50 kB |
-| clips: clips, players, events | 104.2 kB | 82.4 kB | 110 kB |
-| everything | 112.5 kB | 112.5 kB | 120 kB |
+| transitions: a context, targets and transitions | 47.3 kB | 39.5 kB | 50 kB |
+| clips: clips, players, events | 110.2 kB | 87.0 kB | 118 kB |
+| everything | 119.0 kB | 118.9 kB | 128 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets
-apply to the default build (record mtwn-0051): `--budget` fails past
-one, and growing past one takes a recorded decision.
+apply to the default build (records mtwn-0051 and mtwn-0055):
+`--budget` fails past one, and growing past one takes a recorded
+decision.
 
 ## Design
 

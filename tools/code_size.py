@@ -34,13 +34,14 @@ PARTS = [
     ("clips", ["clip.h", "player.h", "event.h"]),
 ]
 
-# Each part's budget in bytes, about 6% over its size at 0.2.0.
+# Each part's budget in bytes, about 6% over its size at 0.2.0 (record
+# mtwn-0051); clips and everything raised until 0.3.0 (mtwn-0055).
 BUDGETS = {
     "curves": 23000,
     "values": 48000,
     "transitions": 50000,
-    "clips": 110000,
-    "everything": 120000,
+    "clips": 118000,
+    "everything": 128000,
 }
 
 

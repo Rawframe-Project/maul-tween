@@ -51,6 +51,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   finished player: it plays again from the time the new rate gives, as
   Web Animations' steps and Firefox have it (record mtwn-0052). The
   behavior is unchanged.
+- The clips part's size budget is 118 kB and the whole library's 128 kB
+  until 0.3.0, paying for the clip players' speed since 0.2.1 (about
+  5.7 kB) and their coming task hooks (record mtwn-0055). The README's
+  size table shows today's sizes.
 
 ## [0.2.1] - 2026-10-15
 

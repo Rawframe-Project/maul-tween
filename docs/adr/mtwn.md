@@ -59,3 +59,4 @@ are listed in [README.md](README.md).
 | [mtwn-0052](mtwn-0052-lowered-rate-when-finished.md) | A finished player given a lower rate plays again | Accepted |
 | [mtwn-0053](mtwn-0053-crossing-search-from-a-guess.md) | A crossing's time searched from a guess | Accepted |
 | [mtwn-0054](mtwn-0054-clip-velocity-when-read.md) | A clip track's velocity worked out when read | Accepted |
+| [mtwn-0055](mtwn-0055-size-budgets-for-clip-speed-and-tasks.md) | Size budgets for the clip players' speed and their tasks | Accepted |
