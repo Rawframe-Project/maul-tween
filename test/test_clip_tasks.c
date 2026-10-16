@@ -36,6 +36,11 @@ static const mtwnValueKind s_kinds[s_slots] = {mtwn_valueScalar,  mtwn_valueVec2
                                                mtwn_valueInteger, mtwn_valueDiscrete};
 
 static uint64_t s_script;
+// Sibling tracks found sharing their timing.
+static uint32_t s_shared;
+// Players made and refused (only past the capacities).
+static uint32_t s_made;
+static uint32_t s_refused;
 static uint64_t s_host;
 
 static uint32_t NextOf(uint64_t* state)
@@ -61,6 +66,8 @@ typedef struct Twin
     mtwnClipId clips[s_clips];
     mtwnTargetId targets[s_slots][s_targetsPerSlot];
     mtwnPlayerId players[s_players];
+    // Its clips' sibling tracks never share their timing.
+    bool unshared;
 } Twin;
 
 // Ranges run at the wait, for a host that returns a handle.
@@ -157,6 +164,7 @@ static mtwnTiming Timing(void)
     t.direction = (mtwnDirection)(Next() % 4);
     t.fill = (mtwnFill)(Next() % 4);
     t.playbackRate = Next() % 6 == 0 ? -1.0 : 1.0;
+    t.repeatDelay = Next() % 4 == 0 ? Unit() * 0.1 : 0.0;
     return t;
 }
 
@@ -170,6 +178,9 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
     CHECK(mtwnCreateClip(twin->context, &def, &twin->clips[c]) == mtwn_success, "a clip");
     mtwnNode timelines[4] = {MTWN_ROOT_NODE};
     uint32_t timelineCount = 1;
+    // The last node added, when a track: the next may share its timing.
+    mtwnClipTrackDef last = mtwnDefaultClipTrackDef();
+    bool lastTrack = false;
     for (uint32_t k = 0; k < nodes; ++k)
     {
         mtwnPosition at = {0};
@@ -222,29 +233,89 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
                 track.timing.iterations = HUGE_VAL;
             }
             track.incremental = Next() % 4 == 0;
-            (void)mtwnClip_AddTrack(twin->context, twin->clips[c], &track, &node);
+            if (lastTrack && Next() % 2 == 0)
+            {
+                // A sibling of the same timing at the same start: its
+                // records are the last one's, replayed.
+                track.parent = last.parent;
+                track.position = (mtwnPosition){0};
+                track.position.kind = mtwn_positionWithPrevious;
+                track.timing = last.timing;
+                // Or one input apart, which must not share.
+                switch (Next() % 10)
+                {
+                case 0:
+                    track.timing.delay += 0.01;
+                    break;
+                case 1:
+                    track.timing.fill = (mtwnFill)((track.timing.fill + 1u) % 4u);
+                    break;
+                case 2:
+                    track.timing.repeatDelay += 0.01;
+                    break;
+                case 3:
+                    track.timing.playbackRate = -track.timing.playbackRate;
+                    break;
+                case 4:
+                case 5:
+                    // Another timeline, when there is one.
+                    for (uint32_t t = 0; t < timelineCount; ++t)
+                    {
+                        if (timelines[t] != last.parent)
+                        {
+                            track.parent = timelines[t];
+                        }
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+            lastTrack =
+                mtwnClip_AddTrack(twin->context, twin->clips[c], &track, &node) == mtwn_success;
+            last = track;
+            continue;
         }
+        lastTrack = false;
     }
     CHECK(mtwnClip_Finish(twin->context, twin->clips[c]) == mtwn_success, "a finished clip");
+    mtwnClipSlot* clip = mtwnClipAt(twin->context, twin->clips[c].index1);
+    for (uint32_t i = 0; i < clip->nodeCount; ++i)
+    {
+        s_shared += clip->nodes[i].sharesTiming ? 1u : 0u;
+        // The replay and the kept timing forced off.
+        clip->nodes[i].sharesTiming = clip->nodes[i].sharesTiming && !(twin->unshared);
+    }
 }
 
 static void MakePlayer(Twin* twin, uint32_t p)
 {
     uint32_t c = Next() % s_clips;
+    const mtwnClipSlot* clip = mtwnClipAt(twin->context, twin->clips[c].index1);
+    // A binding for each slot the clip's tracks use; one no track uses is
+    // refused.
     mtwnBinding bindings[s_slots];
+    uint32_t bound = 0;
     for (uint32_t s = 0; s < s_slots; ++s)
     {
-        bindings[s] = mtwnBind(s, twin->targets[s][Next() % s_targetsPerSlot]);
-        bindings[s].composite = Next() % 3 == 0 ? mtwn_compositeAdd : mtwn_compositeReplace;
-        bindings[s].weight = Next() % 3 == 0 ? 0.5f : 1.0f;
+        mtwnBinding binding = mtwnBind(s, twin->targets[s][Next() % s_targetsPerSlot]);
+        binding.composite = Next() % 3 == 0 ? mtwn_compositeAdd : mtwn_compositeReplace;
+        binding.weight = Next() % 3 == 0 ? 0.5f : 1.0f;
+        if (s < clip->slotCount && clip->slotKinds[s] != 0)
+        {
+            bindings[bound++] = binding;
+        }
     }
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = twin->clips[c];
     def.bindings = bindings;
-    def.bindingCount = mtwnClipAt(twin->context, twin->clips[c].index1)->slotCount;
+    def.bindingCount = bound;
     def.keep = Next() % 2 == 0;
     def.rate = Next() % 5 == 0 ? -1.0 : 1.0;
-    if (mtwnCreatePlayer(twin->context, &def, &twin->players[p]) != mtwn_success)
+    mtwnResult made = mtwnCreatePlayer(twin->context, &def, &twin->players[p]);
+    s_made += made == mtwn_success ? 1u : 0u;
+    s_refused += made == mtwn_success ? 0u : 1u;
+    if (made != mtwn_success)
     {
         twin->players[p] = (mtwnPlayerId){0, 0};
     }
@@ -448,6 +519,9 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
 // Staging that holds nothing: every player that makes anything runs out
 // and is put back, the whole update made by the serial pass.
 static bool s_emptyStaging;
+// The second twin serial too, its sibling tracks never sharing timing:
+// the replay of their records and their kept timing differ from none.
+static bool s_unsharedMode;
 
 static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Taken* taken)
 {
@@ -456,8 +530,10 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
     for (int k = 0; k < 2; ++k)
     {
         mtwnContextDef own = def;
-        own.enqueueTask = k == 1 ? Enqueue : NULL;
-        own.finishTask = k == 1 ? Finish : NULL;
+        bool tasks = k == 1 && !s_unsharedMode;
+        own.enqueueTask = tasks ? Enqueue : NULL;
+        own.finishTask = tasks ? Finish : NULL;
+        twins[k].unshared = k == 1 && s_unsharedMode;
         CHECK(mtwnCreateContext(&own, &twins[k].context) == mtwn_success, "a context");
         for (uint32_t g = 0; k == 1 && s_emptyStaging && g < MTWN_GROUPS; ++g)
         {
@@ -516,7 +592,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
             {
                 (void)mtwnContext_SetReducedMotion(twins[k].context, f == s_frames / 2);
             }
-            if (k == 1)
+            if (k == 1 && !s_unsharedMode)
             {
                 Prepare(&twins[k], &order);
             }
@@ -524,7 +600,10 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
                   "an update");
         }
         script = s_script;
-        Count(&twins[1], &order, taken);
+        if (!s_unsharedMode)
+        {
+            Count(&twins[1], &order, taken);
+        }
         differences += Compare(&twins[0], &twins[1], changed[0], changed[1], totals[0], totals[1]);
     }
     mtwnDestroyContext(twins[0].context);
@@ -554,6 +633,7 @@ static void TestTwins(void)
         differences += Run(def, seed, first, &taken);
     }
     CHECK(differences == 0, "the twins hold the same bits after every update");
+    CHECK(s_made > 10 * s_refused, "nearly every player made");
     CHECK(s_enqueued > 100, "the task system was handed the groups");
     CHECK(taken.staged > 1000, "players staged by the groups");
     CHECK(taken.serial > 10, "players left to the serial pass");
@@ -577,6 +657,29 @@ static void TestTwins(void)
     s_emptyStaging = false;
     CHECK(emptyDifferences == 0 && empty.ranOut > 1000,
           "with staging that holds nothing, every player put back, the same bits");
+}
+
+// The replay of sibling tracks' records and their kept timing rest on
+// sharesTiming naming every input their records and values depend on: a
+// random script with them and with them forced off makes the same bits.
+static void TestReplayOff(void)
+{
+    s_unsharedMode = true;
+    s_shared = 0;
+    Taken unused = {0, 0, 0, 0, 0, 0};
+    uint32_t differences = 0;
+    for (uint64_t seed = 21; seed <= 32; ++seed)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.playerCapacity = 128;
+        def.clipStorageBytes = 8u * 1024u * 1024u;
+        def.eventCapacity = 4096u;
+        def.bindingCapacity = 2000u;
+        differences += Run(def, seed, 0, &unused);
+    }
+    s_unsharedMode = false;
+    CHECK(s_shared > 30, "sibling tracks sharing their timing");
+    CHECK(differences == 0, "the same bits with the replay and kept timing forced off");
 }
 
 static void Fill(mtwnContext* context, uint32_t count, mtwnWork* work)
@@ -699,6 +802,7 @@ int main(void)
 {
     TestStagingBounds();
     TestOneTimeOrder();
+    TestReplayOff();
     TestTwins();
     return s_failures == 0 ? 0 : 1;
 }
