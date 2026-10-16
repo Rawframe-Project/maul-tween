@@ -353,6 +353,50 @@ A track whose def asks for `incremental` moves on each iteration by
 its last keyframe minus its first, so a repeated step climbs and a
 repeated spin turns on.
 
+## Threads
+
+Clips' players can run on the host's task system, the same hook pair
+Maul VFX takes. The host hands the library a function that runs a
+range of work items, on any thread and in any order:
+
+```c
+static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+                    void* userContext)
+{
+    (void)minRange;
+    (void)userContext;
+    task(0, itemCount, taskContext); // a real host splits it over its workers
+    return NULL;                     // ran it all: nothing to wait for
+}
+
+static void WaitFor(void* userTask, void* userContext)
+{
+    (void)userTask;
+    (void)userContext;
+}
+```
+
+and sets both in the def before making the context:
+
+```c
+mtwnContextDef threaded = mtwnDefaultContextDef();
+threaded.enqueueTask = RunNow;
+threaded.finishTask = WaitFor;
+threaded.userTaskContext = NULL; // passed to both, the host's own
+mtwnContext* parallel = NULL;
+mtwnResult madeThreaded = mtwnCreateContext(&threaded, &parallel);
+```
+
+Each update then hands the host up to 16 groups of the clips' players,
+in the order they were made. A group advances its players with its own
+scratch and holds what they make; afterwards the update composes it
+into the targets in creation order, between the transitions. Records,
+values, velocities and the changed list are the same bits as without
+the hooks, whatever the split and the order. The groups cost memory
+(about 660 KB more for the default def, see `mtwnContextDef`), so a
+host with a few players leaves the hooks unset. Transitions and
+composing stay on the calling thread.
+
 ## Growing
 
 Capacities are set when the context is made. When the host outgrows

@@ -68,6 +68,34 @@ static void TestStagger(void)
           "the centre's cells first, the corners last");
 }
 
+static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+                    void* userContext)
+{
+    (void)minRange;
+    (void)userContext;
+    task(0, itemCount, taskContext); // a real host splits it over its workers
+    return NULL;                     // ran it all: nothing to wait for
+}
+
+static void WaitFor(void* userTask, void* userContext)
+{
+    (void)userTask;
+    (void)userContext;
+}
+
+static void TestThreads(void)
+{
+    mtwnContextDef threaded = mtwnDefaultContextDef();
+    threaded.enqueueTask = RunNow;
+    threaded.finishTask = WaitFor;
+    threaded.userTaskContext = NULL; // passed to both, the host's own
+    mtwnContext* parallel = NULL;
+    mtwnResult madeThreaded = mtwnCreateContext(&threaded, &parallel);
+    CHECK(madeThreaded == mtwn_success && mtwnUpdate(parallel, 0, NULL, 0, NULL) == mtwn_success,
+          "a context on the host's tasks");
+    mtwnDestroyContext(parallel);
+}
+
 static void TestHost(void)
 {
     uint64_t nowNs = 0;
@@ -196,6 +224,7 @@ static void TestHost(void)
 
 int main(void)
 {
+    TestThreads();
     TestEasing();
     TestSprings();
     TestValues();
