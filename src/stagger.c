@@ -10,6 +10,8 @@
 // offsets are the same bits on every platform. A random order is an
 // inside-out shuffle driven by SplitMix64 of the seed.
 
+#include "stagger_internal.h"
+
 #include "maul-tween/timing.h"
 
 #include <math.h>
@@ -126,19 +128,42 @@ static double Distance(const Grid* grid, const mtwnStagger* stagger, uint32_t it
     return sqrt(dx * dx + dy * dy);
 }
 
-// A permutation of 0 ... count - 1 from the seed, each item its own step.
+// The next 32 random bits of a seed's stream (SplitMix64's top half).
+static uint32_t NextBits(uint64_t* state)
+{
+    *state += 0x9E3779B97F4A7C15ull;
+    uint64_t z = *state;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    z ^= z >> 31;
+    return (uint32_t)(z >> 32);
+}
+
+uint32_t mtwnUniformBelow(uint64_t* state, uint32_t range)
+{
+    // Lemire's multiply, the few low products drawn again so that every
+    // place has the same share of the 2^32 draws.
+    uint64_t product = (uint64_t)NextBits(state) * range;
+    uint32_t low = (uint32_t)product;
+    if (low < range)
+    {
+        uint32_t threshold = (uint32_t)(0u - range) % range;
+        while (low < threshold)
+        {
+            product = (uint64_t)NextBits(state) * range;
+            low = (uint32_t)product;
+        }
+    }
+    return (uint32_t)(product >> 32);
+}
+
+// A permutation of 0 ... count - 1 from the seed, every one equally likely.
 static void Shuffle(uint64_t seed, uint32_t count, double* out)
 {
     uint64_t state = seed;
     for (uint32_t j = 0; j < count; ++j)
     {
-        state += 0x9E3779B97F4A7C15ull;
-        uint64_t z = state;
-        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
-        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
-        z ^= z >> 31;
-        // A place in [0, j] from the top 32 bits, without a division.
-        uint32_t k = (uint32_t)(((z >> 32) * ((uint64_t)j + 1u)) >> 32);
+        uint32_t k = mtwnUniformBelow(&state, j + 1u);
         if (k != j)
         {
             out[j] = out[k];

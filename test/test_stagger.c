@@ -7,6 +7,7 @@
 // repeats for its seed with the same bits everywhere, and misuse writes
 // nothing.
 
+#include "stagger_internal.h"
 #include "test_harness.h"
 
 #include "maul-tween/timing.h"
@@ -251,8 +252,53 @@ static void TestMisuse(void)
     CHECK(got[0] == -1.0 && got[1] == -1.0 && got[2] == -1.0, "nothing written");
 }
 
+// The draw gives every place the same share. Over 3 * 2^30 places a draw
+// without rejection maps 4 of the 2^32 values onto 3 places, so the
+// places that are multiples of 3 would get half the draws; fairly they
+// get a third.
+static void TestUniformDraw(void)
+{
+    uint64_t state = 7;
+    uint32_t multiples = 0;
+    enum
+    {
+        draws = 120000
+    };
+    for (uint32_t i = 0; i < draws; ++i)
+    {
+        multiples += mtwnUniformBelow(&state, 3u << 30) % 3u == 0u ? 1u : 0u;
+    }
+    double share = (double)multiples / draws;
+    CHECK(share > 0.325 && share < 0.342, "a draw over 3 * 2^30 places fair, not biased");
+    // Every item at every place about equally often: 5 items, 30,000 seeds.
+    uint32_t at[5][5] = {{0}};
+    mtwnStagger stagger = mtwnDefaultStagger();
+    stagger.origin = mtwn_staggerRandom;
+    stagger.spacing = 1.0;
+    for (uint64_t seed = 0; seed < 30000; ++seed)
+    {
+        stagger.seed = seed;
+        double steps[5];
+        CHECK(mtwnComputeStagger(&stagger, 5, steps) == mtwn_success, "an order");
+        for (int i = 0; i < 5; ++i)
+        {
+            ++at[i][(int)steps[i]];
+        }
+    }
+    bool even = true;
+    for (int i = 0; i < 5; ++i)
+    {
+        for (int k = 0; k < 5; ++k)
+        {
+            even = even && at[i][k] > 5700 && at[i][k] < 6300;
+        }
+    }
+    CHECK(even, "each item at each step about a fifth of the time");
+}
+
 int main(void)
 {
+    TestUniformDraw();
     TestRow();
     TestSpacing();
     TestGrid();

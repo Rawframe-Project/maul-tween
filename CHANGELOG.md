@@ -18,6 +18,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- A random stagger's order is drawn without bias: a place was drawn by
+  one multiply, which favoured some places by up to count / 2^32; the
+  rare draws that would do so are drawn again (Lemire's method). A
+  seed's order changes only where such a draw comes up.
 - A clip player's update no longer counts a repeating timeline's or
   track's iterations when its time stayed inside one iteration: about
   a fifth fewer instructions in a steady frame of a looping clip. The

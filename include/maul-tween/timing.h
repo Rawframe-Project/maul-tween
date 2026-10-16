@@ -172,7 +172,8 @@ extern "C"
         // The point at pointX and pointY, ratios of the last column and
         // row: 0 the first, 1 the last, any value within 2^20.
         mtwn_staggerPoint = 5,
-        // An order from the seed, each item its own step.
+        // An order from the seed, each item its own step, every order
+        // equally likely.
         mtwn_staggerRandom = 6,
     };
 
