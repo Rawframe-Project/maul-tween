@@ -4,8 +4,10 @@
 // Paths (records mtwn-0016, mtwn-0020, mtwn-0031): segments against their
 // formulas written again in long double, Catmull-Rom against Barry and
 // Goldman's pyramid (another construction of the same curve), arc length
-// against a Richardson-extrapolated polyline, and constant speed on lines
-// whose parameter is uneven but whose length is exact.
+// against a Richardson-extrapolated polyline and a number's against its
+// total variation, and constant speed on lines whose parameter is uneven
+// but whose length is exact and on a curve against its parameter found
+// again by Simpson's rule.
 
 #include "test_harness.h"
 
@@ -349,6 +351,184 @@ static void TestLength(void)
     CHECK(v[0] == 3.0 && v[1] == 14.0, "the end exactly");
 }
 
+// A cubic Bezier's point in one channel, and its speed in two.
+static Wide BezierAt(const Wide p[4], Wide u)
+{
+    Wide w = 1 - u;
+    return w * w * w * p[0] + 3 * w * w * u * p[1] + 3 * w * u * u * p[2] + u * u * u * p[3];
+}
+
+static Wide BezierSpeed(const Wide p[2][4], Wide u)
+{
+    Wide w = 1 - u;
+    Wide sum = 0;
+    for (int c = 0; c < 2; ++c)
+    {
+        Wide d = 3 * w * w * (p[c][1] - p[c][0]) + 6 * w * u * (p[c][2] - p[c][1]) +
+                 3 * u * u * (p[c][3] - p[c][2]);
+        sum += d * d;
+    }
+    return WIDE_SQRT(sum);
+}
+
+// A number's Bezier's length from 0 to u: its total variation, the
+// changes between the turns where its derivative, A u^2 + B u + C, is 0.
+static Wide Variation(const Wide p[4], Wide u)
+{
+    Wide d0 = p[1] - p[0];
+    Wide d1 = p[2] - p[1];
+    Wide d2 = p[3] - p[2];
+    Wide a = d0 - 2 * d1 + d2;
+    Wide b = 2 * (d1 - d0);
+    Wide disc = b * b - 4 * a * d0;
+    Wide at[4] = {0, 0, 0, 0};
+    int n = 1;
+    if (a != 0 && disc > 0)
+    {
+        Wide r[2] = {(-b - WIDE_SQRT(disc)) / (2 * a), (-b + WIDE_SQRT(disc)) / (2 * a)};
+        Wide lo = r[0] < r[1] ? r[0] : r[1];
+        Wide hi = r[0] < r[1] ? r[1] : r[0];
+        at[n] = lo;
+        n += lo > 0 && lo < u ? 1 : 0;
+        at[n] = hi;
+        n += hi > 0 && hi < u ? 1 : 0;
+    }
+    else if (a == 0 && b != 0)
+    {
+        at[n] = -d0 / b;
+        n += at[n] > 0 && at[n] < u ? 1 : 0;
+    }
+    at[n] = u;
+    Wide total = 0;
+    for (int k = 1; k <= n; ++k)
+    {
+        Wide step = BezierAt(p, at[k]) - BezierAt(p, at[k - 1]);
+        total += step < 0 ? -step : step;
+    }
+    return total;
+}
+
+// One channel: a number's Bezier has its total variation for a length,
+// exactly; quadrature misses the kink each turn puts in |x'| (a point
+// 1.1e-4 of the length off on the first here before it was measured
+// so). At constant speed each share of that length is at its place.
+static void CheckNumberLength(const float controls[4], const char* what)
+{
+    mtwnKeyframe keys[2] = {Key(0.0, controls[0], 0.0f, mtwn_segmentBezier),
+                            Key(1.0, controls[3], 0.0f, mtwn_segmentLinear)};
+    keys[0].out.x = controls[1];
+    keys[1].in.x = controls[2];
+    Wide p[4] = {(Wide)controls[0], (Wide)controls[1], (Wide)controls[2], (Wide)controls[3]};
+    double lengths[2];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 2, 1, 0.5, lengths, &path) == mtwn_success, what);
+    Wide total = Variation(p, 1);
+    double e = fabs((double)(((Wide)lengths[1] - total) / total));
+    if (!(e <= 1e-14))
+    {
+        printf("  %s: length %.17g, variation %.17g\n", what, lengths[1], (double)total);
+    }
+    CHECK(e <= 1e-14, "its length its total variation, within 1e-14 relative");
+    double worst = 0.0;
+    for (int k = 0; k <= 400; ++k)
+    {
+        Wide target = total * k / 400;
+        Wide lo = 0;
+        Wide hi = 1;
+        for (int step = 0; step < 80; ++step)
+        {
+            Wide mid = (lo + hi) / 2;
+            if (Variation(p, mid) < target)
+            {
+                lo = mid;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        double v[4];
+        mtwnSamplePath(&path, k / 400.0, v, NULL);
+        double error = fabs((double)((Wide)v[0] - BezierAt(p, (lo + hi) / 2)));
+        worst = error > worst ? error : worst;
+    }
+    if (!(worst <= 1e-11 * (double)total))
+    {
+        printf("  %s: constant speed %.3g\n", what, worst);
+    }
+    CHECK(worst <= 1e-11 * (double)total, "at constant speed every share of it at its place");
+}
+
+static void TestNumberLength(void)
+{
+    static const float twice[4] = {0.0f, 2.0f, -1.0f, 1.0f};
+    CheckNumberLength(twice, "a number turning twice");
+    // No cubic term: the derivative is linear, its one root a turn.
+    static const float once[4] = {0.0f, 1.0f, 1.0f, 0.0f};
+    CheckNumberLength(once, "a number turning once, a quadratic");
+}
+
+// The length of a two-channel Bezier from 0 to u by Simpson's rule.
+static Wide Simpson(const Wide p[2][4], Wide u, int panels)
+{
+    Wide h = u / panels;
+    Wide sum = BezierSpeed(p, 0) + BezierSpeed(p, u);
+    for (int k = 1; k < 2 * panels; ++k)
+    {
+        sum += (k % 2 == 1 ? 4 : 2) * BezierSpeed(p, h * k / 2);
+    }
+    return sum * h / 6;
+}
+
+// Two channels: each share's point against the parameter at that length
+// found again in Wide. The share near 0.6 here once came 1.6e-7 off, the
+// length found by summing each Newton step's length drifting from the
+// length measured afresh (found comparing builds over random paths).
+static void TestSpeedDrift(void)
+{
+    static const float controls[2][4] = {
+        {0x1.b921eap+1f, 0x1.7ad7cap+1f, -0x1.649f38p+2f, -0x1.bafc4p+1f},
+        {-0x1.231bc6p+3f, -0x1.e97f98p+2f, -0x1.d32788p+2f, -0x1.19e712p+3f}};
+    mtwnKeyframe keys[2] = {Key(0.0, controls[0][0], controls[1][0], mtwn_segmentBezier),
+                            Key(1.0, controls[0][3], controls[1][3], mtwn_segmentLinear)};
+    keys[0].out = (mtwnVec4){controls[0][1], controls[1][1], 0, 0};
+    keys[1].in = (mtwnVec4){controls[0][2], controls[1][2], 0, 0};
+    Wide p[2][4];
+    for (int c = 0; c < 2; ++c)
+    {
+        for (int k = 0; k < 4; ++k)
+        {
+            p[c][k] = (Wide)controls[c][k];
+        }
+    }
+    double lengths[2];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 2, 2, 0.5, lengths, &path) == mtwn_success, "a curve");
+    Wide total = Simpson(p, 1, 4096);
+    CHECK(fabs((double)((Simpson(p, 1, 2048) - total) / total)) <= 1e-13, "Simpson converged");
+    double worst = 0.0;
+    for (int k = 0; k <= 101; ++k)
+    {
+        double share = k <= 100 ? k / 100.0 : 0x1.3255b88bb5ef2p-1;
+        Wide target = total * (Wide)share;
+        Wide u = (Wide)share;
+        for (int step = 0; step < 8; ++step)
+        {
+            u -= (Simpson(p, u, 2048) - target) / BezierSpeed(p, u);
+        }
+        double v[4];
+        mtwnSamplePath(&path, share, v, NULL);
+        double error = fabs((double)((Wide)v[0] - BezierAt(p[0], u))) +
+                       fabs((double)((Wide)v[1] - BezierAt(p[1], u)));
+        worst = error > worst ? error : worst;
+    }
+    if (!(worst <= 1e-10 * (double)total))
+    {
+        printf("  constant speed %.3g\n", worst);
+    }
+    CHECK(worst <= 1e-10 * (double)total, "every share at its place, no drift");
+}
+
 static void TestEdges(void)
 {
     // Ends exactly the keyframes' values, also where the arithmetic would
@@ -551,6 +731,8 @@ int main(void)
     TestBezier();
     TestCatmullRom();
     TestLength();
+    TestNumberLength();
+    TestSpeedDrift();
     TestEdges();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;

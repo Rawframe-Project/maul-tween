@@ -31,6 +31,10 @@ enum
     s_stackSize = 64
 };
 static const double s_narrowest = 0x1p-30;
+// A Halley step this short in u, at a speed at least this share of the
+// segment's length, is measured by the length's Taylor series.
+static const double s_taylorStep = 1e-4;
+static const double s_taylorSpeed = 1e-3;
 // Newton on the length stops within this share of the segment's length.
 static const double s_inverseTolerance = 1e-12;
 enum
@@ -38,16 +42,21 @@ enum
     s_newtonSteps = 40
 };
 
-// Gauss-Legendre on [-1, 1]: the nonnegative abscissas and their weights.
-static const double s_gauss5[3][2] = {
-    {0.0, 0.5688888888888888889},
-    {0.5384693101056830910, 0.4786286704993664680},
-    {0.9061798459386639928, 0.2369268850561890875},
-};
-static const double s_gauss10[5][2] = {
-    {0.1488743389816312109, 0.2955242247147528702}, {0.4333953941292471908, 0.2692667193099963551},
-    {0.6794095682990244062, 0.2190863625159820440}, {0.8650633666889845107, 0.1494513491505805932},
-    {0.9739065285171717200, 0.0666713443086881376},
+// Gauss-Kronrod on [-1, 1] (QUADPACK's qk15): the 15-point rule's
+// nonnegative abscissas, its weights and the 7-point Gauss rule's on the
+// odd ones (0 on the others), the centre last.
+static const double s_kronrod[8][3] = {
+    {0.991455371120812639206854697526329, 0.022935322010529224963732008058970, 0.0},
+    {0.949107912342758524526189684047851, 0.063092092629978553290700663189204,
+     0.129484966168869693270611432679082},
+    {0.864864423359769072789712788640926, 0.104790010322250183839876322541518, 0.0},
+    {0.741531185599394439863864773280788, 0.140653259715525918745189590510238,
+     0.279705391489276667901467771423780},
+    {0.586087235467691130294144845693013, 0.169004726639267902826583426598550, 0.0},
+    {0.405845151377397166906606412076961, 0.190350578064785409913256402421014,
+     0.381830050505118944950369775488975},
+    {0.207784955007898467600689403773245, 0.204432940075298892414161999234649, 0.0},
+    {0.0, 0.209482141084727828012999174891714, 0.417959183673469387755102040816327},
 };
 
 static bool IsFinite4(mtwnVec4 v, uint8_t channels)
@@ -82,6 +91,13 @@ typedef struct Cubic
     bool step;
 } Cubic;
 
+// The root of a sum of squares: fabs, the identity there, shows the
+// compiler the root is never of a negative, so it calls no errno path.
+static double RootOfSquares(double sum)
+{
+    return sqrt(fabs(sum));
+}
+
 // The knot gap between two points: their distance to the power alpha.
 static double Gap(const double p[4], const double q[4], uint8_t channels, double alpha)
 {
@@ -91,7 +107,7 @@ static double Gap(const double p[4], const double q[4], uint8_t channels, double
         double d = q[i] - p[i];
         sum += d * d;
     }
-    double chord = sqrt(sum);
+    double chord = RootOfSquares(sum);
     double gap = 1.0;
     if (alpha == 0.5)
     {
@@ -233,32 +249,128 @@ static void Evaluate(const Cubic* cubic, const double end[4], double u, uint8_t 
     }
 }
 
-static double Speed(const Cubic* cubic, double u, uint8_t channels)
+// The speed at u and its first two derivatives in u: with v = B'(u),
+// a = B''(u) and j = B'''(u), s = |v|, s' = v.a / s and
+// s'' = (a.a + v.j - s'^2) / s.
+static double SpeedChanges(const Cubic* cubic, double u, uint8_t channels, double* firstOut,
+                           double* secondOut)
 {
-    double sum = 0.0;
+    double vv = 0.0;
+    double va = 0.0;
+    double aa = 0.0;
+    double vj = 0.0;
     for (uint8_t c = 0; c < channels; ++c)
     {
-        double t = cubic->b[c] + u * (2.0 * cubic->c[c] + u * 3.0 * cubic->d[c]);
-        sum += t * t;
+        double v = cubic->b[c] + u * (2.0 * cubic->c[c] + u * 3.0 * cubic->d[c]);
+        double a = 2.0 * cubic->c[c] + u * 6.0 * cubic->d[c];
+        double j = 6.0 * cubic->d[c];
+        vv += v * v;
+        va += v * a;
+        aa += a * a;
+        vj += v * j;
     }
-    return sqrt(sum);
+    double speed = RootOfSquares(vv);
+    double first = speed > 0.0 ? va / speed : 0.0;
+    *firstOut = first;
+    *secondOut = speed > 0.0 ? (aa + vj - first * first) / speed : 0.0;
+    return speed;
 }
 
-static double Gauss(const Cubic* cubic, uint8_t channels, double a, double b,
-                    const double (*nodes)[2], int count)
+// The length from a to b by the 15-point Kronrod rule, and by the 7-point
+// Gauss rule on its odd abscissas.
+static void Kronrod(const Cubic* cubic, uint8_t channels, double a, double b, double* fine,
+                    double* coarse)
 {
     double middle = 0.5 * (a + b);
     double half = 0.5 * (b - a);
+    // About the middle the derivative is v + w t + j t^2: a pair of
+    // abscissas shares its even part.
+    double v[4];
+    double w[4];
+    double j[4];
     double sum = 0.0;
-    for (int i = 0; i < count; ++i)
+    for (uint8_t c = 0; c < channels; ++c)
     {
-        double x = nodes[i][0];
-        double w = nodes[i][1];
-        sum += x == 0.0 ? w * Speed(cubic, middle, channels)
-                        : w * (Speed(cubic, middle - half * x, channels) +
-                               Speed(cubic, middle + half * x, channels));
+        v[c] = cubic->b[c] + middle * (2.0 * cubic->c[c] + middle * 3.0 * cubic->d[c]);
+        w[c] = 2.0 * cubic->c[c] + middle * 6.0 * cubic->d[c];
+        j[c] = 3.0 * cubic->d[c];
+        sum += v[c] * v[c];
     }
-    return half * sum;
+    double centre = RootOfSquares(sum);
+    double k = s_kronrod[7][1] * centre;
+    double g = s_kronrod[7][2] * centre;
+    for (int i = 0; i < 7; ++i)
+    {
+        double t = half * s_kronrod[i][0];
+        double tt = t * t;
+        double below = 0.0;
+        double above = 0.0;
+        for (uint8_t c = 0; c < channels; ++c)
+        {
+            double even = v[c] + j[c] * tt;
+            double odd = w[c] * t;
+            below += (even - odd) * (even - odd);
+            above += (even + odd) * (even + odd);
+        }
+        double pair = RootOfSquares(below) + RootOfSquares(above);
+        k += s_kronrod[i][1] * pair;
+        g += s_kronrod[i][2] * pair;
+    }
+    *fine = half * k;
+    *coarse = half * g;
+}
+
+// The roots of a number's cubic's derivative, b + 2cu + 3du^2, in
+// order: two, one or none.
+static int DerivativeRoots(const Cubic* cubic, double roots[2])
+{
+    double qa = 3.0 * cubic->d[0];
+    double qb = 2.0 * cubic->c[0];
+    double qc = cubic->b[0];
+    if (qa == 0.0)
+    {
+        roots[0] = qb != 0.0 ? -qc / qb : 0.0;
+        return qb != 0.0 ? 1 : 0;
+    }
+    double disc = qb * qb - 4.0 * qa * qc;
+    if (!(disc > 0.0))
+    {
+        return 0;
+    }
+    // The stable pair: one root from the sum, the other from it.
+    double q = -0.5 * (qb + (qb >= 0.0 ? sqrt(disc) : -sqrt(disc)));
+    double r1 = q / qa;
+    double r2 = q != 0.0 ? qc / q : r1;
+    roots[0] = r1 < r2 ? r1 : r2;
+    roots[1] = r1 < r2 ? r2 : r1;
+    return 2;
+}
+
+// A number's cubic's length from a to b: its total variation, the
+// changes between the turns where its derivative is 0. Exact, where a
+// quadrature misses the kink each turn puts in |x'|.
+static double TurnsLength(const Cubic* cubic, double a, double b)
+{
+    double roots[2] = {0.0, 0.0};
+    int count = DerivativeRoots(cubic, roots);
+    double at[4] = {a, a, a, b};
+    int turns = 0;
+    for (int r = 0; r < count; ++r)
+    {
+        at[1 + turns] = roots[r];
+        turns += roots[r] > a && roots[r] < b ? 1 : 0;
+    }
+    at[1 + turns] = b;
+    double total = 0.0;
+    double from = cubic->a[0] + a * (cubic->b[0] + a * (cubic->c[0] + a * cubic->d[0]));
+    for (int k = 1; k <= 1 + turns; ++k)
+    {
+        double u = at[k];
+        double to = cubic->a[0] + u * (cubic->b[0] + u * (cubic->c[0] + u * cubic->d[0]));
+        total += fabs(to - from);
+        from = to;
+    }
+    return total;
 }
 
 // The arc length of the cubic from a to b, a < b.
@@ -267,6 +379,10 @@ static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
     if (cubic->step)
     {
         return 0.0;
+    }
+    if (channels == 1)
+    {
+        return TurnsLength(cubic, a, b);
     }
     double stack[s_stackSize][2];
     int top = 0;
@@ -280,8 +396,9 @@ static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
         --top;
         double lo = stack[top][0];
         double hi = stack[top][1];
-        double fine = Gauss(cubic, channels, lo, hi, s_gauss10, 5);
-        double coarse = Gauss(cubic, channels, lo, hi, s_gauss5, 3);
+        double fine = 0.0;
+        double coarse = 0.0;
+        Kronrod(cubic, channels, lo, hi, &fine, &coarse);
         bool agreed = fabs(fine - coarse) <= s_lengthTolerance * fine;
         if (agreed || hi - lo <= narrowest || top + 2 > s_stackSize)
         {
@@ -378,7 +495,9 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
     double lo = 0.0;
     double hi = 1.0;
     double u = target / total;
-    double at = Length(cubic, channels, 0.0, u);
+    // Measured from the nearer end, the shorter way.
+    double at =
+        u <= 0.5 ? Length(cubic, channels, 0.0, u) : total - Length(cubic, channels, u, 1.0);
     for (int step = 0; step < s_newtonSteps; ++step)
     {
         double error = at - target;
@@ -394,13 +513,30 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
         {
             hi = u;
         }
-        double speed = Speed(cubic, u, channels);
-        double next = speed > 0.0 ? u - error / speed : 0.5 * (lo + hi);
+        // Halley's step: the length's derivatives in u are the speed and
+        // its own.
+        double turn = 0.0;
+        double bend = 0.0;
+        double speed = SpeedChanges(cubic, u, channels, &turn, &bend);
+        double denominator = 2.0 * speed * speed - error * turn;
+        double next = speed > 0.0 && denominator > 0.0 ? u - 2.0 * error * speed / denominator
+                                                       : 0.5 * (lo + hi);
         if (!(next > lo && next < hi))
         {
             next = 0.5 * (lo + hi);
         }
-        at += next > u ? Length(cubic, channels, u, next) : -Length(cubic, channels, next, u);
+        double h = next - u;
+        if (fabs(h) <= s_taylorStep && speed >= s_taylorSpeed * total)
+        {
+            // A step this short, away from a cusp: the length's Taylor
+            // series to h^3, its remainder about h^4 times the speed's third
+            // derivative, far below the tolerance.
+            at += h * (speed + h * (0.5 * turn + h * bend / 6.0));
+        }
+        else
+        {
+            at += next > u ? Length(cubic, channels, u, next) : -Length(cubic, channels, next, u);
+        }
         u = next;
     }
     return u;

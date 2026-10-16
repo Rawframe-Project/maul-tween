@@ -23,6 +23,27 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   (record mtwn-0037, amended). The bench's 1,000 players on clips of
   their own, all repeating in one frame, from 25.9 to 22.7 million
   instructions.
+- Paths at constant speed find the parameter at a length 2.6 times
+  faster: lengths by Gauss-Kronrod, the parameter by Halley's steps
+  from the segment's nearer end, a short last step by the length's
+  Taylor series (record mtwn-0031, amended). The bench's path through
+  eight points from 5,250 to 2,026 instructions a sample.
+
+### Added
+
+- The bench times and counts one sample each of a color mix in Oklab
+  and in OkLCh, a slerp, a path at constant speed and a track, against
+  targets of their own (record mtwn-0058).
+
+### Fixed
+
+- A path of one channel has its total variation for a length, exact:
+  a quadrature missed the kink each turn puts in its speed, and a
+  number turning twice had points at constant speed 1.1e-4 of its
+  length off.
+- At constant speed the lengths of the parameter's steps, summed, no
+  longer drift from the length measured afresh: on a random curve a
+  point came 1.6e-7 off.
 
 ## [0.3.0] - 2026-10-16
 

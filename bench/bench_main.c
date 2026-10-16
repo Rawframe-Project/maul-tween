@@ -8,13 +8,15 @@
 // the report of changed targets; prints the bytes each takes with its
 // target. Then the cost of one sample of a cubic bezier, a spring, and
 // Penner's easings; then 1,000 clip players of four tracks each, in a
-// timeline repeating. Prints each section's counts and bytes, which do
+// timeline repeating; then one sample each of the values layer's cases.
+// Prints each section's counts and bytes, which do
 // not depend on the machine, as comment lines, then its named results,
 // the best of five runs (the updates' best of 50). Given a baseline
 // file, such as bench/baseline.txt, it prints each result's ratio to the
 // recorded one as well. With --count and a layout of the clip players
-// (step, spread, clips, repeat) and a number of updates, it runs only
-// those, for an instruction counter.
+// (step, spread, clips, repeat) and a number of updates, or a values case
+// (oklab, oklch, slerp, path, track) and a number of samples, it runs
+// only those, for an instruction counter.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -23,6 +25,8 @@
 #include "maul-tween/clip.h"
 #include "maul-tween/context.h"
 #include "maul-tween/easing.h"
+#include "maul-tween/interpolate.h"
+#include "maul-tween/path.h"
 #include "maul-tween/player.h"
 #include "maul-tween/spring.h"
 #include "maul-tween/target.h"
@@ -101,6 +105,115 @@ static void Check(mtwnResult status, const char* what)
     {
         fprintf(stderr, "%s failed: %d\n", what, (int)status);
         exit(1);
+    }
+}
+
+// The values layer's cases (record mtwn-0058): a color, red to blue, mixed in
+// Oklab and in OkLCh; a rotation, identity to 120 degrees about
+// (1, 2, 3), by slerp; a path through eight points at constant speed
+// (centripetal Catmull-Rom); a track of a number, 0, 100, 0 at 0, 1/2
+// and 1, a quadratic out on each segment.
+enum
+{
+    VALUE_OKLAB,
+    VALUE_OKLCH,
+    VALUE_SLERP,
+    VALUE_PATH,
+    VALUE_TRACK,
+    VALUE_CASES
+};
+
+static const char* const s_valueCases[VALUE_CASES] = {"oklab", "oklch", "slerp", "path", "track"};
+
+typedef struct Values
+{
+    mtwnColorMix colors[2];
+    mtwnRotationMix rotation;
+    mtwnKeyframe pathKeys[8];
+    double pathLengths[8];
+    mtwnPath path;
+    mtwnKeyframe trackKeys[3];
+    mtwnTrack track;
+} Values;
+
+static void MakeValues(Values* v)
+{
+    memset(v, 0, sizeof *v);
+    mtwnColor red = {1.0f, 0.0f, 0.0f, 1.0f};
+    mtwnColor blue = {0.0f, 0.0f, 1.0f, 1.0f};
+    Check(mtwnMakeColorMix(red, blue, mtwn_colorOklab, mtwn_hueShorter, &v->colors[0]), "Oklab");
+    Check(mtwnMakeColorMix(red, blue, mtwn_colorOklch, mtwn_hueShorter, &v->colors[1]), "OkLCh");
+    double axis = sqrt(14.0);
+    double half = sin(acos(-1.0) / 3.0);
+    mtwnQuat to = {(float)(1.0 / axis * half), (float)(2.0 / axis * half),
+                   (float)(3.0 / axis * half), (float)cos(acos(-1.0) / 3.0)};
+    Check(mtwnMakeRotationMix((mtwnQuat){0.0f, 0.0f, 0.0f, 1.0f}, to, mtwn_rotationShortest,
+                              &v->rotation),
+          "a rotation");
+    static const float points[8][2] = {{0, 0}, {1, 2}, {3, 3}, {4, 1},
+                                       {6, 0}, {7, 2}, {9, 3}, {10, 0}};
+    for (int k = 0; k < 8; ++k)
+    {
+        v->pathKeys[k].value = (mtwnVec4){points[k][0], points[k][1], 0.0f, 0.0f};
+        v->pathKeys[k].offset = k == 7 ? 1.0 : k / 7.0;
+        v->pathKeys[k].easing = mtwnLinearEasing();
+        v->pathKeys[k].kind = mtwn_segmentCatmullRom;
+    }
+    Check(mtwnMakePath(v->pathKeys, 8, 2, 0.5, v->pathLengths, &v->path), "a path");
+    mtwnEasing quadOut;
+    Check(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &quadOut), "quad out");
+    v->trackKeys[1].value.x = 100.0f;
+    v->trackKeys[1].offset = 0.5;
+    v->trackKeys[2].offset = 1.0;
+    for (int k = 0; k < 3; ++k)
+    {
+        v->trackKeys[k].easing = quadOut;
+    }
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScalar);
+    Check(mtwnMakeTrack(&def, v->trackKeys, 3, NULL, NULL, &v->track), "a track");
+}
+
+// Samples a case at n progresses, (i + 0.5) / n: the sum of the results.
+static double SampleValues(const Values* v, int which, uint32_t n)
+{
+    double sum = 0.0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        double p = ((double)i + 0.5) / (double)n;
+        if (which <= VALUE_OKLCH)
+        {
+            mtwnColor c = mtwnMixColor(&v->colors[which], p);
+            sum += (double)c.red + (double)c.green + (double)c.blue;
+        }
+        else if (which == VALUE_SLERP)
+        {
+            mtwnQuat q = mtwnMixRotation(&v->rotation, p);
+            sum += (double)q.x + (double)q.w;
+        }
+        else if (which == VALUE_PATH)
+        {
+            double at[4];
+            mtwnSamplePath(&v->path, p, at, NULL);
+            sum += at[0] + at[1];
+        }
+        else
+        {
+            sum += (double)mtwnSampleTrack(&v->track, p).x;
+        }
+    }
+    return sum;
+}
+
+// Nanoseconds a sample of each case, over a million progresses.
+static void RunValues(double best[VALUE_CASES])
+{
+    static Values values;
+    MakeValues(&values);
+    for (int which = 0; which < VALUE_CASES; ++which)
+    {
+        double start = Seconds();
+        s_sink = SampleValues(&values, which, SAMPLES);
+        best[which] = fmin(best[which], (Seconds() - start) * 1e9 / SAMPLES);
     }
 }
 
@@ -362,9 +475,10 @@ static void RunClips(double* best)
 }
 
 // For an instruction counter: a layout's players and then count updates
-// at 16 ms steps, printing nothing, so that two counts' difference is
-// their updates' (`perf stat -e instructions:u`; record mtwn-0057).
-static int CountClips(const char* name, int count)
+// at 16 ms steps, or a values case's count samples, printing nothing, so
+// that two counts' difference is their updates' or samples'
+// (`perf stat -e instructions:u`; records mtwn-0057 and mtwn-0058).
+static int Count(const char* name, int count)
 {
     for (int layout = LAYOUT_IN_STEP; layout <= LAYOUT_REPEAT; ++layout)
     {
@@ -381,7 +495,18 @@ static int CountClips(const char* name, int count)
             return 0;
         }
     }
-    fprintf(stderr, "--count takes step, spread, clips or repeat\n");
+    for (int which = 0; which < VALUE_CASES; ++which)
+    {
+        if (strcmp(name, s_valueCases[which]) == 0)
+        {
+            static Values values;
+            MakeValues(&values);
+            s_sink = SampleValues(&values, which, (uint32_t)count);
+            return 0;
+        }
+    }
+    fprintf(stderr,
+            "--count takes step, spread, clips, repeat, oklab, oklch, slerp, path or track\n");
     return 1;
 }
 
@@ -402,7 +527,7 @@ int main(int argc, char** argv)
 {
     if (argc == 4 && strcmp(argv[1], "--count") == 0)
     {
-        return CountClips(argv[2], atoi(argv[3]));
+        return Count(argv[2], atoi(argv[3]));
     }
     if (argc > 1)
     {
@@ -412,11 +537,13 @@ int main(int argc, char** argv)
     Tweens tweens = {HUGE_VAL, HUGE_VAL, HUGE_VAL, 0.0};
     Curves curves = {HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL};
     double clips = HUGE_VAL;
+    double values[VALUE_CASES] = {HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL};
     for (int run = 0; run < RUNS; ++run)
     {
         RunTweens(&tweens, changed);
         RunCurves(&curves);
         RunClips(&clips);
+        RunValues(values);
     }
     printf("# %d transitions of a number, quad out, 16 ms steps\n", TWEENS);
     printf("# %.1f bytes a transition with its target\n", tweens.bytes);
@@ -430,5 +557,11 @@ int main(int argc, char** argv)
     Report("Penner sample, exp and sin", curves.transcendental, "ns");
     printf("# %d clip players of %d tracks in a repeating timeline\n", PLAYERS, TRACKS);
     Report("update 1,000 clip players", clips * 1e3, "ms");
+    printf("# one sample each of the values layer, over %d progresses\n", SAMPLES);
+    Report("color mix sample, Oklab", values[VALUE_OKLAB], "ns");
+    Report("color mix sample, OkLCh", values[VALUE_OKLCH], "ns");
+    Report("rotation slerp sample", values[VALUE_SLERP], "ns");
+    Report("path sample, constant speed", values[VALUE_PATH], "ns");
+    Report("track sample, three keyframes", values[VALUE_TRACK], "ns");
     return 0;
 }

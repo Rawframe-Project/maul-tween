@@ -62,3 +62,4 @@ are listed in [README.md](README.md).
 | [mtwn-0055](mtwn-0055-size-budgets-for-clip-speed-and-tasks.md) | Size budgets for the clip players' speed and their tasks | Accepted |
 | [mtwn-0056](mtwn-0056-clip-players-on-the-hosts-tasks.md) | Clip players on the host's task system | Accepted |
 | [mtwn-0057](mtwn-0057-players-in-step-share-their-work.md) | Players in step share their work | Accepted |
+| [mtwn-0058](mtwn-0058-values-speed-targets.md) | The values layer's speed targets, measured | Accepted |

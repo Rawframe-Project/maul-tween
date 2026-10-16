@@ -41,3 +41,29 @@ The tests find the Hermite form within 1.6e-15 of Barry and Goldman's
 pyramid in long double for alpha 0, 1/2 and 1, arc length within 1e-15
 relative of an extrapolated polyline, and constant speed within 6e-12
 on lines whose parameter is uneven.
+
+## Amended 2026-10-16: the length and the parameter, faster and exact
+
+- Arc length is adaptive Gauss-Kronrod: QUADPACK's 15-point rule
+  against its 7-point Gauss rule, agreeing to 1e-9 relative. About an
+  interval's middle the derivative is a quadratic, so each pair of
+  abscissas shares its even part.
+- A path of one channel has its total variation for a length, summed
+  between the turns where its derivative is 0 (the roots by the stable
+  quadratic formula): exact, where a quadrature misses the kink each
+  turn puts in |x'|. A number turning twice had points at constant
+  speed 1.1e-4 of its length off.
+- The parameter at a length starts from the length measured from the
+  segment's nearer end and takes Halley's steps (the speed and its
+  first two derivatives), in the bracket as before. A step under 1e-4
+  in the parameter, where the speed is at least 1e-3 of the segment's
+  length, adds the length's Taylor series to h^3 instead of measuring.
+- Summing each Newton step's measured length had drifted from the
+  length measured afresh: on a random curve of two channels a point
+  came 1.6e-7 off. Kronrod's pieces, fewer and far more accurate, keep
+  the sum within the tolerance; a test checks each share's point
+  against the parameter found again by Simpson's rule in long double.
+
+The bench's path through eight points (record mtwn-0058): 5,250 to
+2,026 instructions a sample, GCC 14 at `-O2`; the library's code
+0.6 kB smaller.
