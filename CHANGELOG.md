@@ -7,6 +7,18 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-16
+
+Clip players faster again, and their records right at the edges: in
+the bench, 1,000 players in step from 6.02 to 1.75 million instructions
+a frame, sharing their work, and 1,000 on clips of their own all
+repeating in one frame from 25.9 to 16.5 million; paths at constant
+speed 2.6 times faster and exact for one channel; with the host's task
+system, a target one player alone writes composed in its group. Counts
+no longer depend on where frames fall, and a start's or end's iteration
+is right where a timeline repeats. No public layout changes: programs
+built against 0.3.0 headers run as they are.
+
 ### Changed
 
 - Clip players in step share their work: a player of the same clip at
