@@ -14,6 +14,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   worker the bench's players on clips of their own fetched twice the
   cache lines from the shared cache that the update without the hooks
   did, and now about 10% more (record mtwn-0056).
+- The count check bounds the second-level cache misses of the bench's
+  players with the task hooks on one worker over those without them,
+  the median of three tries, so the misses that composing in the
+  groups once doubled cannot come back unseen.
 - The bench prints the compiler it was built with (`--compiler`), and
   the count check names it beside the one `bench/counts.txt` was set
   with when they differ or a bound fails.

@@ -68,3 +68,19 @@ on its `compiler` line (GCC 14.2.0, Ubuntu's 14.2.0-4ubuntu2~24.04.1),
 the bench prints its own with `--compiler`, and the check names both
 when they differ or a bound fails, so a compiler's point release that
 moves the counts is seen as the compiler's.
+
+## Amended 2026-10-17: misses beside instructions
+
+Instructions do not show where data lies: with the task hooks on one
+worker the bench's players on clips of their own ran 0.8% more
+instructions than without them and took about 8% longer, their groups
+reading node times apart from each clip's nodes. `bench/counts.txt`
+therefore also bounds misses, as a ratio: a `misses` line names a
+layout, the layout it is set over, a perf event and the bound, and the
+check takes the median of three tries of the one's misses a frame over
+the other's, counted side by side. A ratio moves much less with what
+else the machine runs than a count: the second-level cache's data
+misses with the hooks over without came to 0.89 to 1.06 at a load of
+117 to 214 with each clip's own times, 1.18 to 1.33 before, and the
+bound is 1.12. The event is Zen's; a machine without it reports the
+line and skips it.
