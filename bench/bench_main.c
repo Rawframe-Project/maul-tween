@@ -12,7 +12,9 @@
 // not depend on the machine, as comment lines, then its named results,
 // the best of five runs (the updates' best of 50). Given a baseline
 // file, such as bench/baseline.txt, it prints each result's ratio to the
-// recorded one as well.
+// recorded one as well. With --count and a layout of the clip players
+// (step, spread, clips, repeat) and a number of updates, it runs only
+// those, for an instruction counter.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -102,6 +104,25 @@ static void Check(mtwnResult status, const char* what)
     }
 }
 
+// The def of the clip MakeClip makes.
+static mtwnClipDef ClipDef(void)
+{
+    mtwnClipDef def = mtwnDefaultClipDef();
+    def.nodeCapacity = TRACKS + 1;
+    def.keyframeCapacity = TRACKS * 3;
+    def.slotCapacity = TRACKS;
+    return def;
+}
+
+// The clip storage one of them takes.
+static uint64_t ClipBytes(void)
+{
+    mtwnClipDef def = ClipDef();
+    uint64_t bytes = 0;
+    Check(mtwnGetClipBytes(&def, &bytes), "a clip's bytes");
+    return bytes;
+}
+
 static mtwnContext* MakeContext(uint32_t targets, uint32_t players, uint32_t clips,
                                 uint32_t bindings)
 {
@@ -111,7 +132,7 @@ static mtwnContext* MakeContext(uint32_t targets, uint32_t players, uint32_t cli
     def.clipCapacity = clips;
     def.bindingCapacity = bindings;
     def.eventCapacity = 1;
-    def.clipStorageBytes = clips > 0 ? 1u << 16 : 0;
+    def.clipStorageBytes = (uint64_t)clips * ClipBytes();
     mtwnContext* context = NULL;
     Check(mtwnCreateContext(&def, &context), "a context");
     return context;
@@ -244,10 +265,7 @@ static void RunCurves(Curves* best)
 // A clip of four numbers' tracks in a timeline repeating every second.
 static mtwnClipId MakeClip(mtwnContext* context)
 {
-    mtwnClipDef clipDef = mtwnDefaultClipDef();
-    clipDef.nodeCapacity = TRACKS + 1;
-    clipDef.keyframeCapacity = TRACKS * 3;
-    clipDef.slotCapacity = TRACKS;
+    mtwnClipDef clipDef = ClipDef();
     mtwnClipId clip;
     Check(mtwnCreateClip(context, &clipDef, &clip), "a clip");
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
@@ -279,19 +297,37 @@ static mtwnClipId MakeClip(mtwnContext* context)
     return clip;
 }
 
-// A thousand players of the clip, each bound to four targets of its own,
-// updated at 16 ms steps: the best of 50.
-static void RunClips(double* best)
+// How the clip players are laid out: in step; spread, player p sought to
+// p ms; each on a clip of its own, in step, so none takes another's work
+// (record mtwn-0057); and so, sought to 0.99 s, so that the first update
+// after the start crosses every player's repeat.
+typedef enum Layout
 {
-    mtwnContext* context = MakeContext(PLAYERS * TRACKS, PLAYERS, 1, PLAYERS * TRACKS);
-    mtwnClipId clip = MakeClip(context);
+    LAYOUT_IN_STEP,
+    LAYOUT_SPREAD,
+    LAYOUT_OWN_CLIPS,
+    LAYOUT_REPEAT
+} Layout;
+
+static const char* const s_layouts[] = {"step", "spread", "clips", "repeat"};
+
+// A thousand players of the clip, each bound to four targets of its own,
+// laid out as asked, and the update that starts them.
+static mtwnContext* MakePlayers(Layout layout)
+{
+    uint32_t clips = layout >= LAYOUT_OWN_CLIPS ? PLAYERS : 1;
+    mtwnContext* context = MakeContext(PLAYERS * TRACKS, PLAYERS, clips, PLAYERS * TRACKS);
     mtwnBinding bindings[TRACKS];
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
-    def.clip = clip;
+    def.clip = MakeClip(context);
     def.bindings = bindings;
     def.bindingCount = TRACKS;
     for (uint32_t p = 0; p < PLAYERS; ++p)
     {
+        if (p > 0 && clips > 1)
+        {
+            def.clip = MakeClip(context);
+        }
         for (uint32_t t = 0; t < TRACKS; ++t)
         {
             mtwnTargetId target;
@@ -300,9 +336,21 @@ static void RunClips(double* best)
         }
         mtwnPlayerId id;
         Check(mtwnCreatePlayer(context, &def, &id), "a player");
+        if (layout == LAYOUT_SPREAD || layout == LAYOUT_REPEAT)
+        {
+            double at = layout == LAYOUT_SPREAD ? (double)p * 0.001 : 0.99;
+            Check(mtwnPlayer_Seek(context, id, at), "a seek");
+        }
     }
+    Check(mtwnUpdate(context, 0, NULL, 0, NULL), "the first update");
+    return context;
+}
+
+// The players in step, updated at 16 ms steps: the best of 50.
+static void RunClips(double* best)
+{
+    mtwnContext* context = MakePlayers(LAYOUT_IN_STEP);
     uint64_t now = 0;
-    Check(mtwnUpdate(context, now, NULL, 0, NULL), "the first update");
     for (int u = 0; u < UPDATES; ++u)
     {
         now += STEP_NS;
@@ -311,6 +359,30 @@ static void RunClips(double* best)
         *best = fmin(*best, Seconds() - start);
     }
     mtwnDestroyContext(context);
+}
+
+// For an instruction counter: a layout's players and then count updates
+// at 16 ms steps, printing nothing, so that two counts' difference is
+// their updates' (`perf stat -e instructions:u`; record mtwn-0057).
+static int CountClips(const char* name, int count)
+{
+    for (int layout = LAYOUT_IN_STEP; layout <= LAYOUT_REPEAT; ++layout)
+    {
+        if (strcmp(name, s_layouts[layout]) == 0)
+        {
+            mtwnContext* context = MakePlayers((Layout)layout);
+            uint64_t now = 0;
+            for (int u = 0; u < count; ++u)
+            {
+                now += STEP_NS;
+                Check(mtwnUpdate(context, now, NULL, 0, NULL), "an update");
+            }
+            mtwnDestroyContext(context);
+            return 0;
+        }
+    }
+    fprintf(stderr, "--count takes step, spread, clips or repeat\n");
+    return 1;
 }
 
 static void ReadBaseline(const char* path)
@@ -328,6 +400,10 @@ static void ReadBaseline(const char* path)
 
 int main(int argc, char** argv)
 {
+    if (argc == 4 && strcmp(argv[1], "--count") == 0)
+    {
+        return CountClips(argv[2], atoi(argv[3]));
+    }
     if (argc > 1)
     {
         ReadBaseline(argv[1]);
