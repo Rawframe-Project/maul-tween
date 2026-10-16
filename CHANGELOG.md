@@ -32,6 +32,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   making its cubic, the same bits (record mtwn-0058, amended): the
   bench's track of three keyframes from 344 to 237 instructions a
   sample, clip frames 7.6% fewer.
+- A record of one crossing is searched once, its last its first
+  (record mtwn-0053, amended): the bench's 1,000 players on clips of
+  their own, all repeating in one frame, from 22.5 to 17.75 million
+  instructions.
 
 ### Added
 
@@ -48,6 +52,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - At constant speed the lengths of the parameter's steps, summed, no
   longer drift from the length measured afresh: on a random curve a
   point came 1.6e-7 off.
+- A record of one crossing could report a last iteration one before its
+  first, its two searches landing a double apart through nested
+  timelines' rounding.
 
 ## [0.3.0] - 2026-10-16
 

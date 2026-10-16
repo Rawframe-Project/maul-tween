@@ -58,3 +58,16 @@ doubles of each other. A test plays one clip by three paths and checks
 both: boundaries 1e-12 s apart keep their order, and each record's
 time agrees within 1e-9 s.
 
+
+## Amended 2026-10-16: one crossing, one search
+
+A record of one crossing searched its last as well as its first. The
+two searches flip on different counts, the last on one that includes
+its start and the first on one that does not; through nested levels'
+rounding they can step a double apart, so the last could land in the
+iteration before the first's: in a track in a repeating timeline in
+another, 29 of 59 single crossings reported a last iteration other
+than their first. The last of one crossing is now its first, searched
+once: the record consistent, and the bench's 1,000 players on clips of
+their own, all repeating in one frame, 22.5 to 17.75 million
+instructions.

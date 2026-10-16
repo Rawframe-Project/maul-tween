@@ -412,6 +412,62 @@ static void TestIterationStart(void)
     mtwnDestroyContext(w.context);
 }
 
+// A track in a repeating timeline in another: the record of one crossing
+// has one iteration, first and last alike. Searched apart, the last could
+// land a double before the first, in the iteration before (found by the
+// determinism scenario's hash).
+static void TestOneCrossingIterations(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 1.5;
+    group.timing.iterations = 4.0;
+    group.timing.direction = mtwn_directionAlternate;
+    mtwnNode outer = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &outer) == mtwn_success, "outer");
+    group.parent = outer;
+    group.timing.duration = 0.4;
+    group.timing.iterations = HUGE_VAL;
+    group.timing.direction = mtwn_directionNormal;
+    group.timing.iterationStart = 0.25;
+    mtwnNode inner = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &inner) == mtwn_success, "inner");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = inner;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.3;
+    track.timing.iterations = 3.0;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w, true, 1.0);
+    uint32_t ones = 0;
+    uint32_t apart = 0;
+    for (int frame = 0; frame <= 600; ++frame)
+    {
+        Update(&w, frame * 0.0113);
+        mtwnEvent e[64];
+        uint32_t n = Read(&w, e, 64);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            ones += e[i].count == 1 ? 1u : 0u;
+            apart += e[i].count == 1 && e[i].firstIteration != e[i].lastIteration ? 1u : 0u;
+        }
+    }
+    if (apart != 0)
+    {
+        printf("  %u of %u single crossings with two iterations\n", apart, ones);
+    }
+    CHECK(ones > 40 && apart == 0, "a single crossing's iterations alike");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestSharedRecords(void)
 {
     // Two tracks in a row of one timing: the sweep gives the second the
@@ -711,6 +767,7 @@ static void TestPaths(void)
 
 int main(void)
 {
+    TestOneCrossingIterations();
     TestPlayed();
     TestStall();
     TestBackwards();

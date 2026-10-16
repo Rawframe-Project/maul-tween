@@ -120,11 +120,15 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         mtwnCrossingWay search = sweep->fromNone ? mtwn_crossingEither
                                  : way == 0      ? mtwn_crossingForwards
                                                  : mtwn_crossingBackwards;
-        // The last is the first when there is one: searched from it.
+        // The last is searched from the first; with one crossing it is
+        // the first. Searched apart, the two could land a double from each
+        // other, in neighbouring iterations.
         double first = mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
                                             sweep->fromClosed, false, search, sweep->guess, &memo);
-        double last = mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
-                                           sweep->fromClosed, true, search, first, &memo);
+        double last = n == 1.0
+                          ? first
+                          : mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
+                                                 sweep->fromClosed, true, search, first, &memo);
         sweep->guess = last;
         mtwnEvent event = {0};
         event.hostTime = HostAt(sweep, first);
