@@ -40,3 +40,15 @@ motion played, records included. Looping clips stay the host's to
 handle. The test costs about 3 instructions per transition per update
 (156.8 to 159.8 over 64,000 eased transitions, GCC 14 Release, counted
 with `perf stat -e instructions:u`).
+
+## Amended 2026-10-16: the players that play on, shown
+
+A review asked how a host finds the looping players that play on, since
+it must still meet the preference for them. The update counts the
+clips' players it leaves running under reduced motion though not
+essential (`mtwnContext_GetPlayingOnCount`), and each one's state says
+so (`mtwnPlayerState.playsOnReduced`). The count is taken in the update's
+serial pass, so groups on the host's threads (mtwn-0056) share no
+counter. A host that sees a count above 0 finds them by their state and
+keeps, seeks or stops each.
+

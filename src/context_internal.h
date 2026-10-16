@@ -299,8 +299,10 @@ struct mtwnContext
     // The index1 of each target changed since the last report, in order.
     uint32_t* changed;
     uint32_t changedCount;
-    // Whether motion is reduced (record mtwn-0049).
+    // Whether motion is reduced (record mtwn-0049), and the clips' players
+    // the last update left running under it though not essential.
     bool reducedMotion;
+    uint32_t playingOn;
 };
 
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)

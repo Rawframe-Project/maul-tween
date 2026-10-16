@@ -42,7 +42,7 @@ Animations' procedures; events as counted records in a bounded queue;
 players layered by replace and add with weights; reduced motion; a
 context grown only when the host asks. 0.1.0, the first release, the
 same day, lacked staggers and reduced motion. The library has
-108 public functions.
+109 public functions.
 
 ## Building
 

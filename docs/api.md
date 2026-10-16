@@ -146,6 +146,11 @@ bool mtwnContext_IsReducedMotion(const mtwnContext* context);
 Returns whether motion is reduced.  @param context  The context, or NULL. @return Whether it is; false for a null context. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
+uint32_t mtwnContext_GetPlayingOnCount(const mtwnContext* context);
+```
+Returns how many clips' players the last update left running under reduced motion though not essential: those that could not finish, their end infinite or their rate 0. When it is not 0, the host finds them by mtwnPlayer_GetState's playsOnReduced and keeps, seeks or stops each.  @param context  The context, or NULL. @return The count; 0 for a null context. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut, uint32_t changedCapacity, uint32_t* changedTotalOut);
 ```
 Advances every player to the host's time, in the order they were made, later ones writing over earlier ones: transitions sample their curves, write their targets and end; clips' players sample their clips into their bound targets, and those that finish, unless kept, commit what they fill forward as their targets' bases and are freed. A target bound to a clip's player that no player writes shows its base. Reports the targets whose value or base changed since the last report, in the order they changed; a target appears once.  @param context          The context. @param timeNs           The host's time in nanoseconds, never less than the last update's. @param changedOut       Receives the first changedCapacity changed targets; NULL only with a capacity of 0. @param changedCapacity  Its length. @param changedTotalOut  Receives how many targets changed, which may exceed the capacity; those past it are left out of the report only. May be NULL. @return mtwn_success; mtwn_errorInvalid for a null context, a null array with a capacity, or a time before the last update's, nothing advanced. @par Thread safety Safe from any thread; the context is used by one thread at a time.
@@ -597,4 +602,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-108 functions across 13 headers.
+109 functions across 13 headers.

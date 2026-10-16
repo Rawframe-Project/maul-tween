@@ -356,3 +356,8 @@ bool mtwnContext_IsReducedMotion(const mtwnContext* context)
 {
     return context != NULL && context->reducedMotion;
 }
+
+uint32_t mtwnContext_GetPlayingOnCount(const mtwnContext* context)
+{
+    return context != NULL ? context->playingOn : 0u;
+}

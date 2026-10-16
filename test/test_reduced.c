@@ -286,6 +286,40 @@ static void TestPlayers(void)
     mtwnDestroyContext(w.context);
 }
 
+// The players that play on though not essential: counted by the update
+// and flagged in their state, so the host can find them.
+static void TestPlayingOn(void)
+{
+    World w = MakeWorld();
+    mtwnClipId endless = MakeClip(&w, HUGE_VAL);
+    mtwnClipId once = MakeClip(&w, 1.0);
+    mtwnPlayerId loop = Play(&w, endless, false);
+    mtwnPlayerId kept = Play(&w, endless, true);
+    mtwnPlayerId ends = Play(&w, once, false);
+    Update(&w, 0.0);
+    CHECK(mtwnContext_GetPlayingOnCount(w.context) == 0, "none while motion is full");
+    CHECK(mtwnContext_SetReducedMotion(w.context, true) == mtwn_success, "reduced");
+    Update(&w, 0.1);
+    CHECK(mtwnContext_GetPlayingOnCount(w.context) == 1, "one plays on though not essential");
+    mtwnPlayerState state;
+    CHECK(mtwnPlayer_GetState(w.context, loop, &state) == mtwn_success && state.playsOnReduced &&
+              state.state == mtwn_playRunning,
+          "the endless one flagged");
+    CHECK(mtwnPlayer_GetState(w.context, kept, &state) == mtwn_success && !state.playsOnReduced,
+          "an essential one not flagged");
+    CHECK(mtwnPlayer_GetState(w.context, ends, &state) == mtwn_success && !state.playsOnReduced &&
+              state.state == mtwn_playFinished,
+          "one with an end finished, not flagged");
+    // The host stops it: none left.
+    CHECK(mtwnPlayer_Pause(w.context, loop) == mtwn_success, "paused");
+    Update(&w, 0.2);
+    CHECK(mtwnContext_GetPlayingOnCount(w.context) == 0 &&
+              mtwnPlayer_GetState(w.context, loop, &state) == mtwn_success && !state.playsOnReduced,
+          "a paused one no longer plays on");
+    CHECK(mtwnContext_GetPlayingOnCount(NULL) == 0, "0 for no context");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestSetting();
@@ -293,5 +327,6 @@ int main(void)
     TestSpringAndDecay();
     TestTurnedOff();
     TestPlayers();
+    TestPlayingOn();
     return s_failures == 0 ? 0 : 1;
 }

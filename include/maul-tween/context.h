@@ -202,6 +202,18 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API bool mtwnContext_IsReducedMotion(const mtwnContext* context);
 
+    /// Returns how many clips' players the last update left running under
+    /// reduced motion though not essential: those that could not finish,
+    /// their end infinite or their rate 0. When it is not 0, the host finds
+    /// them by mtwnPlayer_GetState's playsOnReduced and keeps, seeks or
+    /// stops each.
+    ///
+    /// @param context  The context, or NULL.
+    /// @return The count; 0 for a null context.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_API uint32_t mtwnContext_GetPlayingOnCount(const mtwnContext* context);
+
     /// Advances every player to the host's time, in the order they were
     /// made, later ones writing over earlier ones: transitions sample their
     /// curves, write their targets and end; clips' players sample their

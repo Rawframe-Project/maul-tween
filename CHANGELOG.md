@@ -9,6 +9,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- `mtwnContext_GetPlayingOnCount` and `mtwnPlayerState.playsOnReduced`:
+  the clips' players an update leaves running under reduced motion
+  though not essential (an infinite end or a rate of 0), so the host can
+  find them and meet the preference itself (record mtwn-0049, amended).
 - `mtwnContextDef` takes a task system, Maul VFX's hook pair
   (`enqueueTask`, `finishTask`, `userTaskContext`): `mtwnUpdate` then
   advances the clip players in up to 16 groups on the host's threads,

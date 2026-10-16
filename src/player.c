@@ -258,6 +258,13 @@ static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
     }
 }
 
+// Whether a player runs under reduced motion though not essential: one
+// that could not finish.
+static bool PlaysOn(const mtwnContext* context, const mtwnClipPlay* play, mtwnPlayState state)
+{
+    return context->reducedMotion && !play->essential && state == mtwn_playRunning;
+}
+
 bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
                            double now)
 {
@@ -377,6 +384,7 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
 
 static void BeginClips(mtwnContext* context, double before, double now)
 {
+    context->playingOn = 0;
     for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
@@ -391,6 +399,12 @@ static void AdvanceClip(mtwnContext* context, uint32_t player, double before, do
     bool done = context->stagedCount > 0
                     ? mtwnApplyStaged(context, player, before, now)
                     : mtwnAdvanceClipPlayer(context, context->serial, player, before, now);
+    const mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    if (!done && context->reducedMotion &&
+        PlaysOn(context, play, StateOf(play, now, EffectEnd(context, play))))
+    {
+        ++context->playingOn;
+    }
     if (done)
     {
         mtwnResetUnwritten(context, &mtwnPlayerAt(context, player)->play);
@@ -809,10 +823,12 @@ mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPl
     const mtwnClipPlay* play = &slot->play;
     double now = Now(context);
     double end = EffectEnd(context, play);
+    mtwnPlayState state = StateOf(play, now, end);
     *stateOut = (mtwnPlayerState){.currentTime = CurrentTime(play, now),
                                   .rate = Effective(play),
                                   .duration = end,
-                                  .state = StateOf(play, now, end),
-                                  .pending = play->pending || !isnan(play->pendingRate)};
+                                  .state = state,
+                                  .pending = play->pending || !isnan(play->pendingRate),
+                                  .playsOnReduced = PlaysOn(context, play, state)};
     return mtwn_success;
 }

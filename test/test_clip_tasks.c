@@ -430,11 +430,13 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
     uint64_t droppedB = 0;
     CHECK(mtwnReadEvents(a->context, recordsA, 4096, &nA, &droppedA) == mtwn_success, "read");
     CHECK(mtwnReadEvents(b->context, recordsB, 4096, &nB, &droppedB) == mtwn_success, "read");
-    differences +=
-        nA == nB && droppedA == droppedB &&
-                mtwnContext_GetDroppedEvents(a->context) == mtwnContext_GetDroppedEvents(b->context)
-            ? 0u
-            : 1u;
+    differences += nA == nB && droppedA == droppedB &&
+                           mtwnContext_GetDroppedEvents(a->context) ==
+                               mtwnContext_GetDroppedEvents(b->context) &&
+                           mtwnContext_GetPlayingOnCount(a->context) ==
+                               mtwnContext_GetPlayingOnCount(b->context)
+                       ? 0u
+                       : 1u;
     for (uint32_t i = 0; i < nA && i < nB; ++i)
     {
         differences += SameRecord(&recordsA[i], &recordsB[i]) ? 0u : 1u;

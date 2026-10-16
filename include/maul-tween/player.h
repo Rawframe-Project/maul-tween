@@ -161,7 +161,11 @@ extern "C"
         mtwnPlayState state;
         // Whether it waits for the next update to start.
         bool pending;
-        uint8_t reserved[6];
+        // Whether it runs under reduced motion though not essential: its
+        // end is infinite or its rate 0, so it could not finish (record
+        // mtwn-0049). The host's to keep, seek or stop.
+        bool playsOnReduced;
+        uint8_t reserved[5];
     } mtwnPlayerState;
 
     /// Makes a player of a finished clip, which it holds busy until it is
