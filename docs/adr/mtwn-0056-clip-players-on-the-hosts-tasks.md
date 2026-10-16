@@ -63,8 +63,9 @@ whole update's, the groups placed on N workers longest first, gave the
 bench's 1,000 players (four tracks, a 1 s loop) a repeat frame 10.8
 times faster on 16 workers and a steady frame 5.2. Measured in wall time
 on a quiet AMD Ryzen 9 5900X (12 cores, 2 threads each, two 6-core
-dies, each with its own last-level cache), with a persistent pool whose
-calling thread helps, the median update:
+dies, each with its own last-level cache; load average 5 to 7 on its
+24 threads), with a persistent pool whose calling thread helps, the
+median update:
 
 | Frame | No hooks | Best | On 16 workers |
 | --- | ---: | ---: | ---: |

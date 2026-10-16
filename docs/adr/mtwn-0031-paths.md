@@ -67,3 +67,16 @@ on lines whose parameter is uneven.
 The bench's path through eight points (record mtwn-0058): 5,250 to
 2,026 instructions a sample, GCC 14 at `-O2`; the library's code
 0.6 kB smaller.
+
+## Amended 2026-10-16: the lengths' error, measured
+
+The rule is asked for 1e-9 relative agreement between its 15 and 7
+points, but that difference overstates the error by orders, as
+QUADPACK's own estimate does: the 15-point result is far closer than
+the 7-point one it is checked against. Measured on 1,000 random paths
+of two to four channels (4,536 segments of Bezier, Catmull-Rom and
+linear kinds, alpha from 0 to 1), against each segment's length in
+long double by Gauss-Legendre on 16,384 panels of 8 points (the same at
+32,768; at 4,096 a segment with a cusp in its speed still moved), the
+worst segment's length is 1.8e-12 relative and the worst path's
+6.1e-13. A path of one channel is exact (its total variation).

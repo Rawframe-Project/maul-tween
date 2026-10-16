@@ -277,6 +277,13 @@ along the columns or the rows only, and an easing redistributes the
 offsets. They may be values as well as times, such as a scale from
 item to item.
 
+Porting from GSAP: a grid with a short last row stays its columns wide,
+its centre and edges the full rectangle's. GSAP's `distribute` puts the
+centre row at `count * 0.5 / columns - 0.5`, so for seven items in
+three columns its centre is 0.67 rows down where here it is 1, and its
+"edges" is the centre's distance reversed where here it is the nearest
+edge of the rectangle as drawn.
+
 ## Players
 
 A player plays a clip with its slots bound to targets. It follows Web
@@ -394,12 +401,26 @@ into the targets in creation order, between the transitions. Records,
 values, velocities and the changed list are the same bits as without
 the hooks, whatever the split and the order. The groups cost memory
 (about 900 KB more for the default def, see `mtwnContextDef`), so a
-host with a few players leaves the hooks unset. Transitions and
-composing stay on the calling thread, and the composing bounds the
-gain: measured on a 12-core desktop, 1,000 players of four tracks
-update about 2.4 times faster on six workers, and the frame where they
-all repeat about 3.7 times on eight, no faster on more (record
-mtwn-0056).
+host with a few players leaves the hooks unset. Transitions, and
+targets several players write, are composed on the calling thread; a
+target one player alone writes, with no transition on it, is composed
+in that player's group (record mtwn-0056). Before that, on a 12-core
+desktop at load 5 to 7, 1,000 players of four tracks updated about 2.4
+times faster on six workers and the frame where they all repeat about
+3.7 times on eight, the composing on the calling thread bounding both;
+that serial rest is about four times shorter since.
+
+Some players stay on the calling thread. One whose clip has more than
+128 nodes plays there wholly: a group keeps times for 128. A group
+stages up to 1,024 records, or the queue's capacity when that is
+smaller: with a queue of 1,024 or less, records past it are dropped
+and counted, as the queue would drop them; with a larger queue, a
+player whose records do not fit is put back, with the players after it
+in its group. The bench's 1,000 players stage at most 567 records a
+group in the frame where they all repeat. A player with targets of its
+own whose results might not fit its group's staging plays on the
+calling thread before it starts, as what a group writes in place
+cannot be undone.
 
 ## Growing
 
