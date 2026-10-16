@@ -33,6 +33,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   update, so a group takes it only with room for twice the records.
 - The bench's `--count` layouts take `-tasks`, run in groups on the
   calling thread, and the gate bounds them too.
+- With the host's task system, who writes each target is kept as
+  players are made and freed and transitions start and end, instead of
+  counted again over every binding in the next update: the bench's
+  1,000 players with a tenth made and freed each frame cost 1.3% more
+  instructions with the hooks than without (9.3% before); a steady
+  frame 0.8% (record mtwn-0056). The bench's `--count` takes `churn`.
 - Clip players share a track result or a sweep only when the time,
   rate and ends match the last one's bits, not only their values (0
   equals -0; record mtwn-0057): no result found to differ yet, so the

@@ -126,7 +126,9 @@ mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
         }
         context->changedCount = kept;
     }
-    mtwnWritersChanged(context, target.index1);
+    // Its transition ended above: layered only by its clips' players.
+    context->layeredTargets -= mtwnLayered(slot) ? 1u : 0u;
+    ++context->writersEpoch;
     mtwnPoolRelease(&context->targets, target.index1);
     return mtwn_success;
 }

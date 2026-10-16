@@ -180,3 +180,31 @@ gate.
 A player's first update under reduced motion sweeps twice (to where it
 was first, then to the end it is finished at), so the fit check counts
 twice the records for it. Each sweep makes at most six records a node.
+
+## Amended 2026-10-17: who writes a target, kept as it changes
+
+Counting the writers again over every binding (three passes, each
+looking every target up) after any call that changed them was free on
+a steady frame but paid in full by a host whose players come and go:
+with a tenth of the bench's 1,000 players made and freed each frame,
+the hooks cost 9.3% more instructions than none, the count most of it.
+Bevy keeps its single writer as a relation set when it is made
+(`AnimationTarget { player }`), never counted; here a target may have
+several writers, so it keeps their number:
+
+- A target's writers are counted as a player is made (its bindings'
+  targets are alive) and freed (a target still alive, by its id's
+  generation), up to 65,535, where the count stays. The live targets
+  whose writers need an order, two bindings or one beside a transition,
+  are counted as each count or transition changes and as a target is
+  destroyed.
+- Each change advances an epoch. A group works out its players'
+  bindings' alone (target alive, one writer, no transition) only when
+  the epoch moved since the groups last did; counts and transitions
+  change only between updates, so the groups read them safely. The
+  targets with ordered writers are marked by the serial pass after the
+  groups, which never touch them.
+
+The churn costs 1.3% more with the hooks than without, a steady frame
+0.8%, the repeat 0.1% (bench `--count` with `-tasks`, one worker); the
+gate bounds `churn` and `churn-tasks`.

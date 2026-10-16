@@ -20,6 +20,10 @@ step-tasks   300 2070000
 spread-tasks 300 6135000
 clips-tasks  300 6120000
 repeat-tasks 1   17020000
+# A tenth of the clips' players destroyed and made again before each
+# frame, without and with the hooks: the writers kept as they change.
+churn        300 7690000
+churn-tasks  300 7790000
 path     100000 1990
 track    100000 272
 oklab    100000 1520

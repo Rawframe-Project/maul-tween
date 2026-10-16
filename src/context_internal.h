@@ -29,10 +29,10 @@ typedef struct mtwnTargetSlot
 {
     mtwnSlotHeader header;
     mtwnValueKind kind;
-    // With the host's task system: the clips' players' bindings naming it
-    // when last counted, 2 for two or more (src/clip_tasks.c).
-    uint8_t clipWriters;
-    uint8_t reserved[2];
+    uint8_t reserved;
+    // The clips' players' bindings naming it, kept as they are made and
+    // freed; at 65,535 it stays (record mtwn-0056).
+    uint16_t clipWriters;
     mtwnVec4 base;
     mtwnVec4 value;
     mtwnVec4 velocity;
@@ -323,12 +323,15 @@ struct mtwnContext
     // Whether motion is reduced (record mtwn-0049), and the clips' players
     // the last update left running under it though not essential.
     bool reducedMotion;
-    // Whether who writes the clips' players' targets may have changed since
-    // their bindings' alone was last worked out (src/clip_tasks.c).
-    bool writersStale;
-    // The clips' players' bindings to a target others write too, as last
-    // counted: none, and the serial pass marks no target unwritten.
-    uint32_t layeredBindings;
+    // The live targets whose writers need an order (mtwnLayered): none, and
+    // with groups the serial pass marks no target unwritten.
+    uint32_t layeredTargets;
+    // Advanced by every change to who writes a target (a count, a
+    // transition, a target destroyed); the groups work out their
+    // bindings' alone again only when it moved since they last did.
+    uint64_t writersEpoch;
+    uint64_t aloneEpoch;
+    bool aloneFresh;
     // For tests: every record counted, none left out as certainly missed
     // or settled, to check that leaving them out changes nothing.
     bool countEvery;
@@ -645,19 +648,37 @@ void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out, mtwnWork* gro
 bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
                            double now);
 
-// With the host's task system, when stale: each clip's player's binding
-// alone or not, its target alive, named by no other binding and without a
-// transition (src/clip_tasks.c).
-void mtwnCountWriters(mtwnContext* context);
-
-// The clips' players' bindings to a target may have changed writers:
-// counted again before the next update's groups.
-static inline void mtwnWritersChanged(mtwnContext* context, uint32_t target)
+// Whether a target's writers need an order among them: two clips'
+// players' bindings or more, or one beside a transition. One binding alone
+// is composed in its player's group (record mtwn-0056).
+static inline bool mtwnLayered(const mtwnTargetSlot* slot)
 {
-    if (target == 0 || mtwnTargetAt(context, target)->clipWriters != 0)
+    return slot->clipWriters >= 2u || (slot->clipWriters == 1u && slot->header.link != 0);
+}
+
+// A live target's clips' players' bindings one more or one fewer, the
+// layered targets kept; a count at its top stays.
+static inline void mtwnAddWriter(mtwnContext* context, mtwnTargetSlot* slot, bool more)
+{
+    bool was = mtwnLayered(slot);
+    ++context->writersEpoch;
+    if (slot->clipWriters != UINT16_MAX)
     {
-        context->writersStale = true;
+        slot->clipWriters = (uint16_t)(more ? slot->clipWriters + 1u : slot->clipWriters - 1u);
     }
+    context->layeredTargets =
+        context->layeredTargets - (was ? 1u : 0u) + (mtwnLayered(slot) ? 1u : 0u);
+}
+
+// A live target's transition set (index1) or ended (0), the layered
+// targets kept.
+static inline void mtwnLinkTarget(mtwnContext* context, mtwnTargetSlot* slot, uint32_t link)
+{
+    bool was = mtwnLayered(slot);
+    ++context->writersEpoch;
+    slot->header.link = link;
+    context->layeredTargets =
+        context->layeredTargets - (was ? 1u : 0u) + (mtwnLayered(slot) ? 1u : 0u);
 }
 
 // The parallel phase: the clips' players in creation order, in groups on
@@ -681,9 +702,10 @@ void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play);
 
 // Marks unwritten those of a clip's player's targets whose binding's alone
 // is as given: how many it marked; othersOut, when not NULL, receives how
-// many bindings name a target and are of the other kind. Alone only just
-// after the writers were counted, which an alone target's id is then
-// alive by, so it is not looked up.
+// many bindings name a target and are of the other kind. Alone, in the
+// player's group: first works out each binding's alone if the writers
+// changed since the groups last did; an alone target is then alive, so it
+// is not looked up.
 uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, bool alone,
                              uint32_t* othersOut);
 
@@ -692,7 +714,7 @@ void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play);
 
 // Shows their bases in a clip's player's alone targets it did not write, in
 // its group, their changes staged in the group's work; in a group only,
-// the writers just counted.
+// its alone worked out there.
 void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* group);
 
 // After the serial pass: the bases shown in the targets of the clips'

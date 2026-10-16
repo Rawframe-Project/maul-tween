@@ -14,11 +14,10 @@
 // the best of five runs (the updates' best of 50). Given a baseline
 // file, such as bench/baseline.txt, it prints each result's ratio to the
 // recorded one as well. With --count and a layout of the clip players
-// (step, spread, clips, repeat; -tasks after one runs it in groups on the
-// calling thread) and a number of updates, and the clip's period if not
-// 1 s, or a values case (oklab, oklch, slerp, path, track)
-// and a number of samples, it runs only those, for an instruction
-// counter.
+// (step, spread, clips, repeat, churn; -tasks after one runs it in groups
+// on the calling thread) and a number of updates, and the clip's period
+// if not 1 s, or a values case (oklab, oklch, slerp, path, track) and a
+// number of samples, it runs only those, for an instruction counter.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -446,17 +445,32 @@ typedef enum Layout
     LAYOUT_IN_STEP,
     LAYOUT_SPREAD,
     LAYOUT_OWN_CLIPS,
-    LAYOUT_REPEAT
+    LAYOUT_REPEAT,
+    LAYOUT_CHURN
 } Layout;
 
-static const char* const s_layouts[] = {"step", "spread", "clips", "repeat"};
+static const char* const s_layouts[] = {"step", "spread", "clips", "repeat", "churn"};
+
+// The players' ids, clips and bindings, for the churn: before each
+// update a tenth of the players, oldest first, are destroyed and made
+// again on their clips and targets, as a host whose players come and go
+// each frame.
+enum
+{
+    CHURN = PLAYERS / 10
+};
+static mtwnPlayerId s_players[PLAYERS];
+static mtwnClipId s_clips[PLAYERS];
+static mtwnBinding s_bindings[PLAYERS][TRACKS];
 
 // A thousand players of the clip, each bound to four targets of its own,
 // laid out as asked, and the update that starts them.
 static mtwnContext* MakePlayers(Layout layout)
 {
     uint32_t clips = layout >= LAYOUT_OWN_CLIPS ? PLAYERS : 1;
-    mtwnContext* context = MakeContext(PLAYERS * TRACKS, PLAYERS, clips, PLAYERS * TRACKS);
+    // The churn's made players come before their old ones are freed.
+    uint32_t players = layout == LAYOUT_CHURN ? PLAYERS + CHURN : PLAYERS;
+    mtwnContext* context = MakeContext(PLAYERS * TRACKS, players, clips, players * TRACKS);
     mtwnBinding bindings[TRACKS];
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = MakeClip(context);
@@ -476,6 +490,9 @@ static mtwnContext* MakePlayers(Layout layout)
         }
         mtwnPlayerId id;
         Check(mtwnCreatePlayer(context, &def, &id), "a player");
+        s_players[p] = id;
+        s_clips[p] = def.clip;
+        memcpy(s_bindings[p], bindings, sizeof bindings);
         if (layout == LAYOUT_SPREAD || layout == LAYOUT_REPEAT)
         {
             double at = layout == LAYOUT_SPREAD ? (double)p * 0.001 : 0.99;
@@ -501,6 +518,19 @@ static void RunClips(double* best)
     mtwnDestroyContext(context);
 }
 
+// A player made again on its clip and targets, and the old one freed.
+static void Churn(mtwnContext* context, uint32_t p)
+{
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = s_clips[p];
+    def.bindings = s_bindings[p];
+    def.bindingCount = TRACKS;
+    mtwnPlayerId id;
+    Check(mtwnCreatePlayer(context, &def, &id), "a player made again");
+    Check(mtwnDestroyPlayer(context, s_players[p]), "a player freed");
+    s_players[p] = id;
+}
+
 // For an instruction counter: a layout's players and then count updates
 // at 16 ms steps, or a values case's count samples, printing nothing, so
 // that two counts' difference is their updates' or samples'
@@ -511,7 +541,7 @@ static int Count(const char* name, int count)
     size_t suffix = strlen("-tasks");
     s_tasks = length > suffix && strcmp(name + length - suffix, "-tasks") == 0;
     size_t layoutLength = s_tasks ? length - suffix : length;
-    for (int layout = LAYOUT_IN_STEP; layout <= LAYOUT_REPEAT; ++layout)
+    for (int layout = LAYOUT_IN_STEP; layout <= LAYOUT_CHURN; ++layout)
     {
         if (strlen(s_layouts[layout]) == layoutLength &&
             strncmp(name, s_layouts[layout], layoutLength) == 0)
@@ -520,6 +550,10 @@ static int Count(const char* name, int count)
             uint64_t now = 0;
             for (int u = 0; u < count; ++u)
             {
+                for (uint32_t k = 0; layout == LAYOUT_CHURN && k < CHURN; ++k)
+                {
+                    Churn(context, ((uint32_t)u * CHURN + k) % PLAYERS);
+                }
                 now += STEP_NS;
                 Check(mtwnUpdate(context, now, NULL, 0, NULL), "an update");
             }
@@ -537,8 +571,9 @@ static int Count(const char* name, int count)
             return 0;
         }
     }
-    fprintf(stderr, "--count takes step, spread, clips or repeat, each with -tasks or not, oklab, "
-                    "oklch, slerp, path or track\n");
+    fprintf(stderr,
+            "--count takes step, spread, clips, repeat or churn, each with -tasks or not, oklab, "
+            "oklch, slerp, path or track\n");
     return 1;
 }
 

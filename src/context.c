@@ -174,7 +174,6 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
     SetSharing(context->serial, def, block, layout, 0);
     context->works = NULL;
     context->staged = NULL;
-    context->writersStale = true;
     if (def->enqueueTask == NULL)
     {
         return;

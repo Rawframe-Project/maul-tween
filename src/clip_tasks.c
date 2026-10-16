@@ -115,50 +115,6 @@ static void RunGroups(int32_t startIndex, int32_t endIndex, void* taskContext)
     mtwnFloatEnvLeave(&env);
 }
 
-// A pass of the count over a binding: its target's count cleared, the
-// binding counted, or its alone worked out.
-static void CountBinding(mtwnContext* context, mtwnBound* bound, uint32_t target, int pass)
-{
-    if (target == 0)
-    {
-        bound->alone = false;
-        return;
-    }
-    mtwnTargetSlot* slot = mtwnTargetAt(context, target);
-    if (pass == 0)
-    {
-        slot->clipWriters = 0;
-    }
-    else if (pass == 1)
-    {
-        slot->clipWriters = slot->clipWriters < 2 ? (uint8_t)(slot->clipWriters + 1u) : 2u;
-    }
-    else
-    {
-        bound->alone = slot->clipWriters == 1 && slot->header.link == 0;
-        context->layeredBindings += bound->alone ? 0u : 1u;
-    }
-}
-
-void mtwnCountWriters(mtwnContext* context)
-{
-    context->layeredBindings = 0;
-    for (int pass = 0; pass < 3; ++pass)
-    {
-        for (uint32_t index1 = context->firstClipPlayer; index1 != 0;)
-        {
-            const mtwnClipPlay* play = &mtwnPlayerAt(context, index1)->play;
-            for (uint32_t s = 0; s < play->bindingCount; ++s)
-            {
-                CountBinding(context, &context->bindings.entries[play->bindingStart + s],
-                             mtwnBoundTarget(context, play, s), pass);
-            }
-            index1 = play->nextClip;
-        }
-    }
-    context->writersStale = false;
-}
-
 void mtwnRunClipGroups(mtwnContext* context, double before, double now)
 {
     context->stagedCount = 0;
@@ -191,6 +147,10 @@ void mtwnRunClipGroups(mtwnContext* context, double before, double now)
         context->works[g].dropped = 0;
         context->works[g].changeCount = 0;
     }
+    // Who writes the targets is as when the groups last worked it out,
+    // or they work it out again (read only while they run).
+    context->aloneFresh = context->aloneEpoch == context->writersEpoch;
+    context->aloneEpoch = context->writersEpoch;
     GroupTask task = {context, before, now};
     const mtwnContextDef* def = &context->def;
     int32_t groups = (int32_t)(count < MTWN_GROUPS ? count : MTWN_GROUPS);

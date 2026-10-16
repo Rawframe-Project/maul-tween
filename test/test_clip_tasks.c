@@ -1057,10 +1057,10 @@ static void Step(mtwnContext* context, double seconds)
 }
 
 // Each clip's player's binding is its target's alone when no other binding
-// names the target and no transition is on it (with a task system), worked
-// out again after each change of who writes a target: players made and
-// destroyed, transitions started and ended, targets destroyed, the context
-// grown; and not between.
+// names the target and no transition is on it (with a task system): the
+// writers kept as players are made and destroyed, transitions start and
+// end and targets are destroyed, the targets that need an order counted
+// exactly, the context grown with them.
 static void TestWriters(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -1093,13 +1093,14 @@ static void TestWriters(void)
           "a target with a transition on it is not a player's alone");
     CHECK(!Alone(context, twice, 0) && !Alone(context, twice, 1),
           "a target bound twice by one player is not alone either");
-    CHECK(!context->writersStale, "counted, until something changes");
+    CHECK(context->layeredTargets == 3,
+          "layered: a target two bind, one with a transition, one bound twice");
 
     CHECK(mtwnDestroyPlayer(context, two) == mtwn_success, "destroyed");
     Step(context, 0.05);
     CHECK(Alone(context, one, 1), "the other player gone, the target is the first's alone");
     Step(context, 0.2);
-    CHECK(context->writersStale, "a transition ended on a bound target");
+    CHECK(context->layeredTargets == 1, "a player and a transition gone, two left layered");
     Step(context, 0.25);
     CHECK(Alone(context, three, 0), "the transition ended, the target is the player's alone");
 
@@ -1113,8 +1114,9 @@ static void TestWriters(void)
               reused.index1 == t[0].index1,
           "the slot reused");
     move.target = reused;
-    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success && !context->writersStale,
-          "a transition on a target no player binds counts nothing again");
+    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success &&
+              context->layeredTargets == 1,
+          "a transition on a target no player binds layers nothing");
     move.target = t[3];
     CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success, "a transition");
     Step(context, 0.32);
@@ -1126,18 +1128,22 @@ static void TestWriters(void)
     CHECK(mtwnDestroyPlayer(context, twice) == mtwn_success, "destroyed");
     Step(context, 0.345);
     move.target = t[4];
-    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success && !context->writersStale,
-          "a transition on a target its only player left counts nothing again");
+    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success &&
+              context->layeredTargets == 2,
+          "a transition on a target its only player left layers nothing");
 
     def.playerCapacity *= 2;
     CHECK(mtwnGrowContext(&context, &def) == mtwn_success, "grown");
-    CHECK(context->writersStale, "a grown context counts again");
+    CHECK(context->layeredTargets == 2, "the counts kept across growing");
     Step(context, 0.35);
     CHECK(Alone(context, three, 0) && !Alone(context, one, 1) && !Alone(context, four, 0),
           "the same after growing");
+    // A layered target destroyed is layered no more.
+    CHECK(mtwnDestroyTarget(context, t[1]) == mtwn_success && context->layeredTargets == 1,
+          "a target two players bind destroyed");
     mtwnDestroyContext(context);
 
-    // Without a task system nothing is counted.
+    // Without a task system the writers are counted, no alone worked out.
     mtwnContextDef plain = mtwnDefaultContextDef();
     CHECK(mtwnCreateContext(&plain, &context) == mtwn_success, "a context");
     mtwnTargetId lone;
@@ -1145,14 +1151,16 @@ static void TestWriters(void)
           "a target");
     mtwnPlayerId only = PlayTwo(context, TwoTracks(context), lone, (mtwnTargetId){0, 0});
     Step(context, 0.0);
-    CHECK(!Alone(context, only, 0) && context->writersStale, "without a task system, no count");
+    CHECK(!Alone(context, only, 0) && mtwnTargetAt(context, lone.index1)->clipWriters == 1,
+          "without a task system, writers counted and no alone worked out");
     mtwnDestroyContext(context);
 }
 
-// A binding's alone is as fresh as the last count, made only with groups
-// to run: with one player left an update runs none, so a binding counted
-// alone before its target was destroyed must still look its target up,
-// or it writes the target made in the slot since.
+// A binding's alone is worked out only by the groups, so it is as fresh
+// as the last update with groups to run: with one player left an update
+// runs none, so a binding alone before its target was destroyed must
+// still look its target up, or it writes the target made in the slot
+// since.
 static void TestStaleAlone(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();

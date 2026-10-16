@@ -273,8 +273,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     prepared.header.link = def->target.index1;
     prepared.target = def->target;
     *slot = prepared;
-    target->header.link = index1;
-    mtwnWritersChanged(context, def->target.index1);
+    mtwnLinkTarget(context, target, index1);
     *playerOut = (mtwnPlayerId){index1, slot->header.generation};
     return mtwn_success;
 }
@@ -311,7 +310,6 @@ void mtwnEndTransition(mtwnContext* context, uint32_t player)
 {
     uint32_t target = mtwnPlayerAt(context, player)->header.link;
     mtwnSettleVelocity(context, target);
-    mtwnTargetAt(context, target)->header.link = 0;
-    mtwnWritersChanged(context, target);
+    mtwnLinkTarget(context, mtwnTargetAt(context, target), 0);
     mtwnFreePlayer(context, player);
 }

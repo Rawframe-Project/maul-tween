@@ -74,9 +74,9 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player)
         {
             mtwnPlayerAt(context, play->nextClip)->play.previousClip = play->previousClip;
         }
-        // Its targets counted again, from none, if other players bind them.
-        // Looked up here, not through the clips' code, which transitions
-        // link without (record mtwn-0047).
+        // One writer fewer of each target still alive; a destroyed one's
+        // slot was zeroed when taken again. Looked up here, not through the
+        // clips' code, which transitions link without (record mtwn-0047).
         for (uint32_t s = 0; s < play->bindingCount; ++s)
         {
             mtwnTargetId id = context->bindings.entries[play->bindingStart + s].target;
@@ -86,10 +86,9 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player)
                     : NULL;
             if (target != NULL)
             {
-                target->clipWriters = 0;
+                mtwnAddWriter(context, target, false);
             }
         }
-        mtwnWritersChanged(context, 0);
         if (slot->play.bindingCount > 0)
         {
             mtwnGiveRun(&context->bindings, slot->play.bindingStart, slot->play.bindingCount);

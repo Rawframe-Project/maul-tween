@@ -419,11 +419,13 @@ static void BeginClips(mtwnContext* context, double before, double now)
     uint32_t first = context->firstClipPlayer;
     bool grouped =
         context->works != NULL && first != 0 && mtwnPlayerAt(context, first)->play.nextClip != 0;
-    if (grouped && context->writersStale)
+    if (grouped)
     {
-        mtwnCountWriters(context);
+        // The groups work out their players' bindings' alone and mark those
+        // targets; the others, which no group touches, after them.
+        mtwnRunClipGroups(context, before, now);
     }
-    for (uint32_t index1 = grouped && context->layeredBindings == 0 ? 0 : first; index1 != 0;)
+    for (uint32_t index1 = grouped && context->layeredTargets == 0 ? 0 : first; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
         if (grouped)
@@ -436,7 +438,10 @@ static void BeginClips(mtwnContext* context, double before, double now)
         }
         index1 = slot->play.nextClip;
     }
-    mtwnRunClipGroups(context, before, now);
+    if (!grouped)
+    {
+        mtwnRunClipGroups(context, before, now);
+    }
 }
 
 static void AdvanceClip(mtwnContext* context, uint32_t player, double before, double now)
@@ -524,8 +529,9 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
         const mtwnBinding* binding = &def->bindings[i];
         bound[binding->slot] = (mtwnBound){
             .target = binding->target, .weight = binding->weight, .composite = binding->composite};
+        // A bound target is alive (AreBindings): one more writer.
+        mtwnAddWriter(context, mtwnTargetAt(context, binding->target.index1), true);
     }
-    context->writersStale = true;
     mtwnClipPlay* play = &mtwnPlayerAt(context, index1)->play;
     *play = (mtwnClipPlay){.clip = def->clip,
                            .startTime = (double)NAN,

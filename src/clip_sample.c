@@ -52,6 +52,22 @@ void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play)
     }
 }
 
+// Whether a binding's target is its alone: alive, named by no other
+// binding and without a transition.
+// mtwnPoolFind's test, inline: every binding of every grouped player
+// passes here each update.
+static bool IsAlone(const mtwnContext* context, mtwnTargetId id)
+{
+    if (id.index1 == 0 || id.index1 > context->targets.high)
+    {
+        return false;
+    }
+    const mtwnTargetSlot* slot = mtwnTargetAt(context, id.index1);
+    return (slot->header.flags & MTWN_SLOT_ALIVE) != 0 &&
+           slot->header.generation == id.generation && slot->clipWriters == 1u &&
+           slot->header.link == 0;
+}
+
 uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, bool alone,
                              uint32_t* othersOut)
 {
@@ -59,7 +75,12 @@ uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, boo
     uint32_t others = 0;
     for (uint32_t s = 0; s < play->bindingCount; ++s)
     {
-        const mtwnBound* bound = &context->bindings.entries[play->bindingStart + s];
+        mtwnBound* bound = &context->bindings.entries[play->bindingStart + s];
+        if (alone && !context->aloneFresh)
+        {
+            // In the player's group, which alone writes its bindings.
+            bound->alone = IsAlone(context, bound->target);
+        }
         bool taken = bound->alone == alone;
         others += !taken && bound->target.index1 != 0 ? 1u : 0u;
         uint32_t target =
