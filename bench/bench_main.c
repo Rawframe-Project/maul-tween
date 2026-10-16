@@ -14,8 +14,9 @@
 // the best of five runs (the updates' best of 50). Given a baseline
 // file, such as bench/baseline.txt, it prints each result's ratio to the
 // recorded one as well. With --count and a layout of the clip players
-// (step, spread, clips, repeat) and a number of updates, and the clip's
-// period if not 1 s, or a values case (oklab, oklch, slerp, path, track)
+// (step, spread, clips, repeat; -tasks after one runs it in groups on the
+// calling thread) and a number of updates, and the clip's period if not
+// 1 s, or a values case (oklab, oklch, slerp, path, track)
 // and a number of samples, it runs only those, for an instruction
 // counter.
 
@@ -240,10 +241,32 @@ static uint64_t ClipBytes(void)
     return bytes;
 }
 
+// Whether a context runs the clips' players in groups on a task system,
+// here the calling thread, as --count's layouts ending in -tasks ask: what
+// the hooks cost on one worker (record mtwn-0056).
+static bool s_tasks = false;
+
+static void* RunAtOnce(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+                       void* userContext)
+{
+    (void)minRange;
+    (void)userContext;
+    task(0, itemCount, taskContext);
+    return NULL;
+}
+
+static void WaitForNothing(void* userTask, void* userContext)
+{
+    (void)userTask;
+    (void)userContext;
+}
+
 static mtwnContext* MakeContext(uint32_t targets, uint32_t players, uint32_t clips,
                                 uint32_t bindings)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = s_tasks ? RunAtOnce : NULL;
+    def.finishTask = s_tasks ? WaitForNothing : NULL;
     def.targetCapacity = targets;
     def.playerCapacity = players;
     def.clipCapacity = clips;
@@ -484,9 +507,14 @@ static void RunClips(double* best)
 // (`perf stat -e instructions:u`; records mtwn-0057 and mtwn-0058).
 static int Count(const char* name, int count)
 {
+    size_t length = strlen(name);
+    size_t suffix = strlen("-tasks");
+    s_tasks = length > suffix && strcmp(name + length - suffix, "-tasks") == 0;
+    size_t layoutLength = s_tasks ? length - suffix : length;
     for (int layout = LAYOUT_IN_STEP; layout <= LAYOUT_REPEAT; ++layout)
     {
-        if (strcmp(name, s_layouts[layout]) == 0)
+        if (strlen(s_layouts[layout]) == layoutLength &&
+            strncmp(name, s_layouts[layout], layoutLength) == 0)
         {
             mtwnContext* context = MakePlayers((Layout)layout);
             uint64_t now = 0;
@@ -509,8 +537,8 @@ static int Count(const char* name, int count)
             return 0;
         }
     }
-    fprintf(stderr,
-            "--count takes step, spread, clips, repeat, oklab, oklch, slerp, path or track\n");
+    fprintf(stderr, "--count takes step, spread, clips or repeat, each with -tasks or not, oklab, "
+                    "oklch, slerp, path or track\n");
     return 1;
 }
 

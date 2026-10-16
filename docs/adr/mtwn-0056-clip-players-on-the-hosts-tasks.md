@@ -155,3 +155,28 @@ advance; 0 without a task system. As Jolt Physics names the capacity to
 raise when an update finds a cache full (`EPhysicsUpdateError`), a host
 seeing the count grow raises its binding or event capacities or splits
 a clip.
+
+## Amended 2026-10-17: the bookkeeping on one worker
+
+On one worker the hooks cost 5.5% more instructions than none for a
+steady frame and 2.7% for the repeat, against a bound of 2%. Most of it
+was looking up, three times a player (marking, sampling, showing
+bases), targets whose ids are known alive: a binding is alone only as
+the writers were counted, and a destroyed target its player binds
+marks the count stale, which is redone before any group runs. In a
+group an alone binding's target is now taken from the binding; outside
+a group (one player left, where nothing is counted) it is looked up as
+before, and a test destroys an alone target there and makes another in
+its slot. On one worker the bench's steady layouts cost 0.6% more than
+without the hooks, the repeat 0.1%; without the hooks 0.4% fewer, as a
+track's binding is read once.
+
+Players of one clip in step cost 13.9% more on one worker: each of the
+16 groups samples its first player of the clip in full, as a group
+shares only what it worked out itself. With workers those samples run
+side by side. The bench's `-tasks` count layouts bound all four in the
+gate.
+
+A player's first update under reduced motion sweeps twice (to where it
+was first, then to the end it is finished at), so the fit check counts
+twice the records for it. Each sweep makes at most six records a node.

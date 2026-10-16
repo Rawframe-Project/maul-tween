@@ -1149,9 +1149,46 @@ static void TestWriters(void)
     mtwnDestroyContext(context);
 }
 
+// A binding's alone is as fresh as the last count, made only with groups
+// to run: with one player left an update runs none, so a binding counted
+// alone before its target was destroyed must still look its target up,
+// or it writes the target made in the slot since.
+static void TestStaleAlone(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = RunAtOnce;
+    def.finishTask = WaitForNothing;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnTargetId a = {0, 0};
+    mtwnTargetId b = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &a) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &b) == mtwn_success,
+          "two targets");
+    mtwnClipId clip = TwoTracks(context);
+    mtwnPlayerId kept = PlayTwo(context, clip, a, (mtwnTargetId){0, 0});
+    mtwnPlayerId other = PlayTwo(context, clip, b, (mtwnTargetId){0, 0});
+    Step(context, 0.0);
+    CHECK(Alone(context, kept, 0), "counted alone with two players");
+    CHECK(mtwnDestroyPlayer(context, other) == mtwn_success &&
+              mtwnDestroyTarget(context, a) == mtwn_success,
+          "one player left, its target destroyed");
+    mtwnTargetId made = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &made) == mtwn_success &&
+              made.index1 == a.index1,
+          "a target made in the slot");
+    Step(context, 0.05);
+    Step(context, 0.1);
+    mtwnVec4 value = {1.0f, 1.0f, 1.0f, 1.0f};
+    CHECK(mtwnTarget_GetValue(context, made, &value) == mtwn_success && value.x == 0.0f,
+          "the new target written by no player");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestWriters();
+    TestStaleAlone();
     TestStagingBounds();
     TestOneTimeOrder();
     TestReplayOff();

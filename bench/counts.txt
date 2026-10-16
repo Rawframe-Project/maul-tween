@@ -13,6 +13,13 @@ clips    300    6105000
 # the sweeps from a boundary leave out what they cannot cross.
 clips    300    11430000  0.032
 repeat   1      17030000
+# With the task hooks on the calling thread (one worker): the groups'
+# bookkeeping. In step each of the 16 groups samples its first player of
+# the clip itself, as a group shares only what it worked out.
+step-tasks   300 2070000
+spread-tasks 300 6135000
+clips-tasks  300 6120000
+repeat-tasks 1   17020000
 path     100000 1990
 track    100000 272
 oklab    100000 1520

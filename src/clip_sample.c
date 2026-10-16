@@ -62,7 +62,8 @@ uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, boo
         const mtwnBound* bound = &context->bindings.entries[play->bindingStart + s];
         bool taken = bound->alone == alone;
         others += !taken && bound->target.index1 != 0 ? 1u : 0u;
-        uint32_t target = taken ? mtwnBoundTarget(context, play, s) : 0;
+        uint32_t target =
+            !taken ? 0 : (alone ? bound->target.index1 : mtwnBoundTarget(context, play, s));
         if (target != 0)
         {
             mtwnTargetAt(context, target)->header.flags |= MTWN_TARGET_UNWRITTEN;
@@ -129,9 +130,8 @@ void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* gr
 {
     for (uint32_t s = 0; s < play->bindingCount; ++s)
     {
-        uint32_t target = context->bindings.entries[play->bindingStart + s].alone
-                              ? mtwnBoundTarget(context, play, s)
-                              : 0;
+        const mtwnBound* bound = &context->bindings.entries[play->bindingStart + s];
+        uint32_t target = bound->alone ? bound->target.index1 : 0;
         if (target != 0 &&
             (mtwnTargetAt(context, target)->header.flags & MTWN_TARGET_UNWRITTEN) != 0)
         {
@@ -632,7 +632,12 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
         }
         else if (node->kind == mtwn_nodeTrack)
         {
-            uint32_t target = mtwnBoundTarget(context, play, node->slot);
+            // In a group an alone binding's target is alive: the writers
+            // were counted after any target was destroyed.
+            const mtwnBound* bound = &context->bindings.entries[play->bindingStart + node->slot];
+            uint32_t target = work->tracks != NULL && bound->alone
+                                  ? bound->target.index1
+                                  : mtwnBoundTarget(context, play, node->slot);
             if (target != 0)
             {
                 if (!(node->sharesTiming && keptFor == i))
@@ -640,8 +645,6 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
                     kept = TimesOf(node, parent);
                 }
                 keptFor = i + 1;
-                const mtwnBound* bound =
-                    &context->bindings.entries[play->bindingStart + node->slot];
                 TrackPlace place = {play->clip.index1, i, parent, moving};
                 mtwnTrackOut out;
                 out.target = target;

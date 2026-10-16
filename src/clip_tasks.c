@@ -30,13 +30,16 @@ static void GroupRange(uint32_t count, uint32_t group, uint32_t* first, uint32_t
 
 // Whether a player whose group writes its alone targets in place, which
 // cannot be undone, stages all it can make: a result per node and at most
-// six records a node (a start, iterations and an end, each way), unless
-// records past the staging are dropped as the queue would.
+// six records a node a sweep (a start, iterations and an end, each way),
+// unless records past the staging are dropped as the queue would. Under
+// reduced motion a player not yet swept sweeps twice, to where it was
+// first and then to the end it is finished at.
 static bool Fits(const mtwnContext* context, const mtwnWork* work, const mtwnClipPlay* play)
 {
     uint64_t nodes = mtwnClipAt(context, play->clip.index1)->nodeCount;
+    uint64_t sweeps = context->reducedMotion && isnan(play->swept) ? 2u : 1u;
     bool records = work->recordCapacity == context->def.eventCapacity ||
-                   work->recordCount + 6u * nodes <= work->recordCapacity;
+                   work->recordCount + 6u * sweeps * nodes <= work->recordCapacity;
     return records && work->trackCount + nodes <= work->trackCapacity &&
            work->changeCount + 2u * (uint64_t)play->bindingCount <= work->changeCapacity;
 }

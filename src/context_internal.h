@@ -681,7 +681,9 @@ void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play);
 
 // Marks unwritten those of a clip's player's targets whose binding's alone
 // is as given: how many it marked; othersOut, when not NULL, receives how
-// many bindings name a target and are of the other kind.
+// many bindings name a target and are of the other kind. Alone only just
+// after the writers were counted, which an alone target's id is then
+// alive by, so it is not looked up.
 uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, bool alone,
                              uint32_t* othersOut);
 
@@ -689,7 +691,8 @@ uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, boo
 void mtwnResetUnwritten(mtwnContext* context, const mtwnClipPlay* play);
 
 // Shows their bases in a clip's player's alone targets it did not write, in
-// its group, their changes staged in the group's work.
+// its group, their changes staged in the group's work; in a group only,
+// the writers just counted.
 void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* group);
 
 // After the serial pass: the bases shown in the targets of the clips'

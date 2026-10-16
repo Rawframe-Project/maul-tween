@@ -23,6 +23,16 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 - The context def grows by 8 bytes, so the ABI version is 0.4:
   programs are built again against these headers.
+- With the host's task system, a group takes the target one player
+  alone writes from its binding without looking it up, as the writers
+  were just counted: on one worker the bench's 1,000 players on clips
+  of their own cost 0.6% more instructions than without the hooks
+  (5.5% before), the frame where all repeat 0.1% (2.7%); without the
+  hooks 0.4% fewer (record mtwn-0056).
+- A player under reduced motion not yet swept sweeps twice in its first
+  update, so a group takes it only with room for twice the records.
+- The bench's `--count` layouts take `-tasks`, run in groups on the
+  calling thread, and the gate bounds them too.
 - Clip players share a track result or a sweep only when the time,
   rate and ends match the last one's bits, not only their values (0
   equals -0; record mtwn-0057): no result found to differ yet, so the
