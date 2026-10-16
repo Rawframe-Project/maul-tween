@@ -208,3 +208,13 @@ several writers, so it keeps their number:
 The churn costs 1.3% more with the hooks than without, a steady frame
 0.8%, the repeat 0.1% (bench `--count` with `-tasks`, one worker); the
 gate bounds `churn` and `churn-tasks`.
+
+## Amended 2026-10-17: one worker in time
+
+Measured again at load 6.9 to 9.2, 0.4.0 against the build before the
+last two amendments, the builds in turn: on one worker the bench's
+players on clips of their own still take about 8% longer than without
+the hooks (9% before), those a millisecond apart 2.5% (5.7%), the
+repeat 2.0%, though their instructions are within 0.8%. The hooks'
+update misses the second-level cache twice as often; the instruction
+cache and the TLB do not move. At 8 workers the speed-ups are 4.2, 3.8 and 6.1 as before.
