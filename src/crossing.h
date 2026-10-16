@@ -88,6 +88,13 @@ typedef struct mtwnLevel
 // counts of the levels below it.
 void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf);
 
+// The outer levels prepared levels may be counted without: 1 for an
+// outermost level passing its time through unchanged (endless, from 0,
+// without delay, at rate 1, forwards) to the level or leaf below with
+// nothing before its start, else 0. Counted from the level below, the counts are
+// the same, as counts from it are none at or before 0.
+uint32_t mtwnPassedLevels(const mtwnLevel* levels, uint32_t count);
+
 // Counts the leaf's crossings as the outermost level's parent time sweeps
 // from 'from' to 'to': (from, to] forwards, [to, from) backwards, closed
 // at 'from' too when asked (a sweep from no time). The result's same is

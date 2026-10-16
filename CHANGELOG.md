@@ -17,6 +17,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   all repeat from 25.8 to 2.14 million; players out of step cost 0.4%
   more. A context holds 14.5 KB more for it, and as much again for
   each of the 16 groups when given a task system.
+- Records are counted with fewer walks down a clip's levels: constants
+  a level's direction never reads are left unwalked, equal ones copied,
+  and a clip's endless root, passing its time through, left out
+  (record mtwn-0037, amended). The bench's 1,000 players on clips of
+  their own, all repeating in one frame, from 25.9 to 22.7 million
+  instructions.
 
 ## [0.3.0] - 2026-10-16
 

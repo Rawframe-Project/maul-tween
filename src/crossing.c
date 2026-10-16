@@ -472,6 +472,71 @@ static mtwnCrossings Cover(const mtwnLevel* levels, uint32_t count, const mtwnLe
     return down ? (mtwnCrossings){sum.opposite, sum.same} : sum;
 }
 
+static bool SameBits(double a, double b)
+{
+    uint64_t x = 0;
+    uint64_t y = 0;
+    memcpy(&x, &a, sizeof x);
+    memcpy(&y, &b, sizeof y);
+    return x == y;
+}
+
+// The constants of a level of iterations of positive, finite duration:
+// below at its iteration starts, and its iterations' coverage.
+static void PrepareIterations(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, uint32_t i,
+                              const Shape* shape)
+{
+    mtwnLevel* level = &levels[i];
+    const mtwnTiming* timing = &level->timing;
+    double next = NextStart(levels, count, i);
+    double firstJ = shape->forwardRate ? shape->first : shape->last;
+    double lastJ = shape->forwardRate ? shape->last : shape->first;
+    // A whole iteration the direction never runs one way is never read
+    // that way (no start of it is reached, and Between counts none of it),
+    // so its counts stay 0. A count of the same inputs as one worked out
+    // is the same bits: it is copied.
+    bool runs[3] = {true, level->timing.direction != mtwn_directionReverse,
+                    level->timing.direction != mtwn_directionNormal};
+    bool firstForwards = Forwards(timing, firstJ);
+    double firstFrom = StartProgress(shape, firstJ);
+    double firstTo = EndProgress(shape, firstJ);
+    double full0 = shape->forwardRate ? 0.0 : 1.0;
+    double starts[3] = {ChildAt(timing, firstForwards, firstFrom), ChildAt(timing, true, full0),
+                        ChildAt(timing, false, full0)};
+    for (int k = 0; k < 3; ++k)
+    {
+        int same = -1;
+        for (int m = 0; m < k; ++m)
+        {
+            same = runs[m] && SameBits(starts[m], starts[k]) ? m : same;
+        }
+        for (int strict = 0; strict < 2 && runs[k]; ++strict)
+        {
+            level->startBelow[k][strict] =
+                same >= 0 ? level->startBelow[same][strict]
+                          : Below(levels, count, leaf, i + 1, starts[k] - next, strict != 0);
+        }
+    }
+    level->cover[0] = Cover(levels, count, leaf, i, firstForwards, firstFrom, firstTo);
+    for (int way = 1; way < 3; ++way)
+    {
+        bool forwards = way == 1;
+        bool asFirst = forwards == firstForwards && SameBits(firstFrom, full0) &&
+                       SameBits(firstTo, 1.0 - full0);
+        if (runs[way])
+        {
+            level->cover[way] = asFirst
+                                    ? level->cover[0]
+                                    : Cover(levels, count, leaf, i, forwards, full0, 1.0 - full0);
+        }
+    }
+    if (isfinite(lastJ))
+    {
+        level->cover[3] = Cover(levels, count, leaf, i, Forwards(timing, lastJ),
+                                StartProgress(shape, lastJ), EndProgress(shape, lastJ));
+    }
+}
+
 static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, uint32_t i)
 {
     mtwnLevel* level = &levels[i];
@@ -511,29 +576,16 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
         }
         return;
     }
-    double firstJ = shape.forwardRate ? shape.first : shape.last;
-    double lastJ = shape.forwardRate ? shape.last : shape.first;
-    double starts[3] = {ChildAt(timing, Forwards(timing, firstJ), StartProgress(&shape, firstJ)),
-                        ChildAt(timing, true, shape.forwardRate ? 0.0 : 1.0),
-                        ChildAt(timing, false, shape.forwardRate ? 0.0 : 1.0)};
-    for (int k = 0; k < 3; ++k)
-    {
-        for (int strict = 0; strict < 2; ++strict)
-        {
-            level->startBelow[k][strict] =
-                Below(levels, count, leaf, i + 1, starts[k] - next, strict != 0);
-        }
-    }
-    double full0 = shape.forwardRate ? 0.0 : 1.0;
-    level->cover[0] = Cover(levels, count, leaf, i, Forwards(timing, firstJ),
-                            StartProgress(&shape, firstJ), EndProgress(&shape, firstJ));
-    level->cover[1] = Cover(levels, count, leaf, i, true, full0, 1.0 - full0);
-    level->cover[2] = Cover(levels, count, leaf, i, false, full0, 1.0 - full0);
-    if (isfinite(lastJ))
-    {
-        level->cover[3] = Cover(levels, count, leaf, i, Forwards(timing, lastJ),
-                                StartProgress(&shape, lastJ), EndProgress(&shape, lastJ));
-    }
+    PrepareIterations(levels, count, leaf, i, &shape);
+}
+
+uint32_t mtwnPassedLevels(const mtwnLevel* levels, uint32_t count)
+{
+    const mtwnLevel* top = &levels[0];
+    const mtwnCrossings none = top->startBelow[1][1];
+    bool passes = count >= 1 && top->unbounded && top->start == 0.0 && top->timing.delay == 0.0 &&
+                  top->timing.playbackRate == 1.0 && Forwards(&top->timing, top->firstIteration);
+    return passes && none.same == 0.0 && none.opposite == 0.0 ? 1u : 0u;
 }
 
 void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf)
@@ -542,15 +594,6 @@ void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf)
     {
         PrepareLevel(levels, count, leaf, i - 1);
     }
-}
-
-static bool SameBits(double a, double b)
-{
-    uint64_t x = 0;
-    uint64_t y = 0;
-    memcpy(&x, &a, sizeof x);
-    memcpy(&y, &b, sizeof y);
-    return x == y;
 }
 
 static mtwnCrossings Reached(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,

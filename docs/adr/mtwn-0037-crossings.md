@@ -41,3 +41,27 @@ must count, not walk, its crossings.
 Counts are exact and independent of the update rate; an oracle that
 samples the timing itself and splits the sweep wherever anything jumps
 agrees on random nested clips.
+
+## Amended 2026-10-16: walks left out where nothing differs
+
+A frame where many players on clips of their own cross at once costs
+the walks of every record, most of them in the preparation of its
+levels. Two kinds of walk are left out, the counts unchanged:
+
+- A level whose iterations all run one way never reaches a start of
+  the other way's, and the other way's iterations enter its counts
+  times none: their constants stay 0, unwalked. A constant of the same
+  inputs as one already worked out (the first iteration's start and
+  traversal, when it starts at 0, are a full forward one's) is copied,
+  the same bits.
+- An outermost level passing its time through unchanged (endless, from
+  0, without delay, at rate 1, forwards), as the root of a clip with an
+  endless child is, is left out of a record's counts and searches when
+  the level or leaf below has nothing before its start: below it, the
+  counts are the same, and none at or before 0. A negative delay below
+  can put something there, and then the level stays.
+
+The bench's 1,000 players on clips of their own, all repeating in one
+frame: 25.9 to 22.7 million instructions, 3.8 times the average frame.
+A random test compares counts and found times with and without the
+level left out.

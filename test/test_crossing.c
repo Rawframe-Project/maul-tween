@@ -577,6 +577,115 @@ static void TestOracle(void)
           "and the first crossing's time with where the oracle meets it");
 }
 
+// An outer level passing its time through (endless, from 0, without
+// delay, at rate 1, forwards): the levels below it count the same without
+// it, and the searches find the same times, before 0 too; one below with
+// something before its start, a negative delay, is not passed.
+static void TestPassedLevels(void)
+{
+    static const mtwnCrossingWay s_ways[3] = {mtwn_crossingEither, mtwn_crossingForwards,
+                                              mtwn_crossingBackwards};
+    int passed = 0;
+    int kept = 0;
+    int notPassing = 0;
+    int wronglyPassed = 0;
+    int compared = 0;
+    int mismatches = 0;
+    for (int trial = 0; trial < 2000; ++trial)
+    {
+        mtwnLevel levels[3];
+        memset(levels, 0, sizeof levels);
+        // The outer level alone above the leaf, or over one or two more.
+        uint32_t count = 1 + (uint32_t)(Random() * 3.0) % 3;
+        levels[0].timing = Timing(HUGE_VAL, 1.0);
+        for (uint32_t i = 1; i < count; ++i)
+        {
+            levels[i].timing = RandomTiming();
+            levels[i].start = Random() * 0.6;
+        }
+        if (trial % 2 == 0 && count > 1)
+        {
+            // Repeating forever, as a loop does.
+            levels[1].timing.iterations = HUGE_VAL;
+            levels[1].timing.playbackRate = fabs(levels[1].timing.playbackRate);
+        }
+        if (trial % 5 == 0 && count > 1)
+        {
+            levels[1].timing.delay = -0.3;
+        }
+        // An outer level that does not pass its time through: delayed, at
+        // another rate, starting later, or running backwards.
+        int changed = trial % 11;
+        levels[0].timing.delay = changed == 1 ? 0.2 : 0.0;
+        levels[0].timing.playbackRate = changed == 2 ? 2.0 : 1.0;
+        levels[0].start = changed == 3 ? 0.1 : 0.0;
+        levels[0].timing.direction = changed == 4 ? mtwn_directionReverse : mtwn_directionNormal;
+        mtwnLeaf leaf = Instant(Random() * (count > 1 ? levels[count - 1].timing.duration : 2.0));
+        if (trial % 3 == 2)
+        {
+            leaf.kind = mtwn_leafIterations;
+            leaf.timing = RandomTiming();
+            leaf.timing.delay = 0.0;
+            leaf.timing.duration = leaf.timing.duration * 0.25;
+        }
+        mtwnPrepareLevels(levels, count, &leaf);
+        uint32_t p = mtwnPassedLevels(levels, count);
+        notPassing += changed >= 1 && changed <= 4 ? 1 : 0;
+        wronglyPassed += changed >= 1 && changed <= 4 && p == 1 ? 1 : 0;
+        passed += p == 1 ? 1 : 0;
+        kept += p == 0 ? 1 : 0;
+        for (int sweep = 0; sweep < 12 && p == 1; ++sweep)
+        {
+            double t1 = Random() * 5.0 - 1.0;
+            double t2 = Random() * 5.0 - 1.0;
+            for (int closed = 0; closed < 2; ++closed)
+            {
+                mtwnCrossings all = mtwnCountCrossings(levels, count, &leaf, t1, t2, closed);
+                mtwnCrossings below =
+                    mtwnCountCrossings(levels + 1, count - 1, &leaf, t1, t2, closed);
+                mismatches += all.same == below.same && all.opposite == below.opposite ? 0 : 1;
+                ++compared;
+                for (int w = 0; w < 3; ++w)
+                {
+                    if (Way(all, s_ways[w]) < 1.0)
+                    {
+                        continue;
+                    }
+                    for (int last = 0; last < 2; ++last)
+                    {
+                        double a = mtwnFindCrossing(levels, count, &leaf, t1, t2, closed, last == 1,
+                                                    s_ways[w]);
+                        double b = mtwnFindCrossing(levels + 1, count - 1, &leaf, t1, t2, closed,
+                                                    last == 1, s_ways[w]);
+                        mismatches += SameBits(a, b) ? 0 : 1;
+                        ++compared;
+                    }
+                }
+            }
+        }
+    }
+    CHECK(mismatches == 0 && compared > 20000,
+          "levels below one passing its time through count and find the same without it");
+    CHECK(passed > 1000 && kept > 10, "an outer level passed, and not over a negative delay");
+    CHECK(notPassing > 500 && wronglyPassed == 0,
+          "an outer level delayed, at another rate, later or backwards not passed");
+
+    // An instant the level below reaches before 0: passing the outer level
+    // would count it on a sweep that ends before 0, which the outer level
+    // never reaches.
+    mtwnLevel levels[2];
+    memset(levels, 0, sizeof levels);
+    levels[0].timing = Timing(HUGE_VAL, 1.0);
+    levels[1].timing = Timing(1.0, 1.0);
+    levels[1].timing.delay = -0.3;
+    mtwnLeaf leaf = Instant(0.1);
+    mtwnPrepareLevels(levels, 2, &leaf);
+    mtwnCrossings all = mtwnCountCrossings(levels, 2, &leaf, -0.5, -0.1, false);
+    mtwnCrossings below = mtwnCountCrossings(levels + 1, 1, &leaf, -0.5, -0.1, false);
+    CHECK(mtwnPassedLevels(levels, 2) == 0 && all.same == 0.0 && below.same == 1.0,
+          "not passed over a level with something before its start");
+}
+
 int main(void)
 {
     TestEnds();
@@ -586,5 +695,6 @@ int main(void)
     TestExactEdges();
     TestTimes();
     TestOracle();
+    TestPassedLevels();
     return s_failures == 0 ? 0 : 1;
 }
