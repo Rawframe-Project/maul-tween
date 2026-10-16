@@ -83,6 +83,13 @@ extern "C"
         // Bindings of slots to targets the players hold at once, up to
         // MTWN_MAX_COUNT.
         uint32_t bindingCapacity;
+        // The most nodes a clip may have for players in step to share its
+        // sample, and the most records a sweep keeps to share (record
+        // mtwn-0057), each up to MTWN_MAX_COUNT; 0 shares none of that
+        // kind. The context holds 80 and 72 bytes for each, in its own
+        // work and in each group's with a task system.
+        uint32_t sharedNodeCapacity;
+        uint32_t sharedRecordCapacity;
         uint32_t reserved;
         // Bytes for the clips' contents, up to MTWN_MAX_CLIP_STORAGE.
         uint64_t clipStorageBytes;
@@ -92,9 +99,10 @@ extern "C"
 #define MTWN_CONTEXT_DEF_COOKIE 0x4E575454u
 
     /// Makes a context def for a medium host: 1024 targets, 256 players, 16
-    /// clips, 256 events, 1024 bindings and 208 KiB of clip storage, which
-    /// holds 16 clips of the default clip def, the C library's allocator and
-    /// no task system.
+    /// clips, 256 events, 1024 bindings, sharing for clips of up to 128
+    /// nodes and 64 records, and 208 KiB of clip storage, which holds 16
+    /// clips of the default clip def, the C library's allocator and no task
+    /// system.
     /// Built in the program, so it carries the version of the headers the
     /// program includes.
     ///
@@ -115,6 +123,8 @@ extern "C"
         def.clipCapacity = 16;
         def.eventCapacity = 256;
         def.bindingCapacity = 1024;
+        def.sharedNodeCapacity = 128;
+        def.sharedRecordCapacity = 64;
         def.clipStorageBytes = 16u * 13312u;
         return def;
     }
@@ -143,7 +153,8 @@ extern "C"
     MTWN_API void mtwnDestroyContext(mtwnContext* context);
 
     /// Grows a context to a def's capacities, each at least the context's
-    /// own, and takes the def's task system, with the allocator it was made
+    /// own but the sharing's, which may be any, and takes the def's task
+    /// system, with the allocator it was made
     /// with: the one time after its creation it allocates, and only when
     /// asked (it never grows by itself). Its objects move to one new block, their ids unchanged,
     /// and the old block is freed, so the context's address changes: the call writes the new one.
@@ -169,6 +180,19 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
+
+    /// Returns how many clip players' advances a context with a task system
+    /// ran on the calling thread since it was made (record mtwn-0056): a
+    /// player whose clip has more than 128 nodes, one whose targets of its
+    /// own might not fit its group's staging, one whose staging ran out,
+    /// and those after it in its group. A count that grows asks for larger
+    /// binding or event capacities, or smaller clips.
+    ///
+    /// @param context  The context.
+    /// @return The count; 0 without a task system.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_API uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context);
 
     /// Returns the size of the block the context holds everything in.
     ///

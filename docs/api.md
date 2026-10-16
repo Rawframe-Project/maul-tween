@@ -108,7 +108,7 @@ The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, 
 ```c
 static inline mtwnContextDef mtwnDefaultContextDef(void);
 ```
-Makes a context def for a medium host: 1024 targets, 256 players, 16 clips, 256 events, 1024 bindings and 208 KiB of clip storage, which holds 16 clips of the default clip def, the C library's allocator and no task system. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
+Makes a context def for a medium host: 1024 targets, 256 players, 16 clips, 256 events, 1024 bindings, sharing for clips of up to 128 nodes and 64 records, and 208 KiB of clip storage, which holds 16 clips of the default clip def, the C library's allocator and no task system. Built in the program, so it carries the version of the headers the program includes.  @return The def. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut);
@@ -123,12 +123,17 @@ Destroys a context and everything it holds.  @param context  The context, or NUL
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def);
 ```
-Grows a context to a def's capacities, each at least the context's own, and takes the def's task system, with the allocator it was made with: the one time after its creation it allocates, and only when asked (it never grows by itself). Its objects move to one new block, their ids unchanged, and the old block is freed, so the context's address changes: the call writes the new one. On any failure nothing changes.  @param contextInOut  The context; receives the grown one. @param def           The capacities: start from the context's own. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a capacity below the context's or past its limit, another allocator, or a task system with one function of the two; mtwn_errorVersion for a def of another version; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Grows a context to a def's capacities, each at least the context's own but the sharing's, which may be any, and takes the def's task system, with the allocator it was made with: the one time after its creation it allocates, and only when asked (it never grows by itself). Its objects move to one new block, their ids unchanged, and the old block is freed, so the context's address changes: the call writes the new one. On any failure nothing changes.  @param contextInOut  The context; receives the grown one. @param def           The capacities: start from the context's own. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a capacity below the context's or past its limit, another allocator, or a task system with one function of the two; mtwn_errorVersion for a def of another version; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
 ```
 Returns how many calls against the context were refused for an invalid argument or a stale id since it was made.  @param context  The context. @return The count. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+
+```c
+uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context);
+```
+Returns how many clip players' advances a context with a task system ran on the calling thread since it was made (record mtwn-0056): a player whose clip has more than 128 nodes, one whose targets of its own might not fit its group's staging, one whose staging ran out, and those after it in its group. A count that grows asks for larger binding or event capacities, or smaller clips.  @param context  The context. @return The count; 0 without a task system. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
@@ -602,4 +607,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-109 functions across 13 headers.
+110 functions across 13 headers.

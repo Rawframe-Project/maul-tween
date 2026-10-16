@@ -80,3 +80,13 @@ as 0), and `test_clip_share` holds players paused at 0 and -0, with a
 host easing that tells them apart, to what each gives alone. Compared
 by bits, a shared result is the one its own inputs would give, whatever
 a later path does with a sign; the counts are unchanged.
+
+## Amended 2026-10-16: the capacities in the def
+
+`mtwnContextDef` states the sharing's capacities: `sharedNodeCapacity`
+(128) and `sharedRecordCapacity` (64), 0 sharing none of that kind and
+holding nothing for it. At the defaults a work holds 14,848 bytes for
+the sharing, the serial one and each of the 16 groups' with a task
+system, so a host with few players or none in step can save 252 KB
+of a hooks context. `mtwnGrowContext` takes any, as the sharing is made
+again after the move.

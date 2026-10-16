@@ -491,6 +491,10 @@ typedef struct Taken
     uint32_t bigStaged;
     // A clip's own node times written by a group.
     uint32_t touched;
+    // The serial twin's mtwnContext_GetSerialAdvances, and the hooked
+    // twin's.
+    uint64_t serialUnhooked;
+    uint64_t advances;
 } Taken;
 
 // The clips' players before an update, in creation order: the order the
@@ -725,6 +729,8 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
         }
         differences += Compare(&twins[0], &twins[1], changed[0], changed[1], totals[0], totals[1]);
     }
+    taken->serialUnhooked += mtwnContext_GetSerialAdvances(twins[0].context);
+    taken->advances += mtwnContext_GetSerialAdvances(twins[1].context);
     mtwnDestroyContext(twins[0].context);
     mtwnDestroyContext(twins[1].context);
     return differences;
@@ -733,7 +739,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
 static void TestTwins(void)
 {
     s_hostDraws = 11;
-    Taken taken = {0, 0, 0, 0, 0, 0};
+    Taken taken = {0};
     uint32_t differences = 0;
     for (uint64_t seed = 1; seed <= 12; ++seed)
     {
@@ -760,10 +766,12 @@ static void TestTwins(void)
     CHECK(taken.dropped > 0, "records past a group's staging dropped as the queue would");
     CHECK(taken.bigStaged == 0, "a clip of more nodes than a group keeps plays serially");
     CHECK(taken.touched == 0, "the groups leave each clip's own node times alone");
+    CHECK(taken.serialUnhooked == 0 && taken.advances == taken.serial,
+          "every advance left serial counted, none without a task system");
 
     // Every player put back: still the serial update's bits.
     s_emptyStaging = 3;
-    Taken empty = {0, 0, 0, 0, 0, 0};
+    Taken empty = {0};
     uint32_t emptyDifferences = 0;
     for (uint64_t seed = 1; seed <= 3; ++seed)
     {
@@ -774,6 +782,7 @@ static void TestTwins(void)
         emptyDifferences += Run(def, seed, 0, &empty);
     }
     s_emptyStaging = 0;
+    CHECK(empty.advances == empty.serial, "each put back counted");
     CHECK(emptyDifferences == 0 && empty.ranOut > 1000,
           "with staging that holds nothing, every player put back, the same bits");
 
@@ -781,7 +790,7 @@ static void TestTwins(void)
     // layered: the same bits, the changed list in the same order.
     s_ownTargets = true;
     s_alone = 0;
-    Taken own = {0, 0, 0, 0, 0, 0};
+    Taken own = {0};
     uint32_t ownDifferences = 0;
     for (uint64_t seed = 1; seed <= 12; ++seed)
     {
@@ -796,7 +805,7 @@ static void TestTwins(void)
     // might not fit is left to the serial pass before its group writes
     // any of them.
     uint32_t emptyOwnDifferences = 0;
-    Taken emptyOwn = {0, 0, 0, 0, 0, 0};
+    Taken emptyOwn = {0};
     for (unsigned kind = 1; kind <= 4; kind *= 2)
     {
         s_emptyStaging = kind;
@@ -825,7 +834,7 @@ static void TestReplayOff(void)
 {
     s_unsharedMode = true;
     s_shared = 0;
-    Taken unused = {0, 0, 0, 0, 0, 0};
+    Taken unused = {0};
     uint32_t differences = 0;
     for (uint64_t seed = 21; seed <= 32; ++seed)
     {
@@ -963,7 +972,7 @@ static void TestOneTimeOrder(void)
 static void TestThreads(void)
 {
     s_threaded = true;
-    Taken taken = {0, 0, 0, 0, 0, 0};
+    Taken taken = {0};
     uint32_t differences = 0;
     for (uint64_t seed = 41; seed <= 44; ++seed)
     {

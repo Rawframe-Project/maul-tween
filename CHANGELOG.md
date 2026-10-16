@@ -7,8 +7,22 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- `mtwnContextDef.sharedNodeCapacity` and `sharedRecordCapacity`
+  (defaults 128 and 64): the most nodes a clip may have for players in
+  step to share its sample, and the most records a sweep keeps to
+  share; 0 shares none and holds nothing for it (14,848 bytes a work
+  at the defaults, 17 works with a task system). `mtwnGrowContext`
+  takes any (record mtwn-0057).
+- `mtwnContext_GetSerialAdvances`: the clip players' advances a context
+  with a task system ran on the calling thread for want of a group's
+  room (record mtwn-0056).
+
 ### Changed
 
+- The context def grows by 8 bytes, so the ABI version is 0.4:
+  programs are built again against these headers.
 - Clip players share a track result or a sweep only when the time,
   rate and ends match the last one's bits, not only their values (0
   equals -0; record mtwn-0057): no result found to differ yet, so the

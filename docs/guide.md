@@ -420,7 +420,15 @@ in its group. The bench's 1,000 players stage at most 567 records a
 group in the frame where they all repeat. A player with targets of its
 own whose results might not fit its group's staging plays on the
 calling thread before it starts, as what a group writes in place
-cannot be undone.
+cannot be undone. `mtwnContext_GetSerialAdvances` counts these
+advances since the context was made; when it grows, larger binding or
+event capacities, or smaller clips, keep the players in their groups.
+
+Players of one clip at the same time and rate share their sample and
+records (record mtwn-0057). The sharing holds `sharedNodeCapacity`
+nodes and `sharedRecordCapacity` records on the calling thread and in
+each group, 14,848 bytes each at the defaults; a host whose players
+never run in step sets both to 0 and holds none of it.
 
 ## Growing
 

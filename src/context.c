@@ -37,7 +37,9 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
                        (def->enqueueTask == NULL) != (def->finishTask == NULL);
     bool valid = !oneFunction && IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
-                 IsCount(def->bindingCapacity) && def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
+                 IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
+                 IsCount(def->sharedRecordCapacity) &&
+                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
 
@@ -106,15 +108,17 @@ static uint32_t Works(const mtwnContextDef* def)
 }
 
 // Points a work's sharing at the k-th share of the block's.
-static void SetSharing(mtwnWork* work, unsigned char* block, const Layout* layout, uint32_t k)
+static void SetSharing(mtwnWork* work, const mtwnContextDef* def, unsigned char* block,
+                       const Layout* layout, uint32_t k)
 {
+    uint32_t nodes = def->sharedNodeCapacity;
+    uint32_t records = def->sharedRecordCapacity;
     work->sharing = (mtwnSharing){0};
-    work->sharing.tracks =
-        (mtwnSharedTrack*)(block + layout->sharedTracks) + (size_t)k * MTWN_SHARED_NODES;
+    work->sharing.tracks = (mtwnSharedTrack*)(block + layout->sharedTracks) + (size_t)k * nodes;
     work->sharing.records =
-        (mtwnSharedRecord*)(block + layout->sharedRecords) + (size_t)k * MTWN_SHARED_RECORDS;
-    work->sharing.trackCapacity = MTWN_SHARED_NODES;
-    work->sharing.recordCapacity = MTWN_SHARED_RECORDS;
+        (mtwnSharedRecord*)(block + layout->sharedRecords) + (size_t)k * records;
+    work->sharing.trackCapacity = nodes;
+    work->sharing.recordCapacity = records;
 }
 
 static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
@@ -150,10 +154,10 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
                   Place(&end, def->eventCapacity, sizeof(double), &layout->eventAlong) &&
                   Place(&end, MTWN_MAX_CLIP_DEPTH + 2u, sizeof(mtwnLevel), &layout->levels) &&
                   Place(&end, 1, sizeof(mtwnWork), &layout->serial) &&
-                  Place(&end, (uint64_t)Works(def) * MTWN_SHARED_NODES, sizeof(mtwnSharedTrack),
-                        &layout->sharedTracks) &&
-                  Place(&end, (uint64_t)Works(def) * MTWN_SHARED_RECORDS, sizeof(mtwnSharedRecord),
-                        &layout->sharedRecords) &&
+                  Place(&end, (uint64_t)Works(def) * def->sharedNodeCapacity,
+                        sizeof(mtwnSharedTrack), &layout->sharedTracks) &&
+                  Place(&end, (uint64_t)Works(def) * def->sharedRecordCapacity,
+                        sizeof(mtwnSharedRecord), &layout->sharedRecords) &&
                   Place(&end, def->targetCapacity, sizeof(uint32_t), &layout->changed) &&
                   PlanGroups(def, &end, layout);
     layout->bytes = end;
@@ -167,7 +171,7 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
     context->serial = (mtwnWork*)(block + layout->serial);
     *context->serial = (mtwnWork){0};
     context->serial->levels = context->levels;
-    SetSharing(context->serial, block, layout, 0);
+    SetSharing(context->serial, def, block, layout, 0);
     context->works = NULL;
     context->staged = NULL;
     context->writersStale = true;
@@ -192,7 +196,7 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
         work->changeCapacity = tracks;
         work->recordCapacity = records;
         work->trackCapacity = tracks;
-        SetSharing(work, block, layout, 1u + g);
+        SetSharing(work, def, block, layout, 1u + g);
     }
 }
 
@@ -370,6 +374,11 @@ void mtwnDestroyContext(mtwnContext* context)
 uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context)
 {
     return context->misuse;
+}
+
+uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context)
+{
+    return context->serialAdvances;
 }
 
 uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context)

@@ -120,3 +120,15 @@ more a sixteenth of twice the bindings); the earlier figure of about
 660 KB in all was stale, the measure now about 900 KB. Without the
 hooks the bench's frames cost up to 0.9% more instructions. The clips'
 code grew 4.0 kB (mtwn-0055, amended).
+
+## Amended 2026-10-16: the advances left serial, counted
+
+`mtwnContext_GetSerialAdvances` counts the clip players' advances a
+context with a task system ran on the calling thread since it was
+made: a clip of more than 128 nodes, targets of a player's own that
+might not fit its group's staging, a staging that ran out, and the
+players after those in their group. Counted in the serial pass, once an
+advance; 0 without a task system. As Jolt Physics names the capacity to
+raise when an update finds a cache full (`EPhysicsUpdateError`), a host
+seeing the count grow raises its binding or event capacities or splits
+a clip.

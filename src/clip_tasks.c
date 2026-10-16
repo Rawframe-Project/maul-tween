@@ -206,6 +206,7 @@ bool mtwnApplyStaged(mtwnContext* context, uint32_t player, double before, doubl
     (void)player;
     if (staged->serial)
     {
+        ++context->serialAdvances;
         staged->done = mtwnAdvanceClipPlayer(context, context->serial, staged->player, before, now);
         return staged->done;
     }

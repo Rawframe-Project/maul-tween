@@ -46,7 +46,7 @@ library with slower clip players and records that could miss a
 crossing where a frame landed on a held time's edge; 0.2.1, the day
 before, ran them on the calling thread only and several times slower;
 0.1.0 lacked staggers and reduced motion. The library has
-109 public functions.
+110 public functions.
 
 ## Building
 

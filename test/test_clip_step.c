@@ -61,18 +61,6 @@ static void Unreached(void* userTask, void* userContext)
     CHECK(false, "no wait for ranges run at once");
 }
 
-// Every work's sharing off: nothing kept, so nothing taken.
-static void SharingOff(mtwnContext* context)
-{
-    context->serial->sharing.trackCapacity = 0;
-    context->serial->sharing.recordCapacity = 0;
-    for (uint32_t g = 0; context->works != NULL && g < MTWN_GROUPS; ++g)
-    {
-        context->works[g].sharing.trackCapacity = 0;
-        context->works[g].sharing.recordCapacity = 0;
-    }
-}
-
 // The bench's clip, four numbers in a timeline repeating every second,
 // with marks in it and a nested timeline of a vector and a color, so the
 // players make records; scale sets the keyframes' values, markShift
@@ -190,11 +178,11 @@ static void MakeTwin(Twin* twin, bool on, bool tasks, uint32_t eventCapacity)
     def.eventCapacity = eventCapacity;
     def.enqueueTask = tasks ? RunNow : NULL;
     def.finishTask = tasks ? Unreached : NULL;
+    // Off, every work's sharing holds nothing: nothing kept, so nothing
+    // taken.
+    def.sharedNodeCapacity = on ? def.sharedNodeCapacity : 0;
+    def.sharedRecordCapacity = on ? def.sharedRecordCapacity : 0;
     CHECK(mtwnCreateContext(&def, &twin->context) == mtwn_success, "a context");
-    if (!on)
-    {
-        SharingOff(twin->context);
-    }
     for (uint32_t p = 0; p < s_players; ++p)
     {
         for (uint32_t s = 0; s < s_slots; ++s)

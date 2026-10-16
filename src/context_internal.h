@@ -272,6 +272,9 @@ struct mtwnContext
     // The block holding the context and everything in it, and its size.
     uint64_t blockBytes;
     uint64_t misuse;
+    // Clip players' advances a task system's groups left to the serial
+    // pass (mtwnContext_GetSerialAdvances).
+    uint64_t serialAdvances;
     uint64_t lastTimeNs;
     mtwnPool targets;
     mtwnPool players;
@@ -533,10 +536,6 @@ typedef struct mtwnSharedRecord
     mtwnEvent event;
     double along;
 } mtwnSharedRecord;
-
-// The most nodes and records a work shares among players in step.
-#define MTWN_SHARED_NODES   128u
-#define MTWN_SHARED_RECORDS 64u
 
 // What the last player in a work left for the next in step: the sample's
 // key and its tracks, and the sweep's key and its records. A player only

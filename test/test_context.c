@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The context and its targets (records mtwn-0004, mtwn-0006, mtwn-0028):
-// the def's checks, one block through the host's allocator, ids that go
+// the def's checks, one block through the host's allocator, the
+// sharing's capacities in its bytes, ids that go
 // stale and are reused last in first out, misuse counted, and values
 // stored to the bit.
 
@@ -93,9 +94,9 @@ static void TestDefRefusals(void)
     def = mtwnDefaultContextDef();
     def.allocator.alloc = CountAlloc;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "an allocator of one function");
-    uint32_t* counts[] = {&def.targetCapacity, &def.playerCapacity, &def.clipCapacity,
-                          &def.eventCapacity};
-    for (int i = 0; i < 4; ++i)
+    uint32_t* counts[] = {&def.targetCapacity, &def.playerCapacity,     &def.clipCapacity,
+                          &def.eventCapacity,  &def.sharedNodeCapacity, &def.sharedRecordCapacity};
+    for (int i = 0; i < 6; ++i)
     {
         def = mtwnDefaultContextDef();
         uint32_t* field = (uint32_t*)((char*)&def + ((char*)counts[i] - (char*)&def));
@@ -115,6 +116,52 @@ static void TestDefRefusals(void)
     def = mtwnDefaultContextDef();
     def.clipStorageBytes = (uint64_t)MTWN_MAX_CLIP_STORAGE + 1;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "clip storage past its maximum");
+}
+
+// The block's bytes for a def, its sharing's capacities set.
+static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records);
+
+// The sharing's capacities: 80 bytes a node and 72 a record in each work,
+// the serial one and with a task system each of the 16 groups'.
+static void TestSharingCapacities(void)
+{
+    uint64_t whole = BytesSharing(false, 128, 64);
+    CHECK(whole - BytesSharing(false, 0, 0) == 14848, "the default sharing, 14,848 bytes a work");
+    CHECK(whole - BytesSharing(false, 0, 64) == 128u * 80u &&
+              whole - BytesSharing(false, 128, 0) == 64u * 72u,
+          "each kind's own");
+    CHECK(BytesSharing(true, 128, 64) - BytesSharing(true, 0, 0) == 17u * 14848u,
+          "and every group's with a task system");
+}
+
+static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+                    void* userContext)
+{
+    (void)minRange;
+    (void)userContext;
+    task(0, itemCount, taskContext);
+    return NULL;
+}
+
+static void FinishNone(void* handle, void* userContext)
+{
+    (void)handle;
+    (void)userContext;
+}
+
+static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = tasks ? RunNow : NULL;
+    def.finishTask = tasks ? FinishNone : NULL;
+    def.sharedNodeCapacity = nodes;
+    def.sharedRecordCapacity = records;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "made");
+    uint64_t bytes = mtwnContext_GetMemoryBytes(context);
+    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "no advance left serial yet");
+    mtwnDestroyContext(context);
+    return bytes;
 }
 
 static mtwnContext* Make(uint32_t targets)
@@ -301,6 +348,7 @@ int main(void)
     TestReadRefusals();
     TestCreate();
     TestDefRefusals();
+    TestSharingCapacities();
     TestIds();
     TestRetire();
     TestValues();

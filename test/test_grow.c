@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Growing a context (record mtwn-0041): only when asked, to capacities at
-// least its own, with its own allocator; every id, a playing clip, a
-// running transition, the queued records and the free slots carried over;
-// on a refusal or an allocator's failure nothing changes.
+// least its own (the sharing's any), with its own allocator; every id, a
+// playing clip, a running transition, the queued records and the free
+// slots carried over; on a refusal or an allocator's failure nothing
+// changes.
 
 #include "test_harness.h"
 
@@ -192,6 +193,16 @@ static void TestGrow(void)
               changed[0].index1 == b.index1 && changed[1].index1 == a.index1,
           "the change made before growing reported, then the clip's");
     CHECK(ValueOf(context, a) == 2.0f && ValueOf(context, b) == 0.0f, "and they play on");
+    // The sharing is a cache made again: any capacities, here none, its
+    // 14,848 bytes no longer held.
+    mtwnContextDef unshared = bigger;
+    unshared.sharedNodeCapacity = 0;
+    unshared.sharedRecordCapacity = 0;
+    uint64_t shared = mtwnContext_GetMemoryBytes(context);
+    CHECK(mtwnGrowContext(&context, &unshared) == mtwn_success &&
+              mtwnContext_GetMemoryBytes(context) == shared - 14848u,
+          "grown with no sharing, holding less");
+    CHECK(ValueOf(context, a) == 2.0f, "the values carried again");
     mtwnEvent e[8];
     uint32_t n = 0;
     // Queued before: the track's start and the first transition's; after,
