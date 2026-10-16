@@ -14,9 +14,10 @@
 // the best of five runs (the updates' best of 50). Given a baseline
 // file, such as bench/baseline.txt, it prints each result's ratio to the
 // recorded one as well. With --count and a layout of the clip players
-// (step, spread, clips, repeat) and a number of updates, or a values case
-// (oklab, oklch, slerp, path, track) and a number of samples, it runs
-// only those, for an instruction counter.
+// (step, spread, clips, repeat) and a number of updates, and the clip's
+// period if not 1 s, or a values case (oklab, oklch, slerp, path, track)
+// and a number of samples, it runs only those, for an instruction
+// counter.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -58,6 +59,9 @@ static char s_baseline[16384];
 
 // Keeps the samples' results alive.
 static volatile double s_sink;
+// The clip's period in seconds: 1, or as --count is given, so that a
+// repeat can fall on every other frame (record mtwn-0043).
+static double s_period = 1.0;
 
 // The value the baseline records for a name, or 0.
 static double Recorded(const char* name)
@@ -383,7 +387,7 @@ static mtwnClipId MakeClip(mtwnContext* context)
     Check(mtwnCreateClip(context, &clipDef, &clip), "a clip");
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
     group.autoDuration = false;
-    group.timing.duration = 1.0;
+    group.timing.duration = s_period;
     group.timing.iterations = HUGE_VAL;
     mtwnNode loop;
     Check(mtwnClip_AddTimeline(context, clip, &group, &loop), "a timeline");
@@ -402,7 +406,7 @@ static mtwnClipId MakeClip(mtwnContext* context)
         track.slot = t;
         track.keyframes = keys;
         track.keyframeCount = 3;
-        track.timing.duration = 1.0;
+        track.timing.duration = s_period;
         mtwnNode node;
         Check(mtwnClip_AddTrack(context, clip, &track, &node), "a track");
     }
@@ -525,6 +529,11 @@ static void ReadBaseline(const char* path)
 
 int main(int argc, char** argv)
 {
+    if (argc == 5 && strcmp(argv[1], "--count") == 0)
+    {
+        s_period = atof(argv[4]);
+        return Count(argv[2], atoi(argv[3]));
+    }
     if (argc == 4 && strcmp(argv[1], "--count") == 0)
     {
         return Count(argv[2], atoi(argv[3]));

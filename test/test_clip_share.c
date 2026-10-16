@@ -6,7 +6,8 @@
 // way (its start, its duration, its easing's exponent, its parent), one
 // sharing track follows an unbound one, and every target is checked
 // against the values layer's own timing and sample of its track. Host
-// easings are called as often in a row as apart.
+// easings are called as often in a row as apart, and players paused at
+// rates of 0 and -0 each get what they get alone.
 
 #include "test_harness.h"
 
@@ -157,6 +158,88 @@ static void TestDiffering(void)
     mtwnDestroyContext(context);
 }
 
+// A host easing that tells 0 from -0, as a host's function may.
+static double SignAware(void* context, double progress)
+{
+    (void)context;
+    return signbit(progress) ? 0.5 : progress;
+}
+
+// The values a paused player's target holds, its clip's track eased by
+// SignAware: each rate's player made in turn in one context, every
+// player's target read after two updates.
+static void HeldValues(const double* rates, uint32_t count, float* valuesOut)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip = {0, 0};
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, SignAware, NULL, &track.timing.easing) == mtwn_success,
+          "a host easing");
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a clip of one track");
+    mtwnTargetId targets[2];
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &targets[i]) ==
+                  mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnBind(0, targets[i]);
+        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        player.clip = clip;
+        player.bindings = &binding;
+        player.bindingCount = 1;
+        player.rate = rates[i];
+        mtwnPlayerId id = {0, 0};
+        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    }
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, 400000000u, NULL, 0, NULL) == mtwn_success,
+          "the updates");
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        mtwnVec4 value = {0};
+        CHECK(mtwnTarget_GetValue(context, targets[i], &value) == mtwn_success, "a value");
+        valuesOut[i] = value.x;
+    }
+    mtwnDestroyContext(context);
+}
+
+// Rates of 0 and -0 are equal, but a player's time is its rate times
+// the time since it started, 0 or -0. A player shares another's results
+// only when its time and rate match the other's bits, so each gets what
+// it gets alone; today the time reaches an easing as 0 either way (an
+// iteration's progress is a difference), and this holds if that changes.
+static void TestSignedZero(void)
+{
+    static const double s_rates[2] = {0.0, -0.0};
+    float together[2];
+    float alone[2];
+    HeldValues(s_rates, 2, together);
+    HeldValues(&s_rates[0], 1, &alone[0]);
+    HeldValues(&s_rates[1], 1, &alone[1]);
+    if (together[0] != alone[0] || together[1] != alone[1])
+    {
+        printf("  values %g %g, alone %g %g\n", (double)together[0], (double)together[1],
+               (double)alone[0], (double)alone[1]);
+    }
+    CHECK(together[0] == alone[0] && together[1] == alone[1],
+          "each paused player's value as it is alone");
+}
+
 static int s_calls;
 
 static double Counted(void* context, double progress)
@@ -229,5 +312,6 @@ int main(void)
 {
     TestDiffering();
     TestHostEasing();
+    TestSignedZero();
     return s_failures == 0 ? 0 : 1;
 }

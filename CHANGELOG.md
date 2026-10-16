@@ -7,6 +7,20 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- Clip players share a track result or a sweep only when the time,
+  rate and ends match the last one's bits, not only their values (0
+  equals -0; record mtwn-0057): no result found to differ yet, so the
+  sharing's same-bits rule rests on its inputs alone.
+- A count of whole iterations of 0 adds nothing to a record's count
+  instead of multiplying a constant that may be infinite (record
+  mtwn-0037).
+- The bench's `--count` takes a clip period, and the gate holds its
+  frames and samples to the instruction bounds in `bench/counts.txt`
+  (`tools/bench_counts.py`, record mtwn-0043): a shortcut lost changes
+  no result, only the count.
+
 ## [0.3.1] - 2026-10-16
 
 Clip players faster again, and their records right at the edges: in

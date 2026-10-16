@@ -65,3 +65,10 @@ The bench's 1,000 players on clips of their own, all repeating in one
 frame: 25.9 to 22.7 million instructions, 3.8 times the average frame.
 A random test compares counts and found times with and without the
 level left out.
+
+## Amended 2026-10-16: a zero count adds nothing
+
+A count of whole iterations of 0 adds no term instead of multiplying
+its constant: a constant may be infinite (an endless point level), and
+0 times infinity is not 0. No test reaches such a pair yet; the term
+skipped costs nothing measured.

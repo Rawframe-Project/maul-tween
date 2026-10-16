@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 // A target: 64 bytes. Its header's link names its transition.
 typedef struct mtwnTargetSlot
@@ -330,6 +331,17 @@ struct mtwnContext
     bool countEvery;
     uint32_t playingOn;
 };
+
+// Whether two doubles are the same bits: a key's inputs, where -0 and +0
+// (and a rate's sign) differ and NaN is one value.
+static inline bool mtwnSameBits(double a, double b)
+{
+    uint64_t x = 0;
+    uint64_t y = 0;
+    memcpy(&x, &a, sizeof x);
+    memcpy(&y, &b, sizeof y);
+    return x == y;
+}
 
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)
 {

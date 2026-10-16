@@ -68,3 +68,15 @@ player alone, bit for bit.
   a clip made in a destroyed clip's slot, on held players at a track's
   start in both directions, and on each input of a sweep's key apart
   from the last kept; after every update they hold the same bits.
+
+## Amended 2026-10-16: keys by bits
+
+A key's times, rates and ends are compared by their bits, not as
+values: 0 and -0 are equal values, so a value compare rests on every
+path giving the same bits for both. None was found to differ (a
+player's time is its rate times the time since it started, -0 at rate
+-0, but an iteration's progress is a difference and reaches an easing
+as 0), and `test_clip_share` holds players paused at 0 and -0, with a
+host easing that tells them apart, to what each gives alone. Compared
+by bits, a shared result is the one its own inputs would give, whatever
+a later path does with a sign; the counts are unchanged.

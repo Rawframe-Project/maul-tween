@@ -26,7 +26,8 @@ context: allocator context_internal pool
 target: context_internal pool
 transition: context_internal easing_internal fpenv pool spring_internal
 update: context_internal easing_internal fpenv pool
-path: elementary
+path: elementary path_internal
+path_internal:
 clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs

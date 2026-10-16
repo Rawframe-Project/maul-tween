@@ -271,6 +271,21 @@ static void TestMisuse(void)
 // get a third.
 static void TestUniformDraw(void)
 {
+    // The draw's exact values where it redraws: over 3 * 2^30 places a
+    // quarter of the draws are taken again, here 7 of the 16. No seeded
+    // order of a few items redraws (about one draw in 10^9), so these pin
+    // that path.
+    static const uint32_t expected[16] = {54078881u,   1457417356u, 803475172u,  1507382136u,
+                                          1056809148u, 432476251u,  1330821592u, 333589940u,
+                                          3091970825u, 2957148071u, 2783163489u, 1766157392u,
+                                          1994327050u, 2439504859u, 343686484u,  1109527889u};
+    uint64_t pinned = 7;
+    bool same = true;
+    for (int i = 0; i < 16; ++i)
+    {
+        same = same && mtwnUniformBelow(&pinned, 3u << 30) == expected[i];
+    }
+    CHECK(same && pinned == 0x36fbefaa6fb125eau, "the redraws' values and the draws they take");
     uint64_t state = 7;
     uint32_t multiples = 0;
     enum

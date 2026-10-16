@@ -47,3 +47,16 @@ A target missed is fixed, or changed by a record that says why.
 The benchmark prints every timed target; `bench/baseline.txt` keeps
 the numbers of a quiet run, and sizes are checked when a release is
 made.
+
+## Amended 2026-10-16: instruction bounds in the gate
+
+A shortcut lost changes no result, so no test sees it. The gate runs
+`tools/bench_counts.py` on its GCC 14 Release build: each line of
+`bench/counts.txt` bounds a bench layout's frame or a values case's
+sample in instructions (`perf stat -e instructions:u`, one frame the
+difference of two runs), about 3% above the counts at 0.3.1, with a
+clip period where a layout's players must repeat often. With the open
+start's shortcut off, the clips at a period of 0.032 s count 12.2
+million against a bound of 11.43; measuring a path's length from the
+far end, 2,324 against 1,990. A bound is restated by a record when a
+change costs more on purpose.

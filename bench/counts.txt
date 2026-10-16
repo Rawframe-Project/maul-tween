@@ -1,0 +1,20 @@
+# Instructions a frame or a sample takes in maul-tween_bench, counted by
+# tools/bench_counts.py, and the bound each may not pass (record
+# mtwn-0043). Counted on the gate's build: x86-64, GCC 14, Release
+# (-O3), Linux. Each bound is about 3% over its count when set, at
+# maul-tween 0.3.1 with the reviews' slice that added this file; a
+# bound moves only with a recorded reason.
+#
+# name   runs   bound     period
+step     300    1815000
+spread   300    6120000
+clips    300    6105000
+# Repeating every other frame, half the frames starting on a repeat:
+# the sweeps from a boundary leave out what they cannot cross.
+clips    300    11430000  0.032
+repeat   1      17030000
+path     100000 1990
+track    100000 272
+oklab    100000 1520
+oklch    100000 1695
+slerp    100000 610

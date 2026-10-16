@@ -15,6 +15,7 @@
 #include "maul-tween/path.h"
 
 #include "elementary.h"
+#include "path_internal.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -484,8 +485,10 @@ static uint32_t FindSegment(const mtwnPath* path, double key, bool byLength)
 }
 
 // The parameter at a length into a segment of that total, by Newton on
-// the length, kept within a shrinking bracket.
-static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, double total)
+// the length, kept within a shrinking bracket; the lengths it measures
+// counted in *lengths when not NULL.
+static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, double total,
+                          uint32_t* lengths)
 {
     if (target <= 0.0 || target >= total)
     {
@@ -498,6 +501,7 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
     // Measured from the nearer end, the shorter way.
     double at =
         u <= 0.5 ? Length(cubic, channels, 0.0, u) : total - Length(cubic, channels, u, 1.0);
+    uint32_t measured = 1;
     for (int step = 0; step < s_newtonSteps; ++step)
     {
         double error = at - target;
@@ -536,8 +540,13 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
         else
         {
             at += next > u ? Length(cubic, channels, u, next) : -Length(cubic, channels, next, u);
+            ++measured;
         }
         u = next;
+    }
+    if (lengths != NULL)
+    {
+        *lengths += measured;
     }
     return u;
 }
@@ -553,7 +562,7 @@ static double Eased(const mtwnPath* path, uint32_t i, double progress)
 
 // The segment a progress falls in and the parameter within it.
 static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
-                   Cubic* cubic)
+                   Cubic* cubic, uint32_t* lengths)
 {
     uint32_t i = 0;
     double u = 0.0;
@@ -564,8 +573,9 @@ static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, 
         i = FindSegment(path, distance, true);
         SegmentCubic(path, i, cubic);
         double length = path->lengths[i + 1] - path->lengths[i];
-        u = length > 0.0 ? ParameterAt(cubic, path->channels, distance - path->lengths[i], length)
-                         : 1.0;
+        u = length > 0.0
+                ? ParameterAt(cubic, path->channels, distance - path->lengths[i], length, lengths)
+                : 1.0;
     }
     else
     {
@@ -598,7 +608,8 @@ static void SampleLinear(const mtwnPath* path, uint32_t i, double u, double valu
     }
 }
 
-void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueOut[4],
+                            double tangentOut[4], uint32_t* lengths)
 {
     if (path->lengths == NULL)
     {
@@ -613,7 +624,7 @@ void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], d
     Cubic cubic;
     uint32_t i = 0;
     double u = 0.0;
-    Locate(path, progress, &i, &u, &cubic);
+    Locate(path, progress, &i, &u, &cubic, lengths);
     double end[4];
     Load(path->keyframes[i + 1].value, end);
     Evaluate(&cubic, end, u, path->channels, valueOut, tangentOut);
@@ -625,6 +636,11 @@ void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], d
             tangentOut[c] = 0.0;
         }
     }
+}
+
+void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+{
+    mtwnSamplePathCounting(path, progress, valueOut, tangentOut, NULL);
 }
 
 static const uint8_t s_kindChannels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1};
@@ -801,7 +817,7 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
     Cubic cubic;
     uint32_t i = 0;
     double u = 0.0;
-    Locate(path, progress, &i, &u, &cubic);
+    Locate(path, progress, &i, &u, &cubic, NULL);
     const mtwnKeyframe* k = path->keyframes;
     mtwnSegmentKind kind = k[i].kind;
     mtwnVec4 held = u >= 1.0 ? k[i + 1].value : k[i].value;

@@ -463,10 +463,12 @@ static bool SameSweep(const mtwnSharing* sharing, const SweepKey* key)
 {
     return sharing->sweepValid && sharing->sweepClip.index1 == key->clip.index1 &&
            sharing->sweepClip.generation == key->clip.generation &&
-           sharing->fromNone == key->fromNone && (key->fromNone || sharing->from == key->from) &&
-           sharing->to == key->to && sharing->sweepRate == key->rate &&
-           sharing->hostFrom == key->hostFrom && sharing->hostTo == key->hostTo &&
-           sharing->turning == key->turning && sharing->negative == key->negative;
+           sharing->fromNone == key->fromNone &&
+           (key->fromNone || mtwnSameBits(sharing->from, key->from)) &&
+           mtwnSameBits(sharing->to, key->to) && mtwnSameBits(sharing->sweepRate, key->rate) &&
+           mtwnSameBits(sharing->hostFrom, key->hostFrom) &&
+           mtwnSameBits(sharing->hostTo, key->hostTo) && sharing->turning == key->turning &&
+           sharing->negative == key->negative;
 }
 
 static void KeepSweep(mtwnSharing* sharing, const SweepKey* key)

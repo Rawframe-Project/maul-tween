@@ -603,8 +603,9 @@ static bool InStep(const mtwnSharing* sharing, const mtwnClipPlay* play, double 
                    double rate, bool backwards)
 {
     return sharing->sampleValid && sharing->sampleClip.index1 == play->clip.index1 &&
-           sharing->sampleClip.generation == play->clip.generation && sharing->current == current &&
-           sharing->rate == rate && sharing->backwards == backwards;
+           sharing->sampleClip.generation == play->clip.generation &&
+           mtwnSameBits(sharing->current, current) && mtwnSameBits(sharing->rate, rate) &&
+           sharing->backwards == backwards;
 }
 
 void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play, double current,

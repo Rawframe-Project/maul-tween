@@ -238,8 +238,14 @@ static void Add(mtwnCrossings* sum, double sign, bool swap, mtwnCrossings pair)
     sum->opposite += sign * (swap ? pair.same : pair.opposite);
 }
 
+// A pair times a count of iterations; none for none, so a constant left
+// unwalked (0) or endless (a count may be infinite) never meets 0 * c.
 static mtwnCrossings Scaled(mtwnCrossings pair, double times)
 {
+    if (times == 0.0)
+    {
+        return (mtwnCrossings){0.0, 0.0};
+    }
     return (mtwnCrossings){pair.same * times, pair.opposite * times};
 }
 

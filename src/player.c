@@ -336,7 +336,8 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     // advanced is near it, and may take its results (record mtwn-0057).
     double current = CurrentTime(play, now);
     mtwnSharing* sharing = &work->sharing;
-    bool near = sharing->nearClip == play->clip.index1 && sharing->nearCurrent == current;
+    bool near =
+        sharing->nearClip == play->clip.index1 && mtwnSameBits(sharing->nearCurrent, current);
     sharing->nearClip = play->clip.index1;
     sharing->nearCurrent = current;
     if (near)
