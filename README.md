@@ -86,17 +86,20 @@ and with `--map` shows what links a part in. A program that never makes
 a clip's player links none of the players, clips' sampling,
 composition, paths or crossings (record mtwn-0047).
 
-| The program uses | Default build | Built with `-ffunction-sections` | Budget |
-|---|---|---|---|
-| curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 23 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.3 kB | 36.7 kB | 48 kB |
-| transitions: a context, targets and transitions | 48.5 kB | 40.4 kB | 50 kB |
-| clips: clips, players, events | 113.8 kB | 90.6 kB | 118 kB |
-| everything | 123.5 kB | 123.5 kB | 128 kB |
+| The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
+|---|---|---|---|---|
+| curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 18.6 kB | 23 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.6 kB | 36.8 kB | 39.0 kB | 48 kB |
+| transitions: a context, targets and transitions | 48.5 kB | 40.5 kB | 42.7 kB | 50 kB |
+| clips: clips, players, events | 114.3 kB | 91.1 kB | 92.9 kB | 118 kB |
+| everything | 124.4 kB | 124.2 kB | 105.3 kB | 128 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets
-apply to the default build (records mtwn-0051 and mtwn-0055):
+apply to GCC 14's default build on x86-64 only; the Clang 20 column
+(`--cc clang-20` on a Clang Release build) is kept beside them so that
+a growth one compiler shows and the other does not is seen as the
+compiler's, not the library's (records mtwn-0051 and mtwn-0055).
 `--budget` fails past one, and growing past one takes a recorded
 decision.
 
