@@ -121,6 +121,29 @@ more a sixteenth of twice the bindings); the earlier figure of about
 hooks the bench's frames cost up to 0.9% more instructions. The clips'
 code grew 4.0 kB (mtwn-0055, amended).
 
+## Amended 2026-10-16: measured again on threads
+
+The same harness as the first measure, the builds before and after the
+composing in the groups run in turn, three rounds, load average 9.7 to
+11.5 on 24 threads (medians, microseconds; "rest" is the update outside
+the groups' span):
+
+| Layout | Workers | Before: update, rest | After: update, rest | Speed-up after |
+| --- | ---: | ---: | ---: | ---: |
+| clips | 1 | 407.4, 58.6 | 416.1, 16.7 | 0.92 |
+| clips | 8 | 190.3, 121.5 | 89.0, 25.4 | 4.32 |
+| clips | 16 | 226.6, 167.9 | 79.0, 28.6 | 4.87 |
+| spread | 8 | 193.8, 126.6 | 98.7, 26.5 | 3.80 |
+| repeat | 1 | 1201.5, 58.1 | 1188.6, 17.1 | 0.97 |
+| repeat | 8 | 291.3, 121.9 | 189.1, 25.8 | 6.08 |
+| repeat | 16 | 331.4, 168.9 | 183.1, 28.8 | 6.28 |
+
+The rest is 17 to 29 microseconds at every worker count, and 16 workers
+are now faster than 8. On one worker the hooks still cost more than
+updating without them: 5.5% more instructions for a steady frame and
+2.7% for the repeat (5.1% and 2.5% before), the staging's bookkeeping
+for each player; making that cheaper is its own work.
+
 ## Amended 2026-10-16: the advances left serial, counted
 
 `mtwnContext_GetSerialAdvances` counts the clip players' advances a
