@@ -33,3 +33,17 @@ at 4 to 6 kB.
 The speed work is paid for in size, about 5.7 kB, and named here; the
 check on every commit stays. A part growing past 118 kB before 0.3.0
 again takes a record.
+
+## Restated at 0.3.0
+
+Measured at the release (x86-64, GCC 14 Release): curves 21.8 kB,
+values 45.6, transitions 48.5, clips 114.3, everything 124.4. The
+budgets, about 6% over each by mtwn-0051's rule: curves 23 kB, values
+48, transitions 51, clips 121, everything 132. The interim budgets
+end. Since the interim budgets the clips part grew 4.4 kB (109.9 to
+114.3): 3.9 for the task system, against the 4 to 6 estimated, and the
+other 0.5 for the reviews' answers since (the reduced-motion count
+among them);
+transitions grew 1.2 kB with the context's planning of the groups'
+scratch.
+

@@ -7,6 +7,14 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-16
+
+Clip players on the host's task system, and clip players several times
+faster: the average frame of the bench's 1,000 looping players from
+22.5 to 6.0 million instructions, its repeat frame from 1,060 to 25.8
+million. The context def's layout changes, so programs built against
+0.2 headers are refused with mtwn_errorVersion until rebuilt.
+
 ### Added
 
 - `mtwnContext_GetPlayingOnCount` and `mtwnPlayerState.playsOnReduced`:
