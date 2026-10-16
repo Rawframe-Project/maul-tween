@@ -206,12 +206,18 @@ static const double s_missedMargin = 1e-6;
 // timeline above (its child time monotonic, timelines' easings being so),
 // both ends clearly inside those iterations, so it covered the span
 // between its two ends, and a point well outside was not crossed (record
-// mtwn-0042). False when unsure, NaN included.
+// mtwn-0042). And a point the parent's time stood on at an open start of
+// the sweep, moving from there: the sweep before crossed it. False when
+// unsure, NaN included.
 static bool Missed(const mtwnNodeTime* parent, double from, double to)
 {
     if (!parent->sure)
     {
         return false;
+    }
+    if (parent->openStart && from == to && from == parent->before)
+    {
+        return true;
     }
     double low = parent->now < parent->before ? parent->now : parent->before;
     double high = parent->now < parent->before ? parent->before : parent->now;
@@ -238,10 +244,11 @@ static bool Inside(double child, double duration)
     return offStart && offEnd;
 }
 
-// A timeline's child times at the sweep's ends, and whether it stayed in
-// one iteration.
+// A timeline's child times at the sweep's ends, whether it stayed in one
+// iteration, and whether it moved at the sweep's start.
 static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTime* out)
 {
+    bool movingAtStart = false;
     mtwnTiming timing = n->timing;
     timing.fill = mtwn_fillBoth;
     double ends[2] = {parent->now, parent->before};
@@ -252,6 +259,11 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
         mtwnTimingResult result;
         mtwnComputeTiming(&timing, ends[k] - n->start, false, &result);
         iterations[k] = result.iteration;
+        if (k == 1)
+        {
+            // Inside its active interval, off a repeat delay: not held.
+            movingAtStart = result.phase == mtwn_phaseActive && !result.inRepeatDelay;
+        }
         children[k] = isinf(timing.duration)
                           ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)
                           : result.transformedProgress * timing.duration;
@@ -259,8 +271,14 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
     out->now = children[0];
     out->before = children[1];
     out->steady = parent->steady && iterations[0] == iterations[1];
+    out->openStart = parent->openStart && movingAtStart;
+    // Its time at the sweep's start may lie on an iteration's start or end
+    // when that start is open and it moves from there: the sweep before
+    // crossed the boundary, and this one's crossings are one child time
+    // each as inside.
+    bool fromBoundary = out->openStart && (children[1] == 0.0 || children[1] == timing.duration);
     out->sure = parent->sure && out->steady && Inside(children[0], timing.duration) &&
-                Inside(children[1], timing.duration);
+                (Inside(children[1], timing.duration) || fromBoundary);
 }
 
 // Whether no iteration of a node started over the sweep: its parent sure,
@@ -470,8 +488,9 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     sweep.guess = (double)NAN;
     sweep.replayNode = 0;
     sweep.replayCount = 0;
-    // The player's time is the root's parent's, and moves one way.
-    mtwnNodeTime top = {to, sweep.from, false, true, true, {0}};
+    // The player's time is the root's parent's, and moves one way; unsure
+    // when a test asks every record counted, so nothing is left out.
+    mtwnNodeTime top = {to, sweep.from, false, true, !context->countEvery, !sweep.fromClosed, {0}};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* n = &clip->nodes[i];
@@ -481,7 +500,7 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
         {
             if (still)
             {
-                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, {0}};
+                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, false, {0}};
             }
             else
             {

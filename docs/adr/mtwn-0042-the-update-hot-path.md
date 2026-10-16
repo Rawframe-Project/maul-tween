@@ -37,3 +37,28 @@ The scenario hash of every target's state and every event record is
 unchanged, and so are the events of 1,200,000 random clips of nested
 timelines under random controls. Timings are in the commit that made
 them and in `bench/baseline.txt`.
+
+## Amended 2026-10-16: a sweep that starts on a boundary
+
+A frame that starts exactly where the last one crossed an iteration's
+boundary failed the margin at that end, so every record of the clip was
+counted: on 1,000 players of clips of their own repeating every other
+frame, 12.0 million instructions in the frames between repeats against
+5.5 million in a steady frame. When the sweep's start is open (it was
+the last sweep's closed end), two more cases are left out:
+
+- a timeline whose time at the sweep's start lies exactly on an
+  iteration's start or end, and moves from there, counts as within one
+  iteration: the boundary was crossed by the sweep before;
+- an instant exactly at the parent's time at the sweep's start is not
+  crossed: the sweep before crossed it at its end.
+
+Both hold only where every timeline above, at the sweep's start, is in
+its active interval and off a repeat delay: a time held there (after a
+timeline's end, in a delay) can leave the instant inside the sweep, and
+that is a crossing. The frames between repeats: 12.0 to 5.6 million
+instructions. A whitebox test plays 600 random clips (nested timelines,
+delays, iteration starts, directions, rates, repeat delays; frames on
+the boundaries and irregular ones; forwards, backwards, turning,
+slowing) in twin contexts, one counting every record, and checks the
+same records bit for bit.

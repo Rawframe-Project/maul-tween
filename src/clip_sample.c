@@ -411,8 +411,8 @@ static void SharedResult(const mtwnClipNode* node, const mtwnBound* bound, doubl
     {
         TrackTimes t = {shared->progress, shared->iteration, shared->earlier,
                         shared->earlierIteration, shared->earlierKnown};
-        mtwnNodeTime parent = {0.0, shared->parentBefore, shared->parentBackwards, false, false,
-                               {0}};
+        mtwnNodeTime parent = {
+            0.0, shared->parentBefore, shared->parentBackwards, false, false, false, {0}};
         KnowEarlier(&t, node, &parent, place->moving);
         shared->earlier = t.earlier;
         shared->earlierIteration = t.earlierIteration;
@@ -524,7 +524,8 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
     mtwnNodeTime* times = work->times != NULL ? work->times : clip->times;
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
-    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, false, {0}};
+    mtwnNodeTime player = {current, current - rate * s_velocitySpan, backwards, false, false, false,
+                           {0}};
     TimelineTimes(&clip->nodes[0], &player, moving, &times[0]);
     // The last track's timing results, for the tracks after it that share
     // its timing; 0 when none is kept.

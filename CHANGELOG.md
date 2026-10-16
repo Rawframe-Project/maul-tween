@@ -36,6 +36,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   (record mtwn-0053, amended): the bench's 1,000 players on clips of
   their own, all repeating in one frame, from 22.5 to 17.75 million
   instructions.
+- A frame starting exactly on an iteration's boundary leaves out what it
+  cannot cross, and a crossing's search starts from a guess just past
+  the sweep's end (records mtwn-0042 and mtwn-0053, amended): the
+  bench's 1,000 players on clips of their own, repeating every other
+  frame, from 15.2 to 11.7 million instructions a frame on average.
 
 ### Added
 

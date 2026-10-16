@@ -719,17 +719,25 @@ static bool Beyond(bool up, int64_t a, int64_t b)
     return up ? b > a : b < a;
 }
 
-// A guess past the near end, up to the far one, is tested, and when it
-// counts so is its neighbour toward the near end: a right guess leaves
-// the two neighbours the halving ends with.
+// A guess past the near end is tested, and when it counts so is its
+// neighbour toward the near end: a right guess leaves the two neighbours
+// the halving ends with. A guess past the far end is the far end, which
+// counts: an interpolated guess can pass the sweep's end by a double.
 static void TestGuess(Search* search, double guess)
 {
     int64_t g = isnan(guess) ? search->near : Ordered(guess);
-    if (!Beyond(search->up, search->near, g) || Beyond(search->up, search->far, g))
+    if (!Beyond(search->up, search->near, g))
     {
         return;
     }
-    Test(search, g);
+    if (Beyond(search->up, search->far, g))
+    {
+        g = search->far;
+    }
+    else
+    {
+        Test(search, g);
+    }
     int64_t before = search->up ? g - 1 : g + 1;
     if (search->far == g && Beyond(search->up, search->near, before))
     {

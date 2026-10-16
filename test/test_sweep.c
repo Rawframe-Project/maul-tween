@@ -1,0 +1,215 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// What a sweep leaves out changes nothing (records mtwn-0042, mtwn-0053):
+// twin contexts play one random clip, one counting every record and one
+// leaving out what its parent certainly did not cross or where no
+// iteration started, and hold the same records, bit for bit. The clips
+// nest timelines and tracks with delays, iteration starts, directions and
+// rates and repeat delays on times of 1/64 s; frames of 1/64 s start on
+// their boundaries, irregular ones do not; players run forwards, and
+// backwards from 2.5 s into what they held after their end, some turning
+// or slowing on the way.
+
+#include "context_internal.h"
+#include "test_harness.h"
+
+#include "maul-tween/clip.h"
+#include "maul-tween/event.h"
+#include "maul-tween/player.h"
+#include "maul-tween/target.h"
+
+#include <math.h>
+#include <stdint.h>
+#include <string.h>
+
+// Random numbers from a fixed seed (xorshift64).
+static uint64_t s_state = 1;
+
+static double Random(void)
+{
+    s_state ^= s_state << 13;
+    s_state ^= s_state >> 7;
+    s_state ^= s_state << 17;
+    return (double)(s_state >> 11) * 0x1p-53;
+}
+
+static int Pick(int n)
+{
+    return (int)(Random() * n);
+}
+
+static double Sixtyfourths(void)
+{
+    return (1 + Pick(16)) / 64.0;
+}
+
+static mtwnPosition At(double offset)
+{
+    mtwnPosition position;
+    memset(&position, 0, sizeof position);
+    position.offset = offset;
+    return position;
+}
+
+// A random timing on times of 1/64 s.
+static void RandomTiming(mtwnTiming* t, bool timeline)
+{
+    t->duration = Sixtyfourths() * (1 + Pick(3));
+    t->iterations = Pick(4) == 0 && timeline ? HUGE_VAL : 1 + Pick(4) + (Pick(3) == 0 ? 0.5 : 0.0);
+    t->delay = Pick(3) == 0 ? Sixtyfourths() : 0.0;
+    t->iterationStart = Pick(4) == 0 ? 0.25 * Pick(4) : 0.0;
+    t->direction = (mtwnDirection)Pick(4);
+    t->playbackRate = Pick(5) == 0 ? 2.0 : 1.0;
+    t->repeatDelay = Pick(6) == 0 ? Sixtyfourths() : 0.0;
+}
+
+static void AddTrack(mtwnContext* context, mtwnClipId clip, mtwnNode parent)
+{
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = parent;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.position = At(Pick(2) == 0 ? 0.0 : Sixtyfourths());
+    RandomTiming(&track.timing, false);
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
+}
+
+// The clip of a seed in a context of its own, and its player at the rate.
+static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPlayerId* idOut)
+{
+    s_state = 88172645463325252u ^ (seed * 0x9E3779B97F4A7C15u);
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.eventCapacity = 1024;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    context->countEvery = countEvery;
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnNode nodes[3] = {MTWN_ROOT_NODE, MTWN_ROOT_NODE, MTWN_ROOT_NODE};
+    int timelines = 1 + Pick(3);
+    for (int k = 0; k < timelines; ++k)
+    {
+        mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+        group.parent = k > 0 ? nodes[Pick(k)] : MTWN_ROOT_NODE;
+        group.autoDuration = false;
+        RandomTiming(&group.timing, true);
+        CHECK(mtwnClip_AddTimeline(context, clip, &group, &nodes[k]) == mtwn_success, "a timeline");
+    }
+    for (int k = 1 + Pick(3); k > 0; --k)
+    {
+        AddTrack(context, clip, nodes[Pick(timelines)]);
+    }
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddMark(context, clip, nodes[Pick(timelines)], At(Sixtyfourths()), 7, &mark) ==
+              mtwn_success,
+          "a mark");
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnTargetId target;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+          "a target");
+    mtwnBinding binding = mtwnBind(0, target);
+    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    player.clip = clip;
+    player.bindings = &binding;
+    player.bindingCount = 1;
+    player.keep = true;
+    player.rate = rate;
+    CHECK(mtwnCreatePlayer(context, &player, idOut) == mtwn_success, "a player");
+    if (rate < 0.0)
+    {
+        CHECK(mtwnPlayer_Seek(context, *idOut, 2.5) == mtwn_success, "sought");
+    }
+    return context;
+}
+
+// FNV-1a over a frame's records.
+static void HashRecords(mtwnContext* context, uint64_t* hash, uint32_t* records)
+{
+    mtwnEvent e[256];
+    uint32_t n = 0;
+    CHECK(mtwnReadEvents(context, e, 256, &n, NULL) == mtwn_success, "read");
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        double times[4] = {e[i].hostTime, e[i].clipTime, e[i].firstIteration, e[i].lastIteration};
+        uint64_t fields[5] = {e[i].count, e[i].node, e[i].key, e[i].kind, e[i].backwards ? 1u : 0u};
+        const unsigned char* bytes[2] = {(const unsigned char*)times, (const unsigned char*)fields};
+        size_t sizes[2] = {sizeof times, sizeof fields};
+        for (int part = 0; part < 2; ++part)
+        {
+            for (size_t b = 0; b < sizes[part]; ++b)
+            {
+                *hash = (*hash ^ bytes[part][b]) * 1099511628211u;
+            }
+        }
+    }
+    *records += n;
+}
+
+// A clip's records over 3 s, in frames of 1/64 s or irregular ones.
+static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, uint32_t* records)
+{
+    mtwnPlayerId id;
+    mtwnContext* context = MakeClip(seed, rate, countEvery, &id);
+    s_state = seed * 2654435761u + 1u;
+    uint64_t hash = 14695981039346656037u;
+    uint64_t now = 0;
+    // A turn at about 1 s for some, half speed from about 2 s for others.
+    double turn = seed % 4 == 1 ? -rate : 0.0;
+    double slow = seed % 5 == 2 ? 0.5 * rate : 0.0;
+    while (now < 3000000000u)
+    {
+        if (now >= 1000000000u && turn != 0.0)
+        {
+            CHECK(mtwnPlayer_SetRate(context, id, turn) == mtwn_success, "turned");
+            turn = 0.0;
+        }
+        if (now >= 2000000000u && slow != 0.0)
+        {
+            CHECK(mtwnPlayer_SetRate(context, id, slow) == mtwn_success, "slowed");
+            slow = 0.0;
+        }
+        now += aligned ? 15625000u : 5000000u + (uint64_t)Pick(20000000);
+        CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "updated");
+        HashRecords(context, &hash, records);
+    }
+    mtwnDestroyContext(context);
+    return hash;
+}
+
+static void TestLeftOutChangesNothing(void)
+{
+    uint32_t differ = 0;
+    uint32_t records = 0;
+    for (uint64_t seed = 1; seed <= 600; ++seed)
+    {
+        double rate = seed % 3 == 0 ? -1.0 : 1.0;
+        for (int aligned = 0; aligned < 2; ++aligned)
+        {
+            uint32_t counted = 0;
+            uint32_t left = 0;
+            uint64_t every = Play(seed, rate, aligned != 0, true, &counted);
+            uint64_t some = Play(seed, rate, aligned != 0, false, &left);
+            differ += every != some || counted != left ? 1u : 0u;
+            records += counted;
+        }
+    }
+    if (differ != 0)
+    {
+        printf("  %u of 1200 plays recorded otherwise\n", differ);
+    }
+    CHECK(records > 10000 && differ == 0, "the same records, bit for bit");
+}
+
+int main(void)
+{
+    TestLeftOutChangesNothing();
+    return s_failures == 0 ? 0 : 1;
+}

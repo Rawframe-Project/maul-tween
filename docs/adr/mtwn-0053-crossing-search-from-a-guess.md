@@ -71,3 +71,13 @@ than their first. The last of one crossing is now its first, searched
 once: the record consistent, and the bench's 1,000 players on clips of
 their own, all repeating in one frame, 22.5 to 17.75 million
 instructions.
+
+## Amended 2026-10-16: a guess past the sweep's end
+
+A guess the interpolation put a double past the sweep's end was
+dropped, and the search halved the whole sweep: some 50 counts, a
+frame of 1,000 players at 42 million instructions instead of 17. A
+guess past the far end is now the far end, which counts, and its
+neighbour is tested as a right guess's is. Stepping out from a guess a
+few doubles off was measured and dropped: no such guess showed, and it
+cost 0.8 kB of code.

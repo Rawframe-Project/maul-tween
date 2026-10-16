@@ -215,7 +215,11 @@ typedef struct mtwnNodeTime
     // clearly inside an iteration, off its boundaries, where a crossing's
     // position is one child time (record mtwn-0042).
     bool sure;
-    uint8_t reserved[5];
+    // For events: whether the sweep's start is open (the sweep before ended
+    // there) and every one's time there lay inside its active interval,
+    // off a repeat delay: moving from there, held nowhere.
+    bool openStart;
+    uint8_t reserved[4];
 } mtwnNodeTime;
 
 typedef struct mtwnClipSlot
@@ -302,6 +306,9 @@ struct mtwnContext
     // Whether motion is reduced (record mtwn-0049), and the clips' players
     // the last update left running under it though not essential.
     bool reducedMotion;
+    // For tests: every record counted, none left out as certainly missed
+    // or settled, to check that leaving them out changes nothing.
+    bool countEvery;
     uint32_t playingOn;
 };
 
