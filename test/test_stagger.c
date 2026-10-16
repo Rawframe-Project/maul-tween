@@ -153,6 +153,19 @@ static void TestGrid(void)
     CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[4] == 0.0 &&
               Near(got[2], 0.1) && Near(got[0], 0.2) && Near(got[3], 0.1 * sqrt(2.0)),
           "from the last item of a partial row");
+    // Seven items in three columns: the grid is still three wide, so its
+    // edges and centre are the full rectangle's, and the short last row
+    // lies on the bottom edge.
+    stagger.columns = 3;
+    stagger.origin = mtwn_staggerEdges;
+    stagger.axis = mtwn_staggerBoth;
+    CHECK(mtwnComputeStagger(&stagger, 7, got) == mtwn_success && got[6] == 0.0 && got[3] == 0.0 &&
+              Near(got[4], 0.1),
+          "a short last row on the bottom edge");
+    stagger.origin = mtwn_staggerCentre;
+    CHECK(mtwnComputeStagger(&stagger, 7, got) == mtwn_success && got[4] == 0.0 &&
+              Near(got[6], 0.1 * sqrt(2.0)) && Near(got[1], 0.1),
+          "a short last row measured to the full rectangle's centre");
 }
 
 static void TestRandom(void)

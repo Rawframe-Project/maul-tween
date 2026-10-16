@@ -219,7 +219,9 @@ extern "C"
         mtwnEasing easing;
         // The order's seed, for mtwn_staggerRandom.
         uint64_t seed;
-        // Items per row; 0 puts them all in one row.
+        // Items per row; 0 puts them all in one row. A short last row
+        // keeps the grid this wide: the centre and the edges are the full
+        // rectangle's, and the short row lies on its bottom edge.
         uint32_t columns;
         // The origin's item, for mtwn_staggerIndex.
         uint32_t index;
