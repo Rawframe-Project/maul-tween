@@ -41,3 +41,20 @@ tests are unchanged. A test compares searches from nine guesses with
 searches from none over random nested timelines. Every result flips the
 count and lies within 1e-9 s of the search from none. 64 of 461,862
 picked another flip a few doubles away.
+
+## Amended 2026-10-16: the path of frames
+
+A review asked whether events depend only on the times swept. Which
+crossings happen, and how many, do: counts are exact and add up over
+any cut of the time into sweeps (mtwn-0042). A crossing's time does
+not, at the last few doubles: it is a double where the count flips,
+and where there are several, the one found follows the guess, which
+comes from the crossings the same sweep found before. Playing to a
+time in frames, in one update or by scrubbing cuts it into different
+sweeps, so a record's time can differ by a few doubles between the
+paths: within 1e-9 s, as the test above bounds. Two records keep their
+order whatever the path unless their crossings lie within those few
+doubles of each other. A test plays one clip by three paths and checks
+both: boundaries 1e-12 s apart keep their order, and each record's
+time agrees within 1e-9 s.
+

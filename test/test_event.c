@@ -636,6 +636,79 @@ static void TestOrder(void)
     mtwnDestroyContext(w.context);
 }
 
+// One clip played to the same time by three paths of frames: each
+// record's time may be another double where its count flips (record
+// mtwn-0053) but lies within 1e-9 s of the others', and two boundaries
+// 1e-12 s apart, thousands of doubles, keep their order.
+static void TestPaths(void)
+{
+    double ends[3] = {0.0, 0.0, 0.0};
+    double starts[3] = {0.0, 0.0, 0.0};
+    bool ordered = true;
+    for (int path = 0; path < 3; ++path)
+    {
+        World w = MakeWorld(64);
+        // The later boundary's track first, so its record is made first
+        // and only the order by time puts the earlier one ahead.
+        mtwnNode second = AddTrack(&w, 1.0 + 1e-12, 0.5, 1.0);
+        mtwnNode first = AddTrack(&w, 0.0, 1.0, 1.0);
+        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        mtwnPlayerId p = Play(&w, true, 1.0);
+        mtwnEvent all[64];
+        uint32_t n = 0;
+        if (path == 0)
+        {
+            // Played in steps of 16 ms.
+            for (int f = 0; f <= 125; ++f)
+            {
+                Update(&w, f * 0.016);
+                n += Read(&w, all + n, 64 - n);
+            }
+        }
+        else if (path == 1)
+        {
+            // Two updates: the whole time in one sweep.
+            Update(&w, 0.0);
+            Update(&w, 2.0);
+            n = Read(&w, all, 64);
+        }
+        else
+        {
+            // Scrubbed by uneven sweeps.
+            Update(&w, 0.0);
+            CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+            const double to[4] = {0.37, 0.999999999999, 1.3, 2.0};
+            for (int k = 0; k < 4; ++k)
+            {
+                CHECK(mtwnPlayer_Sweep(w.context, p, to[k]) == mtwn_success, "a sweep");
+                n += Read(&w, all + n, 64 - n);
+            }
+        }
+        int end = -1;
+        int start = -1;
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            end = all[i].kind == mtwn_eventEnd && all[i].node == first ? (int)i : end;
+            start = all[i].kind == mtwn_eventStart && all[i].node == second ? (int)i : start;
+        }
+        CHECK(end >= 0 && start >= 0, "both records made");
+        if (end >= 0 && start >= 0)
+        {
+            ordered = ordered && end < start;
+            ends[path] = all[end].clipTime;
+            starts[path] = all[start].clipTime;
+        }
+        mtwnDestroyContext(w.context);
+    }
+    CHECK(ordered, "boundaries 1e-12 s apart keep their order on every path");
+    bool near = true;
+    for (int path = 1; path < 3; ++path)
+    {
+        near = near && fabs(ends[path] - ends[0]) <= 1e-9 && fabs(starts[path] - starts[0]) <= 1e-9;
+    }
+    CHECK(near, "a record's time within 1e-9 s whatever the path");
+}
+
 int main(void)
 {
     TestPlayed();
@@ -653,5 +726,6 @@ int main(void)
     TestSettledReversedParent();
     TestSharedRecords();
     TestOrder();
+    TestPaths();
     return s_failures == 0 ? 0 : 1;
 }
