@@ -483,6 +483,76 @@ static void TestSettledBoundary(void)
     mtwnDestroyContext(w.context);
 }
 
+// Counts the records of a kind for a node in a batch.
+static uint32_t CountKind(const mtwnEvent* e, uint32_t n, mtwnEventKind kind, mtwnNode node)
+{
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        count += e[i].kind == kind && e[i].node == node ? 1u : 0u;
+    }
+    return count;
+}
+
+static void TestSettledReversedParent(void)
+{
+    // A track repeating three times in a timeline played backwards: the
+    // parent's child time falls as the player's rises, so the track moves
+    // backwards through its iterations. A sweep inside an iteration is
+    // settled; one that reaches an iteration's start is not.
+    World w = MakeWorld(16);
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = true;
+    group.timing.playbackRate = -1.0;
+    group.timing.fill = mtwn_fillBoth;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &timeline) == mtwn_success, "a timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+    def.parent = timeline;
+    def.keyframes = keys;
+    def.keyframeCount = 2;
+    def.timing.duration = 1.0;
+    def.timing.iterations = 3.0;
+    mtwnNode track = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &def, &track) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, true, 1.0);
+    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    Update(&w, 0.5);
+    mtwnEvent e[8];
+    CHECK(mtwnPlayer_Seek(w.context, p, 0.5) == mtwn_success, "at 0.5");
+    (void)Read(&w, e, 8);
+    // Child time 2.5 to 2.1: inside the third iteration.
+    CHECK(mtwnPlayer_Sweep(w.context, p, 0.9) == mtwn_success, "a sweep to 0.9");
+    uint32_t n = Read(&w, e, 8);
+    CHECK(CountKind(e, n, mtwn_eventIteration, track) == 0, "settled inside an iteration");
+    // Child time 2.1 to 2.0: the third iteration's start, reached.
+    CHECK(mtwnPlayer_Sweep(w.context, p, 1.0) == mtwn_success, "a sweep to 1");
+    n = Read(&w, e, 8);
+    CHECK(CountKind(e, n, mtwn_eventIteration, track) == 1, "the iteration's start reached");
+    // On from it the same way: not reached again.
+    CHECK(mtwnPlayer_Sweep(w.context, p, 1.25) == mtwn_success, "a sweep to 1.25");
+    n = Read(&w, e, 8);
+    CHECK(CountKind(e, n, mtwn_eventIteration, track) == 0, "not again from it");
+    // A seek landing exactly on a boundary (child time 1), then a sweep
+    // on: the boundary is where it starts, not crossed; turning back to it
+    // reaches it.
+    CHECK(mtwnPlayer_Seek(w.context, p, 2.0) == mtwn_success, "at 2");
+    (void)Read(&w, e, 8);
+    CHECK(mtwnPlayer_Sweep(w.context, p, 2.4) == mtwn_success, "a sweep to 2.4");
+    n = Read(&w, e, 8);
+    CHECK(CountKind(e, n, mtwn_eventIteration, track) == 0, "a seek's boundary not crossed");
+    CHECK(mtwnPlayer_Sweep(w.context, p, 2.0) == mtwn_success, "back to 2");
+    n = Read(&w, e, 8);
+    CHECK(CountKind(e, n, mtwn_eventIteration, track) == 1, "turning back to it, reached");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestBoundaryPlay(void)
 {
     // From a random clip that once lost a record: a timeline sized by its
@@ -580,6 +650,7 @@ int main(void)
     TestIterationStart();
     TestBoundaryPlay();
     TestSettledBoundary();
+    TestSettledReversedParent();
     TestSharedRecords();
     TestOrder();
     return s_failures == 0 ? 0 : 1;
