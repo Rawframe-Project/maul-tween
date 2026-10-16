@@ -174,7 +174,7 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
     {
         mtwnPosition at = {0};
         at.kind = (mtwnPositionKind)(Next() % 3);
-        at.offset = Unit() * 0.3;
+        at.offset = Unit();
         mtwnNode parent = timelines[Next() % timelineCount];
         mtwnNode node = 0;
         uint32_t what = Next() % 6;
@@ -215,6 +215,12 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
             track.keyframes = keys;
             track.keyframeCount = count;
             track.timing = Timing();
+            if (nodes == 120)
+            {
+                // Always in effect: one player fills a group's track staging.
+                track.timing.fill = mtwn_fillBoth;
+                track.timing.iterations = HUGE_VAL;
+            }
             track.incremental = Next() % 4 == 0;
             (void)mtwnClip_AddTrack(twin->context, twin->clips[c], &track, &node);
         }
@@ -308,27 +314,85 @@ static bool SameRecord(const mtwnEvent* a, const mtwnEvent* b)
            a->kind == b->kind && a->backwards == b->backwards;
 }
 
-// What the parallel twin's groups did, to see each way taken.
+// What the parallel twin's groups did, to see each way taken, and what
+// they must not have done.
 typedef struct Taken
 {
     uint32_t staged;
     uint32_t serial;
+    // Left to the serial pass for staging that ran out.
+    uint32_t ranOut;
     uint32_t dropped;
+    // A clip of more nodes than a group keeps, staged anyway.
+    uint32_t bigStaged;
+    // A clip's own node times written by a group.
+    uint32_t touched;
 } Taken;
 
-static void Count(const mtwnContext* context, Taken* taken)
+// The clips' players before an update, in creation order: the order the
+// groups stage them in, with their clips.
+typedef struct Order
 {
-    uint32_t clipPlayers = 0;
+    uint32_t count;
+    uint32_t clips[128];
+} Order;
+
+static const uint64_t s_poison = 0x7FF8DEADBEEF0001ull;
+
+// Notes the order and poisons each clip's own node times, which only the
+// serial pass may write.
+static void Prepare(const Twin* twin, Order* order)
+{
+    const mtwnContext* context = twin->context;
+    order->count = 0;
     for (uint32_t index1 = context->firstPlayer; index1 != 0;)
     {
         const mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        clipPlayers += slot->type == MTWN_PLAYER_CLIP ? 1u : 0u;
+        if (slot->type == MTWN_PLAYER_CLIP)
+        {
+            order->clips[order->count++] = slot->play.clip.index1;
+        }
         index1 = slot->later;
     }
-    for (uint32_t i = 0; i < clipPlayers && clipPlayers >= 2; ++i)
+    for (uint32_t c = 0; c < s_clips; ++c)
     {
-        taken->serial += context->staged[i].serial ? 1u : 0u;
-        taken->staged += context->staged[i].serial ? 0u : 1u;
+        const mtwnClipSlot* clip = mtwnClipAt(context, twin->clips[c].index1);
+        for (uint32_t k = 0; k < clip->nodeCount; ++k)
+        {
+            memcpy(&clip->times[k].now, &s_poison, sizeof s_poison);
+        }
+    }
+}
+
+static void Count(const Twin* twin, const Order* order, Taken* taken)
+{
+    const mtwnContext* context = twin->context;
+    if (order->count < 2)
+    {
+        return;
+    }
+    bool serialClip[s_clips] = {false};
+    for (uint32_t i = 0; i < order->count; ++i)
+    {
+        bool serial = context->staged[i].serial;
+        taken->serial += serial ? 1u : 0u;
+        taken->staged += serial ? 0u : 1u;
+        bool big = mtwnClipAt(context, order->clips[i])->nodeCount > MTWN_GROUP_NODES;
+        taken->bigStaged += big && !serial ? 1u : 0u;
+        taken->ranOut += serial && !big ? 1u : 0u;
+        for (uint32_t c = 0; c < s_clips; ++c)
+        {
+            serialClip[c] = serialClip[c] || (serial && twin->clips[c].index1 == order->clips[i]);
+        }
+    }
+    for (uint32_t c = 0; c < s_clips; ++c)
+    {
+        const mtwnClipSlot* clip = mtwnClipAt(context, twin->clips[c].index1);
+        for (uint32_t k = 0; k < clip->nodeCount && !serialClip[c]; ++k)
+        {
+            taken->touched +=
+                memcmp(&clip->times[k].now, &s_poison, sizeof s_poison) == 0 ? 0u : 1u;
+        }
     }
     for (uint32_t g = 0; g < MTWN_GROUPS; ++g)
     {
@@ -366,7 +430,11 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
     uint64_t droppedB = 0;
     CHECK(mtwnReadEvents(a->context, recordsA, 4096, &nA, &droppedA) == mtwn_success, "read");
     CHECK(mtwnReadEvents(b->context, recordsB, 4096, &nB, &droppedB) == mtwn_success, "read");
-    differences += nA == nB && droppedA == droppedB ? 0u : 1u;
+    differences +=
+        nA == nB && droppedA == droppedB &&
+                mtwnContext_GetDroppedEvents(a->context) == mtwnContext_GetDroppedEvents(b->context)
+            ? 0u
+            : 1u;
     for (uint32_t i = 0; i < nA && i < nB; ++i)
     {
         differences += SameRecord(&recordsA[i], &recordsB[i]) ? 0u : 1u;
@@ -375,7 +443,7 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
 }
 
 // One run of the script on twins of a def: the differences found.
-static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t bigNodes, Taken* taken)
+static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Taken* taken)
 {
     Twin twins[2];
     memset(twins, 0, sizeof twins);
@@ -397,7 +465,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t bigNodes, Taken*
         }
         for (uint32_t c = 0; c < s_clips; ++c)
         {
-            Build(&twins[k], c, c == 0 && bigNodes > 0 ? bigNodes : 6 + Next() % 8);
+            Build(&twins[k], c, c == 0 && firstNodes > 0 ? firstNodes : 6 + Next() % 8);
         }
         for (uint32_t p = 0; p < s_players; ++p)
         {
@@ -405,6 +473,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t bigNodes, Taken*
         }
     }
     uint32_t differences = 0;
+    Order order;
     uint64_t now = 0;
     uint64_t script = s_script;
     for (uint32_t f = 0; f < s_frames; ++f)
@@ -430,11 +499,21 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t bigNodes, Taken*
                     Control(&twins[k], p, what, argument);
                 }
             }
+            // Midway, reduced motion finishes every running player at once:
+            // its records share the update's time, ordered along its sweep.
+            if (f == s_frames / 2 || f == s_frames / 2 + 8)
+            {
+                (void)mtwnContext_SetReducedMotion(twins[k].context, f == s_frames / 2);
+            }
+            if (k == 1)
+            {
+                Prepare(&twins[k], &order);
+            }
             CHECK(mtwnUpdate(twins[k].context, now, changed[k], 64, &totals[k]) == mtwn_success,
                   "an update");
         }
         script = s_script;
-        Count(twins[1].context, taken);
+        Count(&twins[1], &order, taken);
         differences += Compare(&twins[0], &twins[1], changed[0], changed[1], totals[0], totals[1]);
     }
     mtwnDestroyContext(twins[0].context);
@@ -445,7 +524,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t bigNodes, Taken*
 static void TestTwins(void)
 {
     s_host = 11;
-    Taken taken = {0, 0, 0};
+    Taken taken = {0, 0, 0, 0, 0, 0};
     uint32_t differences = 0;
     for (uint64_t seed = 1; seed <= 12; ++seed)
     {
@@ -458,17 +537,141 @@ static void TestTwins(void)
         def.eventCapacity = seed % 3 == 0 ? 2u : (seed % 3 == 1 ? 4096u : 512u);
         // Few bindings: little track staging, so some groups run out.
         def.bindingCapacity = seed % 2 == 0 ? 300u : 2000u;
-        differences += Run(def, seed, seed % 4 == 0 ? 160u : 0u, &taken);
+        // A clip past the nodes a group keeps; or, with few bindings, one of
+        // many tracks, which fills a group's track staging.
+        uint32_t first = seed % 4 == 1 ? 240u : (seed % 2 == 0 ? 120u : 0u);
+        differences += Run(def, seed, first, &taken);
     }
     CHECK(differences == 0, "the twins hold the same bits after every update");
     CHECK(s_enqueued > 100, "the task system was handed the groups");
     CHECK(taken.staged > 1000, "players staged by the groups");
     CHECK(taken.serial > 10, "players left to the serial pass");
+    CHECK(taken.ranOut > 10, "players whose staging ran out put back and left to it");
     CHECK(taken.dropped > 0, "records past a group's staging dropped as the queue would");
+    CHECK(taken.bigStaged == 0, "a clip of more nodes than a group keeps plays serially");
+    CHECK(taken.touched == 0, "the groups leave each clip's own node times alone");
+}
+
+static void Fill(mtwnContext* context, uint32_t count, mtwnWork* work)
+{
+    work->recordCount = 0;
+    work->dropped = 0;
+    work->overflow = false;
+    mtwnEvent event = {0};
+    event.count = 1;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        event.key = i + 1;
+        mtwnWorkEvent(context, work, &event, 0.0);
+    }
+}
+
+// A group's records stop at its staging: past one as large as the queue
+// they are dropped, past a smaller one the player runs out; the next
+// group's staging is never written.
+static void TestStagingBounds(void)
+{
+    for (int large = 0; large < 2; ++large)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.eventCapacity = large ? 2000u : 4u;
+        def.enqueueTask = Enqueue;
+        def.finishTask = Finish;
+        mtwnContext* context = NULL;
+        CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+        mtwnWork* first = &context->works[0];
+        mtwnWork* next = &context->works[1];
+        next->records[0].key = 77;
+        uint32_t capacity = first->recordCapacity;
+        CHECK(capacity == (large ? 1024u : 4u), "a group stages up to the queue, at most 1,024");
+        Fill(context, capacity + 1, first);
+        CHECK(first->recordCount == capacity && first->records[capacity - 1].key == capacity,
+              "records staged to the capacity");
+        CHECK(large ? first->overflow && first->dropped == 0
+                    : !first->overflow && first->dropped == 1,
+              "past a staging like the queue a record is dropped, past a smaller one it runs out");
+        CHECK(next->records[0].key == 77, "the next group's staging untouched");
+        mtwnDestroyContext(context);
+    }
+}
+
+// Records of one player at one time keep their order along its sweep:
+// reduced motion finishes players of a clip whose nodes run against their
+// time, so a group stages records out of that order.
+static void TestOneTimeOrder(void)
+{
+    mtwnEvent records[2][64];
+    uint32_t counts[2] = {0, 0};
+    mtwnTargetState finished[2];
+    for (int k = 0; k < 2; ++k)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.enqueueTask = k == 1 ? Enqueue : NULL;
+        def.finishTask = k == 1 ? Finish : NULL;
+        mtwnContext* context = NULL;
+        CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnClipDef clipDef = mtwnDefaultClipDef();
+        mtwnClipId clip;
+        CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        keys[1].value.x = 1.0f;
+        keys[0].easing = mtwnLinearEasing();
+        keys[1].easing = mtwnLinearEasing();
+        // Later in time first: tracks at 0.5, 0.3 and 0.1.
+        for (int n = 0; n < 3; ++n)
+        {
+            mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+            track.position.offset = 0.5 - 0.2 * n;
+            track.keyframes = keys;
+            track.keyframeCount = 2;
+            track.timing.duration = 0.1;
+            mtwnNode node;
+            CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
+        }
+        CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "a finished clip");
+        mtwnBinding binding = mtwnBind(0, target);
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = &binding;
+        playerDef.bindingCount = 1;
+        for (int p = 0; p < 2; ++p)
+        {
+            mtwnPlayerId player;
+            CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+        }
+        CHECK(mtwnUpdate(context, 10000000u, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_SetReducedMotion(context, true) == mtwn_success, "reduced motion");
+        CHECK(mtwnUpdate(context, 20000000u, NULL, 0, NULL) == mtwn_success, "an update");
+        uint64_t dropped = 0;
+        CHECK(mtwnReadEvents(context, records[k], 64, &counts[k], &dropped) == mtwn_success,
+              "read");
+        CHECK(mtwnTarget_GetState(context, target, &finished[k]) == mtwn_success, "state");
+        mtwnDestroyContext(context);
+    }
+    bool same = counts[0] == counts[1] && counts[0] >= 12;
+    for (uint32_t i = 0; same && i < counts[0]; ++i)
+    {
+        same = SameRecord(&records[0][i], &records[1][i]);
+    }
+    // After the two starts, the first player's records from the finish: the
+    // track added last, crossed first, leads.
+    bool ordered = counts[0] >= 3 && records[0][2].node == 4 && records[0][2].clipTime < 0.15;
+    CHECK(same && ordered, "one player's records of one time in order along its sweep");
+    // Finished and not kept, the players committed their end as the base.
+    CHECK(finished[0].base.x == 1.0f && Same(finished[0].base, finished[1].base) &&
+              Same(finished[0].value, finished[1].value),
+          "finished players' ends committed as the base alike");
 }
 
 int main(void)
 {
+    TestStagingBounds();
+    TestOneTimeOrder();
     TestTwins();
     return s_failures == 0 ? 0 : 1;
 }
