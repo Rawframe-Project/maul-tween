@@ -395,7 +395,11 @@ values, velocities and the changed list are the same bits as without
 the hooks, whatever the split and the order. The groups cost memory
 (about 660 KB more for the default def, see `mtwnContextDef`), so a
 host with a few players leaves the hooks unset. Transitions and
-composing stay on the calling thread.
+composing stay on the calling thread, and the composing bounds the
+gain: measured on a 12-core desktop, 1,000 players of four tracks
+update about 2.4 times faster on six workers, and the frame where they
+all repeat about 3.7 times on eight, no faster on more (record
+mtwn-0056).
 
 ## Growing
 

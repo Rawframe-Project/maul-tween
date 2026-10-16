@@ -55,3 +55,28 @@ library defines.
 - A frame's clip players use the host's threads; the composing stays
   serial, in creation order.
 - `mtwnGrowContext` takes the def's task system with its capacities.
+
+## Amended 2026-10-16: measured on threads
+
+The gain was first estimated from instructions: each group's and the
+whole update's, the groups placed on N workers longest first, gave the
+bench's 1,000 players (four tracks, a 1 s loop) a repeat frame 10.8
+times faster on 16 workers and a steady frame 5.2. Measured in wall time
+on a quiet AMD Ryzen 9 5900X (12 cores, 2 threads each, two 6-core
+dies, each with its own last-level cache), with a persistent pool whose
+calling thread helps, the median update:
+
+| Frame | No hooks | Best | On 16 workers |
+| --- | ---: | ---: | ---: |
+| Steady, clips of their own | 384 us | 163 us (6 workers, one die) | 223 us |
+| Steady, one clip, players 1 ms apart | 366 us | 164 us (6 workers, one die) | 254 us |
+| Every player repeating | 1,169 us | 315 us (8 workers) | 326 us |
+
+The groups themselves scale 5.8 to 6.7 times on 16 workers. What
+bounds the update is the serial composing: 58 us on one worker, it
+grows to 76 to 186 us with more, as it reads every value the groups
+staged on other cores (about one cache miss a binding more at 6
+workers). On one worker the hooks cost 2% to 8% over none. Sixteen
+groups stay: more would shorten only the groups' span, already below
+the composing from 8 workers. Composing in the groups what one player
+alone writes is the next step to measure.
