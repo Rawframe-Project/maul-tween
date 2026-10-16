@@ -443,6 +443,10 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
 }
 
 // One run of the script on twins of a def: the differences found.
+// Staging that holds nothing: every player that makes anything runs out
+// and is put back, the whole update made by the serial pass.
+static bool s_emptyStaging;
+
 static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Taken* taken)
 {
     Twin twins[2];
@@ -453,6 +457,11 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
         own.enqueueTask = k == 1 ? Enqueue : NULL;
         own.finishTask = k == 1 ? Finish : NULL;
         CHECK(mtwnCreateContext(&own, &twins[k].context) == mtwn_success, "a context");
+        for (uint32_t g = 0; k == 1 && s_emptyStaging && g < MTWN_GROUPS; ++g)
+        {
+            twins[k].context->works[g].recordCapacity = 0;
+            twins[k].context->works[g].trackCapacity = 0;
+        }
         s_script = seed;
         for (uint32_t s = 0; s < s_slots; ++s)
         {
@@ -550,6 +559,22 @@ static void TestTwins(void)
     CHECK(taken.dropped > 0, "records past a group's staging dropped as the queue would");
     CHECK(taken.bigStaged == 0, "a clip of more nodes than a group keeps plays serially");
     CHECK(taken.touched == 0, "the groups leave each clip's own node times alone");
+
+    // Every player put back: still the serial update's bits.
+    s_emptyStaging = true;
+    Taken empty = {0, 0, 0, 0, 0, 0};
+    uint32_t emptyDifferences = 0;
+    for (uint64_t seed = 1; seed <= 3; ++seed)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.playerCapacity = 128;
+        def.clipStorageBytes = 8u * 1024u * 1024u;
+        def.bindingCapacity = 2000u;
+        emptyDifferences += Run(def, seed, 0, &empty);
+    }
+    s_emptyStaging = false;
+    CHECK(emptyDifferences == 0 && empty.ranOut > 1000,
+          "with staging that holds nothing, every player put back, the same bits");
 }
 
 static void Fill(mtwnContext* context, uint32_t count, mtwnWork* work)
