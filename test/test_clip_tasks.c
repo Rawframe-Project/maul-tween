@@ -51,7 +51,7 @@ static uint32_t s_shared;
 // Players made and refused (only past the capacities).
 static uint32_t s_made;
 static uint32_t s_refused;
-static uint64_t s_host;
+static uint64_t s_hostDraws;
 
 static uint32_t NextOf(uint64_t* state)
 {
@@ -178,7 +178,7 @@ static void* Enqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void
     s_pending.count = 0;
     for (int32_t at = 0; at < itemCount;)
     {
-        int32_t length = minRange + (int32_t)(NextOf(&s_host) % 4u);
+        int32_t length = minRange + (int32_t)(NextOf(&s_hostDraws) % 4u);
         int32_t end = at + length < itemCount ? at + length : itemCount;
         s_pending.starts[s_pending.count] = at;
         s_pending.ends[s_pending.count] = end;
@@ -187,7 +187,7 @@ static void* Enqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void
     }
     for (int32_t i = s_pending.count - 1; i > 0; --i)
     {
-        int32_t j = (int32_t)(NextOf(&s_host) % (uint32_t)(i + 1));
+        int32_t j = (int32_t)(NextOf(&s_hostDraws) % (uint32_t)(i + 1));
         int32_t start = s_pending.starts[i];
         int32_t end = s_pending.ends[i];
         s_pending.starts[i] = s_pending.starts[j];
@@ -200,7 +200,7 @@ static void* Enqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void
         StartThreads();
         return &s_pending;
     }
-    if (NextOf(&s_host) % 2u == 0u)
+    if (NextOf(&s_hostDraws) % 2u == 0u)
     {
         RunPending();
         return NULL;
@@ -697,7 +697,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
 
 static void TestTwins(void)
 {
-    s_host = 11;
+    s_hostDraws = 11;
     Taken taken = {0, 0, 0, 0, 0, 0};
     uint32_t differences = 0;
     for (uint64_t seed = 1; seed <= 12; ++seed)
