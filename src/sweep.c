@@ -90,10 +90,18 @@ typedef struct Kinds
     mtwnEventKind backwards;
 } Kinds;
 
+// A record's iteration at a crossing: the known one, else the levels'.
+static double IterationOf(const mtwnLevel* levels, uint32_t count, double known, double t)
+{
+    return isnan(known) ? mtwnIterationAt(levels, count, t) : known;
+}
+
 // Records a leaf's crossings, chain levels [0, count) above it and the
-// node whose iteration the records carry at levels[iterationLevel].
+// node whose iteration the records carry at levels[iterationLevels - 1]:
+// that iteration when known, the same at every crossing (an active start
+// or end), NaN for the levels to be walked.
 static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const mtwnLeaf* leaf,
-                   Kinds kinds, mtwnNode node, uint32_t key)
+                   Kinds kinds, mtwnNode node, uint32_t key, double iteration)
 {
     mtwnLevel* levels = sweep->work->levels;
     mtwnPrepareLevels(levels, count, leaf);
@@ -134,10 +142,10 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         mtwnEvent event = {0};
         event.hostTime = HostAt(sweep, first);
         event.clipTime = first;
-        event.firstIteration = mtwnIterationAt(levels, iterationLevels, first);
         // One crossing's iteration is looked up once.
-        event.lastIteration =
-            last == first ? event.firstIteration : mtwnIterationAt(levels, iterationLevels, last);
+        event.firstIteration = IterationOf(levels, iterationLevels, iteration, first);
+        event.lastIteration = last == first ? event.firstIteration
+                                            : IterationOf(levels, iterationLevels, iteration, last);
         event.count = n >= 18446744073709549568.0 ? UINT64_MAX : (uint64_t)n;
         event.player = mtwnPlayerIdAt(sweep->context, sweep->player);
         event.node = node;
@@ -378,7 +386,7 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
             GuessAt(sweep, parent, n->start);
             uint32_t count = Chain(levels, clip, node);
             Record(sweep, count, count, &mark, (Kinds){mtwn_eventMark, mtwn_eventMark}, node,
-                   n->key);
+                   n->key, (double)NAN);
         }
         return;
     }
@@ -410,7 +418,8 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         mtwnLeaf start = InstantAt(activeStart);
         GuessAt(sweep, parent, activeStart);
         uint32_t count = Chain(levels, clip, node);
-        Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0);
+        Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0,
+               n->startIteration);
     }
     if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd) &&
         !Settled(clip, sweep->times, node, parent))
@@ -424,14 +433,15 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         GuessAt(sweep, parent, IterationStartIn(n, parent));
         uint32_t count = Chain(levels, clip, node);
         Record(sweep, count, count + 1, &iterations,
-               (Kinds){mtwn_eventIteration, mtwn_eventIteration}, node, 0);
+               (Kinds){mtwn_eventIteration, mtwn_eventIteration}, node, 0, (double)NAN);
     }
     if (!Missed(parent, activeEnd, activeEnd))
     {
         mtwnLeaf end = InstantAt(activeEnd);
         GuessAt(sweep, parent, activeEnd);
         uint32_t count = Chain(levels, clip, node);
-        Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0);
+        Record(sweep, count, count + 1, &end, (Kinds){mtwn_eventEnd, mtwn_eventStart}, node, 0,
+               n->endIteration);
     }
 }
 

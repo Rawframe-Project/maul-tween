@@ -640,7 +640,8 @@ static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
 static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
 {
     // Timelines sized by their children take the size for good; every node
-    // keeps its active duration for its events.
+    // keeps its active duration and its iterations at its active start and
+    // end for its events.
     for (uint32_t i = 0; i < slot->nodeCount; ++i)
     {
         mtwnClipNode* node = &slot->nodes[i];
@@ -653,6 +654,14 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
             mtwnTimingResult shape;
             mtwnComputeTiming(&node->timing, 0.0, false, &shape);
             node->activeDuration = shape.activeDuration;
+            // Its iterations there, held either side: the first at its
+            // start, the last at its end.
+            mtwnTiming held = node->timing;
+            held.fill = mtwn_fillBoth;
+            mtwnComputeTiming(&held, held.delay, false, &shape);
+            node->startIteration = shape.iteration;
+            mtwnComputeTiming(&held, held.delay + node->activeDuration, false, &shape);
+            node->endIteration = shape.iteration;
         }
         const mtwnClipNode* before = i > 0 ? &slot->nodes[i - 1] : NULL;
         node->sharesTiming = node->kind == mtwn_nodeTrack && before != NULL &&

@@ -41,6 +41,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   the sweep's end (records mtwn-0042 and mtwn-0053, amended): the
   bench's 1,000 players on clips of their own, repeating every other
   frame, from 15.2 to 11.7 million instructions a frame on average.
+- A start or end record takes the node's iteration from its own timing,
+  worked out when its clip is finished, without walking the timelines
+  above (record mtwn-0038, amended): the bench's 1,000 players on clips
+  of their own, repeating every other frame, from 11.8 to 11.0 million
+  instructions a frame on average, their repeat frame at 1 s from 18.1
+  to 16.5 million. A clip's node holds 16 bytes more.
 
 ### Added
 
@@ -67,6 +73,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - A record of one crossing could report a last iteration one before its
   first, its two searches landing a double apart through nested
   timelines' rounding.
+- A start or end record where a timeline above repeats could report the
+  iteration on the repeat's far side: a track ending where its timeline
+  repeats reported its first iteration at its end, and a track's start
+  crossed backwards there its second.
 
 ## [0.3.0] - 2026-10-16
 

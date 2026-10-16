@@ -412,27 +412,38 @@ static void TestIterationStart(void)
     mtwnDestroyContext(w.context);
 }
 
-// A track in a repeating timeline in another: the record of one crossing
-// has one iteration, first and last alike. Searched apart, the last could
-// land a double before the first, in the iteration before (found by the
-// determinism scenario's hash).
-static void TestOneCrossingIterations(void)
+// The determinism scenario's nesting: a timeline of 1.5 s, 4 iterations
+// alternating, and in it one of 0.4 s repeating without end from a
+// quarter way. In that, tracks with their iterations at their start and
+// end: 0.3 s, 3 iterations, which never ends within the 0.4 s (0, 2);
+// 0.2 s, 2 iterations, which ends where it repeats (0, 1); 0.1 s, 2
+// iterations, after 0.1 s (0, 1); and of no length, 3 iterations, after
+// 0.05 s, in its after phase at its start too (2, 2).
+enum
 {
-    World w = MakeWorld(64);
+    NESTED_TRACKS = 4
+};
+
+static const double s_nestedTiming[NESTED_TRACKS][3] = {
+    {0.3, 3.0, 0.0}, {0.2, 2.0, 0.0}, {0.1, 2.0, 0.1}, {0.0, 3.0, 0.05}};
+static const double s_nestedIterations[NESTED_TRACKS][2] = {{0, 2}, {0, 1}, {0, 1}, {2, 2}};
+
+static void NestedTracks(World* w, mtwnNode tracks[NESTED_TRACKS])
+{
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
     group.autoDuration = false;
     group.timing.duration = 1.5;
     group.timing.iterations = 4.0;
     group.timing.direction = mtwn_directionAlternate;
     mtwnNode outer = 0;
-    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &outer) == mtwn_success, "outer");
+    CHECK(mtwnClip_AddTimeline(w->context, w->clip, &group, &outer) == mtwn_success, "outer");
     group.parent = outer;
     group.timing.duration = 0.4;
     group.timing.iterations = HUGE_VAL;
     group.timing.direction = mtwn_directionNormal;
     group.timing.iterationStart = 0.25;
     mtwnNode inner = 0;
-    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &inner) == mtwn_success, "inner");
+    CHECK(mtwnClip_AddTimeline(w->context, w->clip, &group, &inner) == mtwn_success, "inner");
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
@@ -441,11 +452,26 @@ static void TestOneCrossingIterations(void)
     track.parent = inner;
     track.keyframes = keys;
     track.keyframeCount = 2;
-    track.timing.duration = 0.3;
-    track.timing.iterations = 3.0;
-    mtwnNode node = 0;
-    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    for (int k = 0; k < NESTED_TRACKS; ++k)
+    {
+        track.timing.duration = s_nestedTiming[k][0];
+        track.timing.iterations = s_nestedTiming[k][1];
+        track.timing.delay = s_nestedTiming[k][2];
+        CHECK(mtwnClip_AddTrack(w->context, w->clip, &track, &tracks[k]) == mtwn_success,
+              "a track");
+    }
+    CHECK(mtwnClip_Finish(w->context, w->clip) == mtwn_success, "finished");
+}
+
+// A track in a repeating timeline in another: the record of one crossing
+// has one iteration, first and last alike. Searched apart, the last could
+// land a double before the first, in the iteration before (found by the
+// determinism scenario's hash).
+static void TestOneCrossingIterations(void)
+{
+    World w = MakeWorld(64);
+    mtwnNode tracks[NESTED_TRACKS];
+    NestedTracks(&w, tracks);
     Play(&w, true, 1.0);
     uint32_t ones = 0;
     uint32_t apart = 0;
@@ -466,6 +492,64 @@ static void TestOneCrossingIterations(void)
     }
     CHECK(ones > 40 && apart == 0, "a single crossing's iterations alike");
     mtwnDestroyContext(w.context);
+}
+
+// The iteration a nested track's record of its active start or end should
+// have, or -1 for another record.
+static double EdgeIteration(const mtwnEvent* e, const mtwnNode tracks[NESTED_TRACKS])
+{
+    // A start crossed backwards is an end record, an end a start.
+    bool start = (e->kind == mtwn_eventStart) != e->backwards;
+    bool edge = e->kind == mtwn_eventStart || e->kind == mtwn_eventEnd;
+    for (int k = 0; k < NESTED_TRACKS; ++k)
+    {
+        if (edge && e->node == tracks[k])
+        {
+            return s_nestedIterations[k][start ? 0 : 1];
+        }
+    }
+    return -1.0;
+}
+
+// A start or end record has the node's iteration at its active start or
+// end, at every crossing, played in short frames and in frames of 0.7 s,
+// which cross each several times. Where the inner timeline repeated, the
+// iteration was looked up on its far side: an end there had the first,
+// and a start crossed backwards there the second (found by the
+// determinism scenario's hash).
+static void TestEdgeIterations(void)
+{
+    static const double frames[2] = {0.0113, 0.7};
+    uint32_t edges = 0;
+    uint32_t wrong = 0;
+    for (int f = 0; f < 2; ++f)
+    {
+        World w = MakeWorld(64);
+        mtwnNode tracks[NESTED_TRACKS];
+        NestedTracks(&w, tracks);
+        Play(&w, true, 1.0);
+        for (double t = 0.0; t <= 6.5; t += frames[f])
+        {
+            Update(&w, t);
+            mtwnEvent e[64];
+            uint32_t n = Read(&w, e, 64);
+            for (uint32_t i = 0; i < n; ++i)
+            {
+                double expected = EdgeIteration(&e[i], tracks);
+                edges += expected >= 0.0 ? 1u : 0u;
+                wrong += expected >= 0.0 &&
+                                 (e[i].firstIteration != expected || e[i].lastIteration != expected)
+                             ? 1u
+                             : 0u;
+            }
+        }
+        mtwnDestroyContext(w.context);
+    }
+    if (wrong != 0)
+    {
+        printf("  %u of %u starts and ends in another iteration\n", wrong, edges);
+    }
+    CHECK(edges > 80 && wrong == 0, "starts and ends in their own iterations");
 }
 
 // A timeline of the root's with a track at its start, played in frames
@@ -839,6 +923,7 @@ int main(void)
 {
     TestHoldEdges();
     TestOneCrossingIterations();
+    TestEdgeIterations();
     TestPlayed();
     TestStall();
     TestBackwards();

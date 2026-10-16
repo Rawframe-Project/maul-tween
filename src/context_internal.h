@@ -173,8 +173,12 @@ typedef struct mtwnClipNode
     double end;
     // For a timeline: the latest end of its children so far.
     double childrenEnd;
-    // Its active duration, from its timing as finished, for its events.
+    // Its active duration, from its timing as finished, for its events,
+    // and its iterations at its active start and end, each the same at
+    // every crossing there (record mtwn-0038).
     double activeDuration;
+    double startIteration;
+    double endIteration;
     // For a timeline: its first and last children, and the last track or
     // timeline among them (positions' previous child); 0 when none.
     uint32_t firstChild;

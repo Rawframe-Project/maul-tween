@@ -70,3 +70,28 @@ same crossings by node, kind and way; it found every case here, and
 20,000 such clips agree. Clip frames cost about 2% more instructions:
 the bench's players on clips of their own 5.77 to 5.91 million a
 frame.
+
+## Amended 2026-10-16: starts and ends take the node's own iteration
+
+A record's iterations were looked up by walking the timelines above the
+node at the crossing's time. Where a timeline above repeats exactly at
+the node's active start or end, that time lies on both sides of the
+repeat, and the walk could land on the far side: a track of 0.2 s, 2
+iterations, ending where its 0.4 s timeline repeats reported its first
+iteration at its end, and a track's start, crossed backwards there, its
+second. A record of several crossings could mix the two.
+
+Now a start or end record takes the node's iteration at its active start
+or end from its own timing, filled both ways: its first at the start,
+its last at the end, at every crossing, as CSS Animations' start and end
+belong to the first and last iteration. A node of no length is in its
+after phase there, as the walk found it. Both are worked out when the
+clip is finished, next to the active duration, so a node holds 16 bytes
+more and the sweep does no timing for them; marks and iteration records
+still walk. A test plays the determinism scenario's nesting with tracks
+ending where their timeline repeats, delayed, and of no length, in short
+frames and in frames that cross each point several times; 54 of its 178
+starts and ends were in another iteration before. Without the walk the bench's 1,000 players on
+clips of their own, repeating every other frame, take 11.0 million
+instructions a frame on average, from 11.8, and their repeat frame at 1
+s 16.5 million, from 18.1; the clips' code is 0.1 kB smaller.
