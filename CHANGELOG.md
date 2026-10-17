@@ -7,6 +7,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-17
+
 ### Fixed
 
 - A timing whose whole iteration start's cycles round below it on the
