@@ -133,6 +133,11 @@ static void TestExactEdges(void)
     level[0].timing = Timing(1.0, 2.0);
     level[0].timing.repeatDelay = 0.5;
     CHECK(Total(Count(level, 1, &end, 1.25, 0.5)) == 1.0, "from inside a delay back past its end");
+    // At the delay's start exactly, going forwards: the end is reached at
+    // that time, so a sweep taking only it takes the end.
+    mtwnPrepareLevels(level, 1, &end);
+    CHECK(Total(mtwnCountCrossings(level, 1, &end, 1.0, 1.0, true)) == 1.0,
+          "the end at the delay's start, at that time");
     // A rate of -1 with a delay: iteration 1 runs back over [0, 1], the
     // delay over (1, 1.5], iteration 0 back over [1.5, 2.5]; iteration 0's
     // end is reached at 1, as iteration 1's start is left.
@@ -264,7 +269,7 @@ static void TestCountNeverFalls(void)
         node.kind = mtwn_leafIterations;
         node.timing = Timing(ScanTime() * (1 + (int)(Uniform() * 3.0)),
                              1 + (int)(Uniform() * 6.0) + (Uniform() < 0.3 ? 0.5 : 0.0));
-        node.timing.iterationStart = Uniform() < 0.25 ? 0.25 * (int)(Uniform() * 4.0) : 0.0;
+        node.timing.iterationStart = Uniform() < 0.25 ? 0.25 * (int)(Uniform() * 12.0) : 0.0;
         node.timing.repeatDelay = ScanTime();
         node.timing.direction = (mtwnDirection)(int)(Uniform() * 4.0);
         static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};
@@ -449,11 +454,13 @@ static mtwnTiming RandomTiming(void)
 {
     static const double durations[] = {0.75, 1.0, 1.6};
     static const double iterations[] = {1.0, 2.0, 2.5, 3.7};
-    static const double starts[] = {0.0, 0.0, 0.3};
+    // Starts past the first iteration too, where the iterations before
+    // the start each take a repeat delay.
+    static const double starts[] = {0.0, 0.0, 0.3, 1.3, 2.0};
     static const double delays[] = {0.0, 0.0, 0.4};
     static const double rates[] = {1.0, 2.0, 0.5, -1.0};
     mtwnTiming timing = Timing(Pick(durations, 3), Pick(iterations, 4));
-    timing.iterationStart = Pick(starts, 3);
+    timing.iterationStart = Pick(starts, 5);
     timing.repeatDelay = Pick(delays, 3);
     timing.delay = Random() * 0.5;
     timing.playbackRate = Pick(rates, 4);

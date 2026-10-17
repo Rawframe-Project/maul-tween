@@ -176,6 +176,17 @@ static void TestExamples(void)
     r = At(&timing, nextafter(0.171875, 1.0));
     CHECK(r.iteration == 4.0 && r.simpleProgress == 1.0,
           "a negative rate's start an ulp on holds the end");
+    // Alternating from the second iteration: an even one runs back, at
+    // 2^53 too, where one more rounds back to it (and the progress within
+    // is lost: 0, directed to 1).
+    timing = mtwnDefaultTiming();
+    timing.duration = 1.0;
+    timing.fill = mtwn_fillBoth;
+    timing.direction = mtwn_directionAlternateReverse;
+    timing.iterationStart = 0x1p53;
+    r = At(&timing, 0.25);
+    CHECK(r.iteration == 0x1p53 && !r.forwards && r.directedProgress == 1.0,
+          "iteration 2^53 runs back");
     // Repeating the shape: an ease-in stays an ease-in on the way back.
     timing = mtwnDefaultTiming();
     timing.duration = 1.0;

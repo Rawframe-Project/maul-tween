@@ -209,7 +209,7 @@ static void TestPositionNeverStepsBack(void)
         mtwnTiming t = mtwnDefaultTiming();
         t.duration = Grid() * (1 + Next() % 3);
         t.iterations = 1 + Next() % 6 + (Next() % 3 == 0 ? 0.5 : 0.0);
-        t.iterationStart = Next() % 4 == 0 ? 0.25 * (Next() % 4) : 0.0;
+        t.iterationStart = Next() % 4 == 0 ? 0.25 * (Next() % 12) : 0.0;
         t.repeatDelay = Next() % 4 == 0 ? 0.0 : Grid();
         t.delay = Next() % 3 == 0 ? Grid() : 0.0;
         static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};

@@ -34,6 +34,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   the active time is lost from the active duration) showed an iteration
   past the last at its start for that one time; the end is now held
   wherever the overall progress reaches it (record mtwn-0012, amended).
+- With the alternate-reverse direction, iterations from 2^53 on all ran
+  forwards: their parity was taken of the iteration plus one, which
+  rounds back to it there. It is now the iteration's own, negated.
 - A record's count of 2^64 - 2048, the largest double below 2^64, was
   given as UINT64_MAX; counts below 2^64 are now exact and only those of
   2^64 or more are UINT64_MAX, as `mtwnEvent` now says.

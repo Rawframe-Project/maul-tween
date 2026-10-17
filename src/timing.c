@@ -184,10 +184,12 @@ bool mtwnIterationForwards(mtwnDirection direction, double iteration)
         {
             return true;
         }
-        // Even: fmod(d, 2) == 0 for the whole numbers an iteration is,
-        // without the division (halving is exact); false for NaN.
-        double d = direction == mtwn_directionAlternateReverse ? iteration + 1.0 : iteration;
-        return floor(d * 0.5) * 2.0 == d;
+        // Even: fmod(i, 2) == 0 for the whole numbers an iteration is,
+        // without the division (halving is exact). The parity of the
+        // iteration itself, not of it plus one, which from 2^53 on rounds
+        // back to it.
+        bool even = floor(iteration * 0.5) * 2.0 == iteration;
+        return direction == mtwn_directionAlternateReverse ? !even : even;
     }
     }
 }
