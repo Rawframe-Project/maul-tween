@@ -80,3 +80,37 @@ long double by Gauss-Legendre on 16,384 panels of 8 points (the same at
 32,768; at 4,096 a segment with a cusp in its speed still moved), the
 worst segment's length is 1.8e-12 relative and the worst path's
 6.1e-13. A path of one channel is exact (its total variation).
+
+## Amended 2026-10-17: a length the cap ends
+
+A length takes at most 1,024 pairs of rules: where the speed falls to 0
+at a span's end, its rounding keeps the two rules apart at every width,
+and a span so narrow that the floor on the width lies below the
+doubles' spacing would split without end.
+The cap ends such a length with the intervals still unagreed accepted
+as the 15-point rule gives them. It is reached only where the span lies
+within about 2^-30 of a still point, where the speed is its own
+rounding, so what it accepts is off by that rounding over a span that
+narrow, not by the rules' disagreement.
+
+Measured against exact lengths (binary128 total variations of cubics
+moving along a line, two and three channels, with a still point inside,
+a still end, or two turns, over spans of every width up to 2^-52 about
+those points): 19,727 of 146,756 lengths reached the cap, the worst off
+by 9.1e-22 of its segment's length. A point at constant speed stays
+within the inverse's own tolerance, 1e-12 of the segment's length;
+`test_path` samples a still-ended line at shares 2^-1 to 2^-52 from
+each end, 25 of them reaching the cap, and checks each point to that.
+
+No status reports a capped length: its error is nine orders under the
+tolerance the point is placed to, and a host could do nothing with it.
+The bound is relative to the segment, not to the capped span, which can
+be 2^-40 of it and is the part that rounds.
+
+The same measurement found what the cap does not touch: a cubic of two
+or more channels that turns back along a line inside a segment, where
+the speed has a kink that neither rule sees when none of their points
+falls between its two turns. Outside them the speed is a polynomial
+both rules integrate exactly, so they agree, and the length misses the
+turn: 1.1e-3 of a path's length at worst, on paths of collinear Bezier
+keyframes. That is a separate defect, to be fixed on its own.

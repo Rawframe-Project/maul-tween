@@ -552,16 +552,23 @@ static void TestStillEnds(void)
     double lengths[2];
     mtwnPath path;
     CHECK(mtwnMakePath(keys, 2, 2, 0.5, lengths, &path) == mtwn_success, "a still-ended line");
+    // Shares 2^-1 to 2^-52 from each end: from 2^-25 to 2^-49 by the
+    // still end the inverse's lengths reach the cap on rule pairs, and
+    // the points stay within the inverse's own 1e-12 of the length.
     double worst = 0.0;
-    const double shares[] = {0x1p-40, 0.5, 1.0 - 0x1p-40};
-    for (int i = 0; i < 3; ++i)
+    for (int p = 1; p <= 52; ++p)
     {
-        double v[4];
-        mtwnSamplePath(&path, shares[i], v, NULL);
-        double error = fabs(v[1] - 100.0 * (1.0 - shares[i])) + fabs(v[0]);
-        worst = error > worst ? error : worst;
+        const double shares[2] = {ldexp(1.0, -p), 1.0 - ldexp(1.0, -p)};
+        for (int i = 0; i < 2; ++i)
+        {
+            double v[4];
+            mtwnSamplePath(&path, shares[i], v, NULL);
+            double error = fabs(v[1] - 100.0 * (1.0 - shares[i])) + fabs(v[0]);
+            worst = error > worst ? error : worst;
+        }
     }
-    CHECK(worst <= 1e-8, "each share at its place, at once");
+    CHECK(lengths[1] == 100.0, "a still-ended line's length");
+    CHECK(worst <= 1.01e-12 * 100.0, "each share at its place, at once");
 }
 
 static void TestEdges(void)

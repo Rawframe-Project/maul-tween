@@ -9,8 +9,8 @@
 // with the ends' missing neighbors reflected, and each gap raised to
 // 1e-12 of the largest of the three, so the curve is the same at any
 // scale and coincident keyframes hold still. Arc length is adaptive
-// Gauss-Legendre, orders 5 and 10 agreeing to 1e-9 relative, and the
-// parameter at a length is safeguarded Newton on it.
+// Gauss-Kronrod, 15 points against 7 agreeing to 1e-9 relative, and the
+// parameter at a length is safeguarded Halley on it.
 
 #include "maul-tween/path.h"
 
@@ -34,7 +34,10 @@ enum
     // end, its rounding keeps the two orders apart at every width, and a
     // span too narrow for the share below (2^-40 of the segment by its
     // end) would split until the stack is full, about 2^32 times. The
-    // tests' lengths take at most 17.
+    // tests' lengths take at most 17. The intervals the cap accepts lie
+    // where the speed is its own rounding, so a capped length is off by
+    // that rounding over a span this narrow: 9.1e-22 of the segment's
+    // length at worst, measured (record mtwn-0031).
     s_mostRules = 1024
 };
 static const double s_narrowest = 0x1p-30;
