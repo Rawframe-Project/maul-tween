@@ -450,7 +450,8 @@ static void TestPlaying(void)
             mtwnValueKind valueKind = (mtwnValueKind)(kind - 1);
             mtwnVec4 start = valueKind == mtwn_valueRotation || valueKind == mtwn_valueColor
                                  ? (mtwnVec4){0, 0, 0, 1.0f}
-                                 : (mtwnVec4){0};
+                             : valueKind == mtwn_valueScale ? (mtwnVec4){1.0f, 0, 0, 0}
+                                                            : (mtwnVec4){0};
             CHECK(mtwnCreateTarget(context, valueKind, start, &targets[s]) == mtwn_success,
                   "a target");
             bindings[s] = mtwnBind(used, targets[s]);
@@ -557,17 +558,18 @@ static void TestTransitions(void)
     mtwnContextDef contextDef = mtwnDefaultContextDef();
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
-    mtwnTargetId targets[9];
-    for (uint32_t k = 0; k < 9; ++k)
+    mtwnTargetId targets[10];
+    for (uint32_t k = 0; k < 10; ++k)
     {
         mtwnVec4 start = k == mtwn_valueRotation || k == mtwn_valueColor ? (mtwnVec4){0, 0, 0, 1.0f}
+                         : k == mtwn_valueScale                          ? (mtwnVec4){1.0f, 0, 0, 0}
                                                                          : (mtwnVec4){0};
         CHECK(mtwnCreateTarget(context, (mtwnValueKind)k, start, &targets[k]) == mtwn_success,
               "a target");
     }
     uint64_t now = 0;
     // Whether each target's latest transition is essential.
-    bool essential[9] = {false};
+    bool essential[10] = {false};
     uint32_t reducedFrames = 0;
     for (uint32_t f = 0; f < 3000; ++f)
     {
@@ -577,13 +579,14 @@ static void TestTransitions(void)
                       mtwn_success,
                   "reduced motion switched");
         }
-        uint32_t k = Next() % 9;
+        uint32_t k = Next() % 10;
         if (Next() % 4 == 0)
         {
             mtwnTransitionDef def = mtwnDefaultTransitionDef();
             def.target = targets[k];
             float a = (float)Unit();
             def.value = k == mtwn_valueRotation ? (mtwnVec4){a, 0.0f, 0.0f, 1.0f}
+                        : k == mtwn_valueScale  ? (mtwnVec4){0.05f + 4.0f * a, 0.0f, 0.0f, 0.0f}
                                                 : (mtwnVec4){a, 1.0f - a, a * 0.5f, 1.0f};
             def.duration = 0.3 * Unit();
             def.delay = Next() % 3 == 0 ? 0.1 * Unit() : 0.0;
@@ -611,7 +614,7 @@ static void TestTransitions(void)
         }
         now += 1000000u + (uint64_t)(Next() % 30) * 1000000u;
         CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
-        for (uint32_t t = 0; t < 9; ++t)
+        for (uint32_t t = 0; t < 10; ++t)
         {
             mtwnTargetState state;
             bool read = mtwnTarget_GetState(context, targets[t], &state) == mtwn_success;

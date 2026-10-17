@@ -373,7 +373,7 @@ static mtwnVec4 Step(mtwnValueKind kind, mtwnVec4 first, mtwnVec4 last)
 // What the def asks of the clip, before anything in the clip changes.
 static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* def)
 {
-    bool slot = def->slot < clip->def.slotCapacity && def->track.kind <= mtwn_valueDiscrete;
+    bool slot = def->slot < clip->def.slotCapacity && def->track.kind <= mtwn_valueScale;
     if (slot)
     {
         uint8_t kind = clip->slotKinds[def->slot];

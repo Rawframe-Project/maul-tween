@@ -87,3 +87,16 @@ gate's build) and the track's 5 (243 of 250 at `-O2`). The path's file
 then passed the family's 1,000 lines; its arc length and the inverse
 moved to `path_length.c`, the path calling the inverse across files, 25
 more: 2,642 in the gate's build, 2,768 of the 2,800 target at `-O2`.
+
+## Amended 2026-10-18: scales in clips
+
+A clip takes tracks of `mtwn_valueScale`, and players compose them in
+the logarithm: add multiplies the underlying value by the effect to the
+weight's power, a b^w; replace moves toward the effect by that power of
+the ratio, a (b / a)^w, exactly b at full weight (and add exactly a b);
+velocities compose as rates, v / s, so the result's is its value times
+the composed rate. Accumulate is add, as for every kind. An incremental
+scale track moves on by the ratio of its last keyframe to its first each
+iteration, taken in double from its keyframes. The parts after: clips
+132.5 kB of 135.0, everything 145.8 kB of 146.0; the next growth of
+either restates its budget.

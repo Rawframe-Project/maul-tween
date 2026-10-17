@@ -249,10 +249,68 @@ static void TestCommitAndRefusals(void)
     mtwnDestroyContext(w.context);
 }
 
+// Scales (record mtwn-0059) compose in their logarithm: add multiplies,
+// replace moves geometrically, a weight a power, velocities as rates; an
+// incremental scale track multiplies by its ratio each iteration.
+static void TestScales(void)
+{
+    mtwnMoving under = {{2.0f, 0, 0, 0}, {1.0f, 0, 0, 0}};
+    mtwnMoving effect = {{8.0f, 0, 0, 0}, {4.0f, 0, 0, 0}};
+    mtwnMoving r = mtwnCompose(mtwn_valueScale, mtwn_compositeAdd, 1.0, under, effect);
+    CHECK(r.value.x == 16.0f && Near((double)r.velocity.x, 16.0),
+          "add multiplies, rates adding: 2 at 1/2 a second and 8 at 1/2");
+    r = mtwnCompose(mtwn_valueScale, mtwn_compositeAdd, 0.5, under, effect);
+    CHECK(Near((double)r.value.x, 2.0 * sqrt(8.0)) &&
+              Near((double)r.velocity.x, 0.75 * 2.0 * sqrt(8.0)),
+          "add at half: times the effect's square root");
+    r = mtwnCompose(mtwn_valueScale, mtwn_compositeReplace, 0.5, under, effect);
+    CHECK(Near((double)r.value.x, 4.0) && Near((double)r.velocity.x, 2.0),
+          "replace at half: the geometric mean");
+    r = mtwnCompose(mtwn_valueScale, mtwn_compositeReplace, 1.0, under, effect);
+    CHECK(r.value.x == 8.0f && r.velocity.x == 4.0f, "replace at full weight: the effect exactly");
+    // In a clip: 1 to 100 over 10 s, two iterations moving on, added onto
+    // a base of 2.
+    World w = {0};
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.clipStorageBytes = 1u << 20;
+    CHECK(mtwnCreateContext(&def, &w.context) == mtwn_success, "a context");
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0}, &w.target) ==
+              mtwn_success,
+          "a scale target");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(w.context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value.x = 1.0f;
+    keys[1].offset = 1.0;
+    keys[1].value.x = 100.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.track = mtwnDefaultTrackDef(mtwn_valueScale);
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 10.0;
+    track.timing.iterations = 2.0;
+    track.incremental = true;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, clip, &track, &node) == mtwn_success, "a scale track");
+    CHECK(mtwnClip_Finish(w.context, clip) == mtwn_success, "finished");
+    Layer(&w, clip, mtwn_compositeAdd, 1.0f, false);
+    Update(&w, 0.0);
+    Update(&w, 5.0);
+    CHECK(fabs((double)Value(&w) / 20.0 - 1.0) <= 1e-6, "halfway through the first: 2 times 10");
+    Update(&w, 15.0);
+    CHECK(fabs((double)Value(&w) / 2000.0 - 1.0) <= 1e-6,
+          "halfway through the second: 2 times 100 times 10");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestKinds();
     TestLayers();
     TestCommitAndRefusals();
+    TestScales();
     return s_failures == 0 ? 0 : 1;
 }

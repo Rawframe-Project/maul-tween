@@ -6,14 +6,17 @@
 // with a weight: the result mixes from the underlying value to the
 // composited one. Numbers add and mix per channel; colors premultiplied
 // by alpha; rotations multiply (the effect turning in the underlying's
-// frame) and mix by slerp; a discrete value is not additive and steps at
-// half.
+// frame) and mix by slerp; scales compose in their logarithm (record
+// mtwn-0059); a discrete value is not additive and steps at half.
 
 #include "compose.h"
+
+#include "elementary.h"
 
 #include "maul-tween/interpolate.h"
 
 #include <math.h>
+#include <stdbool.h>
 
 static void Unpack(mtwnVec4 v, double out[4])
 {
@@ -123,6 +126,30 @@ static mtwnVec4 Rotation(mtwnComposite composite, double weight, mtwnVec4 under,
     return (mtwnVec4){composed.x, composed.y, composed.z, composed.w};
 }
 
+// Scales in their logarithm: add multiplies by the effect to the
+// weight's power, replace moves toward it by that power of the ratio; the
+// velocities by the chain rule, as rates v / s. At full weight replace is
+// the effect and add the product, exactly.
+static mtwnMoving Scale(mtwnComposite composite, double weight, mtwnMoving under, mtwnMoving effect)
+{
+    double a = (double)under.value.x;
+    double b = (double)effect.value.x;
+    double ra = (double)under.velocity.x / a;
+    double rb = (double)effect.velocity.x / b;
+    bool add = composite == mtwn_compositeAdd;
+    double c = 0.0;
+    if (weight == 1.0)
+    {
+        c = add ? a * b : b;
+    }
+    else
+    {
+        c = a * mtwnExp(weight * (add ? mtwnLog(b) : mtwnLog(b) - mtwnLog(a)));
+    }
+    double rate = add ? ra + weight * rb : ra + weight * (rb - ra);
+    return (mtwnMoving){{(float)c, 0.0f, 0.0f, 0.0f}, {(float)(c * rate), 0.0f, 0.0f, 0.0f}};
+}
+
 mtwnMoving mtwnCompose(mtwnValueKind kind, mtwnComposite composite, double weight,
                        mtwnMoving underlying, mtwnMoving effect)
 {
@@ -142,6 +169,8 @@ mtwnMoving mtwnCompose(mtwnValueKind kind, mtwnComposite composite, double weigh
     case mtwn_valueRotation:
         out.value = Rotation(composite, weight, underlying.value, effect.value);
         break;
+    case mtwn_valueScale:
+        return Scale(composite, weight, underlying, effect);
     default:
         out.value = Linear(composite, weight, underlying.value, effect.value);
         break;

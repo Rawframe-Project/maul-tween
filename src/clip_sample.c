@@ -239,6 +239,15 @@ static mtwnVec4 Moved(const mtwnClipNode* node, mtwnVec4 value, double k)
     {
         return value;
     }
+    if (node->track.kind == mtwn_valueScale)
+    {
+        // The ratio of its last keyframe to its first, k times, in double.
+        const mtwnPath* path = &node->track.path;
+        double first = (double)path->keyframes[0].value.x;
+        double last = (double)path->keyframes[path->count - 1].value.x;
+        double factor = mtwnExp(k * (mtwnLog(last) - mtwnLog(first)));
+        return (mtwnVec4){(float)((double)value.x * factor), 0.0f, 0.0f, 0.0f};
+    }
     if (node->track.kind == mtwn_valueRotation)
     {
         mtwnVec4 turn = Power(node->step, k);

@@ -37,7 +37,7 @@ player: context_internal fpenv pool runs
 player_slot: context_internal pool runs
 clip_sample: compose context_internal elementary pool runs
 clip_tasks: context_internal fpenv pool runs
-compose:
+compose: elementary
 crossing: timing_internal
 event: context_internal pool
 sweep: context_internal crossing pool runs

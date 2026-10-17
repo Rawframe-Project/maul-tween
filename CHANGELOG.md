@@ -20,6 +20,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - Scale tracks: keyframes of `mtwn_valueScale` move along their
   logarithms, every segment kind and constant speed included;
   `mtwnPath` has a `logarithmic` byte where it had a reserved one.
+- Scales in clips: tracks of `mtwn_valueScale`, composed in their
+  logarithm (add multiplies, replace mixes geometrically, weights as
+  powers), incremental repeats multiplying by the track's ratio.
 
 ### Changed
 
