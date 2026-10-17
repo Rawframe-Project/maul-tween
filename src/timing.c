@@ -144,12 +144,15 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     }
     double cycle = d + timing->repeatDelay;
     double position = scaled + floor(start) * cycle + (start - floor(start)) * d;
+    // The quotient rounds either way. Below the first iteration it is
+    // that one (339 times 0.2 over 0.2 floors to 338), where the
+    // position holds the first's start as the same product, so nothing
+    // lies before it; rounded up to k it leaves a position an ulp before
+    // k's start, in the delay before it.
     double k = floor(position / cycle);
+    k = k < floor(start) ? floor(start) : k;
     double within = position - k * cycle;
-    // The quotient rounds: one rounded up to k leaves a position an ulp
-    // before k's start, in the delay before it (never before the first,
-    // where the times are too large for an ulp to be one).
-    if (within < 0.0 && k - 1.0 >= floor(start))
+    if (within < 0.0)
     {
         k -= 1.0;
         within += cycle;

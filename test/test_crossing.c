@@ -255,6 +255,27 @@ static double ScanTime(void)
 // ended depend on where it began (found by the sweep's fuzz). The count's
 // position rounded as the timing model's does: a quotient rounded up past
 // an iteration's start, or a progress rounded to its end.
+// A whole iteration start whose cycles' quotient rounds below it (339
+// times 0.2 over 0.2 floors to 338): the count starts in the first
+// iteration, not at the end of one before it.
+static void TestStartBelowItsQuotient(void)
+{
+    // A child of such a level starts at its own start, not at the end
+    // of an iteration before the first: a mark late in it is crossed
+    // once reached, not 1e-15 s into the level (an active time that
+    // small is lost in the position, which then held the end of
+    // iteration 338: the old count recorded the mark there).
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(0.1, 3.0);
+    level[0].timing.iterationStart = 339.0;
+    level[0].timing.repeatDelay = 0.1;
+    mtwnLeaf late = Instant(0.075);
+    CHECK(Total(Count(level, 1, &late, -1.0, 1e-15)) == 0.0 &&
+              Total(Count(level, 1, &late, -1.0, 0.08)) == 1.0,
+          "a child at its start at the active start");
+}
+
 static void TestCountNeverFalls(void)
 {
     s_scan = 88172645463325252u;
@@ -780,6 +801,7 @@ int main(void)
     TestRepeats();
     TestDelaysAndRates();
     TestIterations();
+    TestStartBelowItsQuotient();
     TestCountNeverFalls();
     TestExactEdges();
     TestTimes();

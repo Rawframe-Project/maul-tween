@@ -7,6 +7,16 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Fixed
+
+- A timing whose whole iteration start's cycles round below it on the
+  repeat delays' timeline (an iteration start of 339 with iterations and
+  delays of 0.1 s) showed, at its active start, the end of an
+  iteration before the first, inside a repeat delay, and the records
+  of a timeline nested in it counted its whole first iteration at once;
+  the active start is now the first iteration's start (record
+  mtwn-0012, amended).
+
 ## [0.5.0] - 2026-10-17
 
 ### Added

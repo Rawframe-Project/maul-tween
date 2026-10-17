@@ -73,3 +73,18 @@ count's: it already held the end where the progress reached it, so the
 two agree bit for bit. No Level 1 case moves, the oracle's random cases
 being dyadic; the oracle states the same rule and keeps the two
 rounding cases of this record as regressions.
+
+## Amended 2026-10-17: never before the first iteration
+
+The quotient on the cycle timeline can round below the first
+iteration: an iteration start of 339 with iterations of 0.1 and delays
+of 0.1 puts the active start at 339 times 0.2, which divided by 0.2
+floors to 338. The position then lay a whole cycle into iteration 338,
+in its delay, and the active start showed iteration 338's end for one
+time (progress 1, in a repeat delay); the crossings' count, forming the
+same position, took a child to its end there and recorded what lay in
+it. The quotient is now never below the first iteration, where the
+position holds the first one's start as the same product, so the
+progress within is 0 at the active start; the step back for a quotient
+rounded up stays above it as it did. The timing oracle and the count
+take the same rule (record mtwn-0042).

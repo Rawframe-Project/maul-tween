@@ -141,10 +141,12 @@ def compute(t, local, backwards):
             cycle = d + r
             whole = floor(start)
             position = scaled + whole * cycle + (start - whole) * d
-            k = floor(position / cycle)
+            # The quotient rounded below the first iteration: the first,
+            # whose start the position holds as the same product.
+            k = max(floor(position / cycle), whole)
             within = position - k * cycle
             # The quotient rounded up past k's start: the delay before it.
-            if within < 0 and k - 1 >= whole:
+            if within < 0:
                 k -= 1
                 within += cycle
             # A progress rounded to the iteration's end has reached it.
@@ -306,6 +308,14 @@ def regressions():
     t = dict(base, duration=0.2, iterations=5.0, repeatDelay=0.3, rate=-1.0, delay=0.171875)
     for local in [0.171875, math.nextafter(0.171875, 1.0), 0.18]:
         out.append((t, local, False, compute(t, local, False)))
+    # A whole iteration start whose cycles' quotient rounds below it (339
+    # times 0.2 over 0.2 floors to 338): the first iteration's start, not
+    # an iteration before it held at its end (record mtwn-0012, amended
+    # 2026-10-17).
+    for start, d, r in [(339.0, 0.1, 0.1), (933.0, 0.3, 0.05)]:
+        t = dict(base, iterationStart=start, duration=d, repeatDelay=r, iterations=3.0)
+        for local in [0.0, 1e-9, d]:
+            out.append((t, local, False, compute(t, local, False)))
     return out
 
 
