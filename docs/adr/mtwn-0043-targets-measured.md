@@ -84,3 +84,10 @@ misses with the hooks over without came to 0.89 to 1.06 at a load of
 117 to 214 with each clip's own times, 1.18 to 1.33 before, and the
 bound is 1.12. The event is Zen's; a machine without it reports the
 line and skips it.
+
+Measured again the same day at load 231, the ratio of the build with
+each clip's own times reached 1.12 and that of 0.4.0 fell to 1.14 over
+five tries of 1,000 frames each: no bound parts them there. The check
+therefore takes the median of five tries over 1,000 frames and counts
+misses only when the load average is at most one task for each of the
+machine's threads, reporting the line as skipped otherwise.

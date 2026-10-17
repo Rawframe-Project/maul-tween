@@ -15,13 +15,15 @@
 # when they differ or a bound fails; another compiler or flags give
 # other counts. A `misses` line bounds a layout's cache misses a frame
 # over another's, counted by a perf event in the same way, the median of
-# three tries (`misses <layout> <over layout> <runs> <bound> <event>`):
+# five tries (`misses <layout> <over layout> <runs> <bound> <event>`):
 # misses move with what else the machine runs, a ratio of two counted
-# side by side much less. An event this machine does not count is
-# reported and its line skipped.
+# side by side much less, but past a load of one task for each of the
+# machine's threads not little enough, so the line is then reported and
+# skipped. So is one whose event this machine does not count.
 #
 #   python3 tools/bench_counts.py <maul-tween_bench> bench/counts.txt
 
+import os
 import subprocess
 import sys
 
@@ -46,15 +48,19 @@ def each(bench, name, n, period, event="instructions:u"):
 
 def misses(bench, fields, over):
     name, under, n, bound, event = fields[1], fields[2], int(fields[3]), float(fields[4]), fields[5]
+    load = os.getloadavg()[0]
+    if load > (os.cpu_count() or 1):
+        print("%-14s misses skipped: load %.0f over %d threads" % (name, load, os.cpu_count() or 1))
+        return
     ratios = []
-    for _ in range(3):
+    for _ in range(5):
         a = each(bench, name, n, [], event)
         b = each(bench, under, n, [], event)
         if a is None or b is None or b <= 0:
             print("%-14s %s not counted on this machine, skipped" % (name, event))
             return
         ratios.append(a / b)
-    ratio = sorted(ratios)[1]
+    ratio = sorted(ratios)[2]
     label = "%s/%s" % (name, under)
     print("%-22s %6.3f times the misses, bound %6.3f" % (label, ratio, bound))
     if ratio > bound:
