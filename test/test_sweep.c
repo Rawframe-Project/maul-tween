@@ -9,14 +9,18 @@
 // rates and repeat delays on times of 1/64 s; frames of 1/64 s start on
 // their boundaries, irregular ones do not; players run forwards, and
 // backwards from 2.5 s into what they held after their end, some turning
-// or slowing on the way. And counts add up over any cut of the time
-// (records mtwn-0037, mtwn-0038): each clip in both kinds of frame, to
-// the same time, crosses the same points as many times each way.
+// or slowing on the way. A second pass widens the clips: times also on
+// tenths and anywhere, rates of 0.5, 3 and -1, eased timelines, and
+// frames of a tenth for odd seeds, where two defects hid off the binary
+// grid. And counts add up over any cut of the time (records mtwn-0037,
+// mtwn-0038): each clip in both kinds of frame, to the same time, crosses
+// the same points as many times each way.
 
 #include "context_internal.h"
 #include "test_harness.h"
 
 #include "maul-tween/clip.h"
+#include "maul-tween/easing.h"
 #include "maul-tween/event.h"
 #include "maul-tween/player.h"
 #include "maul-tween/target.h"
@@ -41,9 +45,16 @@ static int Pick(int n)
     return (int)(Random() * n);
 }
 
+// Whether the clips are widened past the binary grid (see above).
+static bool s_wide;
+
+// A time on 1/64 s, or widened, also on tenths or anywhere.
 static double Sixtyfourths(void)
 {
-    return (1 + Pick(16)) / 64.0;
+    int kind = s_wide ? Pick(3) : 0;
+    return kind == 0   ? (1 + Pick(16)) / 64.0
+           : kind == 1 ? (1 + Pick(4)) / 10.0
+                       : 0.02 + 0.3 * Random();
 }
 
 static mtwnPosition At(double offset)
@@ -54,7 +65,7 @@ static mtwnPosition At(double offset)
     return position;
 }
 
-// A random timing on times of 1/64 s.
+// A random timing on times of 1/64 s, or widened.
 static void RandomTiming(mtwnTiming* t, bool timeline)
 {
     t->duration = Sixtyfourths() * (1 + Pick(3));
@@ -62,8 +73,23 @@ static void RandomTiming(mtwnTiming* t, bool timeline)
     t->delay = Pick(3) == 0 ? Sixtyfourths() : 0.0;
     t->iterationStart = Pick(4) == 0 ? 0.25 * Pick(4) : 0.0;
     t->direction = (mtwnDirection)Pick(4);
-    t->playbackRate = Pick(5) == 0 ? 2.0 : 1.0;
+    if (s_wide)
+    {
+        static const double rates[] = {1.0, 1.0, 1.0, 2.0, 0.5, -1.0, 3.0};
+        t->playbackRate = rates[Pick(7)];
+        // An endless timeline has no end to run back from.
+        t->playbackRate = isinf(t->iterations) && t->playbackRate < 0.0 ? 1.0 : t->playbackRate;
+    }
+    else
+    {
+        t->playbackRate = Pick(5) == 0 ? 2.0 : 1.0;
+    }
     t->repeatDelay = Pick(6) == 0 ? Sixtyfourths() : 0.0;
+    if (s_wide && timeline && Pick(3) == 0)
+    {
+        CHECK(mtwnMakePowerEasing((mtwnEaseMode)Pick(4), 1.5 + Pick(3), &t->easing) == mtwn_success,
+              "an easing");
+    }
 }
 
 static void AddTrack(mtwnContext* context, mtwnClipId clip, mtwnNode parent)
@@ -233,7 +259,8 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
             CHECK(mtwnPlayer_SetRate(context, id, slow) == mtwn_success, "slowed");
             slow = 0.0;
         }
-        now += aligned ? 15625000u : 5000000u + (uint64_t)Pick(20000000);
+        uint64_t frame = s_wide && seed % 2 != 0 ? 100000000u : 15625000u;
+        now += aligned ? frame : 5000000u + (uint64_t)Pick(20000000);
         // Both cuts end at 3.001 s, off every boundary.
         now = now > 3001000000u ? 3001000000u : now;
         CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "updated");
@@ -243,12 +270,19 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
     return hash;
 }
 
-static void TestLeftOutChangesNothing(void)
+static void TestLeftOutChangesNothing(bool wide)
 {
+    // Seeds 1 to 600, then widened clips whose count fell an ulp past an
+    // iteration's start beside a repeat delay, so that a search from a
+    // guess ended two ulps from one without (found by a fuzz of 4,000).
+    static const uint64_t hard[] = {2799, 3372};
+    s_wide = wide;
     uint32_t differ = 0;
     uint32_t records = 0;
-    for (uint64_t seed = 1; seed <= 600; ++seed)
+    uint64_t plays = 600 + (wide ? sizeof hard / sizeof hard[0] : 0);
+    for (uint64_t n = 1; n <= plays; ++n)
     {
+        uint64_t seed = n <= 600 ? n : hard[n - 601];
         double rate = seed % 3 == 0 ? -1.0 : 1.0;
         for (int aligned = 0; aligned < 2; ++aligned)
         {
@@ -260,9 +294,11 @@ static void TestLeftOutChangesNothing(void)
             records += counted;
         }
     }
+    s_wide = false;
     if (differ != 0)
     {
-        printf("  %u of 1200 plays recorded otherwise\n", differ);
+        printf("  %u of %u %s plays recorded otherwise\n", differ, (unsigned)(2 * plays),
+               wide ? "widened" : "");
     }
     CHECK(records > 10000 && differ == 0, "the same records, bit for bit");
 }
@@ -273,12 +309,14 @@ static void TestLeftOutChangesNothing(void)
 // the same points as many times each way. A frame landing exactly where
 // a held time starts to move lost the crossings at the held time (found
 // this way).
-static void TestCountsAcrossCuts(void)
+static void TestCountsAcrossCuts(bool wide)
 {
     // Clips 1 to 300, then clips found to need the margin of the edges.
     static const uint64_t hard[] = {454, 619, 1682, 2884};
+    s_wide = wide;
     uint32_t differ = 0;
-    for (uint64_t n = 1; n <= 300 + sizeof hard / sizeof hard[0]; ++n)
+    uint64_t clips = 300 + (wide ? 0 : sizeof hard / sizeof hard[0]);
+    for (uint64_t n = 1; n <= clips; ++n)
     {
         uint64_t seed = n <= 300 ? n : hard[n - 301];
         double rate = seed % 3 == 0 ? -1.0 : 1.0;
@@ -289,9 +327,11 @@ static void TestCountsAcrossCuts(void)
         (void)Play(seed, rate, false, false, &records, &sums[1]);
         differ += memcmp(sums[0], sums[1], sizeof sums[0]) != 0 ? 1u : 0u;
     }
+    s_wide = false;
     if (differ != 0)
     {
-        printf("  %u of 304 clips crossed otherwise in other frames\n", differ);
+        printf("  %u of %u %s clips crossed otherwise in other frames\n", differ, (unsigned)clips,
+               wide ? "widened" : "");
     }
     CHECK(differ == 0, "the same crossings whatever the frames");
 }
@@ -319,8 +359,10 @@ static void TestOffGridFrameEnd(void)
 
 int main(void)
 {
-    TestLeftOutChangesNothing();
-    TestCountsAcrossCuts();
+    TestLeftOutChangesNothing(false);
+    TestLeftOutChangesNothing(true);
+    TestCountsAcrossCuts(false);
+    TestCountsAcrossCuts(true);
     TestOffGridFrameEnd();
     return s_failures == 0 ? 0 : 1;
 }
