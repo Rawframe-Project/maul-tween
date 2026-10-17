@@ -262,14 +262,29 @@ static mtwnTiming Timing(void)
 
 // A random tree under the root: timelines, tracks and marks, so many in
 // the big clip that it passes the nodes a group keeps.
+// Clips whose nodes all lie at the deepest chain a clip may hold, so
+// each group's levels are filled to their end.
+static bool s_deep;
+
 static void Build(Twin* twin, uint32_t c, uint32_t nodes)
 {
     mtwnClipDef def = mtwnDefaultClipDef();
-    def.nodeCapacity = nodes;
+    def.nodeCapacity = nodes + (s_deep ? MTWN_MAX_CLIP_DEPTH : 0u);
     def.keyframeCapacity = nodes * 3;
     CHECK(mtwnCreateClip(twin->context, &def, &twin->clips[c]) == mtwn_success, "a clip");
     mtwnNode timelines[4] = {MTWN_ROOT_NODE};
     uint32_t timelineCount = 1;
+    for (uint32_t depth = 1; s_deep && depth < MTWN_MAX_CLIP_DEPTH; ++depth)
+    {
+        mtwnClipTimelineDef timeline = mtwnDefaultClipTimelineDef();
+        timeline.parent = timelines[0];
+        timeline.timing.iterations = HUGE_VAL;
+        timeline.timing.fill = mtwn_fillBoth;
+        timeline.autoDuration = true;
+        CHECK(mtwnClip_AddTimeline(twin->context, twin->clips[c], &timeline, &timelines[0]) ==
+                  mtwn_success,
+              "a timeline in the chain");
+    }
     // The last node added, when a track: the next may share its timing.
     mtwnClipTrackDef last = mtwnDefaultClipTrackDef();
     bool lastTrack = false;
@@ -281,7 +296,7 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
         mtwnNode parent = timelines[Next() % timelineCount];
         mtwnNode node = 0;
         uint32_t what = Next() % 6;
-        if (what == 0 && timelineCount < 4)
+        if (what == 0 && timelineCount < 4 && !s_deep)
         {
             mtwnClipTimelineDef timeline = mtwnDefaultClipTimelineDef();
             timeline.parent = parent;
@@ -1034,6 +1049,30 @@ static void TestOneTimeOrder(void)
 // The groups on real threads, at once: the same bits as the serial twin.
 // Under ThreadSanitizer (the CI's TSan job) any memory two groups touch
 // is reported.
+// Groups on threads over clips at the deepest chain: each group's levels
+// hold the whole chain at once, next to the next group's, which a layout
+// a few levels short overlaps (a race the thread sanitizer reports).
+static void TestDeepThreads(void)
+{
+    s_threaded = true;
+    s_deep = true;
+    Taken taken = {0};
+    uint32_t differences = 0;
+    for (uint64_t seed = 51; seed <= 52; ++seed)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.playerCapacity = 128;
+        def.clipStorageBytes = 16u * 1024u * 1024u;
+        def.eventCapacity = 4096u;
+        def.bindingCapacity = 2000u;
+        differences += Run(def, seed, 0u, &taken);
+    }
+    s_deep = false;
+    s_threaded = false;
+    CHECK(differences == 0 && taken.staged > 100,
+          "deep clips' groups on threads at once, the same bits as serial");
+}
+
 static void TestThreads(void)
 {
     s_threaded = true;
@@ -1354,6 +1393,7 @@ int main(void)
     TestOneTimeOrder();
     TestReplayOff();
     TestThreads();
+    TestDeepThreads();
     TestTwins();
     return s_failures == 0 ? 0 : 1;
 }
