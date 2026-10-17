@@ -41,7 +41,11 @@ extern "C"
         // A node left its active interval: to after it going forwards, to
         // before it going backwards. A transition ended, committed.
         mtwn_eventEnd = 2,
-        // A node's current iteration changed.
+        // A node's current iteration changed: made at the time an
+        // iteration's start is reached, going forwards the start of the
+        // iteration entered, going backwards the start of the one left,
+        // whose iteration is current there and the one before it just
+        // after.
         mtwn_eventIteration = 3,
         // A mark was crossed.
         mtwn_eventMark = 4,
@@ -61,7 +65,9 @@ extern "C"
         // since its delay ended.
         double clipTime;
         // The iteration of the node (a mark's parent) at the first and the
-        // last crossing; 0 for a transition.
+        // last crossing, as its timing reports it at that time: for an
+        // iteration record the one entered going forwards and the one
+        // left going backwards; 0 for a transition.
         double firstIteration;
         double lastIteration;
         // The crossings it stands for, 1 at least; UINT64_MAX for 2^64 or

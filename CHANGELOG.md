@@ -7,6 +7,14 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- `event.h` states which iteration an iteration record names: the one
+  entered going forwards and, going backwards, the one left, current at
+  the record's time (its start) with the one before it just after. The
+  behavior is unchanged; a test pins it for a backward player and a
+  node's negative rate.
+
 ## [0.5.1] - 2026-10-17
 
 ### Fixed

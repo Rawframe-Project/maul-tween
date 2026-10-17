@@ -174,6 +174,49 @@ static void TestBackwards(void)
     mtwnDestroyContext(w.context);
 }
 
+// Iteration records at the time an iteration's start is reached, played
+// backwards by the player or by the node's own rate: made at that time,
+// they name the iteration left, which the target still shows there.
+static void TestIterationLeftBackwards(void)
+{
+    static const double s_rates[2][2] = {{-1.0, 1.0}, {1.0, -1.0}};
+    for (int i = 0; i < 2; ++i)
+    {
+        World w = MakeWorld(16);
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        keys[1].value.x = 1.0f;
+        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 1.0;
+        track.timing.iterations = 3.0;
+        track.timing.playbackRate = s_rates[i][1];
+        mtwnNode node = 0;
+        CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        (void)Play(&w, true, s_rates[i][0]);
+        mtwnEvent e[16];
+        Update(&w, 0.0);
+        (void)Read(&w, e, 16);
+        Update(&w, 1.0);
+        uint32_t n = Read(&w, e, 16);
+        mtwnVec4 value = {0};
+        CHECK(mtwnTarget_GetValue(w.context, w.target, &value) == mtwn_success, "read");
+        CHECK(n == 1 && Is(&e[0], mtwn_eventIteration, node, 1.0, i == 0) &&
+                  e[0].firstIteration == 2.0 && value.x == 0.0f,
+              "at the start left: the iteration left, shown at its start");
+        Update(&w, 1.25);
+        CHECK(Read(&w, e, 16) == 0 &&
+                  mtwnTarget_GetValue(w.context, w.target, &value) == mtwn_success &&
+                  value.x == 0.75f,
+              "and the one before it after, with no second record");
+        mtwnDestroyContext(w.context);
+    }
+}
+
 static void TestSeeks(void)
 {
     World w = MakeWorld(16);
@@ -980,6 +1023,7 @@ int main(void)
     TestPlayed();
     TestStall();
     TestBackwards();
+    TestIterationLeftBackwards();
     TestSeeks();
     TestRewindAndRates();
     TestRateZeroFirst();
