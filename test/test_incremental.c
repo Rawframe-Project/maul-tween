@@ -239,6 +239,18 @@ static void TestRefused(void)
     track = Incremental(mtwn_valueDiscrete, keys, 2.0);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_errorInvalid,
           "nor a discrete value");
+    // Endless iterations of no duration pass at once, to an infinite
+    // iteration no value moves on by (found by the API's fuzz).
+    track = Incremental(mtwn_valueScalar, keys, HUGE_VAL);
+    track.timing.duration = 0.0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_errorInvalid,
+          "nor endless iterations of no duration");
+    track.incremental = false;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
+          "which a track not moving on may have");
+    track = Incremental(mtwn_valueScalar, keys, HUGE_VAL);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
+          "as may endless iterations that take time");
     mtwnDestroyContext(w.context);
 }
 

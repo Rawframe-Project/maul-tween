@@ -148,7 +148,8 @@ extern "C"
         // Level 2's iteration accumulate, as DOTween's incremental loops
         // do): iteration k adds k times its last keyframe minus its first,
         // a rotation turns by the rotation from first to last k times.
-        // Numbers, vectors, angles, integers and rotations.
+        // Numbers, vectors, angles, integers and rotations; not endless
+        // iterations of no duration, which pass at once.
         bool incremental;
         uint8_t reserved[2];
     } mtwnClipTrackDef;

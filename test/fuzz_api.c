@@ -1,0 +1,437 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The public API driven by bytes (records mtwn-0046, mtwn-0056): clips
+// built node by node with any timing, valid or not; targets of every
+// kind; players with layered bindings, controlled and destroyed;
+// transitions; targets destroyed under their players; reduced motion;
+// updates any time apart. One script runs on three contexts: one alone,
+// one on a task system that runs its ranges at once, and one counting
+// every record without the sweep's shortcuts. Each run hashes every
+// call's status, every target's state after every update, the changed
+// targets and every record; the three must be the same bits, values
+// finite and records ordered, counted and within their update's span.
+//
+// Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
+// corpus directory; in the test suite it runs a fixed set of random
+// inputs.
+
+#include "context_internal.h"
+
+#include "maul-tween/clip.h"
+#include "maul-tween/easing.h"
+#include "maul-tween/event.h"
+#include "maul-tween/player.h"
+#include "maul-tween/spring.h"
+#include "maul-tween/target.h"
+#include "maul-tween/timing.h"
+#include "maul-tween/transition.h"
+
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+enum
+{
+    s_targets = 8,
+    s_players = 4,
+    s_steps = 64,
+};
+
+// The input, read a byte at a time; zeros past its end.
+typedef struct Bytes
+{
+    const uint8_t* data;
+    size_t size;
+    size_t at;
+} Bytes;
+
+static uint32_t Byte(Bytes* in)
+{
+    return in->at < in->size ? in->data[in->at++] : 0u;
+}
+
+static uint32_t Below(Bytes* in, uint32_t n)
+{
+    return Byte(in) % n;
+}
+
+// A double from a few kinds: small multiples of 1/64, tenths, zero,
+// negative, huge, infinite and NaN, so refusals are tried too.
+static double Wild(Bytes* in, double scale)
+{
+    uint32_t b = Byte(in);
+    switch (b % 12)
+    {
+    case 0:
+        return 0.0;
+    case 1:
+        return -scale * (double)Byte(in) / 255.0;
+    case 2:
+        return HUGE_VAL;
+    case 3:
+        return (double)NAN;
+    case 4:
+        return 1e12;
+    case 5:
+    case 6:
+        return (double)(1 + Byte(in)) / 10.0 * scale / 8.0;
+    default:
+        return (double)(1 + Byte(in)) / 64.0 * scale / 2.0;
+    }
+}
+
+static mtwnTiming RandomTiming(Bytes* in)
+{
+    mtwnTiming t = mtwnDefaultTiming();
+    t.duration = Wild(in, 1.0);
+    t.delay = Below(in, 3) == 0 ? Wild(in, 1.0) : 0.0;
+    t.endDelay = Below(in, 4) == 0 ? Wild(in, 0.5) : 0.0;
+    t.iterations = Below(in, 5) == 0 ? HUGE_VAL : (double)(1 + Below(in, 4)) * 0.5;
+    t.iterationStart = Below(in, 4) == 0 ? 0.25 * (double)Below(in, 12) : 0.0;
+    t.repeatDelay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
+    static const double rates[] = {1.0, 2.0, 0.5, -1.0, -1.5, 3.0};
+    t.playbackRate = rates[Below(in, 6)];
+    t.direction = (mtwnDirection)Below(in, 5);
+    t.fill = (mtwnFill)Below(in, 4);
+    t.alternateEasing = (mtwnAlternateEasing)Below(in, 2);
+    if (Below(in, 3) == 0)
+    {
+        (void)mtwnMakePowerEasing((mtwnEaseMode)Below(in, 4), 1.5 + Below(in, 3), &t.easing);
+    }
+    return t;
+}
+
+// The run's hash (FNV-1a) and whether an invariant failed.
+typedef struct Run
+{
+    uint64_t hash;
+    bool bad;
+} Run;
+
+static void Mix(Run* run, const void* bytes, size_t size)
+{
+    const uint8_t* b = (const uint8_t*)bytes;
+    for (size_t i = 0; i < size; ++i)
+    {
+        run->hash = (run->hash ^ b[i]) * 1099511628211u;
+    }
+}
+
+static void Status(Run* run, mtwnResult r)
+{
+    int32_t v = (int32_t)r;
+    Mix(run, &v, sizeof v);
+}
+
+static bool Finite(mtwnVec4 v)
+{
+    return isfinite(v.x) && isfinite(v.y) && isfinite(v.z) && isfinite(v.w);
+}
+
+static void* RunAtOnce(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+                       void* userContext)
+{
+    (void)minRange;
+    (void)userContext;
+    task(0, itemCount, taskContext);
+    return NULL;
+}
+
+static void WaitForNothing(void* handle, void* userContext)
+{
+    (void)handle;
+    (void)userContext;
+}
+
+// One node of a clip, its kind and fields from the input.
+static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, mtwnNode* timelines,
+                    uint32_t* timelineCount)
+{
+    mtwnNode parent = timelines[Below(in, *timelineCount)];
+    parent = Below(in, 16) == 0 ? 1000u + Below(in, 8) : parent;
+    mtwnPosition at;
+    memset(&at, 0, sizeof at);
+    at.kind = (mtwnPositionKind)Below(in, 6);
+    at.offset = Wild(in, 1.0);
+    at.label = Below(in, 4);
+    mtwnNode node = 0;
+    mtwnResult r = mtwn_success;
+    switch (Below(in, 4))
+    {
+    case 0:
+    {
+        mtwnClipTimelineDef def = mtwnDefaultClipTimelineDef();
+        def.parent = parent;
+        def.position = at;
+        def.autoDuration = Below(in, 2) == 0;
+        def.timing = RandomTiming(in);
+        r = mtwnClip_AddTimeline(context, clip, &def, &node);
+        if (r == mtwn_success && *timelineCount < 8)
+        {
+            timelines[(*timelineCount)++] = node;
+        }
+        break;
+    }
+    case 1:
+        r = mtwnClip_AddMark(context, clip, parent, at, Below(in, 4), &node);
+        break;
+    case 2:
+        r = mtwnClip_AddLabel(context, clip, parent, at, Below(in, 4), &node);
+        break;
+    default:
+    {
+        mtwnKeyframe keys[3];
+        memset(keys, 0, sizeof keys);
+        uint32_t count = 1 + Below(in, 3);
+        for (uint32_t k = 0; k < count; ++k)
+        {
+            keys[k].value = (mtwnVec4){(float)Wild(in, 4.0), 0.5f, 0.0f, 1.0f};
+            keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Wild(in, 1.0));
+            keys[k].easing = mtwnLinearEasing();
+            keys[k].kind = (mtwnSegmentKind)Below(in, 5);
+        }
+        mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+        def.parent = parent;
+        def.position = at;
+        def.slot = Below(in, 4);
+        def.track.kind = (mtwnValueKind)Below(in, 10);
+        def.keyframes = keys;
+        def.keyframeCount = count;
+        def.timing = RandomTiming(in);
+        def.incremental = Below(in, 4) == 0;
+        def.constantSpeed = Below(in, 4) == 0;
+        r = mtwnClip_AddTrack(context, clip, &def, &node);
+        break;
+    }
+    }
+    Status(run, r);
+    Mix(run, &node, sizeof node);
+}
+
+static mtwnVec4 StartOf(mtwnValueKind kind)
+{
+    return kind == mtwn_valueRotation || kind == mtwn_valueColor ? (mtwnVec4){0, 0, 0, 1.0f}
+                                                                 : (mtwnVec4){0.5f, 0, 0, 0};
+}
+
+// One control: a player's, a transition, a destruction or reduced motion.
+static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerId* players,
+                    mtwnTargetId* targets)
+{
+    mtwnPlayerId player = players[Below(in, s_players)];
+    mtwnResult r = mtwn_success;
+    switch (Below(in, 14))
+    {
+    case 0:
+        r = mtwnPlayer_Seek(context, player, Wild(in, 4.0));
+        break;
+    case 1:
+        r = mtwnPlayer_Reverse(context, player);
+        break;
+    case 2:
+        r = mtwnPlayer_SetRate(context, player, Wild(in, 3.0) - 1.0);
+        break;
+    case 3:
+        r = mtwnPlayer_Pause(context, player);
+        break;
+    case 4:
+        r = mtwnPlayer_Play(context, player);
+        break;
+    case 5:
+        r = mtwnPlayer_Sweep(context, player, Wild(in, 4.0));
+        break;
+    case 6:
+        r = mtwnPlayer_Finish(context, player);
+        break;
+    case 7:
+        r = mtwnPlayer_SetWeight(context, player, Wild(in, 1.0));
+        break;
+    case 8:
+        r = mtwnContext_SetReducedMotion(context, Below(in, 2) == 0);
+        break;
+    case 9:
+        r = mtwnDestroyPlayer(context, player);
+        break;
+    case 10:
+    {
+        uint32_t t = Below(in, s_targets);
+        r = mtwnDestroyTarget(context, targets[t]);
+        break;
+    }
+    case 11:
+    {
+        uint32_t t = Below(in, s_targets);
+        r = mtwnCreateTarget(context, (mtwnValueKind)Below(in, 10), StartOf(mtwn_valueScalar),
+                             &targets[t]);
+        break;
+    }
+    default:
+    {
+        mtwnTransitionDef def = mtwnDefaultTransitionDef();
+        def.target = targets[Below(in, s_targets)];
+        def.value = (mtwnVec4){(float)Wild(in, 4.0), 0.25f, 0.5f, 1.0f};
+        def.delay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
+        def.duration = Wild(in, 1.0);
+        def.spec = (mtwnTransitionSpec)Below(in, 3);
+        (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
+                                         &def.spring);
+        mtwnPlayerId id = {0, 0};
+        r = mtwnStartTransition(context, &def, &id);
+        break;
+    }
+    }
+    Status(run, r);
+}
+
+// The script on one context: 0 alone, 1 with a task system, 2 counting
+// every record.
+static Run Script(const uint8_t* data, size_t size, int mode)
+{
+    Bytes in = {data, size, 0};
+    Run run = {14695981039346656037u, false};
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.eventCapacity = 256;
+    def.enqueueTask = mode == 1 ? RunAtOnce : NULL;
+    def.finishTask = mode == 1 ? WaitForNothing : NULL;
+    mtwnContext* context = NULL;
+    if (mtwnCreateContext(&def, &context) != mtwn_success)
+    {
+        run.bad = true;
+        return run;
+    }
+    context->countEvery = mode == 2;
+    mtwnTargetId targets[s_targets];
+    for (uint32_t t = 0; t < s_targets; ++t)
+    {
+        mtwnValueKind kind = (mtwnValueKind)Below(&in, 10);
+        Status(&run, mtwnCreateTarget(context, kind, StartOf(kind), &targets[t]));
+    }
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip = {0, 0};
+    Status(&run, mtwnCreateClip(context, &clipDef, &clip));
+    mtwnNode timelines[8] = {MTWN_ROOT_NODE};
+    uint32_t timelineCount = 1;
+    uint32_t nodes = 1 + Below(&in, 12);
+    for (uint32_t k = 0; k < nodes; ++k)
+    {
+        AddNode(&in, &run, context, clip, timelines, &timelineCount);
+    }
+    Status(&run, mtwnClip_Finish(context, clip));
+    mtwnPlayerId players[s_players];
+    memset(players, 0, sizeof players);
+    uint32_t playerCount = 1 + Below(&in, s_players);
+    for (uint32_t p = 0; p < playerCount; ++p)
+    {
+        mtwnBinding bindings[4];
+        for (uint32_t s = 0; s < 4; ++s)
+        {
+            bindings[s] = mtwnBind(s, targets[Below(&in, s_targets)]);
+            bindings[s].composite = (mtwnComposite)Below(&in, 3);
+            bindings[s].weight = Below(&in, 4) == 0 ? 0.5f : 1.0f;
+        }
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = bindings;
+        playerDef.bindingCount = Below(&in, 5);
+        playerDef.keep = Below(&in, 2) == 0;
+        playerDef.essential = Below(&in, 4) == 0;
+        playerDef.rate = Below(&in, 4) == 0 ? -1.0 : 1.0;
+        Status(&run, mtwnCreatePlayer(context, &playerDef, &players[p]));
+    }
+    uint64_t now = 0;
+    for (uint32_t step = 0; step < s_steps && in.at < in.size; ++step)
+    {
+        for (uint32_t c = Below(&in, 3); c > 0; --c)
+        {
+            Control(&in, &run, context, players, targets);
+        }
+        uint64_t before = now;
+        uint32_t gap = Byte(&in);
+        now += gap < 200 ? (uint64_t)gap * 2000000u : (uint64_t)(gap - 199) * 500000000u;
+        mtwnTargetId changed[64];
+        uint32_t total = 0;
+        Status(&run, mtwnUpdate(context, now, changed, 64, &total));
+        Mix(&run, &total, sizeof total);
+        for (uint32_t i = 0; i < total && i < 64; ++i)
+        {
+            Mix(&run, &changed[i], sizeof changed[i]);
+        }
+        for (uint32_t t = 0; t < s_targets; ++t)
+        {
+            mtwnTargetState state;
+            mtwnResult r = mtwnTarget_GetState(context, targets[t], &state);
+            Status(&run, r);
+            if (r == mtwn_success)
+            {
+                Mix(&run, &state.value, sizeof state.value);
+                Mix(&run, &state.velocity, sizeof state.velocity);
+                Mix(&run, &state.base, sizeof state.base);
+                run.bad = run.bad || !Finite(state.value) || !Finite(state.velocity);
+            }
+        }
+        mtwnEvent events[256];
+        uint32_t n = 0;
+        uint64_t dropped = 0;
+        Status(&run, mtwnReadEvents(context, events, 256, &n, &dropped));
+        Mix(&run, &dropped, sizeof dropped);
+        for (uint32_t e = 0; e < n; ++e)
+        {
+            const mtwnEvent* ev = &events[e];
+            double fields[4] = {ev->hostTime, ev->clipTime, ev->firstIteration, ev->lastIteration};
+            uint64_t ids[6] = {ev->count, ev->player.index1, ev->node,
+                               ev->key,   ev->kind,          ev->backwards ? 1u : 0u};
+            Mix(&run, fields, sizeof fields);
+            Mix(&run, ids, sizeof ids);
+            bool ordered = e == 0 || events[e - 1].hostTime <= ev->hostTime;
+            bool spanned = ev->hostTime >= (double)before / 1e9 - 1e-9 &&
+                           ev->hostTime <= (double)now / 1e9 + 1e-9;
+            bool counted =
+                ev->count >= 1 && ev->kind >= mtwn_eventStart && ev->kind <= mtwn_eventCancel;
+            run.bad = run.bad || !ordered || !spanned || !counted;
+        }
+    }
+    mtwnDestroyContext(context);
+    return run;
+}
+
+int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
+
+int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
+    Run alone = Script(data, size, 0);
+    Run tasks = Script(data, size, 1);
+    Run every = Script(data, size, 2);
+    if (alone.bad || tasks.bad || every.bad || alone.hash != tasks.hash || alone.hash != every.hash)
+    {
+        fprintf(stderr, "fuzz_api: bad %d %d %d, hashes %016llx %016llx %016llx\n", alone.bad,
+                tasks.bad, every.bad, (unsigned long long)alone.hash,
+                (unsigned long long)tasks.hash, (unsigned long long)every.hash);
+        __builtin_trap();
+    }
+    return 0;
+}
+
+#ifndef MTWN_FUZZING
+// In the test suite: a fixed set of random inputs (xorshift64).
+int main(void)
+{
+    uint64_t state = 0x9E3779B97F4A7C15u;
+    static uint8_t input[768];
+    for (int n = 0; n < 300; ++n)
+    {
+        size_t size = 64 + (size_t)(n * 37 % 700);
+        for (size_t i = 0; i < size; ++i)
+        {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            input[i] = (uint8_t)(state >> 56);
+        }
+        (void)LLVMFuzzerTestOneInput(input, size);
+    }
+    return 0;
+}
+#endif

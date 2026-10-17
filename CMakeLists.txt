@@ -23,6 +23,7 @@ option(MAUL_TWEEN_WERROR "Treat compiler warnings as errors" OFF)
 option(MAUL_TWEEN_SANITIZE "Instrument with AddressSanitizer and UBSan" OFF)
 option(MAUL_TWEEN_TSAN "Instrument with ThreadSanitizer" OFF)
 option(MAUL_TWEEN_COVERAGE "Instrument for gcov coverage" OFF)
+option(MAUL_TWEEN_FUZZ "Build the libFuzzer target (Clang)" OFF)
 
 # Every executable (tests, benchmarks, tools) lands in the top of the
 # build tree, so scripts and CI find them in one place.
@@ -121,6 +122,33 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
+    # The API fuzz target's script on a fixed set of random inputs.
+    if(NOT MAUL_TWEEN_BUILD_SHARED)
+        add_executable(test_fuzz_api ${PROJECT_SOURCE_DIR}/test/fuzz_api.c)
+        target_link_libraries(test_fuzz_api PRIVATE ${PROJECT_NAME})
+        target_include_directories(test_fuzz_api PRIVATE ${PROJECT_SOURCE_DIR}/src)
+        maul_apply_flags(test_fuzz_api)
+        add_test(NAME fuzz_api COMMAND test_fuzz_api)
+    endif()
+endif()
+
+# The fuzz target: test/fuzz_api.c, run as fuzz_api <corpus dir>, over
+# scripts of the public API (clips, players, transitions, updates) on a
+# context alone, on a task system and counting every record.
+if(MAUL_TWEEN_FUZZ)
+    # The library is instrumented too: its coverage guides libFuzzer, and
+    # the sanitizers watch its code. Undefined behaviour stops the run.
+    target_compile_options(maul-tween PRIVATE -fsanitize=fuzzer-no-link,address,undefined
+                                              -fno-sanitize-recover=all)
+    target_link_options(maul-tween PUBLIC -fsanitize=address,undefined)
+    add_executable(fuzz_api test/fuzz_api.c)
+    target_link_libraries(fuzz_api PRIVATE maul-tween)
+    target_include_directories(fuzz_api PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    target_compile_definitions(fuzz_api PRIVATE MTWN_FUZZING)
+    maul_apply_flags(fuzz_api)
+    target_compile_options(fuzz_api PRIVATE -fsanitize=fuzzer,address,undefined
+                                            -fno-sanitize-recover=all)
+    target_link_options(fuzz_api PRIVATE -fsanitize=fuzzer,address,undefined)
 endif()
 
 if(MAUL_TWEEN_BUILD_SAMPLES)

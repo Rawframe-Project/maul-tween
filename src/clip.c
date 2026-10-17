@@ -379,8 +379,13 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
         uint8_t kind = clip->slotKinds[def->slot];
         slot = kind == 0 || kind == def->track.kind + 1;
     }
-    bool incremental = !def->incremental || (def->track.kind != mtwn_valueColor &&
-                                             def->track.kind != mtwn_valueDiscrete);
+    // Endless iterations of no duration all pass at once: the iteration
+    // past them is infinite, and no value moves on by it (record
+    // mtwn-0040).
+    bool endlessAtOnce = isinf(def->timing.iterations) && def->timing.duration == 0.0;
+    bool incremental =
+        !def->incremental || (def->track.kind != mtwn_valueColor &&
+                              def->track.kind != mtwn_valueDiscrete && !endlessAtOnce);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) || !slot ||
         !incremental || def->keyframes == NULL || mtwnValidateTiming(&def->timing) != mtwn_success)
     {

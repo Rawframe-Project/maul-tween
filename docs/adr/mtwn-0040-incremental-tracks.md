@@ -28,3 +28,14 @@ move or spin should go on from where it ended.
 ## Consequences
 
 A loop of a quarter turn spins on; a step of a staircase climbs on.
+
+## Amended 2026-10-17: endless iterations of no duration refused
+
+A timing of no duration and endless iterations is valid: all its
+iterations pass at once, and past them (or before them, for a negative
+rate) the current iteration is infinite, as Web Animations counts it.
+An incremental track there moved on by infinity times its step: an
+infinite value, or NaN for a step of 0. No value is right for it, so an
+incremental track with such a timing is refused when it is added, as a
+color is; one not moving on, or with endless iterations that take time
+(whose iteration is never infinite), is not. The API's fuzz found it.

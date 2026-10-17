@@ -84,6 +84,13 @@ them:
   before it runs. None is kept in this repository or linked into the
   library.
 
+`test/fuzz_api.c` drives the public API from bytes: clips built node by
+node, players under controls, transitions and updates, the same script
+on a context alone, on a task system and counting every record, which
+must agree bit for bit. `ctest` runs it on a fixed set of inputs; with
+Clang, `-DMAUL_TWEEN_FUZZ=ON` builds it as a libFuzzer target, run as
+`fuzz_api <corpus directory>` outside the tests.
+
 ## Size
 
 The code a program links, by the parts it uses: x86-64, GCC 14 `-O2`,

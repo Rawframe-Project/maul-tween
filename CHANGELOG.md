@@ -7,6 +7,21 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- `test/fuzz_api.c`: the public API driven by bytes, the same script on
+  a context alone, on a task system and counting every record, which
+  must agree bit for bit with values finite and records in order.
+  `ctest` runs it on a fixed set of inputs; `MAUL_TWEEN_FUZZ` builds it
+  as a libFuzzer target (Clang).
+
+### Fixed
+
+- An incremental track with endless iterations of no duration is
+  refused when added: all its iterations pass at once, and past them
+  its value moved on by an infinite iteration, to infinity or NaN
+  (record mtwn-0040, amended).
+
 ## [0.4.1] - 2026-10-17
 
 ### Fixed
