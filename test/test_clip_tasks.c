@@ -509,6 +509,8 @@ typedef struct Taken
     // Updates in which a group sampled a clip of one player in its own
     // node times.
     uint32_t ownTimes;
+    // Players with an alone target that a group ran, not left serial.
+    uint32_t aloneInGroups;
 } Taken;
 
 // The clips' players before an update, in creation order: the order the
@@ -570,6 +572,14 @@ static void Count(const Twin* twin, const Order* order, Taken* taken)
             of += twin->clips[c].index1 == order->clips[i] ? players[c] : 0u;
         }
         bool serial = context->staged[i].serial;
+        const mtwnClipPlay* play = &mtwnPlayerAt(context, context->staged[i].player)->play;
+        bool anyAlone = false;
+        // A player that finished was freed in the update: not read.
+        for (uint32_t s = 0; !context->staged[i].done && s < play->bindingCount; ++s)
+        {
+            anyAlone = anyAlone || context->bindings.entries[play->bindingStart + s].alone;
+        }
+        taken->aloneInGroups += anyAlone && !serial ? 1u : 0u;
         taken->serial += serial ? 1u : 0u;
         taken->staged += serial ? 0u : 1u;
         bool big = mtwnClipAt(context, order->clips[i])->nodeCount > MTWN_GROUP_NODES;
@@ -876,6 +886,8 @@ static void TestTwins(void)
     CHECK(ownDifferences == 0, "with targets of their own, the twins hold the same bits");
     CHECK(emptyOwnDifferences == 0 && emptyOwn.serial > 100,
           "each staging empty, players with targets of their own left serial, the same bits");
+    CHECK(own.aloneInGroups > 10000,
+          "players with targets of their own run by their groups when they fit");
     CHECK(s_alone > 10000 && own.staged > 1000 && own.serial > 10,
           "alone targets written in the groups, and players left serial among them");
 }
@@ -1209,6 +1221,56 @@ static void TestWriters(void)
     mtwnDestroyContext(context);
 }
 
+// A player whose results and changes fill its group's staging exactly
+// fits: 16 bindings give each group room for two results and two
+// changes, which a clip of one track (its root and the track) and one
+// binding take.
+static void TestExactFit(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.bindingCapacity = 16;
+    def.enqueueTask = RunAtOnce;
+    def.finishTask = WaitForNothing;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    CHECK(context->works[0].trackCapacity == 2 && context->works[0].changeCapacity == 2,
+          "room for two results and two changes a group");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a clip of one track");
+    for (int p = 0; p < 2; ++p)
+    {
+        mtwnTargetId target = {0, 0};
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnBind(0, target);
+        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        player.clip = clip;
+        player.bindings = &binding;
+        player.bindingCount = 1;
+        mtwnPlayerId id = {0, 0};
+        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    }
+    Step(context, 0.0);
+    Step(context, 0.25);
+    Step(context, 0.5);
+    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "both players run by their groups");
+    mtwnDestroyContext(context);
+}
+
 // A binding's alone is worked out only by the groups, so it is as fresh
 // as the last update with groups to run: with one player left an update
 // runs none, so a binding alone before its target was destroyed must
@@ -1250,6 +1312,7 @@ int main(void)
 {
     TestWriters();
     TestStaleAlone();
+    TestExactFit();
     TestStagingBounds();
     TestOneTimeOrder();
     TestReplayOff();
