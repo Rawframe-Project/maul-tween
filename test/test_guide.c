@@ -57,6 +57,27 @@ static void TestValues(void)
           "a color between red and blue");
 }
 
+static void TestScales(void)
+{
+    mtwnScaleMix zoom;
+    mtwnResult made = mtwnMakeScaleMix(1.0, 100.0, &zoom);
+    double half = mtwnMixScale(&zoom, 0.5); // 10, not 50.5
+    CHECK(made == mtwn_success && fabs(half - 10.0) <= 1e-12, "halfway from 1 to 100 is 10");
+}
+
+static void TestZoom(void)
+{
+    mtwnZoomView from = {0.0, 0.0, 1.0};
+    mtwnZoomView to = {50.0, 20.0, 2.0};
+    mtwnZoomMix flight;
+    mtwnResult made = mtwnMakeZoomMix(from, to, 1.42, &flight);
+    double seconds = mtwnZoomLength(&flight) * 1.42 / sqrt(2.0); // d3's pace
+    // Halfway it is wider than both ends.
+    mtwnZoomView view = mtwnMixZoom(&flight, 0.5);
+    CHECK(made == mtwn_success && seconds > 0.0 && view.width > 2.0,
+          "a flight that zooms out to pan");
+}
+
 static void TestStagger(void)
 {
     mtwnStagger stagger = mtwnDefaultStagger(); // 0.1 s apart, from the first
@@ -228,6 +249,8 @@ int main(void)
     TestEasing();
     TestSprings();
     TestValues();
+    TestScales();
+    TestZoom();
     TestStagger();
     TestHost();
     return s_failures == 0 ? 0 : 1;

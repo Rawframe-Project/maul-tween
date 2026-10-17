@@ -106,7 +106,8 @@ gives iOS's resistance past an edge.
 
 A target holds one kind of value in up to four channels (`mtwnVec4`):
 numbers and vectors, colors with straight alpha, angles in radians,
-rotations as quaternions (x, y, z, w), integers and discrete values.
+rotations as quaternions (x, y, z, w), integers, discrete values and
+scales.
 The interpolations are functions too:
 
 ```c
@@ -123,6 +124,34 @@ alpha, with CSS's hue methods; angles by CSS's methods too
 (`mtwnMakeRotationMix`, `mtwnMixRotation`). Keyframes of any kind make
 paths (`mtwnMakePath`, `mtwnMakeTrack`): linear, stepped, Bezier or
 Catmull-Rom segments, at constant speed if asked.
+
+A scale (a zoom factor, a size from 1 to 100) mixed linearly seems to
+slow down, each step adding the same amount; a scale moves in its
+logarithm instead, so equal steps multiply by equal ratios. As a kind,
+`mtwn_valueScale`, it does so everywhere: transitions ease it and
+springs overshoot it by a ratio, tracks curve in the logarithm, and
+layers multiply. Its mix is a function too:
+
+```c
+mtwnScaleMix zoom;
+mtwnResult made = mtwnMakeScaleMix(1.0, 100.0, &zoom);
+double half = mtwnMixScale(&zoom, 0.5); // 10, not 50.5
+```
+
+To move a view (a centre and the width it shows) where both the centre
+and the zoom change, van Wijk and Nuij's path zooms out as far as the
+pan needs and back in, so the eye can follow; its length gives a
+duration that suits it:
+
+```c
+mtwnZoomView from = {0.0, 0.0, 1.0};
+mtwnZoomView to = {50.0, 20.0, 2.0};
+mtwnZoomMix flight;
+mtwnResult made = mtwnMakeZoomMix(from, to, 1.42, &flight);
+double seconds = mtwnZoomLength(&flight) * 1.42 / sqrt(2.0); // d3's pace
+// Halfway it is wider than both ends.
+mtwnZoomView view = mtwnMixZoom(&flight, 0.5);
+```
 
 ## A context and its targets
 
