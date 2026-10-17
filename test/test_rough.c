@@ -151,6 +151,13 @@ static double NotANumber(void* context, double progress)
     return (double)NAN;
 }
 
+static double Infinite(void* context, double progress)
+{
+    (void)context;
+    (void)progress;
+    return HUGE_VAL;
+}
+
 static void TestRefusals(void)
 {
     mtwnRoughDef def = Def(0.2, 1, mtwn_roughTaperNone, 0);
@@ -178,8 +185,14 @@ static void TestRefusals(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, NotANumber, NULL, &bad.shape) == mtwn_success,
           "a host shape");
     refused += mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_errorInvalid;
-    CHECK(refused == 10, "no def, points or easing, one point, a strength below 0, infinite or "
-                         "NaN, an unknown taper or flag, and a shape giving NaN refused");
+    // Clamping would bring an infinity to 1; the shape is refused first.
+    bad.flags = mtwn_roughClamp;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Infinite, NULL, &bad.shape) == mtwn_success,
+          "a host shape");
+    refused += mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_errorInvalid;
+    CHECK(refused == 11, "no def, points or easing, one point, a strength below 0, infinite or "
+                         "NaN, an unknown taper or flag, and a shape giving NaN or an infinity "
+                         "refused");
 }
 
 int main(void)
