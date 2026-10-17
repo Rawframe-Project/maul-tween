@@ -251,6 +251,10 @@ static void TestRefused(void)
     track = Incremental(mtwn_valueScalar, keys, HUGE_VAL);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
           "as may endless iterations that take time");
+    track = Incremental(mtwn_valueScalar, keys, 3.0);
+    track.timing.duration = 0.0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
+          "and finitely many of no duration (a mutant found it untested)");
     mtwnDestroyContext(w.context);
 }
 

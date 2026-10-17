@@ -222,6 +222,11 @@ static void TestEndsOfTime(void)
                   fabs(m.velocityFromVelocity) <= 1.0 && isfinite(m.offsetFromVelocity) &&
                   isfinite(m.velocityFromOffset);
     }
+    // Between 2^53 and 2^60 too, where the sine is already out of
+    // [-1, 1] (-3.2e22 at 1e18; a mutant moving the bound found it).
+    CHECK(mtwnMakeSpringFromFrequency(1e18 / s_twoPi, 0.0, &stiff) == mtwn_success, "1e18 rad/s");
+    mtwnSpringMotion mid = mtwnSpringMotionAt(&stiff, 1.0);
+    bounded = bounded && fabs(mid.offsetFromOffset) <= 1.0 && fabs(mid.velocityFromVelocity) <= 1.0;
     CHECK(bounded, "a phase past 2^52 radians bounded");
     // Undamped, its phase overflowing: no angle either, and no NaN.
     CHECK(mtwnMakeSpringFromFrequency(1e150, 0.0, &stiff) == mtwn_success, "an undamped one");

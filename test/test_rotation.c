@@ -258,8 +258,9 @@ static void TestFarExtrapolation(void)
                               &mix) == mtwn_success,
           "a half turn, pi / 2 apart as quaternions");
     bool bounded = true;
-    const double far[] = {-1.5e300, 1.5e300, 1.7e308};
-    for (int i = 0; i < 3; ++i)
+    // A phase of 1e18 too, below where the guard once stood untested.
+    const double far[] = {-1.5e300, 1.5e300, 1.7e308, 1e18 / (0.5 * s_pi)};
+    for (int i = 0; i < 4; ++i)
     {
         mtwnQuat q = mtwnMixRotation(&mix, far[i]);
         double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
