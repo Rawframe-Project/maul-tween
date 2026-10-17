@@ -54,3 +54,28 @@ straight from its keyframes by the expression the cubic gave (the end
 exact at 1), the same bits. The track 344 to 237 instructions, the
 target met. Clip frames, whose tracks sample the same way, take 7.6%
 fewer instructions (the bench's spread players 6.21 to 5.74 million).
+
+## Amended 2026-10-17: the path's target at 2,650
+
+Record mtwn-0031's amendments of this day made the path's lengths
+exact where they were not: a turn back along a line inside a segment
+had hidden from both rules (a length up to 1.1e-3 off), and the rules
+agreeing to 1e-9 left lengths near a sharp minimum of the speed 2.5e-9
+of a segment off and random paths 2.5e-10. They now agree to 1e-12, the
+tolerance points are placed to, and are split at the speed's minima:
+near turns within 6.1e-12, random paths exact to their last bits. The
+path's sample went from 1,925 instructions before them (2,026 when
+this record set 2,050) to 2,595: the
+minima's search and the split about 166, the tighter agreement the
+rest, 2.98 pairs of rules a sample where there were 2.35.
+
+Tried: the rules' sums taken channel by channel instead of point by
+point, the same bits, 2,369 instructions, but GCC at `-O3` unrolls and
+vectorizes it into 2.3 kB more and the values part to 51.6 kB of its
+50.0 kB budget (record mtwn-0055); declined, as a quadrature compiled
+for two channels alone was for 15% at 1.6 kB. A test of the minimum's
+sharpness saved 17 instructions and was no more accurate.
+
+The target is now at most 2,650 instructions a sample at that
+accuracy. GSAP's 538 still is not the target: its table puts a point
+up to 7.7e-4 of the length off.
