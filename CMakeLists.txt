@@ -59,6 +59,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/scale.c
     src/zoom.c
     src/path.c
+    src/path_length.c
     src/player.c
     src/player_slot.c
     src/pool.c

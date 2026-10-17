@@ -317,7 +317,7 @@ static void TestRefusals(void)
     CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_errorInvalid &&
               keys[1].value.x == 10 * deg,
           "refused, and the keyframes not unwrapped");
-    def = mtwnDefaultTrackDef(9);
+    def = mtwnDefaultTrackDef(10);
     CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_errorInvalid, "a kind");
     def = mtwnDefaultTrackDef(mtwn_valueRotation);
     def.rotationPath = 2;
@@ -336,6 +336,78 @@ static void TestRefusals(void)
           "no constant speed for discrete values");
 }
 
+static mtwnVec4 Scale(float s)
+{
+    return (mtwnVec4){s, 0, 0, 0};
+}
+
+// Scales (record mtwn-0059): a track moves their logarithms, so equal
+// steps of progress multiply by equal ratios.
+static void TestScales(void)
+{
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScale);
+    mtwnTrack track;
+    mtwnKeyframe linear[3] = {Key(0.0, Scale(1.0f), mtwn_segmentLinear),
+                              Key(0.5, Scale(100.0f), mtwn_segmentLinear),
+                              Key(1.0, Scale(10000.0f), mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, linear, 3, NULL, NULL, &track) == mtwn_success, "a scale track");
+    CHECK(mtwnSampleTrack(&track, 0.0).x == 1.0f && mtwnSampleTrack(&track, 0.5).x == 100.0f &&
+              mtwnSampleTrack(&track, 1.0).x == 10000.0f,
+          "its keyframes exactly");
+    double worst = 0.0;
+    for (int k = 0; k <= 16; ++k)
+    {
+        double want = pow(10.0, 4.0 * k / 16.0);
+        worst = fmax(worst, fabs((double)mtwnSampleTrack(&track, k / 16.0).x - want) / want);
+    }
+    CHECK(worst <= 1e-6, "linear segments geometric: a decade each eighth");
+    // Uniform Catmull-Rom through equally spaced decades is linear in
+    // the logarithm, so 10^(3p).
+    mtwnKeyframe curve[4] = {Key(0.0, Scale(1.0f), mtwn_segmentCatmullRom),
+                             Key(1.0 / 3.0, Scale(10.0f), mtwn_segmentCatmullRom),
+                             Key(2.0 / 3.0, Scale(100.0f), mtwn_segmentCatmullRom),
+                             Key(1.0, Scale(1000.0f), mtwn_segmentCatmullRom)};
+    def.alpha = 0.0;
+    CHECK(mtwnMakeTrack(&def, curve, 4, NULL, NULL, &track) == mtwn_success, "a curved one");
+    worst = 0.0;
+    for (int k = 0; k <= 30; ++k)
+    {
+        double want = pow(10.0, 3.0 * k / 30.0);
+        worst = fmax(worst, fabs((double)mtwnSampleTrack(&track, k / 30.0).x - want) / want);
+    }
+    CHECK(worst <= 1e-6, "Catmull-Rom in the logarithm");
+    // At constant speed the logarithm's length: 1 to 10 is one decade of
+    // three, wherever its keyframe's offset says.
+    mtwnKeyframe uneven[3] = {Key(0.0, Scale(1.0f), mtwn_segmentLinear),
+                              Key(0.9, Scale(10.0f), mtwn_segmentLinear),
+                              Key(1.0, Scale(1000.0f), mtwn_segmentLinear)};
+    double lengths[3];
+    def.alpha = 0.5;
+    CHECK(mtwnMakeTrack(&def, uneven, 3, lengths, NULL, &track) == mtwn_success,
+          "at constant speed");
+    CHECK(fabs(lengths[2] - 3.0 * log(10.0)) <= 1e-12, "its length three decades in the logarithm");
+    CHECK(fabsf(mtwnSampleTrack(&track, 1.0 / 3.0).x - 10.0f) <= 1e-5f, "a third of the way is 10");
+    // A step holds; a Bezier's controls are scales too.
+    mtwnKeyframe held[2] = {Key(0.0, Scale(2.0f), mtwn_segmentStep),
+                            Key(1.0, Scale(8.0f), mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, held, 2, NULL, NULL, &track) == mtwn_success &&
+              mtwnSampleTrack(&track, 0.7).x == 2.0f && mtwnSampleTrack(&track, 1.0).x == 8.0f,
+          "a step holds");
+    mtwnKeyframe bezier[2] = {Key(0.0, Scale(1.0f), mtwn_segmentBezier),
+                              Key(1.0, Scale(16.0f), mtwn_segmentLinear)};
+    bezier[0].out = Scale(2.0f);
+    bezier[1].in = Scale(8.0f);
+    CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_success &&
+              fabsf(mtwnSampleTrack(&track, 0.5).x - 4.0f) <= 1e-5f,
+          "1, 2, 8, 16 are 2^0, 2^1, 2^3, 2^4: halfway is 2^2");
+    bezier[1].in = Scale(0.0f);
+    CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_errorInvalid,
+          "a control of 0 refused");
+    linear[1].value = Scale(-1.0f);
+    CHECK(mtwnMakeTrack(&def, linear, 3, NULL, NULL, &track) == mtwn_errorInvalid,
+          "a value below 0 refused");
+}
+
 int main(void)
 {
     TestRotationZero();
@@ -346,5 +418,6 @@ int main(void)
     TestColors();
     TestRotations();
     TestRefusals();
+    TestScales();
     return s_failures == 0 ? 0 : 1;
 }

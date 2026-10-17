@@ -17,6 +17,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - `mtwn_valueScale`, a target kind moved in its logarithm: eased along
   its scale mix, sprung along the mix's progress (overshooting by a
   ratio), decayed in the logarithm (record mtwn-0059).
+- Scale tracks: keyframes of `mtwn_valueScale` move along their
+  logarithms, every segment kind and constant speed included;
+  `mtwnPath` has a `logarithmic` byte where it had a reserved one.
 
 ### Changed
 

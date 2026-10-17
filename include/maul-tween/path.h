@@ -61,7 +61,10 @@ extern "C"
         double alpha;
         uint32_t count;
         uint8_t channels;
-        uint8_t reserved[3];
+        // Whether its values are scales, the path over their logarithms (a
+        // scale track's; record mtwn-0059).
+        uint8_t logarithmic;
+        uint8_t reserved[2];
     } mtwnPath;
 
     /// Makes a path. With lengths it travels at constant speed: the
@@ -175,13 +178,19 @@ extern "C"
     /// segments, hold through steps, and take Bezier and Catmull-Rom per
     /// component, normalized after; with the shortest path the keyframes
     /// and controls are first flipped in place into the hemisphere of the
-    /// one before. On failure the keyframes are as they were.
+    /// one before. Scales are a path over their logarithms (the path's
+    /// own samples are logarithms): linear segments their scale mix, the
+    /// others the exponential of their curve, every keyframe exact, and at
+    /// constant speed equal ratios in equal times. On failure the keyframes
+    /// are as they were.
     ///
     /// @param def         The def: a known kind, alpha from 0 to 1, known
     ///                    choices for its kind.
     /// @param keyframes   As mtwnMakePath takes them, in the kind's channels;
     ///                    a rotation not all zero; a color's alpha from 0 to
-    ///                    1. Colors and discrete values take linear and step
+    ///                    1; a scale's value, and a Bezier segment's
+    ///                    controls, above 0. Colors and discrete values take
+    ///                    linear and step
     ///                    segments only. Rewritten in place for angles and
     ///                    rotations on the shortest path (unwrapped, flipped),
     ///                    so one array must not feed two tracks with
@@ -189,7 +198,8 @@ extern "C"
     ///                    copies them first.
     /// @param count       The number of keyframes.
     /// @param lengthsOut  Count doubles for constant speed, or NULL; only
-    ///                    numbers, vectors, angles and integers take it.
+    ///                    numbers, vectors, angles, integers and scales take
+    ///                    it (a scale's lengths are its logarithm's).
     /// @param mixesOut    Count - 1 mixes for colors and rotations, else
     ///                    NULL or unused.
     /// @param trackOut    Receives the track.

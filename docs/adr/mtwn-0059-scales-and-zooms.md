@@ -71,3 +71,19 @@ The zoom now lives apart from the scale (`zoom.c`), so a program that
 transitions a scale links the scale's mix alone: in one file the zoom
 came along and the transitions part went to 54.5 kB, over its 54.0 kB;
 apart, it is 52.0 kB (from 50.7) and the clips' 130.3 kB (from 129.1).
+
+## Amended 2026-10-17: scale tracks
+
+A track of `mtwn_valueScale` is a path over its keyframes' logarithms,
+taken where the path loads a value or a control (`mtwnPath` marks it in
+a byte that was reserved, so its size is the same); the keyframes stay
+as the host wrote them, as taking logarithms in place could not be done
+twice. A sample is exact at every keyframe, a linear segment's is the
+scale's mix, the others' the exponential of their cubic; at constant
+speed the lengths are the logarithm's, so equal ratios take equal times.
+Values and Bezier controls must be above 0. The check of the flag on
+each load costs the path's sample 22 instructions (2,595 to 2,617 in the
+gate's build) and the track's 5 (243 of 250 at `-O2`). The path's file
+then passed the family's 1,000 lines; its arc length and the inverse
+moved to `path_length.c`, the path calling the inverse across files, 25
+more: 2,642 in the gate's build, 2,768 of the 2,800 target at `-O2`.
