@@ -544,6 +544,26 @@ double mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double vel
 Returns the time a decay reaches a position, where a host hands it over to a spring back from a limit.  @param decay     A decay made by this library. @param position  The start's position. @param velocity  The start's velocity, per second. @param target    The position to reach. @return Seconds from the start: 0 when it starts there; infinity when it never gets there, moving away or coming to rest short of it or exactly on it. @par Thread safety Safe from any thread.
 
 ```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeDecayToRest(double position, double velocity, double rest, mtwnDecay* decayOut);
+```
+Makes the decay that comes to rest at an end from a start, keeping the start's velocity (record mtwn-0063): its rate is velocity / (end - position). With mtwnSampleDecay's rest (seconds infinite) as the natural end, a host snaps a fling: it chooses the end, a page or a grid point near the natural one, and lands there.  @param position  The start's position. @param velocity  The start's velocity, per second. @param rest      The end to come to rest at. @param decayOut  Receives the decay. @return mtwn_success; mtwn_errorInvalid for a null pointer, a value not finite, an end the velocity does not move toward (behind the start, at it, or a velocity of 0), or a rate that overflows. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeBoundedDecay(const mtwnDecay* decay, const mtwnSpring* spring, double lower, double upper, mtwnBoundedDecay* boundedOut);
+```
+Makes a bounded decay.  @param decay    A decay made by this library. @param spring   A spring made by this library, the bounce. @param lower    The lower bound; may be -infinity, for none. @param upper    The upper bound, at least the lower; may be infinity, for none. @param boundedOut  Receives the bounded decay. @return mtwn_success; mtwn_errorInvalid for a null pointer, a NaN bound or a lower bound above the upper. @par Thread safety Safe from any thread.
+
+```c
+void mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded, double position, double velocity, double seconds, double* positionOut, double* velocityOut);
+```
+Samples a bounded decay from a start.  @param bounded      A bounded decay made by this library. @param position     The start's position. @param velocity     The start's velocity, per second. @param seconds      The time since the start, at least 0. @param positionOut  Receives the position then; may be NULL. @param velocityOut  Receives the velocity then; may be NULL. @par Thread safety Safe from any thread.
+
+```c
+double mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position, double velocity, double offsetTolerance, double stopSpeed);
+```
+Returns the time a bounded decay from a start comes to rest: a coast's stop at the stop speed, or the spring's settling within the offset tolerance of the bound and the stop speed after it takes over (mtwnSpringSettlingTime).  @param bounded          A bounded decay made by this library. @param position         The start's position. @param velocity         The start's velocity, per second. @param offsetTolerance  How far from the bound the spring is at rest, above 0. @param stopSpeed        The speed counted as stopped, per second, above 0. @return Seconds from the start; infinity for a tolerance not above 0 or an undamped spring. @par Thread safety Safe from any thread.
+
+```c
 double mtwnRubberBand(double distance, double dimension, double coefficient);
 ```
 iOS's rubber band: how far content moves when dragged a distance past a limit, in a dimension (the view's size along the drag): c x d / (c x + d), with slope c at the limit, never reaching d. Signed: a negative distance moves the other way.  @param distance     The drag past the limit; may be infinite. @param dimension    The view's size along it. @param coefficient  c, 0.55 on iOS. @return The distance moved; 0 for a dimension or coefficient not above 0 or NaN. @par Thread safety Safe from any thread.
@@ -642,4 +662,4 @@ Measures how far a transition would move its target: from the target's current v
 
 ---
 
-117 functions across 13 headers.
+121 functions across 13 headers.

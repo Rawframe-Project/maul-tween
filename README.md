@@ -11,7 +11,8 @@ It covers:
   points; rough easings drawn from a seed.
 - **Physics:** damped springs in closed form that keep their velocity
   when retargeted, set by stiffness and damping or by duration and
-  bounce; decay for flings; rubber banding; punch and seeded shake.
+  bounce; decay for flings, landing on a chosen end or bounced back
+  from bounds; rubber banding; punch and seeded shake.
 - **Values:** scalars, vectors, colors interpolated in Oklab or another
   named space, rotations as quaternions, angles, integers, discrete
   values, scales moved geometrically, van Wijk and Nuij's smooth zoom
@@ -51,7 +52,7 @@ to 9% on one worker; 0.3.0, earlier that day, had slower clip players
 and records that could miss a crossing where a frame landed on a held
 time's edge; 0.2.1, on 2026-10-15, ran them on the calling thread only
 and several times slower; 0.1.0 lacked staggers and reduced motion. The library has
-117 public functions.
+121 public functions.
 
 ## Building
 

@@ -55,6 +55,27 @@ static void TestSprings(void)
     CHECK(settled > 0.1 && isfinite(settled), "settled after a while");
 }
 
+static void TestInertia(void)
+{
+    mtwnDecay coast;
+    mtwnResult made = mtwnMakeDecayFromDeceleration(0.998, &coast);
+    double rest = 0.0;
+    mtwnSampleDecay(&coast, 40.0, 1500.0, HUGE_VAL, &rest, NULL); // where it would stop
+    double page = 320.0 * round(rest / 320.0);                    // the nearest page
+    mtwnDecay snap;
+    made = mtwnMakeDecayToRest(40.0, 1500.0, page, &snap);
+
+    mtwnSpring bounce;
+    made = mtwnMakeSpring(500.0, 10.0, 1.0, &bounce);
+    mtwnBoundedDecay scroll;
+    made = mtwnMakeBoundedDecay(&coast, &bounce, 0.0, 600.0, &scroll); // content 0 to 600
+    double at = 0.0;
+    mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
+    double still = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0);
+    CHECK(made == mtwn_success && page == 640.0 && snap.rate > 0.0, "snapped to the second page");
+    CHECK(at > 500.0 && at < 700.0 && isfinite(still), "bounced at 600, coming to rest");
+}
+
 static void TestValues(void)
 {
     mtwnColor red = {1.0f, 0.0f, 0.0f, 1.0f};
@@ -267,6 +288,7 @@ int main(void)
     TestEasing();
     TestRough();
     TestSprings();
+    TestInertia();
     TestValues();
     TestScales();
     TestZoom();

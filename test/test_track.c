@@ -149,6 +149,18 @@ static void TestColors(void)
     keys[0].kind = mtwn_segmentCatmullRom;
     CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_errorInvalid,
           "no color splines");
+    // Keyframes 1e-300 apart jump, as at one offset: extended before them
+    // by their width, the mix's progress was -1.5e300, a NaN color (from
+    // fuzz_values).
+    mtwnKeyframe close[3] = {Key(0.0, (mtwnVec4){0, 0, 0, 0.5f}, mtwn_segmentLinear),
+                             Key(1e-300, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
+                             Key(1.0, (mtwnVec4){0.5f, 0.5f, 0.2f, 0.3f}, mtwn_segmentLinear)};
+    def.colorSpace = mtwn_colorOklch;
+    CHECK(mtwnMakeTrack(&def, close, 3, NULL, mixes, &track) == mtwn_success,
+          "keyframes 1e-300 apart");
+    CHECK(Same(mtwnSampleTrack(&track, -1.5), close[1].value) &&
+              Same(mtwnSampleTrack(&track, -0.25), close[1].value),
+          "before them, the second, as a jump");
 }
 
 static mtwnVec4 About(double x, double y, double z, double angle)
@@ -400,6 +412,23 @@ static void TestScales(void)
     CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_success &&
               fabsf(mtwnSampleTrack(&track, 0.5).x - 4.0f) <= 1e-5f,
           "1, 2, 8, 16 are 2^0, 2^1, 2^3, 2^4: halfway is 2^2");
+    // Extended far past its ends, a scale stays a positive float where
+    // its logarithm's line leaves a float's range (from fuzz_values).
+    def.alpha = 0.0;
+    mtwnKeyframe falls[3] = {Key(0.0, Scale(1000.0f), mtwn_segmentLinear),
+                             Key(0.01, Scale(1.0f), mtwn_segmentLinear),
+                             Key(1.0, Scale(1.0f), mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, falls, 3, NULL, NULL, &track) == mtwn_success, "a steep fall");
+    CHECK(mtwnSampleTrack(&track, -1.5).x == 0x1.fffffep127f, "before it, the largest float");
+    falls[0].value = Scale(0.001f);
+    CHECK(mtwnMakeTrack(&def, falls, 3, NULL, NULL, &track) == mtwn_success, "a steep rise");
+    CHECK(mtwnSampleTrack(&track, -1.5).x == 0x1p-149f, "before it, the smallest");
+    mtwnKeyframe far[3] = {Key(0.0, Scale(53.7f), mtwn_segmentCatmullRom),
+                           Key(0.0196, Scale(1.96f), mtwn_segmentCatmullRom),
+                           Key(1.0, Scale(53.7f), mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, far, 3, NULL, NULL, &track) == mtwn_success, "a curved one");
+    float before = mtwnSampleTrack(&track, -1.5).x;
+    CHECK(before > 0.0f && isfinite(before), "the fuzzer's: never infinite or 0");
     bezier[1].in = Scale(0.0f);
     CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_errorInvalid,
           "a control of 0 refused");

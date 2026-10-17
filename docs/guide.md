@@ -116,6 +116,31 @@ coasts from a velocity; `mtwnDecayStopTime` and `mtwnDecayCrossingTime`
 say when it stops and when it passes a point, and `mtwnRubberBand`
 gives iOS's resistance past an edge.
 
+A fling that snaps lands where the host chooses: the decay's natural
+rest is its sample at infinity, and `mtwnMakeDecayToRest` makes the
+decay that rests on a chosen end with the same start velocity. A
+bounded decay coasts between two bounds; where it would rest past one,
+a spring takes it back from the exact time it reaches the bound, with
+the velocity it has there, as a scroll view bounces.
+
+```c
+mtwnDecay coast;
+mtwnResult made = mtwnMakeDecayFromDeceleration(0.998, &coast);
+double rest = 0.0;
+mtwnSampleDecay(&coast, 40.0, 1500.0, HUGE_VAL, &rest, NULL); // where it would stop
+double page = 320.0 * round(rest / 320.0);                    // the nearest page
+mtwnDecay snap;
+made = mtwnMakeDecayToRest(40.0, 1500.0, page, &snap);
+
+mtwnSpring bounce;
+made = mtwnMakeSpring(500.0, 10.0, 1.0, &bounce);
+mtwnBoundedDecay scroll;
+made = mtwnMakeBoundedDecay(&coast, &bounce, 0.0, 600.0, &scroll); // content 0 to 600
+double at = 0.0;
+mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
+double still = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0);
+```
+
 ## Values
 
 A target holds one kind of value in up to four channels (`mtwnVec4`):

@@ -506,6 +506,15 @@ static void TestScales(void)
               fabsf(State(context, z).base.x - (float)exp(position)) <=
                   1e-6f * (float)exp(position),
           "it ends where its logarithm stopped");
+    // An easing far past 1 takes the scale past a float's range: it holds
+    // at the largest float, never infinite.
+    mtwnLinearPoint points[2] = {{0.0, 0.0}, {1.0, 400.0}};
+    def = Linear(s, (mtwnVec4){10.0f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMakeLinearEasing(points, 2, &def.easing) == mtwn_success, "linear() to 400");
+    Start(context, &def);
+    Update(context, 1000 * s_second);
+    Update(context, 1000 * s_second + s_second / 2);
+    CHECK(State(context, s).value.x == 0x1.fffffep127f, "ten to the 200th held at the largest");
     // Refusals.
     mtwnTargetId unused = {0, 0};
     CHECK(mtwnCreateTarget(context, mtwn_valueScale, (mtwnVec4){0.0f, 0, 0, 0}, &unused) ==

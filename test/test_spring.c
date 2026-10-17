@@ -522,6 +522,28 @@ static void TestSettlingTimesAreTheBounds(void)
     CHECK(wrong == 0, "a start within both but rising is settled only if its peak is");
 }
 
+// Starts whose bounds the search met at their edges (found by fuzz_values
+// with record mtwn-0063's bounded decay): a critical spring whose
+// velocity bound peaks at a time that rounds to nearly 0, where Newton
+// once started on a slope of 0; and products overflowing with opposite
+// signs, once a NaN sum.
+static void TestSettlingAtTheEdges(void)
+{
+    static const SettleCase flat = {1.0 / 3.0, 1.0, 0x1.56e1fc2f8f359p-997, 0x1.443418p+9};
+    mtwnSpring spring;
+    CHECK(mtwnMakeSpringFromFrequency(flat.hertz, flat.ratio, &spring) == mtwn_success,
+          "a critical spring");
+    double settle =
+        mtwnSpringSettlingTime(&spring, flat.offset, flat.velocity, flat.offset, 0x1.4bfcp-1);
+    CHECK(isfinite(settle) && settle > 0.0, "a peak at nearly 0 settles");
+    CHECK(SettlesAsBounded(&flat, (Wide)flat.offset, (Wide)0x1.4bfcp-1),
+          "where its bounds cross the tolerances last");
+    mtwnSpring stiff;
+    CHECK(mtwnMakeSpring(1e300, 1e300, 1.0, &stiff) == mtwn_success, "a stiff spring");
+    settle = mtwnSpringSettlingTime(&stiff, 210.8154296875 - 1e300, 1e300, 0.5, 1.0);
+    CHECK(settle == HUGE_VAL, "overflowing bounds never end it early");
+}
+
 typedef struct EasingCase
 {
     double hertz;
@@ -658,6 +680,7 @@ int main(void)
     TestRefusals();
     TestSettling();
     TestSettlingTimesAreTheBounds();
+    TestSettlingAtTheEdges();
     TestSpringEasings();
     TestSpringEasingFitsLinear();
     TestSpringEasingRefusals();

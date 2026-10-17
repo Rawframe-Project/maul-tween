@@ -648,6 +648,33 @@ static void TestStillEnds(void)
     CHECK(worst <= 1.01e-12 * 100.0, "each share at its place, at once");
 }
 
+// Coincident keyframes hold still at constant speed too, extended past
+// the path: a Catmull-Rom from a point to itself measures 1.6e-23 by its
+// end tangents, and extended by its parameter took the path's millionth
+// before its start to 1e33 (found by fuzz_values).
+static void TestCoincidentStart(void)
+{
+    mtwnKeyframe keys[3] = {Key(0.0, 34.1156f, 34.1156f, mtwn_segmentCatmullRom),
+                            Key(0.34, 34.1156f, 34.1156f, mtwn_segmentBezier),
+                            Key(1.0, 64.7034f, 64.7034f, mtwn_segmentLinear)};
+    keys[1].out = (mtwnVec4){64.7034f, 64.7034f, 0, 0};
+    keys[2].in = (mtwnVec4){64.8407f, 64.7034f, 0, 0};
+    double lengths[3];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 3, 2, 0.647034, lengths, &path) == mtwn_success,
+          "a path from a held start");
+    CHECK(lengths[1] > 0.0 && lengths[1] < 1e-20, "its first segment all but none");
+    int moved = 0;
+    const double before[4] = {-1.5, -0.25, -1e-3, -1e-6};
+    for (int i = 0; i < 4; ++i)
+    {
+        double v[4];
+        mtwnSamplePath(&path, before[i], v, NULL);
+        moved += v[0] != (double)keys[0].value.x || v[1] != (double)keys[0].value.y;
+    }
+    CHECK(moved == 0, "before it, held at the start");
+}
+
 static void TestEdges(void)
 {
     // Ends exactly the keyframes' values, also where the arithmetic would
@@ -855,6 +882,7 @@ int main(void)
     TestTurnBack();
     TestNearTurn();
     TestStillEnds();
+    TestCoincidentStart();
     TestEdges();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;

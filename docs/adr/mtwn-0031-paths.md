@@ -208,3 +208,17 @@ scales: within 1e-11 relative (2.0e-12 at worst), where 1e-9 left it
 1.2e-9 off, 1e-10 9.7e-11 and 1e-11 2.7e-11. The capped lengths of the
 amendment before: 21,481 of 146,756, the worst 1.7e-19 of a segment;
 the still end's test reaches the cap at the same 25 shares.
+
+## Amended 2026-10-18: coincident keyframes hold still past the ends
+
+At constant speed a progress past the path extends its end segment by
+the segment's parameter, the distance over its length. A Catmull-Rom
+between coincident keyframes measures a length of rounding, not 0 (its
+end tangents from knot gaps raised to 1e-12 of the largest): 1.6e-23 in
+a path 43 long, so a millionth of the path before the start took the
+parameter to -1e17 and the value to -1e33, infinite as a float
+(`fuzz_values`). A segment within the total length's rounding of none,
+under 2^-52 of it, now holds still as one of none does. Likewise by
+offset: a segment narrower than 2^-52 of progress jumps as equal
+offsets do; two color keyframes 1e-300 apart, extended before them,
+gave the color mix a progress of -1.5e300 and a NaN color.

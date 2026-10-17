@@ -11,6 +11,7 @@
 #include "compose.h"
 #include "context_internal.h"
 #include "elementary.h"
+#include "scale_internal.h"
 
 #include "maul-tween/path.h"
 
@@ -246,7 +247,7 @@ static mtwnVec4 Moved(const mtwnClipNode* node, mtwnVec4 value, double k)
         double first = (double)path->keyframes[0].value.x;
         double last = (double)path->keyframes[path->count - 1].value.x;
         double factor = mtwnExp(k * (mtwnLog(last) - mtwnLog(first)));
-        return (mtwnVec4){(float)((double)value.x * factor), 0.0f, 0.0f, 0.0f};
+        return (mtwnVec4){mtwnScaleFloat((double)value.x * factor), 0.0f, 0.0f, 0.0f};
     }
     if (node->track.kind == mtwn_valueRotation)
     {

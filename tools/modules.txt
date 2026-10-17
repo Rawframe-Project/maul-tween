@@ -6,6 +6,7 @@ elementary_float:
 css_easing:
 easing: css_easing easing_internal elementary spring_easing
 easing_internal:
+inertia: fpenv
 sample:
 rough: fpenv
 spring_easing:
@@ -15,6 +16,7 @@ decay: elementary
 color: elementary
 rotation: elementary
 scale: elementary
+scale_internal:
 zoom: elementary
 signal: elementary
 timing: timing_internal
@@ -28,17 +30,17 @@ context_internal: crossing pool runs
 context: allocator context_internal pool
 target: context_internal pool
 transition: context_internal easing_internal elementary fpenv pool spring_internal
-update: context_internal easing_internal elementary fpenv pool
-path: elementary path_internal path_length
+update: context_internal easing_internal elementary fpenv pool scale_internal
+path: elementary path_internal path_length scale_internal
 path_length: elementary
 path_internal:
 clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
 player_slot: context_internal pool runs
-clip_sample: compose context_internal elementary pool runs
+clip_sample: compose context_internal elementary pool runs scale_internal
 clip_tasks: context_internal fpenv pool runs
-compose: elementary
+compose: elementary scale_internal
 crossing: timing_internal
 event: context_internal pool
 sweep: context_internal crossing pool runs

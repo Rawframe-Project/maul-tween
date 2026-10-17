@@ -55,6 +55,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/decay.c
     src/easing.c
     src/fpenv.c
+    src/inertia.c
     src/rotation.c
     src/rough.c
     src/scale.c
@@ -95,6 +96,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(sample)
     maul_add_test(spring)
     maul_add_test(decay)
+    maul_add_test(inertia)
     maul_add_test(color)
     maul_add_test(rotation)
     maul_add_test(rough)

@@ -100,3 +100,15 @@ scale track moves on by the ratio of its last keyframe to its first each
 iteration, taken in double from its keyframes. The parts after: clips
 132.5 kB of 135.0, everything 145.8 kB of 146.0; the next growth of
 either restates its budget.
+
+## Amended 2026-10-18: a scale within the float range
+
+A scale is held as a float, and its logarithm's line leaves the float
+range quickly: a steep segment extended back by an easing's overshoot,
+an easing far past 1 (`linear()` to 400 takes 1 to 10 to 10^400), an
+incremental repeat's ratio to a high power. `fuzz_values` found a track
+sampled to infinity from ordinary keyframes. Every place a scale becomes
+a float now holds it within the positive floats, the largest past them
+and the smallest below, so no target's scale is ever infinite or 0: a
+track's sample, a transition's value, the composition, the incremental
+repeat.

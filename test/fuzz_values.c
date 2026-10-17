@@ -374,6 +374,41 @@ static void Decays(Bytes* in)
     {
         Fail("the rubber band's inverse", back);
     }
+    // Inertia (record mtwn-0063): a landing's rate, and a bounded decay
+    // with its bounce.
+    in->ordinary = true;
+    in->finite = true;
+    double start[3];
+    Draw(in, start, 3, (const double[]){1000.0, 5000.0, 1000.0}, false);
+    mtwnDecay landing;
+    if (mtwnMakeDecayToRest(start[0], start[1], start[2], &landing) == mtwn_success &&
+        !(landing.rate > 0.0 && isfinite(landing.rate)))
+    {
+        Fail("a landing's rate", landing.rate);
+    }
+    double bounds[4];
+    Draw(in, bounds, 4, (const double[]){1000.0, 1000.0, 1000.0, 50.0}, false);
+    mtwnSpring bounce;
+    mtwnBoundedDecay bounded;
+    if (mtwnMakeSpring(fabs(bounds[2]), fabs(bounds[3]), 1.0, &bounce) != mtwn_success ||
+        mtwnMakeBoundedDecay(&decay, &bounce, fmin(bounds[0], bounds[1]),
+                             fmax(bounds[0], bounds[1]), &bounded) != mtwn_success)
+    {
+        return;
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        double p = 0.0;
+        double v = 0.0;
+        mtwnSampleBoundedDecay(&bounded, start[0], start[1], seconds[i], &p, &v);
+        Check(in, "a bounded decay's position", p);
+        Check(in, "a bounded decay's velocity", v);
+    }
+    double still = mtwnBoundedDecayStopTime(&bounded, start[0], start[1], 0.5, 1.0);
+    if ((in->finite && isnan(still)) || still < 0.0)
+    {
+        Fail("a bounded decay's stop", still);
+    }
 }
 
 static void Values(Bytes* in)

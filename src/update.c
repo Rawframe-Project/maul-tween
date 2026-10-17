@@ -12,6 +12,7 @@
 #include "easing_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
+#include "scale_internal.h"
 
 #include <math.h>
 #include <string.h>
@@ -276,8 +277,12 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
     mtwnTargetSlot* written = mtwnTargetAt(context, target);
     written->header.flags =
         (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
-    WriteValue(context, target,
-               (mtwnVec4){(float)now[0], (float)now[1], (float)now[2], (float)now[3]});
+    mtwnVec4 value = {(float)now[0], (float)now[1], (float)now[2], (float)now[3]};
+    if (slot->kind == mtwn_valueScale)
+    {
+        value.x = mtwnScaleFloat(now[0]);
+    }
+    WriteValue(context, target, value);
 }
 
 // Records a transition's start once its delay ends, and ends it at its end:
@@ -369,6 +374,10 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     {
         value[i] = (float)now[i];
         velocity[i] = (float)speed[i];
+    }
+    if (slot->kind == mtwn_valueScale)
+    {
+        value[0] = mtwnScaleFloat(now[0]);
     }
     WriteTarget(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
                 (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});

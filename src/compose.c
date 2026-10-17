@@ -12,6 +12,7 @@
 #include "compose.h"
 
 #include "elementary.h"
+#include "scale_internal.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -147,7 +148,8 @@ static mtwnMoving Scale(mtwnComposite composite, double weight, mtwnMoving under
         c = a * mtwnExp(weight * (add ? mtwnLog(b) : mtwnLog(b) - mtwnLog(a)));
     }
     double rate = add ? ra + weight * rb : ra + weight * (rb - ra);
-    return (mtwnMoving){{(float)c, 0.0f, 0.0f, 0.0f}, {(float)(c * rate), 0.0f, 0.0f, 0.0f}};
+    return (mtwnMoving){{mtwnScaleFloat(c), 0.0f, 0.0f, 0.0f},
+                        {(float)(c * rate), 0.0f, 0.0f, 0.0f}};
 }
 
 mtwnMoving mtwnCompose(mtwnValueKind kind, mtwnComposite composite, double weight,

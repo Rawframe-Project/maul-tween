@@ -247,7 +247,15 @@ static double BoundTime(const Bound* bound)
             return flat;
         }
     }
-    double t = isfinite(bound->cap) ? bound->cap : (peak > 0.0 ? 2.0 * peak : 1.0 / bound->rate);
+    // Twice the peak, where the slope is at most -rate / 4 for a peak of at
+    // least 1 / (3 rate); below that, 1 / rate past it, where the slope is
+    // at most -rate / 2 (twice a peak rounded to a tiny time sat on the
+    // peak's slope of 0, a NaN step).
+    double t = bound->cap;
+    if (!isfinite(t))
+    {
+        t = peak >= 1.0 / (3.0 * bound->rate) ? 2.0 * peak : peak + 1.0 / bound->rate;
+    }
     for (int i = 0; i < s_newtonSteps; ++i)
     {
         double slope = bound->b / (bound->a + bound->b * t) - bound->rate;
@@ -290,6 +298,9 @@ double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double ve
     Bound velocityBound = bound;
     velocityBound.a = fabs(velocity);
     velocityBound.b = fabs(decay * velocity + spring->parameters[s_squared] * offset);
+    // Two products overflowing with opposite signs leave no sum: bounded by
+    // infinity, which never ends the spring early.
+    velocityBound.b = isnan(velocityBound.b) ? HUGE_VAL : velocityBound.b;
     velocityBound.logTolerance = mtwnLog(velocityTolerance);
     double offsetTime = BoundTime(&offsetBound);
     double velocityTime = BoundTime(&velocityBound);

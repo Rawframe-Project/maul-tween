@@ -18,6 +18,7 @@
 #include "elementary.h"
 #include "path_internal.h"
 #include "path_length.h"
+#include "scale_internal.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -288,8 +289,11 @@ static uint32_t FindSegment(const mtwnPath* path, double key, bool byLength)
 static double Eased(const mtwnPath* path, uint32_t i, double progress)
 {
     const mtwnKeyframe* k = path->keyframes;
+    // A width within progress's rounding of none jumps, as equal offsets
+    // do: extended by it, a width of 1e-300 took progress -1.5 to a local
+    // progress of -1.5e300.
     double width = k[i + 1].offset - k[i].offset;
-    double local = width > 0.0 ? (progress - k[i].offset) / width : 1.0;
+    double local = width > 0x1p-52 ? (progress - k[i].offset) / width : 1.0;
     return mtwnEase(&k[i].easing, local, false);
 }
 
@@ -306,9 +310,12 @@ static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, 
         i = FindSegment(path, distance, true);
         SegmentCubic(path, i, cubic);
         double length = path->lengths[i + 1] - path->lengths[i];
-        u = length > 0.0 ? mtwnParameterAt(cubic, path->channels, distance - path->lengths[i],
-                                           length, lengths)
-                         : 1.0;
+        // A segment within the total's rounding of none holds still, as one
+        // of none: extended by its parameter, a length of 1e-23 took a
+        // millionth of the path before it to 1e33.
+        u = length > total * 0x1p-52 ? mtwnParameterAt(cubic, path->channels,
+                                                       distance - path->lengths[i], length, lengths)
+                                     : 1.0;
     }
     else
     {
@@ -599,7 +606,7 @@ static mtwnVec4 SampleScale(const mtwnPath* path, uint32_t i, double u, const mt
         Evaluate(cubic, end, u, 1, value, NULL);
         scale = mtwnExp(value[0]);
     }
-    return (mtwnVec4){(float)scale, 0.0f, 0.0f, 0.0f};
+    return (mtwnVec4){mtwnScaleFloat(scale), 0.0f, 0.0f, 0.0f};
 }
 
 mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)

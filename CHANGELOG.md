@@ -9,6 +9,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- Inertia (record mtwn-0063): `mtwnMakeDecayToRest`, the decay that
+  rests on a chosen end with the start's velocity, for snapping a
+  fling; `mtwnMakeBoundedDecay`, `mtwnSampleBoundedDecay` and
+  `mtwnBoundedDecayStopTime`, a decay between bounds that a spring takes
+  back from the exact time it reaches one.
 - Rough easings (`mtwnMakeRoughEasing`): `linear()` through points
   wandering from a shape by a seed, the same curve on every platform,
   with GSAP's tapers, clamped, rising or an even zig-zag (record
@@ -47,6 +52,20 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Fixed
 
+- At constant speed, a path whose end segment joins coincident
+  keyframes went to enormous values just past that end; the segment
+  now holds still as a segment of no length does. Keyframes whose
+  offsets lie within 2^-52 of each other now jump as equal offsets do,
+  where extending them before or after took a color track to NaN
+  (record mtwn-0031, amended).
+- A scale past the float range (a steep track extended, an easing far
+  past 1, an incremental repeat) became infinite or 0; it now holds at
+  the largest or smallest positive float (record mtwn-0059, amended).
+- `mtwnSpringSettlingTime` returned NaN for two kinds of finite start:
+  a velocity bound whose products overflowed with opposite signs (now
+  infinite), and a critical spring whose bound peaked at a time rounding
+  to nearly 0, where the search began on a slope of 0 (record
+  mtwn-0063).
 - A path of two or more channels that turns back along a line inside a
   segment measured that segment short (0.4% on a Bezier through 0, 6, 1
   and 5), and its points at constant speed came up to 1% of the length

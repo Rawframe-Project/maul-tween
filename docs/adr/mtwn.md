@@ -67,3 +67,4 @@ are listed in [README.md](README.md).
 | [mtwn-0060](mtwn-0060-distances-for-speed.md) | Distances for durations set by speed | Accepted |
 | [mtwn-0061](mtwn-0061-rough-easings.md) | Rough easings, seeded | Accepted |
 | [mtwn-0062](mtwn-0062-a-context-without-records.md) | A context without records | Accepted |
+| [mtwn-0063](mtwn-0063-inertia.md) | Inertia: landing and bounds | Accepted |
