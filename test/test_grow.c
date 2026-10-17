@@ -5,7 +5,8 @@
 // least its own (the sharing's any), with its own allocator; every id, a
 // playing clip, a running transition, the queued records and the free
 // slots carried over; on a refusal or an allocator's failure nothing
-// changes.
+// changes. A context of no records (record mtwn-0062) plays as one with
+// them, and grown to hold some, records from there on.
 
 #include "test_harness.h"
 
@@ -278,8 +279,104 @@ static void TestGrowSome(void)
     CHECK(budget.blocks == 0 && budget.held == 0, "all given back");
 }
 
+// A context and a player on a clip of a track repeating every 0.25 s
+// and a mark, with a capacity of records.
+static mtwnContext* Repeating(uint32_t events, mtwnTargetId* target, mtwnPlayerId* player)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.eventCapacity = events;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, target) == mtwn_success,
+          "a target");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 3.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.25;
+    track.timing.iterations = 12.0;
+    mtwnNode node;
+    mtwnNode mark;
+    mtwnPosition at = {0};
+    at.offset = 1.1;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, at, 7, &mark) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a repeating track and a mark");
+    mtwnBinding binding = mtwnBind(0, *target);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = clip;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    CHECK(mtwnCreatePlayer(context, &playerDef, player) == mtwn_success, "a player");
+    return context;
+}
+
+static void TestNoRecords(void)
+{
+    mtwnTargetId quietTarget;
+    mtwnTargetId loudTarget;
+    mtwnPlayerId quietPlayer;
+    mtwnPlayerId loudPlayer;
+    mtwnContext* quiet = Repeating(0, &quietTarget, &quietPlayer);
+    mtwnContext* loud = Repeating(256, &loudTarget, &loudPlayer);
+    mtwnEvent events[32];
+    uint32_t count = 0;
+    uint64_t dropped = 0;
+    int differ = 0;
+    for (int frame = 0; frame <= 60; ++frame)
+    {
+        Update(quiet, frame / 60.0);
+        Update(loud, frame / 60.0);
+        differ += ValueOf(quiet, quietTarget) != ValueOf(loud, loudTarget);
+        if (frame == 30)
+        {
+            // A seek's record, which no sweep makes, is not made either;
+            // the frames after it still keep the time they reached.
+            CHECK(mtwnPlayer_Seek(quiet, quietPlayer, 0.5) == mtwn_success &&
+                      mtwnPlayer_Seek(loud, loudPlayer, 0.5) == mtwn_success,
+                  "both sought where they are");
+        }
+    }
+    CHECK(differ == 0, "no records, the same values");
+    CHECK(mtwnReadEvents(quiet, events, 32, &count, &dropped) == mtwn_success && count == 0 &&
+              dropped == 0 && mtwnContext_GetDroppedEvents(quiet) == 0,
+          "none made, none dropped");
+    CHECK(mtwnReadEvents(loud, events, 32, &count, &dropped) == mtwn_success && count > 4,
+          "where the other made its starts and repeats");
+    // Grown to hold records, it records what is crossed from there on:
+    // the mark at 1.1 and the repeat at 1.25, not the second before.
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.eventCapacity = 16;
+    CHECK(mtwnGrowContext(&quiet, &def) == mtwn_success, "grown to hold records");
+    Update(quiet, 1.3);
+    Update(loud, 1.3);
+    mtwnEvent heard[32];
+    uint32_t heardCount = 0;
+    CHECK(mtwnReadEvents(quiet, heard, 32, &heardCount, &dropped) == mtwn_success &&
+              mtwnReadEvents(loud, events, 32, &count, NULL) == mtwn_success,
+          "read");
+    bool same = heardCount == count && heardCount == 2;
+    for (uint32_t k = 0; same && k < count; ++k)
+    {
+        same = heard[k].kind == events[k].kind && heard[k].node == events[k].node &&
+               heard[k].clipTime == events[k].clipTime && heard[k].count == events[k].count;
+    }
+    CHECK(same && dropped == 0, "the frame's repeat and mark, as the other recorded them");
+    mtwnDestroyContext(quiet);
+    mtwnDestroyContext(loud);
+}
+
 int main(void)
 {
+    TestNoRecords();
     TestGrowSome();
     TestGrow();
     TestGrowFreeSlots();

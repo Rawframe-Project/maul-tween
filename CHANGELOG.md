@@ -34,6 +34,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- A context of `eventCapacity` 0 makes no records and drops none; its
+  clips' players skip the sweeps that find crossings (record
+  mtwn-0062). Before, every record was made and dropped, counted. A
+  repeat frame of 1,000 players on clips of their own falls from 16.6
+  to 3.9 million instructions.
 - `event.h` states which iteration an iteration record names: the one
   entered going forwards and, going backwards, the one left, current at
   the record's time (its start) with the one before it just after. The

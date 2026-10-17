@@ -78,7 +78,8 @@ extern "C"
         // Clips alive at once, up to MTWN_MAX_COUNT.
         uint32_t clipCapacity;
         // Event records the queue holds between reads, up to
-        // MTWN_MAX_COUNT.
+        // MTWN_MAX_COUNT; 0 makes none, and clips' players skip the
+        // sweeps that find their crossings (record mtwn-0062).
         uint32_t eventCapacity;
         // Bindings of slots to targets the players hold at once, up to
         // MTWN_MAX_COUNT.

@@ -398,7 +398,11 @@ for (uint32_t i = 0; i < count; ++i)
 
 The queue holds the context def's `eventCapacity` records, sorted by
 host time. A record arriving at a full queue is dropped and counted,
-never silently: `dropped` gives those since the last read.
+never silently: `dropped` gives those since the last read. A host that
+reads no events sets `eventCapacity` to 0: no records are made, and
+clips' players skip the sweeps that find their crossings, which are
+most of a frame where clips repeat. Grown later to hold records, a
+context records what is crossed from then on.
 
 ## Layers
 

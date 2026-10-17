@@ -12,7 +12,9 @@
 // read, and mtwnContext_GetDroppedEvents all of them. Records arrive in
 // the order they are made (players in creation order, each player's nodes
 // in clip order), so a full queue keeps the first made and drops the rest
-// of an update's; those kept are sorted.
+// of an update's; those kept are sorted. A context of eventCapacity 0
+// makes no records and drops none: its clips' players skip the sweeps
+// that find crossings, the cost of the records (record mtwn-0062).
 
 #ifndef MAUL_TWEEN_EVENT_H
 #define MAUL_TWEEN_EVENT_H

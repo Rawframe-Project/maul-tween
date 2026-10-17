@@ -28,6 +28,11 @@ repeat-tasks 1   17020000
 # frame, without and with the hooks: the writers kept as they change.
 churn        300 7690000
 churn-tasks  300 7790000
+# In a context of no records (record mtwn-0062): no sweeps, so a repeat
+# costs what a steady frame does.
+clips-quiet  300 3970000
+clips-quiet  300 4000000   0.032
+repeat-quiet 1   3975000
 # Data reads missing the second-level cache on one worker with the
 # hooks over the same without them (Zen's l2_cache_req_stat.ls_rd_blk_c),
 # the median of five tries over 1,000 frames: 0.89 to 1.06 when set at

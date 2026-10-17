@@ -15,10 +15,11 @@
 // file, such as bench/baseline.txt, it prints each result's ratio to the
 // recorded one as well. With --count and a layout of the clip players
 // (step, spread, clips, repeat, churn; -tasks after one runs it in groups
-// on the calling thread) and a number of updates, and the clip's period
-// if not 1 s, or a values case (oklab, oklch, slerp, path, track) and a
-// number of samples, it runs only those, for an instruction counter;
-// --compiler prints the compiler it was built with.
+// on the calling thread, -quiet in a context of no records) and a number
+// of updates, and the clip's period if not 1 s, or a values case (oklab,
+// oklch, slerp, path, track) and a number of samples, it runs only those,
+// for an instruction counter; --compiler prints the compiler it was built
+// with.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -246,6 +247,11 @@ static uint64_t ClipBytes(void)
 // the hooks cost on one worker (record mtwn-0056).
 static bool s_tasks = false;
 
+// Whether a context makes no records (an event capacity of 0, record
+// mtwn-0062), as --count's layouts ending in -quiet ask: what a host that
+// reads no events pays.
+static bool s_quiet = false;
+
 static void* RunAtOnce(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
                        void* userContext)
 {
@@ -271,7 +277,7 @@ static mtwnContext* MakeContext(uint32_t targets, uint32_t players, uint32_t cli
     def.playerCapacity = players;
     def.clipCapacity = clips;
     def.bindingCapacity = bindings;
-    def.eventCapacity = 1;
+    def.eventCapacity = s_quiet ? 0u : 1u;
     def.clipStorageBytes = (uint64_t)clips * ClipBytes();
     mtwnContext* context = NULL;
     Check(mtwnCreateContext(&def, &context), "a context");
@@ -541,7 +547,8 @@ static int Count(const char* name, int count)
     size_t length = strlen(name);
     size_t suffix = strlen("-tasks");
     s_tasks = length > suffix && strcmp(name + length - suffix, "-tasks") == 0;
-    size_t layoutLength = s_tasks ? length - suffix : length;
+    s_quiet = length > suffix && strcmp(name + length - suffix, "-quiet") == 0;
+    size_t layoutLength = s_tasks || s_quiet ? length - suffix : length;
     for (int layout = LAYOUT_IN_STEP; layout <= LAYOUT_CHURN; ++layout)
     {
         if (strlen(s_layouts[layout]) == layoutLength &&
@@ -572,9 +579,11 @@ static int Count(const char* name, int count)
             return 0;
         }
     }
-    fprintf(stderr,
-            "--count takes step, spread, clips, repeat or churn, each with -tasks or not, oklab, "
-            "oklch, slerp, path or track\n");
+    fprintf(
+        stderr,
+        "--count takes step, spread, clips, repeat or churn, each with -tasks, -quiet or neither, "
+        "oklab, "
+        "oklch, slerp, path or track\n");
     return 1;
 }
 

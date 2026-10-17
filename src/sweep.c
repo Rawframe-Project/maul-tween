@@ -495,6 +495,14 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     double from = play->swept;
     bool fromNone = isnan(from);
     play->swept = to;
+    if (context->def.eventCapacity == 0)
+    {
+        // No records to make: nothing to sweep, the time kept so that a
+        // context grown to hold records sweeps on from here (record
+        // mtwn-0062).
+        play->sweptWay = 0;
+        return;
+    }
     if (!fromNone && from == to)
     {
         return;
@@ -572,6 +580,11 @@ static bool KeyOf(const mtwnClipPlay* play, double to, double rate, double hostF
 void mtwnSweepEventsNear(mtwnContext* context, mtwnWork* work, uint32_t player, double to,
                          double rate, double hostFrom, double hostTo)
 {
+    if (context->def.eventCapacity == 0)
+    {
+        mtwnSweepEvents(context, work, player, to, rate, hostFrom, hostTo);
+        return;
+    }
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     mtwnSharing* sharing = &work->sharing;
     SweepKey key;

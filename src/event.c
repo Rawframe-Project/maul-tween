@@ -13,6 +13,11 @@
 void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
 {
     uint32_t capacity = context->def.eventCapacity;
+    if (capacity == 0)
+    {
+        // A context of no records makes none, and drops none.
+        return;
+    }
     if (context->eventCount == capacity)
     {
         ++context->droppedEvents;
