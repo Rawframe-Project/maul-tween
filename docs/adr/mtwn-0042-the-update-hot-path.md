@@ -62,3 +62,20 @@ delays, iteration starts, directions, rates, repeat delays; frames on
 the boundaries and irregular ones; forwards, backwards, turning,
 slowing) in twin contexts, one counting every record, and checks the
 same records bit for bit.
+
+## Amended 2026-10-17: the same child time past a repeat delay
+
+The shortcuts compare child times the sweep works out (`Times`, by the
+timing model) with the points the exact count tests, and are sound only
+if the two agree bit for bit. Past a repeat delay they did not: the
+count took an iteration's progress as the delay-free fraction of its
+cycle, `within / d`, while the timing model forms its overall progress
+`k + within / d` and takes its fraction, rounded to that sum's
+precision. Off a binary grid the two can part by an ulp; a reversed
+0.2 s timeline with a repeat delay of 0.078125 s then held a crossing
+the count put an ulp into the frame after the one ending on it, which
+the open-start shortcut took for counted by the frame before, losing a
+record. The count now forms the progress as the timing model does. A
+fuzz of the shortcuts against counting every record, its clips' times
+also on tenths and anywhere, found it (about one play in 1,600 of such
+clips); `test_sweep` keeps the clip.

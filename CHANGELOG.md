@@ -7,6 +7,17 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Fixed
+
+- A record could be lost where a crossing fell exactly at a frame's end
+  inside a timeline with a repeat delay whose times are off a binary
+  grid (a reversed 0.2 s timeline held a crossing at 1.28125 s): the
+  exact count placed it in the next frame, while the shortcut that
+  skips a point the frame before ended on took it for counted. The
+  count's progress within an iteration past a repeat delay is now formed
+  as the timing model forms it, so both see the same child time (record
+  mtwn-0042, amended).
+
 ### Changed
 
 - With the host's task system, a clip with one player is sampled in

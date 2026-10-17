@@ -83,6 +83,39 @@ static void AddTrack(mtwnContext* context, mtwnClipId clip, mtwnNode parent)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
 }
 
+// Whether MakeClip makes the clip a 1/64 s frame met off its grid: a
+// reversed endless timeline of 0.2 s with a repeat delay of 0.078125 s,
+// holding a track that starts 0.03125 s in, whose fifth backward crossing
+// falls at 1.28125 s, a frame's end.
+static bool s_offGrid;
+
+static void OffGridClip(mtwnContext* context, mtwnClipId clip)
+{
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 0.2;
+    group.timing.iterations = HUGE_VAL;
+    group.timing.direction = mtwn_directionReverse;
+    group.timing.repeatDelay = 0.078125;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &timeline) == mtwn_success, "a timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = timeline;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.2;
+    track.timing.iterations = 2.0;
+    track.timing.delay = 0.03125;
+    track.timing.direction = mtwn_directionAlternateReverse;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
+}
+
 // The clip of a seed in a context of its own, and its player at the rate.
 static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPlayerId* idOut)
 {
@@ -96,7 +129,11 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     mtwnNode nodes[3] = {MTWN_ROOT_NODE, MTWN_ROOT_NODE, MTWN_ROOT_NODE};
-    int timelines = 1 + Pick(3);
+    int timelines = s_offGrid ? 0 : 1 + Pick(3);
+    if (s_offGrid)
+    {
+        OffGridClip(context, clip);
+    }
     for (int k = 0; k < timelines; ++k)
     {
         mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
@@ -105,15 +142,19 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
         RandomTiming(&group.timing, true);
         CHECK(mtwnClip_AddTimeline(context, clip, &group, &nodes[k]) == mtwn_success, "a timeline");
     }
-    for (int k = 1 + Pick(3); k > 0; --k)
+    for (int k = s_offGrid ? 0 : 1 + Pick(3); k > 0; --k)
     {
         AddTrack(context, clip, nodes[Pick(timelines)]);
     }
-    // Drawn in order, not as arguments, whose order C leaves open.
-    mtwnNode markParent = nodes[Pick(timelines)];
-    mtwnPosition markAt = At(Sixtyfourths());
-    mtwnNode mark = 0;
-    CHECK(mtwnClip_AddMark(context, clip, markParent, markAt, 7, &mark) == mtwn_success, "a mark");
+    if (!s_offGrid)
+    {
+        // Drawn in order, not as arguments, whose order C leaves open.
+        mtwnNode markParent = nodes[Pick(timelines)];
+        mtwnPosition markAt = At(Sixtyfourths());
+        mtwnNode mark = 0;
+        CHECK(mtwnClip_AddMark(context, clip, markParent, markAt, 7, &mark) == mtwn_success,
+              "a mark");
+    }
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
@@ -255,9 +296,31 @@ static void TestCountsAcrossCuts(void)
     CHECK(differ == 0, "the same crossings whatever the frames");
 }
 
+// A crossing at a frame's end, off the 1/64 s grid: the exact count puts
+// it an ulp into the next frame, so that frame records it, whose start
+// the shortcuts must not take for one the frame before crossed (record
+// mtwn-0042). The count's iteration progress past a repeat delay is now
+// formed as the timing model's, so the two agree on the child time there.
+static void TestOffGridFrameEnd(void)
+{
+    s_offGrid = true;
+    uint32_t counted = 0;
+    uint32_t left = 0;
+    uint64_t every = Play(3, 1.0, true, true, &counted, NULL);
+    uint64_t some = Play(3, 1.0, true, false, &left, NULL);
+    s_offGrid = false;
+    if (every != some || counted != left)
+    {
+        printf("  %u records counting every one, %u leaving out\n", counted, left);
+    }
+    CHECK(counted > 10 && every == some && counted == left,
+          "a crossing at a frame's end off the grid recorded once either way");
+}
+
 int main(void)
 {
     TestLeftOutChangesNothing();
     TestCountsAcrossCuts();
+    TestOffGridFrameEnd();
     return s_failures == 0 ? 0 : 1;
 }
