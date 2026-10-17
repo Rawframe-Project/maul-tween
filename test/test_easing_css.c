@@ -281,6 +281,14 @@ static void TestLinearCanonicalization(void)
     CHECK(SameInputs(raised, (const double[]){0.0, 0.6, 0.6, 1.0}, 4), "raised to the largest");
     CHECK(mtwnEase(&easing, 0.6, false) == 0.8 && mtwnEase(&easing, 0.3, false) == 0.25,
           "the jump takes the later point");
+    // Outputs of opposite signs near the double range: their difference
+    // overflows, the value between them does not (-inf at the second
+    // point before).
+    mtwnLinearPoint wide[] = {{0.0, 1e308}, {1.0, -1e308}};
+    CHECK(mtwnMakeLinearEasing(wide, 2, &easing) == mtwn_success, "a wide linear()");
+    CHECK(mtwnEase(&easing, 1.0, false) == -1e308 && mtwnEase(&easing, 0.0, false) == 1e308 &&
+              mtwnEase(&easing, 0.5, false) == 0.0,
+          "each point at its input, and finite between");
     mtwnLinearPoint run[] = {{0.0, 0.0}, {NONE, 0.2}, {NONE, 0.4}, {0.9, 1.0}};
     CHECK(mtwnMakeLinearEasing(run, 4, &easing) == mtwn_success, "a run without inputs");
     CHECK(fabs(run[1].input - 0.3) <= 1e-16 && fabs(run[2].input - 0.6) <= 1e-16,

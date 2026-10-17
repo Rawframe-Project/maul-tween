@@ -29,7 +29,13 @@ static const double s_lengthTolerance = 1e-9;
 // splits, as a share of the segment.
 enum
 {
-    s_stackSize = 64
+    s_stackSize = 64,
+    // The rule pairs one length may take: where the speed falls to 0 at an
+    // end, its rounding keeps the two orders apart at every width, and a
+    // span too narrow for the share below (2^-40 of the segment by its
+    // end) would split until the stack is full, about 2^32 times. The
+    // tests' lengths take at most 17.
+    s_mostRules = 1024
 };
 static const double s_narrowest = 0x1p-30;
 // A Halley step this short in u, at a speed at least this share of the
@@ -392,6 +398,7 @@ static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
     ++top;
     double total = 0.0;
     double narrowest = (b - a) * s_narrowest;
+    int rules = 0;
     while (top > 0)
     {
         --top;
@@ -400,8 +407,9 @@ static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
         double fine = 0.0;
         double coarse = 0.0;
         Kronrod(cubic, channels, lo, hi, &fine, &coarse);
+        rules += 1;
         bool agreed = fabs(fine - coarse) <= s_lengthTolerance * fine;
-        if (agreed || hi - lo <= narrowest || top + 2 > s_stackSize)
+        if (agreed || hi - lo <= narrowest || top + 2 > s_stackSize || rules >= s_mostRules)
         {
             total += fine;
             continue;
@@ -788,17 +796,41 @@ static mtwnVec4 ToVec4(const double v[4])
     return (mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]};
 }
 
+// A cubic extrapolated far enough to overflow its squares, scaled by its
+// largest component first; components past the double range dominate the
+// direction, each as 1 or -1 and the others as 0.
+static double ScaledNorm(const double v[4], double scaled[4])
+{
+    double largest = 0.0;
+    for (int i = 0; i < 4; ++i)
+    {
+        largest = fabs(v[i]) > largest ? fabs(v[i]) : largest;
+    }
+    double sum = 0.0;
+    for (int i = 0; i < 4; ++i)
+    {
+        scaled[i] = isinf(largest) ? (isinf(v[i]) ? copysign(1.0, v[i]) : 0.0) : v[i] / largest;
+        sum += scaled[i] * scaled[i];
+    }
+    return sqrt(sum);
+}
+
 // A rotation's per-component cubic, normalized; the segment's start where
 // it cancels to zero.
 static mtwnVec4 Normalized(const double v[4], mtwnVec4 start)
 {
+    double scaled[4] = {v[0], v[1], v[2], v[3]};
     double norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+    if (isinf(norm))
+    {
+        norm = ScaledNorm(v, scaled);
+    }
     if (!(norm > 0.0))
     {
         return start;
     }
-    return (mtwnVec4){(float)(v[0] / norm), (float)(v[1] / norm), (float)(v[2] / norm),
-                      (float)(v[3] / norm)};
+    return (mtwnVec4){(float)(scaled[0] / norm), (float)(scaled[1] / norm),
+                      (float)(scaled[2] / norm), (float)(scaled[3] / norm)};
 }
 
 mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)

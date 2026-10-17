@@ -122,33 +122,39 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
-    # The API fuzz target's script on a fixed set of random inputs.
+    # The fuzz targets' scripts on a fixed set of random inputs.
     if(NOT MAUL_TWEEN_BUILD_SHARED)
-        add_executable(test_fuzz_api ${PROJECT_SOURCE_DIR}/test/fuzz_api.c)
-        target_link_libraries(test_fuzz_api PRIVATE ${PROJECT_NAME})
-        target_include_directories(test_fuzz_api PRIVATE ${PROJECT_SOURCE_DIR}/src)
-        maul_apply_flags(test_fuzz_api)
-        add_test(NAME fuzz_api COMMAND test_fuzz_api)
+        foreach(target IN ITEMS api values)
+            add_executable(test_fuzz_${target} ${PROJECT_SOURCE_DIR}/test/fuzz_${target}.c)
+            target_link_libraries(test_fuzz_${target} PRIVATE ${PROJECT_NAME})
+            target_include_directories(test_fuzz_${target} PRIVATE ${PROJECT_SOURCE_DIR}/src)
+            maul_apply_flags(test_fuzz_${target})
+            add_test(NAME fuzz_${target} COMMAND test_fuzz_${target})
+        endforeach()
     endif()
 endif()
 
-# The fuzz target: test/fuzz_api.c, run as fuzz_api <corpus dir>, over
-# scripts of the public API (clips, players, transitions, updates) on a
-# context alone, on a task system and counting every record.
+# The fuzz targets, each run as fuzz_<name> <corpus dir>: test/fuzz_api.c
+# over scripts of the public API (clips, players, transitions, updates) on
+# a context alone, on a task system and counting every record, and
+# test/fuzz_values.c over the value functions (easings, springs, decay,
+# colors, rotations, signals, paths, staggers) with wild parameters.
 if(MAUL_TWEEN_FUZZ)
     # The library is instrumented too: its coverage guides libFuzzer, and
     # the sanitizers watch its code. Undefined behaviour stops the run.
     target_compile_options(maul-tween PRIVATE -fsanitize=fuzzer-no-link,address,undefined
                                               -fno-sanitize-recover=all)
     target_link_options(maul-tween PUBLIC -fsanitize=address,undefined)
-    add_executable(fuzz_api test/fuzz_api.c)
-    target_link_libraries(fuzz_api PRIVATE maul-tween)
-    target_include_directories(fuzz_api PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_compile_definitions(fuzz_api PRIVATE MTWN_FUZZING)
-    maul_apply_flags(fuzz_api)
-    target_compile_options(fuzz_api PRIVATE -fsanitize=fuzzer,address,undefined
-                                            -fno-sanitize-recover=all)
-    target_link_options(fuzz_api PRIVATE -fsanitize=fuzzer,address,undefined)
+    foreach(target IN ITEMS api values)
+        add_executable(fuzz_${target} test/fuzz_${target}.c)
+        target_link_libraries(fuzz_${target} PRIVATE maul-tween)
+        target_include_directories(fuzz_${target} PRIVATE ${PROJECT_SOURCE_DIR}/src)
+        target_compile_definitions(fuzz_${target} PRIVATE MTWN_FUZZING)
+        maul_apply_flags(fuzz_${target})
+        target_compile_options(fuzz_${target} PRIVATE -fsanitize=fuzzer,address,undefined
+                                                      -fno-sanitize-recover=all)
+        target_link_options(fuzz_${target} PRIVATE -fsanitize=fuzzer,address,undefined)
+    endforeach()
 endif()
 
 if(MAUL_TWEEN_BUILD_SAMPLES)

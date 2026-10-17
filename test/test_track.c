@@ -278,6 +278,34 @@ static void TestRotationZero(void)
           "a half turn about x taken");
 }
 
+// A curved rotation extrapolated so far its cubic overflows: still a unit
+// rotation, along the overflowing components (found by the values' fuzz,
+// NaN before).
+static void TestRotationFarOut(void)
+{
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
+    mtwnSegmentMix mixes[2];
+    mtwnTrack track;
+    mtwnKeyframe keys[3] = {Key(0.0, (mtwnVec4){0, -0.64f, 0, 1}, mtwn_segmentCatmullRom),
+                            Key(1e-300, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentCatmullRom),
+                            Key(1.0, (mtwnVec4){0, 0.3f, 0, 1}, mtwn_segmentCatmullRom)};
+    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success, "made");
+    bool unit = true;
+    for (double progress = -1.5; progress < 3.0; progress += 0.5)
+    {
+        mtwnVec4 q = mtwnSampleTrack(&track, progress);
+        double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
+                           (double)q.z * (double)q.z + (double)q.w * (double)q.w);
+        unit = unit && fabs(norm - 1.0) < 1e-6;
+    }
+    // At -1e-220 the segment's progress is -1e80: the cubic finite, its
+    // squares not.
+    mtwnVec4 q = mtwnSampleTrack(&track, -1e-220);
+    double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
+                       (double)q.z * (double)q.z + (double)q.w * (double)q.w);
+    CHECK(unit && fabs(norm - 1.0) < 1e-6, "unit far past the first segment");
+}
+
 static void TestRefusals(void)
 {
     float deg = (float)(s_pi / 180.0);
@@ -311,6 +339,7 @@ static void TestRefusals(void)
 int main(void)
 {
     TestRotationZero();
+    TestRotationFarOut();
     TestNumbers();
     TestDiscrete();
     TestAngles();

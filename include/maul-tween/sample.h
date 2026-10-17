@@ -16,6 +16,11 @@ extern "C"
 {
 #endif
 
+    // The most points a fit makes: a tolerance the curve cannot meet (below
+    // its rounding, or an oscillation finer than 2^-24) would otherwise take
+    // every segment down to that width, about 10^8 points.
+#define MTWN_MAX_FIT_POINTS 65536u
+
     /// Samples an easing evenly over progress 0 to 1: valuesOut[i] is the
     /// eased progress at i / (count - 1), rounded to float.
     ///
@@ -45,9 +50,13 @@ extern "C"
     ///                   when they do not fit.
     /// @return mtwn_success; mtwn_errorCapacity when more than capacity
     ///         points are needed, the contents of pointsOut then
-    ///         unspecified; mtwn_errorInvalid for a null easing or
-    ///         countOut, a NULL pointsOut with a capacity, steps or a
-    ///         tolerance outside the above.
+    ///         unspecified; mtwn_errorLimit when more than
+    ///         MTWN_MAX_FIT_POINTS are, the fit stopped there, countOut
+    ///         0 and the contents of pointsOut unspecified;
+    ///         mtwn_errorInvalid for a null easing or
+    ///         countOut, a NULL pointsOut with a capacity, steps, a
+    ///         tolerance outside the above, or an easing not finite at a
+    ///         point the fit keeps.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing,

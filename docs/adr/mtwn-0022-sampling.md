@@ -29,3 +29,21 @@ memory.
 A fitted `linear()` has a stated error and few points: within 1e-3,
 the CSS `ease` keyword takes 28 points and GSAP's elastic out 73, where
 100 evenly spaced points miss the elastic by 4.4e-3.
+
+## Amended 2026-10-17: a fit's points are limited
+
+A tolerance the curve cannot meet (below its rounding, or an
+oscillation finer than 2^-24) took every segment down to 2^-24: about
+10^8 points and minutes of work, only to report a count no host can
+use. A fit stops at `MTWN_MAX_FIT_POINTS` (65536) points with
+`mtwn_errorLimit`, so it examines at most about twice that many
+segments; below the limit a short buffer still reports the count
+needed. The values' fuzz found it.
+
+It also found a fit returning points `mtwnMakeLinearEasing` refuses: a
+curve infinite at a point the fit keeps (a linear() extrapolated
+between points 1e-300 apart overflows; a host function may return
+anything). The fit refuses such an easing with `mtwn_errorInvalid`, so
+its points always make a linear(). A NaN inside the curve is never kept,
+as it never misses the chord most, so only the ends and infinities are
+checked.

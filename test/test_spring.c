@@ -203,6 +203,32 @@ static void TestEndsOfTime(void)
     CHECK(rest.offsetFromOffset == 0.0 && rest.offsetFromVelocity == 0.0 &&
               rest.velocityFromOffset == 0.0 && rest.velocityFromVelocity == 0.0,
           "at rest at infinity");
+    // Far past where its envelope underflows, at rest too, though the
+    // phase there is beyond the sine's range (found by the values' fuzz).
+    mtwnSpringMotion far = mtwnSpringMotionAt(&spring, 1e300);
+    CHECK(far.offsetFromOffset == 0.0 && far.offsetFromVelocity == 0.0 &&
+              far.velocityFromOffset == 0.0 && far.velocityFromVelocity == 0.0,
+          "at rest at 1e300 s");
+    // A spring stiff past where any time has a phase: its motion stays
+    // bounded, the sine of a phase that holds no angle (found by the
+    // values' fuzz, -inf and NaN before).
+    mtwnSpring stiff;
+    CHECK(mtwnMakeSpringFromFrequency(1e148, 1e-149, &stiff) == mtwn_success, "a stiff spring");
+    bool bounded = true;
+    for (double t = 0.016; t < 100.0; t *= 4.0)
+    {
+        mtwnSpringMotion m = mtwnSpringMotionAt(&stiff, t);
+        bounded = bounded && fabs(m.offsetFromOffset) <= 1.0 &&
+                  fabs(m.velocityFromVelocity) <= 1.0 && isfinite(m.offsetFromVelocity) &&
+                  isfinite(m.velocityFromOffset);
+    }
+    CHECK(bounded, "a phase past 2^52 radians bounded");
+    // Undamped, its phase overflowing: no angle either, and no NaN.
+    CHECK(mtwnMakeSpringFromFrequency(1e150, 0.0, &stiff) == mtwn_success, "an undamped one");
+    mtwnSpringMotion endless = mtwnSpringMotionAt(&stiff, 1e160);
+    CHECK(fabs(endless.offsetFromOffset) <= 1.0 && isfinite(endless.offsetFromVelocity) &&
+              isfinite(endless.velocityFromOffset) && fabs(endless.velocityFromVelocity) <= 1.0,
+          "an infinite phase bounded");
     // Both bounds fall from the start here, the speed's from just under
     // its tolerance: settled at once, not at a time before the start.
     mtwnSpring firm;

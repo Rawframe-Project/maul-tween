@@ -23,6 +23,11 @@ static const double s_turn = 4.0 * MTWN_PIO2_HI;
 static const double s_halfTurn = 2.0 * MTWN_PIO2_HI;
 // Below this |q0 + q1| the longest way has no defined axis.
 static const double s_degenerate = 1e-6;
+// A phase from 2^52 radians on has an ulp of a radian or more, so it holds
+// no angle: a slerp extrapolated that far is taken at its phase reduced by
+// whole turns exactly (fmod), an infinite one's at 0, so it stays a unit
+// rotation.
+static const double s_phaseLost = 0x1.0p52;
 
 // The difference to - from moved by whole turns as the method asks.
 static double TurnedDifference(double difference, mtwnAngleMethod method)
@@ -160,6 +165,13 @@ mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
     }
     // sin(k theta) / sin(theta) = k sinc(k theta) / sinc(theta).
     double theta = mix->angle;
+    double phase = progress * theta;
+    if (fabs(phase) >= s_phaseLost)
+    {
+        // Whole turns of a phase this far out hold no angle: the rotation
+        // at the progress less them, once (a NaN goes on as before).
+        return mtwnMixRotation(mix, (isinf(phase) ? 0.0 : fmod(phase, s_turn)) / theta);
+    }
     double keep = 1.0 - progress;
     double denominator = Sinc(theta);
     double a = keep * Sinc(keep * theta) / denominator;

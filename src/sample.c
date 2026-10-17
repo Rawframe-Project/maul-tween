@@ -7,6 +7,8 @@
 // probes splits there, depth first, so points come out in order. The
 // split is kept within the segment's middle 3/4, so every child is at
 // most 28/33 of its parent and the pending segments fit a fixed stack.
+// The points are limited, so a tolerance the curve cannot meet costs at
+// most about 2 MTWN_MAX_FIT_POINTS segments of 32 probes.
 
 #include "maul-tween/sample.h"
 
@@ -70,6 +72,17 @@ static int WorstProbe(const mtwnEasing* easing, Point a, Point b, double toleran
     return index;
 }
 
+// The point a segment splits at, its worst probe held within the middle
+// probes; false when the curve is not finite there, as a host function's
+// infinity, and no linear() holds the point.
+static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe, Point* split)
+{
+    probe = probe < s_firstSplit ? s_firstSplit : (probe > s_lastSplit ? s_lastSplit : probe);
+    split->x = start.x + (next.x - start.x) * ((double)probe / (double)(s_probes + 1));
+    split->y = mtwnEase(easing, split->x, false);
+    return isfinite(split->y);
+}
+
 mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
                                mtwnLinearPoint* pointsOut, uint32_t capacity, uint32_t* countOut)
 {
@@ -82,6 +95,10 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
     int depth = 0;
     Point start = {0.0, mtwnEase(easing, 0.0, false)};
     Point end = {1.0, mtwnEase(easing, 1.0, false)};
+    if (!isfinite(start.y) || !isfinite(end.y))
+    {
+        return mtwn_errorInvalid;
+    }
     uint32_t count = 0;
     if (capacity > 0)
     {
@@ -101,6 +118,11 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
         }
         if (probe < 0)
         {
+            if (count == MTWN_MAX_FIT_POINTS)
+            {
+                *countOut = 0;
+                return mtwn_errorLimit;
+            }
             if (count < capacity)
             {
                 pointsOut[count] = (mtwnLinearPoint){next.x, next.y};
@@ -110,9 +132,11 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
             depth -= 1;
             continue;
         }
-        probe = probe < s_firstSplit ? s_firstSplit : (probe > s_lastSplit ? s_lastSplit : probe);
-        double x = start.x + (next.x - start.x) * ((double)probe / (double)(s_probes + 1));
-        stack[depth++] = (Point){x, mtwnEase(easing, x, false)};
+        if (!SplitAt(easing, start, next, probe, &stack[depth]))
+        {
+            return mtwn_errorInvalid;
+        }
+        depth += 1;
     }
     *countOut = count;
     return count <= capacity ? mtwn_success : mtwn_errorCapacity;

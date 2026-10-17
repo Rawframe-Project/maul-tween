@@ -220,6 +220,11 @@ static void TestRubberBand(void)
     CHECK(mtwnRubberBand(HUGE_VAL, 600.0, 0.55) == 600.0 &&
               mtwnRubberBand(-HUGE_VAL, 600.0, 0.55) == -600.0,
           "an infinite drag reaches the dimension");
+    CHECK(mtwnRubberBand(30.0, HUGE_VAL, 0.55) == 0.55 * 30.0 &&
+              mtwnRubberBand(-30.0, HUGE_VAL, HUGE_VAL) == -HUGE_VAL,
+          "an endless view resists nothing; with an endless coefficient, not NaN");
+    CHECK(mtwnRubberBandInverse(-16.5, HUGE_VAL, 0.55) == -16.5 / 0.55,
+          "and its inverse takes it back");
     CHECK(mtwnRubberBand(1e10, 600.0, 0.55) < 600.0, "a finite one does not");
     CHECK(mtwnRubberBand(1e308, 600.0, 4.0) == 600.0 &&
               mtwnRubberBand(1e-310, 600.0, 0.55) == 0.55 * 1e-310,

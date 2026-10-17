@@ -163,7 +163,15 @@ double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, dou
         return b->output;
     }
     double between = (x - a->input) / (b->input - a->input);
-    return a->output + between * (b->output - a->output);
+    double span = b->output - a->output;
+    if (isinf(span))
+    {
+        // Outputs of opposite signs near the double range overflow their
+        // difference; the weighted sum stays between them, and is each at
+        // its own input.
+        return (1.0 - between) * a->output + between * b->output;
+    }
+    return a->output + between * span;
 }
 
 // Whether every output is finite and every input finite or not given.

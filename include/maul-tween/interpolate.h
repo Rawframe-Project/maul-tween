@@ -297,7 +297,8 @@ extern "C"
     ///
     /// @param frequency  Lattice points a second, finite and above 0: how
     ///                   often the noise changes direction.
-    /// @param duration   Seconds, finite and above 0.
+    /// @param duration   Seconds, finite and above 0, with the frequency
+    ///                   fewer than 2^53 lattice points.
     /// @param exponent   The envelope's, finite and above 0.
     /// @param seed       Any value; the same seed shakes the same way.
     /// @param shakeOut   Receives the shake.

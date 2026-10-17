@@ -14,9 +14,56 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   must agree bit for bit with values finite and records in order.
   `ctest` runs it on a fixed set of inputs; `MAUL_TWEEN_FUZZ` builds it
   as a libFuzzer target (Clang).
+- `test/fuzz_values.c`: the value functions driven by bytes with
+  ordinary and wild parameters, run by `ctest` on a fixed set of inputs
+  and built as a libFuzzer target with the other.
+- `MTWN_MAX_FIT_POINTS` (65536): `mtwnFitLinearEasing` returns
+  `mtwn_errorLimit` when a fit needs more points, as for a tolerance
+  below the curve's rounding, which before took every segment down to
+  2^-24 (about 10^8 points, minutes of work) (record mtwn-0022).
+- `mtwnFitLinearEasing` refuses (`mtwn_errorInvalid`) an easing that is
+  infinite or NaN at a point it would keep, as a host function or a
+  linear() overflowing between wide points can be, instead of returning
+  points `mtwnMakeLinearEasing` refuses (record mtwn-0022).
 
 ### Fixed
 
+- The back easing with an overshoot from 2^53 was NaN and infinite
+  everywhere: its end, (s + 1) - s, rounded to 0. It is now computed as
+  p^2 (p + s (p - 1)), exactly 1 at the end for any overshoot and
+  closer to the exact curve (within 1.1e-16 for 1.70158, from 4.6e-16)
+  (record mtwn-0011).
+- linear() between outputs of opposite signs near the double range
+  (1e308 and -1e308) overflowed their difference, -inf at the second
+  point; such a span is now interpolated as a weighted sum (record
+  mtwn-0011).
+- A spring's motion was NaN far past its envelope's underflow, where
+  its phase was beyond the sine's range, and -inf or NaN for a spring so
+  stiff that its phase passed 2^52 radians early on; a phase that holds
+  no angle is now reduced by 2 pi first (an infinite one to 0), so the
+  motion stays bounded and an underflowed envelope brings it to rest
+  (records mtwn-0010 and mtwn-0023).
+- A constant-speed path could take minutes for one sample: where a
+  segment's speed falls to 0 at an end as (1 - u)^2 (a Bezier with both
+  handles on that end), the length's two quadrature orders never agree
+  in the rounding there, and a span 2^-40 of the segment from the end
+  split until the stack was full (about 2^32 rule pairs). One length
+  now takes at most 1024 (the tests' take at most 17) (record
+  mtwn-0031).
+- A rotation sampled far past its ends was NaN: a curved segment's
+  cubic overflowed before it was normalized (now scaled by its largest
+  component first), and `mtwnMixRotation` far out took the sine of a
+  phase out of range (now taken at the progress less the phase's whole
+  turns, a unit rotation) (records mtwn-0025 and mtwn-0031).
+- A punch over a long span, or fast enough that its cycles overflowed,
+  sampled NaN; its phase is now reduced in cycles, exactly, before the
+  sine (record mtwn-0026).
+- A shake with 2^53 or more lattice points over its duration converted
+  an out-of-range double to an integer; it is refused (record
+  mtwn-0026).
+- The rubber band was NaN with an infinite dimension or coefficient,
+  and its inverse with an infinite dimension (records mtwn-0010 and
+  mtwn-0023).
 - An incremental track with endless iterations of no duration is
   refused when added: all its iterations pass at once, and past them
   its value moved on by an infinite iteration, to infinity or NaN

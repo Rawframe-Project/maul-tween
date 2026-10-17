@@ -83,7 +83,10 @@ static double RawCurve(const mtwnEasing* easing, double x)
         // 1 - x^2 as a product, which keeps its digits near x = 1.
         return 1.0 - sqrt((1.0 - x) * (1.0 + x));
     case mtwn_easingBack:
-        return x * x * ((parameter[0] + 1.0) * x - parameter[0]);
+        // (s + 1) x - s as x + s (x - 1): exactly 1 at x = 1 for any s,
+        // where s + 1 rounds to s from 2^53 on, and with no cancellation
+        // near the end.
+        return x * x * (x + parameter[0] * (x - 1.0));
     case mtwn_easingElastic:
     {
         double sine = 0.0;

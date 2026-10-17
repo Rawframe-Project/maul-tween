@@ -538,6 +538,32 @@ static void TestSpeedDrift(void)
     CHECK(worst <= 1e-10 * (double)total, "every share at its place, no drift");
 }
 
+// A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
+// the speed falls to 0 there as (1 - u)^2, and its rounding keeps the
+// length's two orders apart at any width; at constant speed a share 2^-40
+// from the end measured that span until its stack filled, about 2^32 rule
+// pairs (found by the values' fuzz). The rule pairs are bounded now.
+static void TestStillEnds(void)
+{
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f, 100.0f, mtwn_segmentBezier),
+                            Key(1.0, 0.0f, 0.0f, mtwn_segmentLinear)};
+    keys[0].out = keys[1].value;
+    keys[1].in = keys[1].value;
+    double lengths[2];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 2, 2, 0.5, lengths, &path) == mtwn_success, "a still-ended line");
+    double worst = 0.0;
+    const double shares[] = {0x1p-40, 0.5, 1.0 - 0x1p-40};
+    for (int i = 0; i < 3; ++i)
+    {
+        double v[4];
+        mtwnSamplePath(&path, shares[i], v, NULL);
+        double error = fabs(v[1] - 100.0 * (1.0 - shares[i])) + fabs(v[0]);
+        worst = error > worst ? error : worst;
+    }
+    CHECK(worst <= 1e-8, "each share at its place, at once");
+}
+
 static void TestEdges(void)
 {
     // Ends exactly the keyframes' values, also where the arithmetic would
@@ -742,6 +768,7 @@ int main(void)
     TestLength();
     TestNumberLength();
     TestSpeedDrift();
+    TestStillEnds();
     TestEdges();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;

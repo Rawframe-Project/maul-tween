@@ -28,3 +28,12 @@ each library parameterizes back and elastic its own way.
 
 Every easing is continuous and exact at its ends, and an animation
 written for another library can be matched by its parameters.
+
+## Amended 2026-10-17: back computed as p^2 (p + s (p - 1))
+
+Back's curve p^2 ((s + 1) p - s) ends at (s + 1) - s, which is 0 once
+s + 1 rounds to s (from 2^53), so its normalization divided by 0 and
+every value was NaN or infinite. The same curve as p^2 (p + s (p - 1))
+is exactly 1 at the end for any s and has no cancellation there: for
+GSAP's 1.70158 it is within 1.1e-16 of the exact curve, where the first
+form missed by up to 4.6e-16. The values' fuzz found it.

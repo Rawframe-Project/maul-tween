@@ -247,6 +247,30 @@ static void TestHalfTurns(void)
           "longer: no difference, a whole turn");
 }
 
+// A slerp extrapolated so far that its phase holds no angle, or
+// overflows: still a unit rotation (found by the values' fuzz, NaN
+// before).
+static void TestFarExtrapolation(void)
+{
+    mtwnRotationMix mix;
+    CHECK(mtwnMakeRotationMix((mtwnQuat){0.0f, 0.0f, 0.0f, 1.0f},
+                              (mtwnQuat){0.0f, 1.0f, 0.0f, 0.0f}, mtwn_rotationShortest,
+                              &mix) == mtwn_success,
+          "a half turn, pi / 2 apart as quaternions");
+    bool bounded = true;
+    const double far[] = {-1.5e300, 1.5e300, 1.7e308};
+    for (int i = 0; i < 3; ++i)
+    {
+        mtwnQuat q = mtwnMixRotation(&mix, far[i]);
+        double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
+                           (double)q.z * (double)q.z + (double)q.w * (double)q.w);
+        bounded = bounded && fabs(norm - 1.0) < 1e-6;
+    }
+    CHECK(bounded, "far past its ends, a unit rotation");
+    mtwnQuat lost = mtwnMixRotation(&mix, (double)NAN);
+    CHECK(isnan(lost.w), "a NaN progress is NaN, not a reduction");
+}
+
 static void TestRefusals(void)
 {
     mtwnRotationMix mix;
@@ -270,6 +294,7 @@ static void TestRefusals(void)
 int main(void)
 {
     TestHalfTurns();
+    TestFarExtrapolation();
     TestAngles();
     TestRotationsAgainstSlerp();
     TestPaths();

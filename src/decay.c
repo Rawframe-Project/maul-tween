@@ -127,11 +127,11 @@ double mtwnRubberBand(double distance, double dimension, double coefficient)
     double past = fabs(distance);
     // s d / (s + d) with s = c x, as m / (1 + m / M) for the smaller m and
     // larger M of the two, which neither overflows nor underflows, and is d
-    // for an infinite drag.
+    // for an infinite drag; m when both are infinite, as the form tends to.
     double scaled = coefficient * past;
     double smaller = scaled < dimension ? scaled : dimension;
     double larger = scaled < dimension ? dimension : scaled;
-    return copysign(smaller / (1.0 + smaller / larger), distance);
+    return copysign(isinf(smaller) ? smaller : smaller / (1.0 + smaller / larger), distance);
 }
 
 double mtwnRubberBandInverse(double offset, double dimension, double coefficient)
@@ -145,5 +145,7 @@ double mtwnRubberBandInverse(double offset, double dimension, double coefficient
     {
         return copysign(HUGE_VAL, offset);
     }
-    return copysign(dimension / (dimension - moved) * moved / coefficient, offset);
+    // An endless view resists nothing: d / (d - o) tends to 1.
+    double resisted = isinf(dimension) ? 1.0 : dimension / (dimension - moved);
+    return copysign(resisted * moved / coefficient, offset);
 }

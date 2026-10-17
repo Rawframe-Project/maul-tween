@@ -147,6 +147,14 @@ static void TestFitCounts(void)
               mtwnFitLinearEasing(&ease, 1e-4, NULL, 0, &tight) == mtwn_errorCapacity &&
               loose < needed && needed < tight,
           "the count grows as the tolerance shrinks");
+    // A tolerance below the curve's rounding is never met: every segment
+    // would go down to 2^-24, about 10^8 points; the fit stops at its
+    // limit (found by the values' fuzz, minutes of work before).
+    count = 7;
+    CHECK(mtwnFitLinearEasing(&ease, 1e-300, NULL, 0, &count) == mtwn_errorLimit && count == 0,
+          "an unmeetable tolerance stops at the limit");
+    CHECK(mtwnFitLinearEasing(&ease, 1e-300, s_points, s_capacity, &count) == mtwn_errorLimit,
+          "whatever the capacity");
 }
 
 static void TestToleranceMetExactly(void)
@@ -198,6 +206,21 @@ static void TestJumpsEnd(void)
     CHECK(worst <= 1e-3, "within the tolerance away from the jump");
 }
 
+// Infinite in the middle, where its miss makes the fit split, and NaN at
+// the start: kept points no linear() holds. (A NaN inside never misses
+// most, so it is never kept.)
+static double Endless(void* context, double progress)
+{
+    (void)context;
+    return progress > 0.4 && progress < 0.6 ? HUGE_VAL : progress;
+}
+
+static double Hole(void* context, double progress)
+{
+    (void)context;
+    return progress == 0.0 ? (double)NAN : progress;
+}
+
 static void TestFitRefusals(void)
 {
     uint32_t count = 7;
@@ -220,6 +243,14 @@ static void TestFitRefusals(void)
           "no easing");
     CHECK(mtwnFitLinearEasing(&quad, 1e-3, s_points, s_capacity, NULL) == mtwn_errorInvalid,
           "no count");
+    mtwnEasing endless;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Endless, NULL, &endless) == mtwn_success, "endless");
+    CHECK(mtwnFitLinearEasing(&endless, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "a curve infinite at a kept point");
+    mtwnEasing hole;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &hole) == mtwn_success, "hole");
+    CHECK(mtwnFitLinearEasing(&hole, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "a curve NaN at a kept point");
     CHECK(count == 7, "refusals leave the count as it was");
 }
 

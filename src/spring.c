@@ -44,6 +44,11 @@ static const double s_seriesBelow = 0.5;
 // Newton's steps for a settling time, and when one is small enough.
 static const int s_newtonSteps = 64;
 static const double s_newtonStop = 0x1.0p-50;
+// A phase from 2^52 radians on has an ulp of a radian or more, so it holds
+// no angle; reduced by 2 pi exactly (fmod), an infinite one to 0, its sine
+// and cosine stay within [-1, 1] whatever the elementary functions do that
+// far out, and an envelope underflowed to 0 brings the spring to rest.
+static const double s_phaseLost = 0x1.0p52;
 
 // sinh(y) / y for 0 <= y < 1/2: the series to y^12, whose next term is
 // under 5e-17.
@@ -160,6 +165,10 @@ mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds)
     double y = damped * seconds;
     if (spring->regime == s_underdamped)
     {
+        if (!(fabs(y) < s_phaseLost))
+        {
+            y = isinf(y) ? 0.0 : fmod(y, 4.0 * MTWN_PIO2_HI);
+        }
         double sine = 0.0;
         double cosine = 0.0;
         mtwnSinCos(y, &sine, &cosine);

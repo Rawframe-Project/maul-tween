@@ -89,7 +89,12 @@ node, players under controls, transitions and updates, the same script
 on a context alone, on a task system and counting every record, which
 must agree bit for bit. `ctest` runs it on a fixed set of inputs; with
 Clang, `-DMAUL_TWEEN_FUZZ=ON` builds it as a libFuzzer target, run as
-`fuzz_api <corpus directory>` outside the tests.
+`fuzz_api <corpus directory>` outside the tests. `test/fuzz_values.c`
+does the same for the value functions (easings, springs, decay and the
+rubber band, colors, rotations, punch and shake, paths, staggers) over
+ordinary and wild parameters (huge, tiny, infinite, NaN): whatever a
+function accepts, its results are finite, or for wild inputs at least
+not NaN where the inputs had none.
 
 ## Size
 

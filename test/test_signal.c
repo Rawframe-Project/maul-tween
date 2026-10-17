@@ -99,6 +99,14 @@ static void TestPunch(void)
     CHECK(mtwnMakePunch(1.0, HUGE_VAL, 1.0, &punch) == mtwn_errorInvalid, "infinite duration");
     CHECK(mtwnMakePunch(1.0, 1.0, (double)NAN, &punch) == mtwn_errorInvalid, "NaN exponent");
     CHECK(mtwnMakePunch(1.0, 1.0, 1.0, NULL) == mtwn_errorInvalid, "null out");
+    // A punch over a very long span: its sine is of the cycles' fraction,
+    // in range however far in (found by the values' fuzz).
+    CHECK(mtwnMakePunch(8.0, 1e300, 1.5, &punch) == mtwn_success, "a punch over 1e300 s");
+    double deep = mtwnSamplePunch(&punch, 2.5e299 + 0.03125);
+    CHECK(fabs(deep) <= 1.0, "a factor deep into it");
+    // Its cycles past the double range: a whole count, the sine 0.
+    CHECK(mtwnMakePunch(1e300, 1e300, 1e-300, &punch) == mtwn_success, "a fast punch");
+    CHECK(mtwnSamplePunch(&punch, 2.5e299) == 0.0, "cycles overflowed");
 }
 
 static void TestShakeShape(void)
@@ -116,6 +124,10 @@ static void TestShakeShape(void)
     CHECK(lattice == 0, "0 on its lattice, as gradient noise is");
     mtwnShake steady;
     CHECK(mtwnMakeShake(4.0, 1e9, 1.0, 7, &steady) == mtwn_success, "a long one");
+    // Its lattice keeps a fraction between points and an index below 2^64.
+    CHECK(mtwnMakeShake(4.0, 0x1p51, 1.0, 7, &shake) == mtwn_errorInvalid &&
+              mtwnMakeShake(4.0, 0x1p51 - 1.0, 1.0, 7, &shake) == mtwn_success,
+          "fewer than 2^53 lattice points");
     double largest = 0.0;
     double jump = 0.0;
     double previous = 0.0;

@@ -99,7 +99,9 @@ static mtwnTiming RandomTiming(Bytes* in)
     t.alternateEasing = (mtwnAlternateEasing)Below(in, 2);
     if (Below(in, 3) == 0)
     {
-        (void)mtwnMakePowerEasing((mtwnEaseMode)Below(in, 4), 1.5 + Below(in, 3), &t.easing);
+        // Drawn in order, not as arguments, whose order C leaves open.
+        mtwnEaseMode mode = (mtwnEaseMode)Below(in, 4);
+        (void)mtwnMakePowerEasing(mode, 1.5 + Below(in, 3), &t.easing);
     }
     return t;
 }
@@ -276,8 +278,8 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         def.delay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
         def.duration = Wild(in, 1.0);
         def.spec = (mtwnTransitionSpec)Below(in, 3);
-        (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
-                                         &def.spring);
+        double duration = 0.25 + 0.25 * Below(in, 4);
+        (void)mtwnMakeSpringFromDuration(duration, 0.1 * Below(in, 5), &def.spring);
         mtwnPlayerId id = {0, 0};
         r = mtwnStartTransition(context, &def, &id);
         break;

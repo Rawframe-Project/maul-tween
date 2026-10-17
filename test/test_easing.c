@@ -317,7 +317,9 @@ static void TestMonotonicEasingsNeverDecrease(void)
 static void TestRivalMappings(void)
 {
     // GSAP's back.in(s) is p^2 ((s + 1) p - s) unnormalized; ours lands on
-    // 1 and differs from it by rounding only.
+    // 1 and differs from it by rounding only, mostly GSAP's: its form
+    // misses the exact curve by up to 4.6e-16 here, ours, p^2 (p + s (p -
+    // 1)), by 1.1e-16.
     mtwnEasing back;
     CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1.70158, &back) == mtwn_success, "back");
     double worst = 0.0;
@@ -328,7 +330,7 @@ static void TestRivalMappings(void)
         double error = fabs(mtwnEase(&back, p, false) - gsap);
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= 4e-16, "back.in matches GSAP's");
+    CHECK(worst <= 0x1p-51, "back.in matches GSAP's");
     // GSAP's elastic.out(1, 0.3) is 2^(-10 p) sin((p - c) 2 pi / 0.3) + 1,
     // which misses 1 at p = 1 by under 2^-10; ours is normalized.
     mtwnEasing elastic;
@@ -458,6 +460,18 @@ static void TestRefusals(void)
     CHECK(mtwnMakeBackEasing(mtwn_easeIn, 0.0, &easing) == mtwn_success &&
               mtwnEase(&easing, 0.5, false) == 0.125,
           "back with no overshoot is the cubic");
+    // An overshoot from 2^53, where s + 1 rounds to s: still on 0 and 1,
+    // and finite between (found by the values' fuzz, NaN and infinite
+    // before).
+    bool lands = true;
+    for (int mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
+    {
+        CHECK(mtwnMakeBackEasing((mtwnEaseMode)mode, 1e300, &easing) == mtwn_success, "huge");
+        lands = lands && mtwnEase(&easing, 0.0, false) == 0.0 &&
+                mtwnEase(&easing, 1.0, false) == 1.0 && isfinite(mtwnEase(&easing, 0.3, false)) &&
+                isfinite(mtwnEase(&easing, 2.5, false)) && isfinite(mtwnEase(&easing, -1.5, false));
+    }
+    CHECK(lands, "back with an overshoot of 1e300 lands");
 }
 
 // An elastic easing's amplitude and period at 0 are refused (found by

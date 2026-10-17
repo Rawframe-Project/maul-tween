@@ -53,6 +53,10 @@ static bool IsPositive(double value)
     return isfinite(value) && value > 0.0;
 }
 
+// Fewer lattice points than this over a shake's duration: its position
+// keeps a fraction between them, and its index stays far from 2^64.
+static const double s_shakePoints = 0x1.0p53;
+
 // The envelope (1 - t / duration)^exponent inside the duration, and 0
 // outside it.
 static double Envelope(double seconds, double duration, double exponent)
@@ -84,7 +88,13 @@ double mtwnSamplePunch(const mtwnPunch* punch, double seconds)
     }
     double sine = 0.0;
     double cosine = 0.0;
-    mtwnSinCos(4.0 * MTWN_PIO2_HI * punch->frequency * seconds, &sine, &cosine);
+    // The sine of the cycles' fraction, exact for any time: the angle stays
+    // within a turn, where the sine is accurate however long the punch.
+    // From 2^52 cycles every double is whole, its fraction 0, and so is an
+    // overflowed count's.
+    double cycles = punch->frequency * seconds;
+    double fraction = isinf(cycles) ? 0.0 : cycles - floor(cycles);
+    mtwnSinCos(4.0 * MTWN_PIO2_HI * fraction, &sine, &cosine);
     return sine * envelope;
 }
 
@@ -92,7 +102,7 @@ mtwnResult mtwnMakeShake(double frequency, double duration, double exponent, uin
                          mtwnShake* shakeOut)
 {
     if (shakeOut == NULL || !IsPositive(frequency) || !IsPositive(duration) ||
-        !IsPositive(exponent))
+        !IsPositive(exponent) || !(frequency * duration < s_shakePoints))
     {
         return mtwn_errorInvalid;
     }
