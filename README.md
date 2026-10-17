@@ -94,7 +94,10 @@ does the same for the value functions (easings, springs, decay and the
 rubber band, colors, rotations, punch and shake, paths, staggers) over
 ordinary and wild parameters (huge, tiny, infinite, NaN): whatever a
 function accepts, its results are finite, or for wild inputs at least
-not NaN where the inputs had none. Each replays its seeds in `ctest`
+not NaN where the inputs had none. `fuzz_fit`, built from the same file,
+takes its easings and fits each to `linear()` at a drawn tolerance, which
+the other leaves out: a fit at its limit costs a thousand times the
+rest, and would starve them. Each replays its seeds in `ctest`
 before its fixed inputs: one input for each edge a campaign reached,
 in `test/generated/fuzz_seeds_<target>.h`. `tools/fuzz_seeds.py extract
 <target> <dir>` starts a campaign from them, and `write <target>

@@ -11,8 +11,10 @@
 // its span, and a stagger that succeeds writes finite offsets.
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
-// corpus directory; in the test suite it runs a fixed set of random
-// inputs.
+// corpus directory; in the test suite it replays its seeds and a fixed
+// set of random inputs. With MTWN_FUZZ_FIT it is fuzz_fit instead: the
+// easings alone, each fitted to CSS linear() at a drawn tolerance, which
+// the other target leaves out as it costs a thousand times the rest.
 
 #include "maul-tween/easing.h"
 #include "maul-tween/interpolate.h"
@@ -131,7 +133,9 @@ static void CheckEach(const Bytes* in, const char* what, const double* values, i
 static const double s_progress[] = {-1.5, -0.25,         0.0, 0x1p-40, 0.1, 0.5,
                                     0.75, 1.0 - 0x1p-40, 1.0, 1.25,    2.5};
 
-static void Easings(Bytes* in)
+// The fit of linear() is fuzz_fit's: at its limit it takes a thousand
+// times another section's inputs, so here it would starve the rest.
+static void Easings(Bytes* in, bool fit)
 {
     in->ordinary = true;
     in->finite = true;
@@ -227,6 +231,10 @@ static void Easings(Bytes* in)
         {
             Check(in, "a sampled easing", (double)samples[i]);
         }
+    }
+    if (!fit)
+    {
+        return;
     }
     mtwnLinearPoint fitted[64];
     uint32_t fittedCount = 0;
@@ -532,12 +540,24 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 {
     Bytes in = {data, size, 0, true, true};
     s_bad = false;
+#ifdef MTWN_FUZZ_FIT
+    // The other sections are fuzz_values'.
+    (void)Springs;
+    (void)Decays;
+    (void)Values;
+    (void)Paths;
+    (void)Staggers;
+    while (in.at < in.size)
+    {
+        Easings(&in, true);
+    }
+#else
     while (in.at < in.size)
     {
         switch (Below(&in, 6))
         {
         case 0:
-            Easings(&in);
+            Easings(&in, false);
             break;
         case 1:
             Springs(&in);
@@ -556,6 +576,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             break;
         }
     }
+#endif
     if (s_bad)
     {
         __builtin_trap();
@@ -564,7 +585,19 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 }
 
 #ifndef MTWN_FUZZING
+#ifdef MTWN_FUZZ_FIT
+#include "generated/fuzz_seeds_fit.h"
+enum
+{
+    s_randomInputs = 50
+};
+#else
 #include "generated/fuzz_seeds_values.h"
+enum
+{
+    s_randomInputs = 2000
+};
+#endif
 
 // In the test suite: the committed seeds (tools/fuzz_seeds.py), one per
 // edge a campaign reached, then a fixed set of random inputs
@@ -579,7 +612,7 @@ int main(void)
     }
     uint64_t state = 0x2545F4914F6CDD1Du;
     static uint8_t input[512];
-    for (int n = 0; n < 2000; ++n)
+    for (int n = 0; n < s_randomInputs; ++n)
     {
         size_t size = 16 + (size_t)(n * 29 % 480);
         for (size_t i = 0; i < size; ++i)
