@@ -86,3 +86,24 @@ crossing's time and iteration two ulps from what counting every record
 did. The count's position is now rounded as the timing model's
 (mtwn-0012, amended the same day), and over 400 random timings every
 double within 40 of each iteration's start and end counts one way.
+
+## Amended 2026-10-17: a backward iteration start, and exact references
+
+Going backwards, by a player's rate or a node's own, an iteration's
+start is a point the path covers like any other, so a sweep ending on
+it counts it there ((from, to] forwards, [to, from) backwards), while
+the timing model still reports that iteration at that time (progress 0)
+and the one before it just after. The record made there names the
+iteration current at its time, the one left (record mtwn-0038's
+iterations), which is what the target shows at that frame; the next
+frame shows the one before it and makes no second record. `event.h`
+states this and `test_event` pins it for a backward player and a
+node's negative rate.
+
+The counts, and the timing model's phase, iteration and repeat delay,
+are checked against answers worked out in exact rationals from the
+doubles' exact values (`tools/oracle/exact_oracle.py`, writing
+`test/generated/exact_cases.h` for `test_exact`): timings and sweeps
+that are not dyadic, whole starts to 10^6, a mark one and two
+timelines deep, a node's iteration starts alone and one deep, and
+dyadic sweeps ending exactly on an iteration start.
