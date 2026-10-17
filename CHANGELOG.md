@@ -9,6 +9,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- Transitions' decays bounded and landing (record mtwn-0063):
+  `bounded` holds a fling between `lower` and `upper`, the def's spring
+  bouncing it back from the bound it reaches; `lands` brings it to rest
+  on the def's value at the start velocity. The transitions' size
+  budget is 58 kB and the clips' 139 kB.
 - Inertia (record mtwn-0063): `mtwnMakeDecayToRest`, the decay that
   rests on a chosen end with the start's velocity, for snapping a
   fling; `mtwnMakeBoundedDecay`, `mtwnSampleBoundedDecay` and

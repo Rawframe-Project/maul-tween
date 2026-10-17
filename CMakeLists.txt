@@ -48,6 +48,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/clip_sample.c
     src/clip_tasks.c
     src/compose.c
+    src/coast.c
     src/color.c
     src/context.c
     src/crossing.c
@@ -106,6 +107,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(timing)
     maul_add_test(context WHITEBOX)
     maul_add_test(transition WHITEBOX)
+    maul_add_test(coast)
     maul_add_test(path)
     maul_add_test(path_counts WHITEBOX)
     maul_add_test(track)

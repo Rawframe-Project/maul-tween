@@ -120,7 +120,14 @@ typedef struct mtwnPlayerSlot
             mtwnEaseMode powerMode;
             // Plays on under reduced motion.
             bool essential;
-            uint8_t reserved[4];
+            // A decay's channels (bit i for channel i) that hand over to the
+            // bounce at their bound, their end value, and those starting past
+            // it; whether it lands, by its channels' own rates (record
+            // mtwn-0063).
+            uint8_t crosses;
+            uint8_t past;
+            bool lands;
+            uint8_t reserved;
             uint64_t startNs;
             double delay;
             // Seconds after the delay to the end; infinity for a spring that
@@ -136,6 +143,14 @@ typedef struct mtwnPlayerSlot
                 mtwnEasing easing;
                 mtwnSpring spring;
                 mtwnDecay decay;
+                // A bounded decay's decay and bounce.
+                struct
+                {
+                    mtwnDecay decay;
+                    mtwnSpring bounce;
+                } coast;
+                // A landing's rate per channel.
+                double rates[4];
             };
             mtwnTargetId target;
             union

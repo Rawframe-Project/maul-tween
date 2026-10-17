@@ -29,8 +29,8 @@ pool:
 context_internal: crossing pool runs
 context: allocator context_internal pool
 target: context_internal pool
-transition: context_internal easing_internal elementary fpenv pool spring_internal
-update: context_internal easing_internal elementary fpenv pool scale_internal
+transition: coast context_internal easing_internal elementary fpenv pool spring_internal
+update: coast context_internal easing_internal elementary fpenv pool scale_internal
 path: elementary path_internal path_length scale_internal
 path_length: elementary
 path_internal:
@@ -40,6 +40,7 @@ player: context_internal fpenv pool runs
 player_slot: context_internal pool runs
 clip_sample: compose context_internal elementary pool runs scale_internal
 clip_tasks: context_internal fpenv pool runs
+coast: context_internal
 compose: elementary scale_internal
 crossing: timing_internal
 event: context_internal pool

@@ -69,6 +69,10 @@ extern "C"
         mtwnSpring spring;
         // The decay of mtwn_transitionDecay.
         mtwnDecay decay;
+        // For a bounded decay, the bounds it is held between, per channel
+        // (a scale's above 0); each may be infinite, for none.
+        mtwnVec4 lower;
+        mtwnVec4 upper;
         // A spring rests within restOffset of its end and restSpeed of
         // rest, a decay at restSpeed: in the kind's channels, in progress
         // from 0 to 1 for colors, rotations and scales, and for a scale's
@@ -96,6 +100,19 @@ extern "C"
         // fade, a color, or motion essential to what it shows; the others
         // finish at once.
         bool essential;
+        // For a decay (record mtwn-0063): held between lower and upper.
+        // Where a channel would come to rest past one, the def's spring
+        // takes it back from the exact time it reaches the bound, with the
+        // velocity it has there, and it ends on the bound; a channel
+        // starting past one is the spring's from the start. Numbers,
+        // vectors, integers and scales, a scale's in its logarithm.
+        bool bounded;
+        // For a decay (record mtwn-0063): it comes to rest on the def's
+        // value, each channel by its own rate with the start velocity it
+        // has, as mtwnMakeDecayToRest; a channel the velocity does not move
+        // toward its value is refused, one at its value with none stays.
+        // Not with bounded.
+        bool lands;
     } mtwnTransitionDef;
 
 // The cookie mtwnDefaultTransitionDef sets and mtwnStartTransition checks.
@@ -147,7 +164,8 @@ extern "C"
     /// decays in its logarithm, its start velocity a share of its value.
     /// An angle's end moves by the method's whole turns when started. At its
     /// end, a spring's settling time or a decay's stop, the end value (a
-    /// decay's: where it stopped) becomes the target's base value, its
+    /// decay's: where it stopped, a bounded one's bound when it reached
+    /// one, a landing's value) becomes the target's base value, its
     /// velocity 0, and the transition is freed; an undamped spring runs
     /// until replaced or stopped.
     ///
@@ -162,8 +180,11 @@ extern "C"
     ///         unknown spec, velocity source, color space, hue method or
     ///         rotation path, a color with alpha outside 0 to 1, the longest
     ///         way between equal rotations, a spring or decay for a discrete
-    ///         value, a decay for a color or rotation, or a scale's decay
-    ///         stopping where a float is 0 or infinite;
+    ///         value, a decay for a color or rotation, a scale's decay
+    ///         stopping where a float is 0 or infinite, a decay both bounded
+    ///         and landing, a lower bound above the upper or NaN, a scale's
+    ///         bound not above 0, or a landing whose velocity does not move
+    ///         a channel toward its value;
     ///         mtwn_errorVersion for a def built against another major or
     ///         minor version; mtwn_errorStale for a target that is not alive;
     ///         mtwn_errorLimit when the context holds its capacity of

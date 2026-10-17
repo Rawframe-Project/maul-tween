@@ -50,3 +50,28 @@ ending a spring early) and a critical spring's bound peaking at a time
 rounding to nearly 0, where the search started on a slope of 0. The
 functions live in their own object, so a program using the decay alone
 links none of them.
+
+## Amended 2026-10-18: transitions' decays bounded and landing
+
+A transition's decay takes both (`mtwnTransitionDef`): `bounded` holds
+it between `lower` and `upper` per channel, the def's spring as the
+bounce, and it ends on the bound a channel reached; `lands` makes it
+rest on the def's value, each channel at its own rate with the start
+velocity it has, and it ends on the value (an angle's after the
+method's turns). Not both. A scale coasts, bounces and lands in its
+logarithm, its bounds above 0. Each channel runs as the value functions
+run it, sampled alike: a channel that hands over keeps a bit in the
+player's slot and its bound as its end value, so the slot grows by no
+field beyond two bytes of masks and a flag, the landing's rates sharing
+the curve's union. `test_coast` checks a vector's channels each as
+`mtwnSampleBoundedDecay` alone, the bound and the stop as the end, a
+start past a bound, landings of a vector, a scale and an angle, a
+bounded zoom in the logarithm, and seven refusals; `fuzz_api` flings
+transitions bounded and landing.
+
+The part sizes: the coast's code kept out of line (per channel, so
+GCC's unrolled loops copy calls, not bodies; at first the start grew
+3.8 kB) is 1.4 kB with the bounded decay's 0.8: transitions 53.2 to
+56.3 kB, clips 132.5 to 137.0 kB (both link the transitions), every
+function 151.5 of 152 kB. The transitions' budget is restated from 54
+to 58 kB and the clips' from 135 to 139 kB.

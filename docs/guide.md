@@ -242,6 +242,25 @@ mtwnPlayerId settling;
 sprung = mtwnStartTransition(context, &settle, &settling);
 ```
 
+A fling coasts as a decay from the gesture's velocity. Bounded, it
+bounces back from the content's ends on the def's spring, handing over
+at the exact time it reaches one; with `lands` it comes to rest on the
+def's value instead, an end the host snapped from the natural one
+(each channel keeps its start velocity, at its own rate):
+
+```c
+mtwnTransitionDef fling = mtwnDefaultTransitionDef();
+fling.target = scroll;
+fling.spec = mtwn_transitionDecay;
+fling.velocitySource = mtwn_velocityGiven;
+fling.velocity = (mtwnVec4){1500.0f, 0, 0, 0}; // from the gesture, a second
+fling.bounded = true;                          // the content's ends
+fling.lower = (mtwnVec4){0.0f, 0, 0, 0};
+fling.upper = (mtwnVec4){600.0f, 0, 0, 0};
+mtwnPlayerId flinging;
+mtwnResult flung = mtwnStartTransition(context, &fling, &flinging);
+```
+
 A delay holds the start; colors move through their color space,
 rotations along their arc, angles by their method. At its end a
 transition commits its value as the target's base and frees itself.

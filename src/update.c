@@ -8,6 +8,7 @@
 // or else its curve's over the last millisecond, and at its end commits
 // its end value as the target's base (records mtwn-0029 and mtwn-0030).
 
+#include "coast.h"
 #include "context_internal.h"
 #include "easing_internal.h"
 #include "elementary.h"
@@ -88,8 +89,8 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
         // velocity the value times the logarithm's rate.
         double position = 0.0;
         double rate = 0.0;
-        mtwnSampleDecay(&slot->decay, mtwnLog((double)from[0]), slot->velocity[0], t, &position,
-                        &rate);
+        mtwnCoastAt(slot, 0, mtwnLog((double)from[0]), mtwnLog((double)to[0]), slot->velocity[0], t,
+                    &position, &rate);
         value[1] = value[2] = value[3] = velocity[1] = velocity[2] = velocity[3] = 0.0;
         value[0] = mtwnExp(position);
         velocity[0] = value[0] * rate;
@@ -117,7 +118,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
         }
         else
         {
-            mtwnSampleDecay(&slot->decay, (double)from[i], v, t, &value[i], &velocity[i]);
+            mtwnCoastAt(slot, i, (double)from[i], (double)to[i], v, t, &value[i], &velocity[i]);
         }
     }
     return true;

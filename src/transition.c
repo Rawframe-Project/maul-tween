@@ -9,6 +9,7 @@
 
 #include "maul-tween/transition.h"
 
+#include "coast.h"
 #include "context_internal.h"
 #include "easing_internal.h"
 #include "elementary.h"
@@ -111,6 +112,32 @@ static bool Same(mtwnVec4 a, mtwnVec4 b)
     return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
 
+// A channel's coordinate as a decay runs it: a scale's logarithm.
+static double Line(mtwnValueKind kind, float x)
+{
+    return kind == mtwn_valueScale ? mtwnLog((double)x) : (double)x;
+}
+
+// The time after the delay a decay's channel stops: a landing's by its
+// own rate, a bounded one's once its bounce settles, or the decay's.
+static MTWN_NOINLINE double CoastTime(const mtwnTransitionDef* def, const mtwnPlayerSlot* out,
+                                      uint8_t i)
+{
+    double v = out->velocity[i];
+    if (out->lands)
+    {
+        mtwnDecay own = {out->rates[i]};
+        return mtwnDecayStopTime(&own, v, def->restSpeed);
+    }
+    if (((out->crosses | out->past) & (1u << i)) != 0)
+    {
+        mtwnBoundedDecay bounded = mtwnCoastBounds(out, i, Line(out->kind, (&out->to.x)[i]), v);
+        return mtwnBoundedDecayStopTime(&bounded, Line(out->kind, (&out->from.x)[i]), v,
+                                        def->restOffset, def->restSpeed);
+    }
+    return mtwnDecayStopTime(&out->decay, v, def->restSpeed);
+}
+
 // The time after the delay a spring or decay ends, and a decay's end.
 static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
 {
@@ -131,31 +158,114 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     const float* from = &out->from.x;
     for (uint8_t i = 0; i < channels; ++i)
     {
-        double time = 0.0;
-        if (def->spec == mtwn_transitionSpring)
-        {
-            time = mtwnSpringSettlingTime(&out->spring, (double)from[i] - (double)to[i],
-                                          out->velocity[i], def->restOffset, def->restSpeed);
-        }
-        else
-        {
-            time = mtwnDecayStopTime(&out->decay, out->velocity[i], def->restSpeed);
-        }
+        double time =
+            def->spec == mtwn_transitionSpring
+                ? mtwnSpringSettlingTime(&out->spring, (double)from[i] - (double)to[i],
+                                         out->velocity[i], def->restOffset, def->restSpeed)
+                : CoastTime(def, out, i);
         end = time > end ? time : end;
     }
     out->endTime = end;
-    if (def->spec == mtwn_transitionDecay)
+    if (def->spec != mtwn_transitionDecay || out->lands)
     {
-        bool scale = out->kind == mtwn_valueScale;
-        for (uint8_t i = 0; i < channels; ++i)
+        return;
+    }
+    // A coast's end is where it stopped; a channel at a bound ends on it.
+    bool scale = out->kind == mtwn_valueScale;
+    for (uint8_t i = 0; i < channels; ++i)
+    {
+        if (((out->crosses | out->past) & (1u << i)) != 0)
         {
-            double position = 0.0;
-            double start = scale ? mtwnLog((double)from[i]) : (double)from[i];
-            mtwnSampleDecay(&out->decay, start, out->velocity[i], end, &position, NULL);
-            position = scale ? mtwnExp(position) : position;
-            to[i] = (float)(out->kind == mtwn_valueInteger ? round(position) : position);
+            continue;
+        }
+        double position = 0.0;
+        mtwnSampleDecay(&out->decay, Line(out->kind, from[i]), out->velocity[i], end, &position,
+                        NULL);
+        position = scale ? mtwnExp(position) : position;
+        to[i] = (float)(out->kind == mtwn_valueInteger ? round(position) : position);
+    }
+}
+
+// A landing's channel: its rate from its start velocity to its value;
+// false when the velocity does not move it there.
+static MTWN_NOINLINE bool Land(const mtwnTransitionDef* def, mtwnPlayerSlot* out, uint8_t i)
+{
+    double start = Line(out->kind, (&out->from.x)[i]);
+    double goal = Line(out->kind, (&out->to.x)[i]);
+    double v = out->velocity[i];
+    // At its value with no velocity a channel stays: any rate.
+    out->rates[i] = goal == start && v == 0.0 ? def->decay.rate : v / (goal - start);
+    return out->rates[i] > 0.0 && isfinite(out->rates[i]);
+}
+
+// A bounded decay's channel: whether it starts past a bound or reaches
+// one, that bound its end; false for bounds refused.
+static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* out, uint8_t i)
+{
+    float lower = (&def->lower.x)[i];
+    float upper = (&def->upper.x)[i];
+    if (!(lower <= upper) || (out->kind == mtwn_valueScale && !(lower > 0.0f)))
+    {
+        return false;
+    }
+    double lo = Line(out->kind, lower);
+    double hi = Line(out->kind, upper);
+    double start = Line(out->kind, (&out->from.x)[i]);
+    double v = out->velocity[i];
+    double rest = start + v / def->decay.rate;
+    bool past = start < lo || start > hi;
+    bool below = past ? start < lo : rest < lo;
+    if (!past && !((rest < lo || rest > hi) &&
+                   isfinite(mtwnDecayCrossingTime(&def->decay, start, v, below ? lo : hi))))
+    {
+        return true;
+    }
+    uint8_t bit = (uint8_t)(1u << i);
+    out->past |= past ? bit : 0u;
+    out->crosses |= past ? 0u : bit;
+    (&out->to.x)[i] = below ? lower : upper;
+    return true;
+}
+
+// A decay's landing or bounds (record mtwn-0063): the landing's rate per
+// channel and its value as the end; the channels a bounded decay hands
+// over to its bounce, their bound as the end. False when the def's
+// landing or bounds are refused.
+static bool Coast(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
+{
+    uint8_t channels = mtwnKindChannels(out->kind);
+    out->lands = def->lands;
+    if (def->lands)
+    {
+        if (def->bounded || !mtwnAcceptValue(out->kind, def->value, &out->to))
+        {
+            return false;
+        }
+        if (out->kind == mtwn_valueAngle)
+        {
+            // Landing on the value moved by the method's turns.
+            out->to.x =
+                (float)mtwnMixAngle((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
         }
     }
+    else if (!def->bounded)
+    {
+        return true;
+    }
+    else if (!mtwnIsSpring(&def->spring) || !IsTolerance(def->restOffset))
+    {
+        return false;
+    }
+    else
+    {
+        out->coast.bounce = def->spring;
+    }
+    bool valid = true;
+    for (uint8_t i = 0; i < channels && valid; ++i)
+    {
+        valid = def->lands ? Land(def, out, i) : Bound(def, out, i);
+    }
+    return valid;
 }
 
 // The transition as the def asks it, before it takes a slot.
@@ -199,6 +309,13 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
         // The end moved by the method's turns, once.
         out->to.x =
             (float)mtwnMixAngle((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
+    }
+    out->crosses = 0;
+    out->past = 0;
+    out->lands = false;
+    if (def->spec == mtwn_transitionDecay && !Coast(def, out))
+    {
+        return mtwn_errorInvalid;
     }
     EndOf(def, out);
     switch (target->kind)

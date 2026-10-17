@@ -280,6 +280,16 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         def.spec = (mtwnTransitionSpec)Below(in, 3);
         double duration = 0.25 + 0.25 * Below(in, 4);
         (void)mtwnMakeSpringFromDuration(duration, 0.1 * Below(in, 5), &def.spring);
+        if (def.spec == mtwn_transitionDecay && Below(in, 2) == 0)
+        {
+            // A fling, bounded or landing (record mtwn-0063).
+            def.velocitySource = mtwn_velocityGiven;
+            def.velocity = (mtwnVec4){(float)Wild(in, 8.0), (float)Wild(in, 8.0), 0.0f, 0.0f};
+            def.bounded = Below(in, 2) == 0;
+            def.lands = !def.bounded && Below(in, 2) == 0;
+            def.lower = (mtwnVec4){(float)Wild(in, 2.0), -1.0f, 0.0f, 0.0f};
+            def.upper = (mtwnVec4){(float)Wild(in, 2.0), 1.0f, 1.0f, 1.0f};
+        }
         mtwnPlayerId id = {0, 0};
         r = mtwnStartTransition(context, &def, &id);
         break;

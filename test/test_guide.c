@@ -148,6 +148,35 @@ static void TestThreads(void)
     mtwnDestroyContext(parallel);
 }
 
+static void TestFling(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    mtwnTargetId scroll = {0, 0};
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){40.0f, 0, 0, 0}, &scroll) ==
+                  mtwn_success,
+          "a scroll offset");
+    mtwnTransitionDef fling = mtwnDefaultTransitionDef();
+    fling.target = scroll;
+    fling.spec = mtwn_transitionDecay;
+    fling.velocitySource = mtwn_velocityGiven;
+    fling.velocity = (mtwnVec4){1500.0f, 0, 0, 0}; // from the gesture, a second
+    fling.bounded = true;                          // the content's ends
+    fling.lower = (mtwnVec4){0.0f, 0, 0, 0};
+    fling.upper = (mtwnVec4){600.0f, 0, 0, 0};
+    mtwnPlayerId flinging;
+    mtwnResult flung = mtwnStartTransition(context, &fling, &flinging);
+    CHECK(flung == mtwn_success, "a bounded fling");
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, 30000000000u, NULL, 0, NULL) == mtwn_success,
+          "played out");
+    mtwnVec4 value;
+    CHECK(mtwnTarget_GetValue(context, scroll, &value) == mtwn_success && value.x == 600.0f,
+          "resting on the content's end");
+    mtwnDestroyContext(context);
+}
+
 static void TestHost(void)
 {
     uint64_t nowNs = 0;
@@ -289,6 +318,7 @@ int main(void)
     TestRough();
     TestSprings();
     TestInertia();
+    TestFling();
     TestValues();
     TestScales();
     TestZoom();
