@@ -242,6 +242,59 @@ static void TestRewindAndRates(void)
     mtwnDestroyContext(w.context);
 }
 
+// A player made at rate 0 sweeps its first time forwards, as one at a
+// positive rate does: given rate 1 later, it does not turn, so what lay at
+// its first time is not crossed again.
+static void TestRateZeroFirst(void)
+{
+    World w = MakeWorld(16);
+    AddTrack(&w, 0.0, 4.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, true, 0.0);
+    mtwnEvent e[16];
+    Update(&w, 0.0);
+    CHECK(Read(&w, e, 16) == 2 && e[0].kind == mtwn_eventStart && !e[0].backwards,
+          "held at 0, the clip and its track start");
+    CHECK(mtwnPlayer_SetRate(w.context, p, 1.0) == mtwn_success, "rate 1, pending");
+    Update(&w, 1.0);
+    Update(&w, 2.0);
+    uint32_t n = Read(&w, e, 16);
+    bool again = false;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        again = again || e[i].kind == mtwn_eventStart;
+    }
+    CHECK(!again, "moving on, nothing at 0 starts again");
+    mtwnDestroyContext(w.context);
+}
+
+// Counts as large as a record holds: 2^64 - 2048 crossings, the largest
+// double below 2^64, exactly; 2^65 and 2^64 at UINT64_MAX.
+static void TestCountAtTheTop(void)
+{
+    World w = MakeWorld(16);
+    mtwnNode track = AddTrack(&w, 0.0, 0x1p-60, 0x1p67);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, true, 1.0);
+    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    mtwnEvent e[16];
+    Update(&w, 0.0);
+    Read(&w, e, 16);
+    CHECK(mtwnPlayer_Sweep(w.context, p, 16.0 - 0x1p-49) == mtwn_success, "swept");
+    uint32_t n = Read(&w, e, 16);
+    CHECK(n == 1 && e[0].kind == mtwn_eventIteration && e[0].node == track &&
+              e[0].count == 18446744073709549568u,
+          "2^64 - 2048 iterations, exactly");
+    CHECK(mtwnPlayer_Sweep(w.context, p, 48.0) == mtwn_success, "swept on");
+    n = Read(&w, e, 16);
+    CHECK(n == 1 && e[0].kind == mtwn_eventIteration && e[0].count == UINT64_MAX,
+          "2^65 more, as many as a record holds");
+    CHECK(mtwnPlayer_Sweep(w.context, p, 64.0) == mtwn_success, "swept to 64");
+    n = Read(&w, e, 16);
+    CHECK(n == 1 && e[0].count == UINT64_MAX, "2^64 exactly, one too many");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestSameTime(void)
 {
     World w = MakeWorld(16);
@@ -929,6 +982,8 @@ int main(void)
     TestBackwards();
     TestSeeks();
     TestRewindAndRates();
+    TestRateZeroFirst();
+    TestCountAtTheTop();
     TestSameTime();
     TestTransitions();
     TestQueue();

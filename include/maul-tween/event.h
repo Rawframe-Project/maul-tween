@@ -64,7 +64,8 @@ extern "C"
         // last crossing; 0 for a transition.
         double firstIteration;
         double lastIteration;
-        // The crossings it stands for, 1 at least.
+        // The crossings it stands for, 1 at least; UINT64_MAX for 2^64 or
+        // more.
         uint64_t count;
         mtwnPlayerId player;
         // The node or mark; 0 for a transition.

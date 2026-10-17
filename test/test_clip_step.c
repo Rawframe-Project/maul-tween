@@ -540,7 +540,7 @@ static void TestSweepKeys(void)
     // Each case: the sweep two players in step make, and the one apart.
     enum
     {
-        s_cases = 11
+        s_cases = 12
     };
     SweepCase first[s_cases];
     SweepCase apart[s_cases];
@@ -554,6 +554,10 @@ static void TestSweepKeys(void)
     // a sweep turning takes the mark itself.
     first[9].rate = 0.0;
     first[10].swept = 0.2;
+    // From no time at rate 0, which runs forwards, as a negative rate does
+    // not.
+    first[11].swept = (double)NAN;
+    first[11].playRate = 0.0;
     for (uint32_t v = 0; v < s_cases; ++v)
     {
         apart[v] = first[v];
@@ -570,6 +574,7 @@ static void TestSweepKeys(void)
     apart[8].playRate = -1.0;
     apart[9].hostTo = 1.6;
     apart[10].way = -1;
+    apart[11].playRate = -1.0;
     uint32_t differences = 0;
     uint32_t records = 0;
     uint32_t kept = 0;

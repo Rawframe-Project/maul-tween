@@ -30,6 +30,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   time ended on another edge when it started from a guess. The count
   now rounds as the timing model does and never falls (record
   mtwn-0037, amended).
+- A record's count of 2^64 - 2048, the largest double below 2^64, was
+  given as UINT64_MAX; counts below 2^64 are now exact and only those of
+  2^64 or more are UINT64_MAX, as `mtwnEvent` now says.
 
 ### Changed
 

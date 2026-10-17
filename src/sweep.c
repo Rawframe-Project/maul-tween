@@ -146,7 +146,8 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         event.firstIteration = IterationOf(levels, iterationLevels, iteration, first);
         event.lastIteration = last == first ? event.firstIteration
                                             : IterationOf(levels, iterationLevels, iteration, last);
-        event.count = n >= 18446744073709549568.0 ? UINT64_MAX : (uint64_t)n;
+        // Exact below 2^64, where a count converts; past it the most there is.
+        event.count = n >= 0x1p64 ? UINT64_MAX : (uint64_t)n;
         event.player = mtwnPlayerIdAt(sweep->context, sweep->player);
         event.node = node;
         event.key = key;
