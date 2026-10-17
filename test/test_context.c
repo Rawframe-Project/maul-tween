@@ -164,6 +164,29 @@ static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records)
     return bytes;
 }
 
+// Each group's levels hold a chain of the deepest clip and the node
+// below it, apart from the next group's and from the groups' node times
+// after them: groups on threads at once would otherwise write each
+// other's levels, which no sanitizer sees inside one block.
+static void TestGroupLevels(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = RunNow;
+    def.finishTask = FinishNone;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "made");
+    bool apart = true;
+    for (uint32_t g = 0; g < MTWN_GROUPS; ++g)
+    {
+        const char* end = (const char*)(context->works[g].levels + MTWN_MAX_CLIP_DEPTH + 2u);
+        const char* next = g + 1 < MTWN_GROUPS ? (const char*)context->works[g + 1].levels
+                                               : (const char*)context->works[0].times;
+        apart = apart && end <= next;
+    }
+    CHECK(apart, "every group's levels the deepest clip's, apart");
+    mtwnDestroyContext(context);
+}
+
 static mtwnContext* Make(uint32_t targets)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -349,6 +372,7 @@ int main(void)
     TestCreate();
     TestDefRefusals();
     TestSharingCapacities();
+    TestGroupLevels();
     TestIds();
     TestRetire();
     TestValues();

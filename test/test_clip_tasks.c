@@ -1308,10 +1308,47 @@ static void TestStaleAlone(void)
     mtwnDestroyContext(context);
 }
 
+// The same with a writer added before the target is destroyed: each
+// moves the writers' epoch on, so the two cannot bring it back to the
+// one the alone bindings were worked out at.
+static void TestStaleAloneAfterWriter(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = RunAtOnce;
+    def.finishTask = WaitForNothing;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnTargetId a = {0, 0};
+    mtwnTargetId b = {0, 0};
+    mtwnTargetId c = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &a) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &b) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &c) == mtwn_success,
+          "three targets");
+    mtwnClipId clip = TwoTracks(context);
+    mtwnPlayerId kept = PlayTwo(context, clip, a, (mtwnTargetId){0, 0});
+    (void)PlayTwo(context, clip, b, (mtwnTargetId){0, 0});
+    Step(context, 0.0);
+    CHECK(Alone(context, kept, 0), "counted alone with two players");
+    (void)PlayTwo(context, clip, c, (mtwnTargetId){0, 0});
+    CHECK(mtwnDestroyTarget(context, a) == mtwn_success, "a writer added, then a target destroyed");
+    mtwnTargetId made = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &made) == mtwn_success &&
+              made.index1 == a.index1,
+          "a target made in the slot");
+    Step(context, 0.05);
+    Step(context, 0.1);
+    mtwnVec4 value = {1.0f, 1.0f, 1.0f, 1.0f};
+    CHECK(mtwnTarget_GetValue(context, made, &value) == mtwn_success && value.x == 0.0f,
+          "the new target written by no player");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestWriters();
     TestStaleAlone();
+    TestStaleAloneAfterWriter();
     TestExactFit();
     TestStagingBounds();
     TestOneTimeOrder();

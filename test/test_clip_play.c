@@ -462,6 +462,60 @@ static void TestCommitReported(void)
     mtwnDestroyContext(w.context);
 }
 
+// Two players without a task system, one adding to its target: each
+// update adds over the target's base, not over what the last update left.
+static void TestAddsOverBase(void)
+{
+    World w = MakeWorld();
+    AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 4.0f, 4.0, mtwn_fillForwards, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){10.0f, 0, 0, 0}) == mtwn_success,
+          "a base of 10");
+    mtwnTargetId other;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
+          "another target");
+    mtwnBinding binding = mtwnBind(0, w.target);
+    binding.composite = mtwn_compositeAdd;
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = w.clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    def.keep = true;
+    mtwnPlayerId adding;
+    CHECK(mtwnCreatePlayer(w.context, &def, &adding) == mtwn_success, "an adding player");
+    (void)Play(&w, other, true, 1.0);
+    Update(&w, 0.0);
+    Update(&w, 1.0);
+    Update(&w, 2.0);
+    CHECK(Near((double)Read(&w, w.target).value.x, 12.0, 1e-6), "10 and 2, not the sum of frames");
+    mtwnDestroyContext(w.context);
+}
+
+// A player at rate 0 runs forwards (Web Animations: backwards only for a
+// negative rate): at a track's start exactly it shows the track's first
+// value, not what lies before it.
+static void TestRateZeroAtStart(void)
+{
+    World w = MakeWorld();
+    AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 3.0f, 4.0f, 1.0, mtwn_fillNone, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){7.0f, 0, 0, 0}) == mtwn_success,
+          "a base of 7");
+    mtwnTargetId other;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){7.0f, 0, 0, 0}, &other) ==
+              mtwn_success,
+          "another target");
+    (void)Play(&w, w.target, true, 0.0);
+    (void)Play(&w, other, true, 0.0);
+    Update(&w, 0.0);
+    CHECK(Read(&w, w.target).value.x == 3.0f && Read(&w, other).value.x == 3.0f,
+          "at once, each sampled for itself");
+    Update(&w, 0.5);
+    CHECK(Read(&w, w.target).value.x == 3.0f && Read(&w, other).value.x == 3.0f,
+          "held at 0: the track's first value, for both players, in step");
+    mtwnDestroyContext(w.context);
+}
+
 // A commit that changes only a vector's last component still rebases the
 // target: its base is the end, so the value stays once the player goes.
 static void TestCommitLastComponent(void)
@@ -534,5 +588,7 @@ int main(void)
     TestStaleTarget();
     TestCommitReported();
     TestCommitLastComponent();
+    TestAddsOverBase();
+    TestRateZeroAtStart();
     return s_failures == 0 ? 0 : 1;
 }
