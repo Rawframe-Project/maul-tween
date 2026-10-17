@@ -206,13 +206,19 @@ static void TestJumpsEnd(void)
     CHECK(worst <= 1e-3, "within the tolerance away from the jump");
 }
 
-// Infinite in the middle, where its miss makes the fit split, and NaN at
-// the start: kept points no linear() holds. (A NaN inside never misses
-// most, so it is never kept.)
+// Infinite in the middle, where its miss makes the fit split, NaN at the
+// start, infinite at the end: kept points no linear() holds. (A NaN
+// inside never misses most, so it is never kept.)
 static double Endless(void* context, double progress)
 {
     (void)context;
     return progress > 0.4 && progress < 0.6 ? HUGE_VAL : progress;
+}
+
+static double Unbounded(void* context, double progress)
+{
+    (void)context;
+    return progress == 1.0 ? HUGE_VAL : progress;
 }
 
 static double Hole(void* context, double progress)
@@ -251,6 +257,11 @@ static void TestFitRefusals(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &hole) == mtwn_success, "hole");
     CHECK(mtwnFitLinearEasing(&hole, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
           "a curve NaN at a kept point");
+    mtwnEasing unbounded;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Unbounded, NULL, &unbounded) == mtwn_success,
+          "unbounded");
+    CHECK(mtwnFitLinearEasing(&unbounded, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "a curve infinite at its end");
     CHECK(count == 7, "refusals leave the count as it was");
 }
 
