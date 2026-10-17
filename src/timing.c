@@ -207,11 +207,18 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     // double, so x - floor(x) is exact.
     double simple = isinf(overall) ? start - floor(start) : overall - floor(overall);
     // The iterations' end: the active end, or for a negative rate (which
-    // begins there, Level 2) the active start.
-    bool atEnd =
-        timing->playbackRate > 0.0
-            ? result->phase != mtwn_phaseBefore && result->activeTime == result->activeDuration
-            : result->phase != mtwn_phaseAfter && result->activeTime == 0.0;
+    // begins there, Level 2) the active start; or, in the phases the end
+    // lies in, an overall progress rounded to the end from a time beside
+    // it, where an iteration past the last showed its start for that one
+    // time (Blink holds the end within a microsecond of it; record
+    // mtwn-0012). Not where the iterations add nothing to a start too
+    // large to keep them.
+    bool forwardRate = timing->playbackRate > 0.0;
+    bool endPhase =
+        forwardRate ? result->phase != mtwn_phaseBefore : result->phase != mtwn_phaseAfter;
+    bool atEnd = endPhase && (forwardRate ? result->activeTime == result->activeDuration
+                                          : result->activeTime == 0.0);
+    atEnd = atEnd || (endPhase && overall == ends && ends > start);
     if (result->inRepeatDelay || (simple == 0.0 && atEnd && timing->iterations != 0.0))
     {
         simple = 1.0;

@@ -143,11 +143,17 @@ def compute(t, local, backwards):
             position = scaled + whole * cycle + (start - whole) * d
             k = floor(position / cycle)
             within = position - k * cycle
+            # The quotient rounded up past k's start: the delay before it.
+            if within < 0 and k - 1 >= whole:
+                k -= 1
+                within += cycle
+            # A progress rounded to the iteration's end has reached it.
+            overall = k + within / d if within < d else k + 1.0
+            ended = within >= d or overall - k >= 1
             final = n != INF and k + 1 >= ceil(start + n)
-            if within >= d and not final:
+            if ended and not final:
                 in_repeat = True
                 held = float(k)
-            overall = k + (within / d if within < d else 1.0)
         else:
             overall = scaled / d + start
     # Rounding keeps to the iterations: the active interval's ends are the
@@ -157,6 +163,11 @@ def compute(t, local, backwards):
     result["inRepeat"] = 1 if in_repeat else 0
     # Calculating the simple iteration progress.
     simple = math.fmod(start, 1.0) if overall == INF else math.fmod(overall, 1.0)
+    # An overall progress rounded to the end, in the phases the end lies
+    # in, is the end, unless the iterations add nothing to the start.
+    end_phase = phase != BEFORE if rate > 0 else phase != AFTER
+    if end_phase and overall == start + n and start + n > start:
+        at_end = True
     if in_repeat or (simple == 0 and at_end and n != 0):
         simple = 1.0
     result["simple"] = simple
@@ -284,6 +295,16 @@ def regressions():
     # delays counted from its fraction, none below 0.
     t = dict(base, iterationStart=1e300, iterations=0.25, repeatDelay=0.5)
     for local in [0.0, 0.125, 0.25]:
+        out.append((t, local, False, compute(t, local, False)))
+    # Rounding that stepped the position back (record mtwn-0012, amended
+    # 2026-10-17): iterations of 0.1 with delays of 0.1, where 2 + 0.1 /
+    # 0.1 rounds to 3 at a delay's start; and a negative rate a double
+    # after its delay, its scaled time rounded to the whole.
+    t = dict(base, duration=0.1, iterations=5.0, repeatDelay=0.1)
+    for local in [0.5, 0.6, 0.7]:
+        out.append((t, local, False, compute(t, local, False)))
+    t = dict(base, duration=0.2, iterations=5.0, repeatDelay=0.3, rate=-1.0, delay=0.171875)
+    for local in [0.171875, math.nextafter(0.171875, 1.0), 0.18]:
         out.append((t, local, False, compute(t, local, False)))
     return out
 

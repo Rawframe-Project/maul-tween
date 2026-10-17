@@ -48,4 +48,28 @@ start and end now goes one way; there were 1,173 steps back. Where the
 times are too large for an ulp to be one, before the first iteration,
 nothing changes. The rounding at the active end of a negative rate,
 which follows the specification computed in doubles, is a separate
-matter, not decided here.
+matter, decided the same day (below).
+
+## Amended 2026-10-17: an overall progress rounded to the end
+
+A negative rate begins at the iterations' end, and its scaled time is
+the active duration less the active time: an active time below half an
+ulp of the active duration is lost from it, so a double after the
+active start the overall progress is the end exactly while the active
+time is not 0. The end hold asked for an active time of exactly 0 (the
+active duration for a positive rate), so there an iteration past the
+last showed its start: with a delay of 0.171875 s, one double after it,
+iteration 5 of 5 at progress 0, the keyframes' start for that time.
+
+The end is now held, in the phases it lies in (active or after for a
+positive rate, before or active for a negative one), also where the
+overall progress is the iterations' end, unless the iterations add
+nothing to a start too large to keep them. Blink holds the end where
+the active time is within a microsecond of the active duration
+(`IsWithinAnimationTimeTolerance` in `timing_calculations.cc`), which
+covers this rounding; Gecko compares exactly, on integer ticks that do
+not lose a small active time this way. The rule is the crossing
+count's: it already held the end where the progress reached it, so the
+two agree bit for bit. No Level 1 case moves, the oracle's random cases
+being dyadic; the oracle states the same rule and keeps the two
+rounding cases of this record as regressions.

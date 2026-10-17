@@ -165,6 +165,17 @@ static void TestExamples(void)
     r = At(&timing, 0.5);
     CHECK(r.inRepeatDelay && r.iteration == 2.0 && r.simpleProgress == 1.0,
           "a progress rounded to the end holds it");
+    // A negative rate begins at the end: a double after its delay of
+    // 0.171875 s, the active time 2.8e-17 s is lost from 2.3 s less it, and
+    // the overall progress is the end, which holds, as it does at the delay
+    // itself, not a sixth iteration's start.
+    timing.duration = 0.2;
+    timing.repeatDelay = 0.3;
+    timing.playbackRate = -1.0;
+    timing.delay = 0.171875;
+    r = At(&timing, nextafter(0.171875, 1.0));
+    CHECK(r.iteration == 4.0 && r.simpleProgress == 1.0,
+          "a negative rate's start an ulp on holds the end");
     // Repeating the shape: an ease-in stays an ease-in on the way back.
     timing = mtwnDefaultTiming();
     timing.duration = 1.0;

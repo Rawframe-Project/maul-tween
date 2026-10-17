@@ -191,13 +191,15 @@ static double Grid(void)
     }
 }
 
-// With repeat delays the position never steps back as time goes on (the
-// other way for a negative rate): over every double within 40 of each
-// iteration's start and end inside the active interval, for 3,000
-// timings. The quotient by the cycle and the progress in it round: one
-// rounded up past an iteration's start, or a progress rounded to its end,
-// each stepped back an iteration (found by the sweep's fuzz).
-static void TestRepeatDelaysNeverStepBack(void)
+// The position never steps back as time goes on (the other way for a
+// negative rate): over every double within 40 of each iteration's start
+// and end and of the active interval's ends, for 3,000 timings, most with
+// repeat delays. The quotient by the cycle and the progress in it round:
+// one rounded up past an iteration's start, or a progress rounded to its
+// end, each stepped back an iteration (found by the sweep's fuzz); and a
+// negative rate's scaled time rounded to the whole an ulp after its start,
+// where an iteration past the last showed its start.
+static void TestPositionNeverStepsBack(void)
 {
     s_state = 7;
     uint32_t steps = 0;
@@ -208,7 +210,7 @@ static void TestRepeatDelaysNeverStepBack(void)
         t.duration = Grid() * (1 + Next() % 3);
         t.iterations = 1 + Next() % 6 + (Next() % 3 == 0 ? 0.5 : 0.0);
         t.iterationStart = Next() % 4 == 0 ? 0.25 * (Next() % 4) : 0.0;
-        t.repeatDelay = Grid();
+        t.repeatDelay = Next() % 4 == 0 ? 0.0 : Grid();
         t.delay = Next() % 3 == 0 ? Grid() : 0.0;
         static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};
         t.playbackRate = rates[Next() % 6];
@@ -219,32 +221,41 @@ static void TestRepeatDelaysNeverStepBack(void)
         double cycle = d + t.repeatDelay;
         double s = t.iterationStart;
         double sign = t.playbackRate > 0.0 ? 1.0 : -1.0;
-        for (double j = floor(s) + 1.0; j < s + t.iterations; ++j)
+        // The local times of each iteration's start and end, then of the
+        // active interval's ends.
+        double centres[2 * 9 + 2];
+        uint32_t count = 0;
+        for (double j = floor(s) + 1.0; j <= ceil(s + t.iterations); ++j)
         {
             double positions[2] = {j * cycle, (j - 1.0) * cycle + d};
             for (int w = 0; w < 2; ++w)
             {
                 double scaled =
                     (positions[w] - floor(s) * cycle - (s - floor(s)) * d) / fabs(t.playbackRate);
-                double x = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
-                for (int k = 0; k < 40; ++k)
-                {
-                    x = nextafter(x, -HUGE_VAL);
-                }
-                double iteration = -sign * HUGE_VAL;
-                double progress = 0.0;
-                for (int k = 0; k < 80; ++k, x = nextafter(x, HUGE_VAL))
-                {
-                    mtwnTimingResult r;
-                    mtwnComputeTiming(&t, x, false, &r);
-                    bool back =
-                        sign * r.iteration < sign * iteration ||
-                        (r.iteration == iteration && sign * r.simpleProgress < sign * progress);
-                    steps += back ? 1u : 0u;
-                    iteration = r.iteration;
-                    progress = r.simpleProgress;
-                    ++checked;
-                }
+                centres[count++] = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
+            }
+        }
+        centres[count++] = t.delay;
+        centres[count++] = t.delay + shape.activeDuration;
+        for (uint32_t c = 0; c < count; ++c)
+        {
+            double x = centres[c];
+            for (int k = 0; k < 40; ++k)
+            {
+                x = nextafter(x, -HUGE_VAL);
+            }
+            double iteration = -sign * HUGE_VAL;
+            double progress = 0.0;
+            for (int k = 0; k < 80; ++k, x = nextafter(x, HUGE_VAL))
+            {
+                mtwnTimingResult r;
+                mtwnComputeTiming(&t, x, false, &r);
+                bool back = sign * r.iteration < sign * iteration ||
+                            (r.iteration == iteration && sign * r.simpleProgress < sign * progress);
+                steps += back ? 1u : 0u;
+                iteration = r.iteration;
+                progress = r.simpleProgress;
+                ++checked;
             }
         }
     }
@@ -252,7 +263,7 @@ static void TestRepeatDelaysNeverStepBack(void)
     {
         printf("  %u steps back\n", steps);
     }
-    CHECK(checked > 100000 && steps == 0, "with repeat delays the position never steps back");
+    CHECK(checked > 100000 && steps == 0, "the position never steps back");
 }
 
 // A random call on a clip being built: whether it was refused, and then
@@ -699,7 +710,7 @@ static void TestStaggers(void)
 int main(void)
 {
     TestTiming();
-    TestRepeatDelaysNeverStepBack();
+    TestPositionNeverStepsBack();
     TestBuilder();
     TestPlaying();
     TestTransitions();
