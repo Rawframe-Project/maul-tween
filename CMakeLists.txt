@@ -56,6 +56,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/easing.c
     src/fpenv.c
     src/rotation.c
+    src/rough.c
     src/scale.c
     src/zoom.c
     src/path.c
@@ -96,6 +97,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(decay)
     maul_add_test(color)
     maul_add_test(rotation)
+    maul_add_test(rough)
     maul_add_test(scale)
     maul_add_test(signal)
     maul_add_test(stagger WHITEBOX)

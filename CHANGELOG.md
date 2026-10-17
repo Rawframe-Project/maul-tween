@@ -9,6 +9,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- Rough easings (`mtwnMakeRoughEasing`): `linear()` through points
+  wandering from a shape by a seed, the same curve on every platform,
+  with GSAP's tapers, clamped, rising or an even zig-zag (record
+  mtwn-0061). The curves part's size budget is 25 kB, from 24.
 - Scales moved in their logarithm, so equal steps multiply by equal
   ratios (`mtwnMakeScaleMix`, `mtwnMixScale`), and van Wijk and Nuij's
   smooth zoom and pan between two views (`mtwnMakeZoomMix`,

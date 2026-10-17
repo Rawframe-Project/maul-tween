@@ -79,6 +79,20 @@ another engine. A fit makes at most `MTWN_MAX_FIT_POINTS` points: a
 tolerance the curve cannot meet (below its rounding) ends with
 `mtwn_errorLimit` rather than with millions of them.
 
+A rough easing wanders from a shape at points drawn from a seed, as
+GSAP's RoughEase and anime.js's irregular, the same curve for a seed on
+every platform. It fills points the host keeps, then is `linear()`
+through them; its ends stay exactly 0 and 1. The flags clamp it to 0 to
+1, keep it rising, or set an even zig-zag with no seed.
+
+```c
+mtwnLinearPoint points[22]; // kept while the easing is used
+mtwnRoughDef def = {.shape = mtwnLinearEasing(), .strength = 0.1, .seed = 42};
+def.taper = mtwn_roughTaperOut; // calm by the end
+mtwnEasing rough;
+mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);
+```
+
 ## Springs and decays
 
 A spring is made from stiffness, damping and mass, from a frequency

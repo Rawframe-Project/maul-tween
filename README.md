@@ -8,7 +8,7 @@ It covers:
 
 - **Easing:** Penner's curves landing exactly on their ends, and CSS
   Easing Level 2 entire: `cubic-bezier`, `steps`, `linear()` with
-  points.
+  points; rough easings drawn from a seed.
 - **Physics:** damped springs in closed form that keep their velocity
   when retargeted, set by stiffness and damping or by duration and
   bounce; decay for flings; rubber banding; punch and seeded shake.
@@ -51,7 +51,7 @@ to 9% on one worker; 0.3.0, earlier that day, had slower clip players
 and records that could miss a crossing where a frame landed on a held
 time's edge; 0.2.1, on 2026-10-15, ran them on the calling thread only
 and several times slower; 0.1.0 lacked staggers and reduced motion. The library has
-116 public functions.
+117 public functions.
 
 ## Building
 
@@ -123,7 +123,7 @@ composition, paths or crossings (record mtwn-0047).
 
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
-| curves: easings, sampling, springs, decay, rubber band | 22.9 kB | 22.3 kB | 18.9 kB | 24 kB |
+| curves: easings, sampling, springs, decay, rubber band | 22.9 kB | 22.3 kB | 18.9 kB | 25 kB |
 | values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.5 kB | 38.1 kB | 39.9 kB | 54 kB |
 | transitions: a context, targets and transitions | 50.7 kB | 42.3 kB | 41.2 kB | 54 kB |
 | clips: clips, players, events | 127.4 kB | 104.5 kB | 104.6 kB | 135 kB |

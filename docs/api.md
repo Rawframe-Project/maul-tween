@@ -215,6 +215,11 @@ MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points,
 Makes CSS's linear() from its points, canonicalizing them in place as CSS does: a first input not given is 0 and a last one 1 or the largest before it; an input below an earlier one is raised to it; runs not given are spread evenly between their neighbors. The easing references the points, which must outlive it and not change. Outside the points' inputs it extends their end segments.  @param points     The points, in order: at least 2, each output finite and each input finite or NaN. @param count      The number of points. @param easingOut  Receives the easing, in mode mtwn_easeIn. @return mtwn_success; mtwn_errorInvalid for a null pointer or points outside the above, leaving the points as they were. @par Thread safety Safe from any thread; the points are used by one thread at a time.
 
 ```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def, mtwnLinearPoint* points, uint32_t count, mtwnEasing* easingOut);
+```
+Makes a rough easing (record mtwn-0061): linear() through points that wander from a shape by a seed, as GSAP's RoughEase and anime.js's irregular, the same curve for a seed on every platform. The first point is (0, 0) and the last (1, 1); the k-th of the m inner points falls at a seeded input in [k/m, (k+1)/m), so they stay in order, and its output is the shape there plus a seeded offset of at most the strength either side, by the taper.  @param def        The rough easing. @param points     Receives the points, which the easing references: they must outlive it and not change. @param count      The number of points, at least 2. @param easingOut  Receives the easing, in mode mtwn_easeIn. @return mtwn_success; mtwn_errorInvalid for a null pointer, fewer than 2 points, a strength below 0 or not finite, an unknown taper or flag, or a shape giving a value not finite. @par Thread safety Safe from any thread; the points are used by one thread at a time.
+
+```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode);
 ```
 Changes an easing's mode, keeping its curve.  @param easing  An easing made by this library. @param mode    The mode. @return mtwn_success; mtwn_errorInvalid for a null pointer or an unknown mode, leaving the easing as it was. @par Thread safety Safe from any thread.
@@ -637,4 +642,4 @@ Measures how far a transition would move its target: from the target's current v
 
 ---
 
-116 functions across 13 headers.
+117 functions across 13 headers.

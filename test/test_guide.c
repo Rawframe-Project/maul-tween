@@ -33,6 +33,16 @@ static void TestEasing(void)
     CHECK(mtwnEase(&back, 1.0, false) == 1.0, "back.out lands on 1");
 }
 
+static void TestRough(void)
+{
+    mtwnLinearPoint points[22]; // kept while the easing is used
+    mtwnRoughDef def = {.shape = mtwnLinearEasing(), .strength = 0.1, .seed = 42};
+    def.taper = mtwn_roughTaperOut; // calm by the end
+    mtwnEasing rough;
+    mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);
+    CHECK(madeRough == mtwn_success && mtwnEase(&rough, 1.0, false) == 1.0, "a rough easing");
+}
+
 static void TestSprings(void)
 {
     mtwnSpring spring;
@@ -255,6 +265,7 @@ int main(void)
 {
     TestThreads();
     TestEasing();
+    TestRough();
     TestSprings();
     TestValues();
     TestScales();

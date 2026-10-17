@@ -65,3 +65,4 @@ are listed in [README.md](README.md).
 | [mtwn-0058](mtwn-0058-values-speed-targets.md) | The values layer's speed targets, measured | Accepted |
 | [mtwn-0059](mtwn-0059-scales-and-zooms.md) | Scales and zooms | Accepted |
 | [mtwn-0060](mtwn-0060-distances-for-speed.md) | Distances for durations set by speed | Accepted |
+| [mtwn-0061](mtwn-0061-rough-easings.md) | Rough easings, seeded | Accepted |

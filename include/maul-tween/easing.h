@@ -139,6 +139,50 @@ extern "C"
         uint8_t reserved;
     } mtwnEasing;
 
+    // How a rough easing's offsets grow and shrink with progress x
+    // (GSAP's RoughEase tapers).
+    typedef uint8_t mtwnRoughTaper;
+    enum
+    {
+        // The same everywhere.
+        mtwn_roughTaperNone = 0,
+        // From 0 at the start: x^2.
+        mtwn_roughTaperIn = 1,
+        // To 0 at the end: (1 - x)^2.
+        mtwn_roughTaperOut = 2,
+        // 0 at both ends, full in the middle: (1 - |2x - 1|)^2.
+        mtwn_roughTaperBoth = 3,
+    };
+
+    // A rough easing's flags, combined.
+    enum
+    {
+        // Each output kept in [0, 1] (GSAP's clamp).
+        mtwn_roughClamp = 1,
+        // Each output at least the one before and at most 1, so the
+        // easing never decreases (anime.js's irregular).
+        mtwn_roughRising = 2,
+        // No randomness: the inner points at their ranges' middles,
+        // offset by the full strength alternately up and down, starting
+        // up (GSAP's RoughEase unrandomized).
+        mtwn_roughZigZag = 4,
+    };
+
+    // A rough easing: a shape wandered from at points by a seed.
+    typedef struct mtwnRoughDef
+    {
+        // The easing the points wander about; a zeroed one is linear.
+        mtwnEasing shape;
+        // The largest offset either side, in eased progress, at least 0.
+        double strength;
+        // Any value; the same seed gives the same points.
+        uint64_t seed;
+        // How the offsets grow and shrink.
+        mtwnRoughTaper taper;
+        // mtwn_rough flags, combined.
+        uint8_t flags;
+    } mtwnRoughDef;
+
     /// Returns the linear easing, whose eased progress is its progress.
     ///
     /// @return The easing.
@@ -287,6 +331,28 @@ extern "C"
     /// Safe from any thread; the points are used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count,
                                                             mtwnEasing* easingOut);
+
+    /// Makes a rough easing (record mtwn-0061): linear() through points
+    /// that wander from a shape by a seed, as GSAP's RoughEase and
+    /// anime.js's irregular, the same curve for a seed on every platform.
+    /// The first point is (0, 0) and the last (1, 1); the k-th of the m
+    /// inner points falls at a seeded input in [k/m, (k+1)/m), so they
+    /// stay in order, and its output is the shape there plus a seeded
+    /// offset of at most the strength either side, by the taper.
+    ///
+    /// @param def        The rough easing.
+    /// @param points     Receives the points, which the easing references:
+    ///                   they must outlive it and not change.
+    /// @param count      The number of points, at least 2.
+    /// @param easingOut  Receives the easing, in mode mtwn_easeIn.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, fewer
+    ///         than 2 points, a strength below 0 or not finite, an unknown
+    ///         taper or flag, or a shape giving a value not finite.
+    /// @par Thread safety
+    /// Safe from any thread; the points are used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def,
+                                                           mtwnLinearPoint* points, uint32_t count,
+                                                           mtwnEasing* easingOut);
 
     /// Changes an easing's mode, keeping its curve.
     ///
