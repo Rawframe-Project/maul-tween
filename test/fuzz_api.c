@@ -417,9 +417,19 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 }
 
 #ifndef MTWN_FUZZING
-// In the test suite: a fixed set of random inputs (xorshift64).
+#include "generated/fuzz_seeds_api.h"
+
+// In the test suite: the committed seeds (tools/fuzz_seeds.py), one per
+// edge a campaign reached, then a fixed set of random inputs
+// (xorshift64).
 int main(void)
 {
+    uint32_t begin = 0;
+    for (size_t k = 0; k < sizeof s_seedEnds / sizeof s_seedEnds[0]; ++k)
+    {
+        (void)LLVMFuzzerTestOneInput(s_seedBytes + begin, s_seedEnds[k] - begin);
+        begin = s_seedEnds[k];
+    }
     uint64_t state = 0x9E3779B97F4A7C15u;
     static uint8_t input[768];
     for (int n = 0; n < 300; ++n)
