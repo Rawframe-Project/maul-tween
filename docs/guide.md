@@ -75,7 +75,9 @@ the others clamp it. The last argument of `mtwnEase` says, for
 `steps()`, whether the progress is reached from before. `mtwnSampleEasing` fills a table of
 evenly spaced samples, and `mtwnFitLinearEasing` turns any easing into
 CSS `linear()` points within a tolerance, to hand to a browser or
-another engine.
+another engine. A fit makes at most `MTWN_MAX_FIT_POINTS` points: a
+tolerance the curve cannot meet (below its rounding) ends with
+`mtwn_errorLimit` rather than with millions of them.
 
 ## Springs and decays
 
@@ -318,7 +320,10 @@ What a player's time crosses between updates is recorded, exactly,
 however far it moved: a track's or timeline's start and end, each
 iteration, each mark, and the player's own seeks and cancels. Each
 record says when it happened in host time and in clip time, how many
-times it was crossed, which way, and in which iterations.
+times it was crossed, which way, and in which iterations. An iteration
+record is made when an iteration's start is reached and names the
+iteration current there: the one entered going forwards, the one left
+going backwards (the one before it follows just after).
 
 ```c
 mtwnEvent events[32];
