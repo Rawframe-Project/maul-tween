@@ -23,6 +23,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - Scales in clips: tracks of `mtwn_valueScale`, composed in their
   logarithm (add multiplies, replace mixes geometrically, weights as
   powers), incremental repeats multiplying by the track's ratio.
+- `mtwnMeasureTransition`: the distance a transition would move its
+  target, in its kind's own measure, for a duration set by speed
+  (record mtwn-0060). The size budget of a program taking every
+  function is 152 kB, from 146.
 
 ### Changed
 

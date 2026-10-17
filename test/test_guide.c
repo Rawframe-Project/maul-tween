@@ -146,6 +146,14 @@ static void TestHost(void)
     sprung = mtwnStartTransition(context, &settle, &settling);
     CHECK(sprung == mtwn_success && !mtwnPlayer_IsValid(context, fading),
           "a spring replacing the fade");
+    mtwnTransitionDef move = mtwnDefaultTransitionDef();
+    move.target = opacity;
+    move.value = (mtwnVec4){0.25f, 0, 0, 0};
+    double distance = 0.0;
+    mtwnResult measured = mtwnMeasureTransition(context, &move, &distance);
+    move.duration = fmin(fmax(distance / 2.0, 0.15), 0.4); // 2 a second, 150 to 400 ms
+    CHECK(measured == mtwn_success && move.duration >= 0.15 && move.duration <= 0.4,
+          "a duration from the distance");
     bool reduce = true; // the platform's preference, as the host reads it
     mtwnResult set = mtwnContext_SetReducedMotion(context, reduce);
     fade.essential = true; // an opacity change is not motion: it may play on

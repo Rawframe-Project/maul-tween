@@ -326,6 +326,93 @@ mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* de
     return result;
 }
 
+// The distance from a value to an end, both accepted, in the kind's own
+// measure (record mtwn-0060).
+static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtwnVec4 from,
+                           mtwnVec4 to, double* distanceOut)
+{
+    double a[4] = {(double)from.x, (double)from.y, (double)from.z, (double)from.w};
+    double b[4] = {(double)to.x, (double)to.y, (double)to.z, (double)to.w};
+    switch (kind)
+    {
+    case mtwn_valueDiscrete:
+        return mtwn_errorInvalid;
+    case mtwn_valueAngle:
+        *distanceOut = fabs(mtwnMixAngle(a[0], b[0], def->angleMethod, 1.0) - a[0]);
+        return mtwn_success;
+    case mtwn_valueScale:
+        *distanceOut = fabs(mtwnLog(b[0]) - mtwnLog(a[0]));
+        return mtwn_success;
+    case mtwn_valueRotation:
+    {
+        // The mix's angle is between the quaternions, half the turn.
+        mtwnRotationMix mix;
+        mtwnResult made = mtwnMakeRotationMix(ToQuat(from), ToQuat(to), def->rotationPath, &mix);
+        *distanceOut = made == mtwn_success ? 2.0 * mix.angle : 0.0;
+        return made;
+    }
+    case mtwn_valueColor:
+        if (mtwnColorToSpace(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
+            mtwnColorToSpace(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
+        {
+            return mtwn_errorInvalid;
+        }
+        break;
+    default:
+        break;
+    }
+    double sum = 0.0;
+    for (uint8_t i = 0; i < mtwnKindChannels(kind); ++i)
+    {
+        sum += (b[i] - a[i]) * (b[i] - a[i]);
+    }
+    *distanceOut = sqrt(sum);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                 double* distanceOut)
+{
+    if (distanceOut != NULL)
+    {
+        *distanceOut = 0.0;
+    }
+    if (context == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    if (def == NULL || distanceOut == NULL || def->cookie != MTWN_TRANSITION_DEF_COOKIE)
+    {
+        ++context->misuse;
+        return mtwn_errorInvalid;
+    }
+    if (def->version != MTWN_ABI_VERSION)
+    {
+        ++context->misuse;
+        return mtwn_errorVersion;
+    }
+    const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
+        &context->targets, def->target.index1, def->target.generation);
+    if (target == NULL)
+    {
+        ++context->misuse;
+        return mtwn_errorStale;
+    }
+    mtwnVec4 end = {0};
+    mtwnFloatEnv env;
+    mtwnFloatEnvEnter(&env);
+    mtwnResult result = mtwnAcceptValue(target->kind, def->value, &end)
+                            ? Distance(def, target->kind, target->value, end, distanceOut)
+                            : mtwn_errorInvalid;
+    mtwnFloatEnvLeave(&env);
+    if (result != mtwn_success)
+    {
+        *distanceOut = 0.0;
+        ++context->misuse;
+    }
+    return result;
+}
+
 void mtwnEndTransition(mtwnContext* context, uint32_t player)
 {
     uint32_t target = mtwnPlayerAt(context, player)->header.link;

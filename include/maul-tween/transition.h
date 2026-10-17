@@ -174,6 +174,32 @@ extern "C"
                                                            const mtwnTransitionDef* def,
                                                            mtwnPlayerId* playerOut);
 
+    /// Measures how far a transition would move its target: from the
+    /// target's current value to the def's value, in the kind's own
+    /// measure, for a duration set by speed (record mtwn-0060):
+    /// def.duration = distance / speed, within whatever bounds the host
+    /// keeps. Numbers, vectors and integers: their Euclidean distance; an
+    /// angle: the radians it turns after the method's whole turns; a
+    /// rotation: the angle it turns on its path; a scale: |ln(to / from)|;
+    /// a color: Oklab's Euclidean distance (CSS Color 4's deltaEOK) with
+    /// alpha as a fourth coordinate. Nothing is started or changed.
+    ///
+    /// @param context      The context.
+    /// @param def          The def: its target, value, angle method and
+    ///                     rotation path are read.
+    /// @param distanceOut  Receives the distance, 0 on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
+    ///         without its cookie, an end value the target's kind refuses,
+    ///         an unknown rotation path, the longest way between equal
+    ///         rotations, or a discrete value, which has no distance; mtwn_errorVersion for a def
+    ///         built against another major or minor version; mtwn_errorStale for a target that is
+    ///         not alive.
+    /// @par Thread safety
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMeasureTransition(mtwnContext* context,
+                                                             const mtwnTransitionDef* def,
+                                                             double* distanceOut);
+
 #ifdef __cplusplus
 }
 #endif

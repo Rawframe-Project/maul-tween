@@ -210,6 +210,20 @@ An eased transition with `reverses` set is shortened when it reverses
 one still running, as CSS Transitions shortens it: a hover left a
 quarter of the way in returns in a quarter of the time.
 
+A long move and a short one need not take the same time. The library
+measures how far a transition would go, in its kind's own measure (a
+color's perceptual difference, a rotation's angle, a scale's ratio),
+and the host sets the duration from its speed, within bounds:
+
+```c
+mtwnTransitionDef move = mtwnDefaultTransitionDef();
+move.target = opacity;
+move.value = (mtwnVec4){0.25f, 0, 0, 0};
+double distance = 0.0;
+mtwnResult measured = mtwnMeasureTransition(context, &move, &distance);
+move.duration = fmin(fmax(distance / 2.0, 0.15), 0.4); // 2 a second, 150 to 400 ms
+```
+
 Under reduced motion every transition, and every playing clip with an
 end, finishes at its next update, its records at that update's time,
 as if it had played; one marked essential plays on:

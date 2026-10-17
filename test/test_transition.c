@@ -522,6 +522,73 @@ static void TestScales(void)
     mtwnDestroyContext(context);
 }
 
+// A transition's distance for a duration set by speed (record
+// mtwn-0060), in each kind's own measure; nothing started or changed.
+static void TestMeasure(void)
+{
+    mtwnContext* context = Make(8, 4);
+    double d = 0.0;
+    mtwnTransitionDef def =
+        Linear(Target(context, mtwn_valueVec2, (mtwnVec4){0}), (mtwnVec4){3.0f, 4.0f, 0, 0}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && d == 5.0, "a vector: 5");
+    def = Linear(Target(context, mtwn_valueInteger, (mtwnVec4){2.0f, 0, 0, 0}),
+                 (mtwnVec4){-1.0f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && d == 3.0, "an integer: 3");
+    const double deg = 3.14159265358979323846 / 180.0;
+    def = Linear(Target(context, mtwn_valueAngle, (mtwnVec4){(float)(350 * deg), 0, 0, 0}),
+                 (mtwnVec4){(float)(10 * deg), 0, 0, 0}, 1.0);
+    def.angleMethod = mtwn_angleShorter;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 20 * deg) <= 1e-6,
+          "an angle the shorter way: 20 degrees");
+    def.angleMethod = mtwn_angleLonger;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 340 * deg) <= 1e-6,
+          "the longer way: 340");
+    // A quarter turn about z, and the other way round.
+    float s = (float)sin(3.14159265358979323846 / 4.0);
+    def = Linear(Target(context, mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f}),
+                 (mtwnVec4){0, 0, s, s}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 90 * deg) <= 1e-6,
+          "a rotation: the angle it turns, 90 degrees");
+    def.rotationPath = mtwn_rotationLongest;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 270 * deg) <= 1e-6,
+          "the longest way: 270");
+    def = Linear(Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0}),
+                 (mtwnVec4){8.0f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - log(4.0)) <= 1e-15,
+          "a scale: ln 4");
+    // A color by deltaEOK with alpha: a fade alone has a length.
+    mtwnTargetId red = Target(context, mtwn_valueColor, (mtwnVec4){1.0f, 0, 0, 1.0f});
+    def = Linear(red, (mtwnVec4){1.0f, 0, 0, 0.0f}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 1.0) <= 1e-12,
+          "a fade: its alpha, 1");
+    def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 0.537) <= 1e-3,
+          "red to blue: deltaEOK 0.537");
+    // The recipe: at 2 a second, within 0.15 and 1 second.
+    def.duration = fmin(fmax(d / 2.0, 0.15), 1.0);
+    CHECK(def.duration > 0.26 && def.duration < 0.28, "a duration from it");
+    // Refusals; nothing started.
+    def =
+        Linear(Target(context, mtwn_valueDiscrete, (mtwnVec4){0}), (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
+          "a discrete value has no distance");
+    mtwnTargetId gone = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    CHECK(mtwnDestroyTarget(context, gone) == mtwn_success, "destroyed");
+    def = Linear(gone, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorStale, "a stale target");
+    def = Linear(red, (mtwnVec4){1.0f, 0, 0, 2.0f}, 1.0);
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid, "an alpha over 1");
+    def.cookie = 0;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid &&
+              mtwnMeasureTransition(context, NULL, &d) == mtwn_errorInvalid &&
+              mtwnMeasureTransition(NULL, &def, &d) == mtwn_errorInvalid,
+          "no cookie, no def, no context");
+    CHECK(mtwnTargetAt(context, red.index1)->header.link == 0 &&
+              State(context, red).value.x == 1.0f,
+          "nothing started or changed");
+    mtwnDestroyContext(context);
+}
+
 static void TestAngleTurns(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -1095,6 +1162,7 @@ int main(void)
     TestDecay();
     TestPathSprings();
     TestScales();
+    TestMeasure();
     TestAngleTurns();
     TestSpecRefusals();
     TestRefusals();
