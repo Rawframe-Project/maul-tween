@@ -462,6 +462,38 @@ static void TestCommitReported(void)
     mtwnDestroyContext(w.context);
 }
 
+// A commit that changes only a vector's last component still rebases the
+// target: its base is the end, so the value stays once the player goes.
+static void TestCommitLastComponent(void)
+{
+    World w = MakeWorld();
+    mtwnTargetId vector;
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueVec4, (mtwnVec4){0}, &vector) == mtwn_success,
+          "a vector");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.w = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.track.kind = mtwn_valueVec4;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    track.timing.fill = mtwn_fillForwards;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, vector, false, 1.0);
+    Update(&w, 0.0);
+    Update(&w, 2.0);
+    CHECK(!mtwnPlayer_IsValid(w.context, p), "finished and freed");
+    Update(&w, 3.0);
+    mtwnTargetState s = Read(&w, vector);
+    CHECK(s.base.w == 1.0f && s.value.w == 1.0f, "w alone committed as the base");
+    mtwnDestroyContext(w.context);
+}
+
 // A finish holds the player at its end exactly, whatever the rate and the
 // time: a start rebased by end / rate could round the time just short of
 // the end, leaving it running until the next update (found by the
@@ -501,5 +533,6 @@ int main(void)
     TestTimelineShapes();
     TestStaleTarget();
     TestCommitReported();
+    TestCommitLastComponent();
     return s_failures == 0 ? 0 : 1;
 }

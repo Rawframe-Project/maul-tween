@@ -185,6 +185,20 @@ static void TestRotations(void)
               Near(sign * (double)state.value.w, 0.5, 1e-6),
           "the step from the first's inverse, turning before the path");
     mtwnDestroyContext(w.context);
+    // A path that ends where it starts: no turn to repeat, the start held,
+    // half way through the second iteration too.
+    w = MakeWorld(mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
+    keys[0].value = keys[1].value = (mtwnVec4){s, 0, 0, c};
+    track = Incremental(mtwn_valueRotation, keys, 3.0);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    state = At(&w, 1.5);
+    CHECK(Near((double)state.value.x, (double)s, 1e-6) && Near((double)state.value.y, 0.0, 1e-6) &&
+              Near((double)state.value.z, 0.0, 1e-6) &&
+              Near((double)state.value.w, (double)c, 1e-6),
+          "no turn: the start, not NaN");
+    mtwnDestroyContext(w.context);
 }
 
 static void TestLargeCount(void)

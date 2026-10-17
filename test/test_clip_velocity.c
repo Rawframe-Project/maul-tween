@@ -27,9 +27,9 @@ typedef struct Scene
     mtwnTargetId target;
 } Scene;
 
-// A clip of one number from 0 to 10 over 2 s, quadratic out, filling
-// forwards.
-static Scene MakeScene(void)
+// A clip of one number from 0 to 10 over 2 s from a start, quadratic out,
+// filling forwards.
+static Scene MakeSceneAt(double start)
 {
     Scene s = {0};
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -46,12 +46,18 @@ static Scene MakeScene(void)
     track.keyframeCount = 2;
     track.timing.duration = 2.0;
     track.timing.fill = mtwn_fillForwards;
+    track.position.offset = start;
     CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &track.timing.easing) == mtwn_success, "easing");
     CHECK(mtwnClip_AddTrack(s.context, s.clip, &track, &s.track) == mtwn_success, "a track");
     CHECK(mtwnClip_Finish(s.context, s.clip) == mtwn_success, "finished");
     CHECK(mtwnCreateTarget(s.context, mtwn_valueScalar, (mtwnVec4){0}, &s.target) == mtwn_success,
           "a target");
     return s;
+}
+
+static Scene MakeScene(void)
+{
+    return MakeSceneAt(0.0);
 }
 
 static void Update(Scene* s, double seconds)
@@ -189,6 +195,18 @@ static void TestHalfWeight(void)
     Update(&s, 0.0);
     Update(&s, 0.5);
     CHECK(Near(Velocity(&s, s.target), 0.5f * Expected(&s, 0.5, 1.0)), "at half weight");
+    mtwnDestroyContext(s.context);
+    // Worked out at once, from the track's own time a moment ago, on a
+    // track starting 0.5 s into its clip.
+    s = MakeSceneAt(0.5);
+    binding.target = s.target;
+    def.clip = s.clip;
+    CHECK(mtwnCreatePlayer(s.context, &def, &id) == mtwn_success, "a player");
+    Update(&s, 0.0);
+    Update(&s, 1.0);
+    float expected = 0.5f * Expected(&s, 1.0, 1.0);
+    CHECK(expected > 1.0f && Near(Velocity(&s, s.target), expected),
+          "at half weight on a track starting late");
     mtwnDestroyContext(s.context);
 }
 
