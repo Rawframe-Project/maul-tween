@@ -7,6 +7,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-17
+
 ### Fixed
 
 - A record could be lost where a crossing fell exactly at a frame's end
