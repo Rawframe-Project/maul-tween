@@ -421,23 +421,43 @@ static Wide Variation(const Wide p[4], Wide u)
 // exactly; quadrature misses the kink each turn puts in |x'| (a point
 // 1.1e-4 of the length off on the first here before it was measured
 // so). At constant speed each share of that length is at its place.
-static void CheckNumberLength(const float controls[4], const char* what)
+// With more channels the same number moves along a line, channel c
+// taking it times 2^-c (exact in float), its length the variation times
+// the line's own, sqrt(sum of 4^-c); a turn back puts the same kink in
+// the speed, and a quadrature whose points all missed the span between
+// two turns agreed on the wrong length (0.4% short on the last of
+// TestTurnBack's, found measuring the lengths against exact ones).
+static mtwnVec4 Along(float x)
 {
-    mtwnKeyframe keys[2] = {Key(0.0, controls[0], 0.0f, mtwn_segmentBezier),
-                            Key(1.0, controls[3], 0.0f, mtwn_segmentLinear)};
-    keys[0].out.x = controls[1];
-    keys[1].in.x = controls[2];
+    return (mtwnVec4){x, x * 0.5f, x * 0.25f, x * 0.125f};
+}
+
+static void CheckLineLength(const float controls[4], uint8_t channels, const char* what)
+{
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                            Key(1.0, 0.0f, 0.0f, mtwn_segmentLinear)};
+    // The channels past the path's are not read.
+    keys[0].value = Along(controls[0]);
+    keys[0].out = Along(controls[1]);
+    keys[1].in = Along(controls[2]);
+    keys[1].value = Along(controls[3]);
+    Wide line = 0;
+    for (uint8_t c = 0; c < channels; ++c)
+    {
+        line += WIDE_POW(4, -(Wide)c);
+    }
+    line = WIDE_SQRT(line);
     Wide p[4] = {(Wide)controls[0], (Wide)controls[1], (Wide)controls[2], (Wide)controls[3]};
     double lengths[2];
     mtwnPath path;
-    CHECK(mtwnMakePath(keys, 2, 1, 0.5, lengths, &path) == mtwn_success, what);
-    Wide total = Variation(p, 1);
+    CHECK(mtwnMakePath(keys, 2, channels, 0.5, lengths, &path) == mtwn_success, what);
+    Wide total = Variation(p, 1) * line;
     double e = fabs((double)(((Wide)lengths[1] - total) / total));
     if (!(e <= 1e-14))
     {
-        printf("  %s: length %.17g, variation %.17g\n", what, lengths[1], (double)total);
+        printf("  %s: length %.17g, exact %.17g\n", what, lengths[1], (double)total);
     }
-    CHECK(e <= 1e-14, "its length its total variation, within 1e-14 relative");
+    CHECK(e <= 1e-14, "its length the exact one, within 1e-14 relative");
     double worst = 0.0;
     for (int k = 0; k <= 400; ++k)
     {
@@ -447,7 +467,7 @@ static void CheckNumberLength(const float controls[4], const char* what)
         for (int step = 0; step < 80; ++step)
         {
             Wide mid = (lo + hi) / 2;
-            if (Variation(p, mid) < target)
+            if (Variation(p, mid) * line < target)
             {
                 lo = mid;
             }
@@ -471,10 +491,24 @@ static void CheckNumberLength(const float controls[4], const char* what)
 static void TestNumberLength(void)
 {
     static const float twice[4] = {0.0f, 2.0f, -1.0f, 1.0f};
-    CheckNumberLength(twice, "a number turning twice");
+    CheckLineLength(twice, 1, "a number turning twice");
     // No cubic term: the derivative is linear, its one root a turn.
     static const float once[4] = {0.0f, 1.0f, 1.0f, 0.0f};
-    CheckNumberLength(once, "a number turning once, a quadratic");
+    CheckLineLength(once, 1, "a number turning once, a quadratic");
+}
+
+// Turns back along a line in two to four channels (record mtwn-0031).
+static void TestTurnBack(void)
+{
+    static const float twice[4] = {0.0f, 2.0f, -1.0f, 1.0f};
+    static const float once[4] = {0.0f, 1.0f, 1.0f, 0.0f};
+    static const float narrow[4] = {0.0f, 6.0f, 1.0f, 5.0f};
+    for (uint8_t channels = 2; channels <= 4; ++channels)
+    {
+        CheckLineLength(twice, channels, "a line turning twice");
+        CheckLineLength(once, channels, "a line turning once");
+        CheckLineLength(narrow, channels, "a line turning twice, close together");
+    }
 }
 
 // The length of a two-channel Bezier from 0 to u by Simpson's rule.
@@ -775,6 +809,7 @@ int main(void)
     TestLength();
     TestNumberLength();
     TestSpeedDrift();
+    TestTurnBack();
     TestStillEnds();
     TestEdges();
     TestRefusals();

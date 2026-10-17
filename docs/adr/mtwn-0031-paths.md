@@ -114,3 +114,53 @@ falls between its two turns. Outside them the speed is a polynomial
 both rules integrate exactly, so they agree, and the length misses the
 turn: 1.1e-3 of a path's length at worst, on paths of collinear Bezier
 keyframes. That is a separate defect, to be fixed on its own.
+
+## Amended 2026-10-17: lengths split at the speed's minima
+
+A length of two or more channels is split where the speed is least
+inside its segment, as QUADPACK's qagp splits an integral at the points
+its caller names: where v.a, half the derivative of the speed squared,
+rises through 0, at most two places. They are found once for a segment's
+length and once for a sample at constant speed: the cubic v.a's own
+turns bracket each rise, found by Newton's steps kept in the bracket.
+A turn back along a line, or near it, then lies at a piece's end, where
+the rules disagree until the splitting reaches it, instead of between
+their points. Halley's Taylor shortcut is not taken across a minimum.
+
+Options weighed: a test of the minimum's sharpness (split only where
+the speed's width about it, |v| / |a|, is under the span) changed no
+measured result and saved 17 instructions of 380; splitting always is
+the simpler rule. Tightening the agreement does not help: both rules
+are exact on the polynomial outside the turns and agree to the last
+bit.
+
+Measured against exact lengths:
+
+- Cubics moving along a line (the probe of the amendment above): the
+  worst length 9.7e-16 of its segment, where it was 2.0e-3.
+- 20,000 random collinear paths through the API, Bezier and uniform
+  Catmull-Rom: none off by 1e-9 (1,694 and 1,443 were), the worst
+  1.3e-15 and 3.4e-15 relative.
+- Near turns, a line's cubic with a constant sideways speed from 2^0
+  to 2^-29 of its scale, against long double quadrature split at the
+  turns, 120,000 spans: the worst 6.1e-9 of the segment, where it was
+  4.2e-3. A piece ending at so sharp a minimum is accepted at the
+  rules' 1e-9 agreement, which there is about the error itself rather
+  than orders above it (once six times under it): 13,055 spans were off
+  by more than 1e-12, where 2,452 were before but up to 4.2e-3.
+- 2,000 random paths of two and three channels: the worst path length
+  2.5e-10 relative before and after, 9 and 9 paths off by more than
+  1e-11. A third of the lengths and points at constant speed move in
+  their last bits, the most 4.9e-10 relative.
+- The capped lengths of the amendment above: 19,820 of 146,756, the
+  worst 4.7e-19 of its segment (9.1e-22 before the split).
+
+The bench's path sample (record mtwn-0058) takes 2,305 instructions,
+from 1,925: finding the minima about 160, the extra pieces about 220.
+The values part (record mtwn-0055) is 49.3 kB, from 47.5, under its
+50.0 kB budget: GCC 14 vectorizes the minima's sum over the channels.
+Passing the derivative's coefficients instead of a cubic made the
+object smaller and the part 0.3 kB larger, and was left out.
+`test_path` measures lines turning back in two to four channels, each
+length to 1e-14 relative and each share's point to 1e-11 of the length
+against the total variation; it fails on the earlier code.

@@ -35,7 +35,10 @@ churn-tasks  300 7790000
 # node times apart from its nodes; at load 231 the two overlapped, so the
 # check counts only at a load of at most one task a thread.
 misses clips-tasks clips 1000 1.12 l2_cache_req_stat.ls_rd_blk_c:u
-path     100000 1990
+# The path: 1,925 at 0.5.1; 2,305 with each length split at its speed's
+# minima, where a turn back along a line hid from both rules (record
+# mtwn-0031, amended 2026-10-17), the bound again about 3% over.
+path     100000 2375
 track    100000 272
 oklab    100000 1520
 oklch    100000 1695

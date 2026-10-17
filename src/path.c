@@ -9,8 +9,9 @@
 // with the ends' missing neighbors reflected, and each gap raised to
 // 1e-12 of the largest of the three, so the curve is the same at any
 // scale and coincident keyframes hold still. Arc length is adaptive
-// Gauss-Kronrod, 15 points against 7 agreeing to 1e-9 relative, and the
-// parameter at a length is safeguarded Halley on it.
+// Gauss-Kronrod, 15 points against 7 agreeing to 1e-9 relative, split at
+// the speed's minima, and the parameter at a length is safeguarded Halley
+// on it.
 
 #include "maul-tween/path.h"
 
@@ -36,7 +37,7 @@ enum
     // end) would split until the stack is full, about 2^32 times. The
     // tests' lengths take at most 17. The intervals the cap accepts lie
     // where the speed is its own rounding, so a capped length is off by
-    // that rounding over a span this narrow: 9.1e-22 of the segment's
+    // that rounding over a span this narrow: 4.7e-19 of the segment's
     // length at worst, measured (record mtwn-0031).
     s_mostRules = 1024
 };
@@ -383,8 +384,90 @@ static double TurnsLength(const Cubic* cubic, double a, double b)
     return total;
 }
 
-// The arc length of the cubic from a to b, a < b.
-static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
+// Where the speed is least inside (0, 1): v.a, half the speed squared's
+// derivative, rising through 0. A turn back along a line puts a kink in
+// the speed there, and a rule whose points all miss the span between two
+// turns sees one polynomial on either side and agrees on it; a length is
+// split at these, as QUADPACK's qagp splits at the points it is given.
+typedef struct Minima
+{
+    double at[2];
+    int count;
+} Minima;
+
+// v.a at u, its coefficients in g.
+static double SlopeAt(const double g[4], double u)
+{
+    return g[0] + u * (g[1] + u * (g[2] + u * g[3]));
+}
+
+// Where v.a rises through 0 between lo and hi: Newton's steps kept within
+// the bracket, halving it where one would leave, until a step is under
+// the doubles' spacing at 1.
+static double Rise(const double g[4], double lo, double hi)
+{
+    double u = 0.5 * (lo + hi);
+    for (int step = 0; step < 64; ++step)
+    {
+        double value = SlopeAt(g, u);
+        lo = value < 0.0 ? u : lo;
+        hi = value < 0.0 ? hi : u;
+        double next = u - value / (g[1] + u * (2.0 * g[2] + u * 3.0 * g[3]));
+        next = next > lo && next < hi ? next : 0.5 * (lo + hi);
+        if (fabs(next - u) <= 0x1p-52)
+        {
+            return next;
+        }
+        u = next;
+    }
+    return u;
+}
+
+static Minima SpeedMinima(const Cubic* cubic, uint8_t channels)
+{
+    Minima minima = {{0.0, 0.0}, 0};
+    if (channels == 1)
+    {
+        // Its turns are exact by its total variation.
+        return minima;
+    }
+    // v = b + 2cu + 3du^2 and a = 2c + 6du.
+    double g[4] = {0.0, 0.0, 0.0, 0.0};
+    for (uint8_t c = 0; c < channels; ++c)
+    {
+        g[0] += 2.0 * cubic->b[c] * cubic->c[c];
+        g[1] += 6.0 * cubic->b[c] * cubic->d[c] + 4.0 * cubic->c[c] * cubic->c[c];
+        g[2] += 18.0 * cubic->c[c] * cubic->d[c];
+        g[3] += 18.0 * cubic->d[c] * cubic->d[c];
+    }
+    // Its own turns split (0, 1) into pieces where it is monotone; a piece
+    // rising through 0 holds one minimum.
+    Cubic slope = {.b = {g[1]}, .c = {g[2]}, .d = {g[3]}};
+    double ends[4] = {0.0, 1.0, 1.0, 1.0};
+    int count = 1;
+    double turns[2] = {0.0, 0.0};
+    int found = DerivativeRoots(&slope, turns);
+    for (int r = 0; r < found; ++r)
+    {
+        ends[count] = turns[r];
+        count += turns[r] > 0.0 && turns[r] < 1.0 ? 1 : 0;
+    }
+    ends[count] = 1.0;
+    for (int k = 0; k < count; ++k)
+    {
+        double lo = ends[k];
+        double hi = ends[k + 1];
+        if (SlopeAt(g, lo) < 0.0 && SlopeAt(g, hi) > 0.0)
+        {
+            minima.at[minima.count++] = Rise(g, lo, hi);
+        }
+    }
+    return minima;
+}
+
+// The arc length of the cubic from a to b, a < b, split at its speed's
+// minima inside.
+static double Length(const Cubic* cubic, uint8_t channels, const Minima* minima, double a, double b)
 {
     if (cubic->step)
     {
@@ -396,8 +479,19 @@ static double Length(const Cubic* cubic, uint8_t channels, double a, double b)
     }
     double stack[s_stackSize][2];
     int top = 0;
+    double end = b;
+    for (int m = minima->count - 1; m >= 0; --m)
+    {
+        if (minima->at[m] > a && minima->at[m] < end)
+        {
+            stack[top][0] = minima->at[m];
+            stack[top][1] = end;
+            end = minima->at[m];
+            ++top;
+        }
+    }
     stack[top][0] = a;
-    stack[top][1] = b;
+    stack[top][1] = end;
     ++top;
     double total = 0.0;
     double narrowest = (b - a) * s_narrowest;
@@ -466,7 +560,8 @@ mtwnResult mtwnMakePath(const mtwnKeyframe* keyframes, uint32_t count, uint8_t c
         {
             Cubic cubic;
             SegmentCubic(&path, i, &cubic);
-            lengthsOut[i + 1] = lengthsOut[i] + Length(&cubic, channels, 0.0, 1.0);
+            Minima minima = SpeedMinima(&cubic, channels);
+            lengthsOut[i + 1] = lengthsOut[i] + Length(&cubic, channels, &minima, 0.0, 1.0);
         }
     }
     *pathOut = path;
@@ -509,9 +604,10 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
     double lo = 0.0;
     double hi = 1.0;
     double u = target / total;
+    Minima minima = SpeedMinima(cubic, channels);
     // Measured from the nearer end, the shorter way.
-    double at =
-        u <= 0.5 ? Length(cubic, channels, 0.0, u) : total - Length(cubic, channels, u, 1.0);
+    double at = u <= 0.5 ? Length(cubic, channels, &minima, 0.0, u)
+                         : total - Length(cubic, channels, &minima, u, 1.0);
     uint32_t measured = 1;
     for (int step = 0; step < s_newtonSteps; ++step)
     {
@@ -541,7 +637,12 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
             next = 0.5 * (lo + hi);
         }
         double h = next - u;
-        if (fabs(h) <= s_taylorStep && speed >= s_taylorSpeed * total)
+        bool kinked = false;
+        for (int m = 0; m < minima.count; ++m)
+        {
+            kinked |= (minima.at[m] - u) * (minima.at[m] - next) < 0.0;
+        }
+        if (fabs(h) <= s_taylorStep && speed >= s_taylorSpeed * total && !kinked)
         {
             // A step this short, away from a cusp: the length's Taylor
             // series to h^3, its remainder about h^4 times the speed's third
@@ -550,7 +651,8 @@ static double ParameterAt(const Cubic* cubic, uint8_t channels, double target, d
         }
         else
         {
-            at += next > u ? Length(cubic, channels, u, next) : -Length(cubic, channels, next, u);
+            at += next > u ? Length(cubic, channels, &minima, u, next)
+                           : -Length(cubic, channels, &minima, next, u);
             ++measured;
         }
         u = next;

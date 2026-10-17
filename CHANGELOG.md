@@ -15,6 +15,16 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   behavior is unchanged; a test pins it for a backward player and a
   node's negative rate.
 
+### Fixed
+
+- A path of two or more channels that turns back along a line inside a
+  segment measured that segment short (0.4% on a Bezier through 0, 6, 1
+  and 5), and its points at constant speed came up to 1% of the length
+  off: the arc length's two rules both missed the turn. Each length is
+  now split at the speed's minima. Lengths and points at constant speed
+  move within the old tolerance elsewhere; a path sample costs about
+  20% more instructions.
+
 ## [0.5.1] - 2026-10-17
 
 A patch: the active start of a timing whose whole iteration start meets
