@@ -177,6 +177,84 @@ static void TestTiming(void)
     CHECK(checked > 100000 && failures == 0, "every timing result in its ranges");
 }
 
+// A time on 1/64 s, on tenths, or anywhere.
+static double Grid(void)
+{
+    switch (Next() % 3)
+    {
+    case 0:
+        return (1 + Next() % 16) / 64.0;
+    case 1:
+        return (1 + Next() % 4) / 10.0;
+    default:
+        return 0.02 + 0.3 * Unit();
+    }
+}
+
+// With repeat delays the position never steps back as time goes on (the
+// other way for a negative rate): over every double within 40 of each
+// iteration's start and end inside the active interval, for 3,000
+// timings. The quotient by the cycle and the progress in it round: one
+// rounded up past an iteration's start, or a progress rounded to its end,
+// each stepped back an iteration (found by the sweep's fuzz).
+static void TestRepeatDelaysNeverStepBack(void)
+{
+    s_state = 7;
+    uint32_t steps = 0;
+    uint32_t checked = 0;
+    for (int n = 0; n < 3000; ++n)
+    {
+        mtwnTiming t = mtwnDefaultTiming();
+        t.duration = Grid() * (1 + Next() % 3);
+        t.iterations = 1 + Next() % 6 + (Next() % 3 == 0 ? 0.5 : 0.0);
+        t.iterationStart = Next() % 4 == 0 ? 0.25 * (Next() % 4) : 0.0;
+        t.repeatDelay = Grid();
+        t.delay = Next() % 3 == 0 ? Grid() : 0.0;
+        static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};
+        t.playbackRate = rates[Next() % 6];
+        t.fill = mtwn_fillBoth;
+        mtwnTimingResult shape;
+        mtwnComputeTiming(&t, 0.0, false, &shape);
+        double d = t.duration;
+        double cycle = d + t.repeatDelay;
+        double s = t.iterationStart;
+        double sign = t.playbackRate > 0.0 ? 1.0 : -1.0;
+        for (double j = floor(s) + 1.0; j < s + t.iterations; ++j)
+        {
+            double positions[2] = {j * cycle, (j - 1.0) * cycle + d};
+            for (int w = 0; w < 2; ++w)
+            {
+                double scaled =
+                    (positions[w] - floor(s) * cycle - (s - floor(s)) * d) / fabs(t.playbackRate);
+                double x = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
+                for (int k = 0; k < 40; ++k)
+                {
+                    x = nextafter(x, -HUGE_VAL);
+                }
+                double iteration = -sign * HUGE_VAL;
+                double progress = 0.0;
+                for (int k = 0; k < 80; ++k, x = nextafter(x, HUGE_VAL))
+                {
+                    mtwnTimingResult r;
+                    mtwnComputeTiming(&t, x, false, &r);
+                    bool back =
+                        sign * r.iteration < sign * iteration ||
+                        (r.iteration == iteration && sign * r.simpleProgress < sign * progress);
+                    steps += back ? 1u : 0u;
+                    iteration = r.iteration;
+                    progress = r.simpleProgress;
+                    ++checked;
+                }
+            }
+        }
+    }
+    if (steps != 0)
+    {
+        printf("  %u steps back\n", steps);
+    }
+    CHECK(checked > 100000 && steps == 0, "with repeat delays the position never steps back");
+}
+
 // A random call on a clip being built: whether it was refused, and then
 // that nothing changed.
 static void BuildOne(mtwnContext* context, mtwnClipId clip, mtwnNode* timelines,
@@ -621,6 +699,7 @@ static void TestStaggers(void)
 int main(void)
 {
     TestTiming();
+    TestRepeatDelaysNeverStepBack();
     TestBuilder();
     TestPlaying();
     TestTransitions();

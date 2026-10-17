@@ -31,3 +31,21 @@ way back.
 
 Timing matches the browsers' model where they overlap, and the one
 restriction keeps every event crossing exact.
+
+## Amended 2026-10-17: a position the rounding steps back
+
+With a repeat delay the position is the quotient of the scaled time by
+the cycle and the progress within it, and both round. A progress that
+rounds to the iteration's end (`k + within / d` rounding up to `k + 1`)
+showed the next iteration's start for one time before the delay held
+the end: iterations of 0.1 s with delays of 0.1 s showed it at 0.5 s, a
+time frames of a tenth land on, a value jumping to the keyframes' start
+for a frame. A quotient rounded up past an iteration's start left the
+progress an ulp below it, out of the delay before. The first now holds
+the end, as the delay does an ulp later; the second is in that delay.
+Over 3,000 random timings, every double within 40 of each iteration's
+start and end now goes one way; there were 1,173 steps back. Where the
+times are too large for an ulp to be one, before the first iteration,
+nothing changes. The rounding at the active end of a negative rate,
+which follows the specification computed in doubles, is a separate
+matter, not decided here.

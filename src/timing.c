@@ -146,15 +146,27 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     double position = scaled + floor(start) * cycle + (start - floor(start)) * d;
     double k = floor(position / cycle);
     double within = position - k * cycle;
+    // The quotient rounds: one rounded up to k leaves a position an ulp
+    // before k's start, in the delay before it (never before the first,
+    // where the times are too large for an ulp to be one).
+    if (within < 0.0 && k - 1.0 >= floor(start))
+    {
+        k -= 1.0;
+        within += cycle;
+    }
     // Past an iteration's end lies its repeat delay, but none follows the
-    // last: there the end hold applies.
+    // last: there the end hold applies. A progress that rounds to the end
+    // has reached it: an iteration's start shown for one time before the
+    // delay steps the position back.
+    double overall = within < d ? k + within / d : k + 1.0;
+    bool ended = within >= d || overall - k >= 1.0;
     bool last = k + 1.0 >= start + n;
-    if (within >= d && !last)
+    if (ended && !last)
     {
         result->inRepeatDelay = true;
         *held = k;
     }
-    return k + (within < d ? within / d : 1.0);
+    return overall;
 }
 
 // Whether a current iteration runs forwards.

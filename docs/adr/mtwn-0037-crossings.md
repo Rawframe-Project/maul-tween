@@ -72,3 +72,17 @@ A count of whole iterations of 0 adds no term instead of multiplying
 its constant: a constant may be infinite (an endless point level), and
 0 times infinity is not 0. No test reaches such a pair yet; the term
 skipped costs nothing measured.
+
+## Amended 2026-10-17: a count that never falls
+
+A crossing's time is found by halving the doubles between two times on
+whether the count reaches one, which is sound only if the count never
+falls as the time grows. Past a repeat delay it fell: a quotient by the
+cycle rounded up past an iteration's start left a progress just below 0
+in that iteration, counted as reached, and the exact 0 an ulp later, at
+a start not yet passed, as not. A search with a guess and one without
+then ended on different edges, and the shortcuts' sweep recorded a
+crossing's time and iteration two ulps from what counting every record
+did. The count's position is now rounded as the timing model's
+(mtwn-0012, amended the same day), and over 400 random timings every
+double within 40 of each iteration's start and end counts one way.

@@ -223,6 +223,87 @@ static void TestIterations(void)
     CHECK(back.same == 0.0 && back.opposite == 4.0, "backwards");
 }
 
+// Random numbers from a fixed seed (xorshift64), for the scan below.
+static uint64_t s_scan = 88172645463325252u;
+
+static double Uniform(void)
+{
+    s_scan ^= s_scan << 13;
+    s_scan ^= s_scan >> 7;
+    s_scan ^= s_scan << 17;
+    return (double)(s_scan >> 11) * 0x1p-53;
+}
+
+// Times on 1/64 s, on tenths, or anywhere.
+static double ScanTime(void)
+{
+    int kind = (int)(Uniform() * 3.0);
+    return kind == 0   ? (1 + (int)(Uniform() * 16.0)) / 64.0
+           : kind == 1 ? (1 + (int)(Uniform() * 4.0)) / 10.0
+                       : 0.02 + 0.3 * Uniform();
+}
+
+// The iteration starts a local time has reached never fall as it grows,
+// over every double within 40 of each iteration's start and end, for 400
+// timings with repeat delays and either rate: a search for a crossing
+// halves on the count, and one that fell again an ulp later made where it
+// ended depend on where it began (found by the sweep's fuzz). The count's
+// position rounded as the timing model's does: a quotient rounded up past
+// an iteration's start, or a progress rounded to its end.
+static void TestCountNeverFalls(void)
+{
+    s_scan = 88172645463325252u;
+    mtwnLevel none[1];
+    memset(none, 0, sizeof none);
+    uint32_t falls = 0;
+    uint32_t scanned = 0;
+    for (int n = 0; n < 400; ++n)
+    {
+        mtwnLeaf node;
+        memset(&node, 0, sizeof node);
+        node.kind = mtwn_leafIterations;
+        node.timing = Timing(ScanTime() * (1 + (int)(Uniform() * 3.0)),
+                             1 + (int)(Uniform() * 6.0) + (Uniform() < 0.3 ? 0.5 : 0.0));
+        node.timing.iterationStart = Uniform() < 0.25 ? 0.25 * (int)(Uniform() * 4.0) : 0.0;
+        node.timing.repeatDelay = ScanTime();
+        node.timing.direction = (mtwnDirection)(int)(Uniform() * 4.0);
+        static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};
+        node.timing.playbackRate = rates[(int)(Uniform() * 6.0)];
+        mtwnTimingResult shape;
+        mtwnComputeTiming(&node.timing, 0.0, false, &shape);
+        double d = node.timing.duration;
+        double cycle = d + node.timing.repeatDelay;
+        double s = node.timing.iterationStart;
+        double rate = fabs(node.timing.playbackRate);
+        for (double j = floor(s) + 1.0; j <= ceil(s + node.timing.iterations); ++j)
+        {
+            double positions[2] = {j * cycle, (j - 1.0) * cycle + d};
+            for (int w = 0; w < 2; ++w)
+            {
+                double scaled = (positions[w] - floor(s) * cycle - (s - floor(s)) * d) / rate;
+                double x = node.timing.playbackRate > 0.0 ? scaled : shape.activeDuration - scaled;
+                for (int k = 0; k < 40; ++k)
+                {
+                    x = nextafter(x, -HUGE_VAL);
+                }
+                double last = -1.0;
+                for (int k = 0; k < 80; ++k, x = nextafter(x, HUGE_VAL))
+                {
+                    double reached = Total(Count(none, 0, &node, -1.0, x));
+                    falls += reached < last ? 1u : 0u;
+                    last = reached;
+                    ++scanned;
+                }
+            }
+        }
+    }
+    if (falls != 0)
+    {
+        printf("  the count fell %u times\n", falls);
+    }
+    CHECK(scanned > 50000 && falls == 0, "the count never falls as the time grows");
+}
+
 // The oracle: each level's state from the timing itself.
 typedef struct State
 {
@@ -692,6 +773,7 @@ int main(void)
     TestRepeats();
     TestDelaysAndRates();
     TestIterations();
+    TestCountNeverFalls();
     TestExactEdges();
     TestTimes();
     TestOracle();

@@ -17,6 +17,19 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   count's progress within an iteration past a repeat delay is now formed
   as the timing model forms it, so both see the same child time (record
   mtwn-0042, amended).
+- With a repeat delay, a time where an iteration's progress rounded to
+  its end showed the next iteration's start for that one time before
+  the delay held the end: iterations of 0.1 s with delays of 0.1 s did
+  at 0.5 s, a value jumping to the keyframes' start for a frame. A time
+  whose quotient by the cycle rounded up past an iteration's start was
+  an ulp below it, out of the delay. Both now hold the end (record
+  mtwn-0012, amended).
+- A crossing past a repeat delay could be recorded at a time and
+  iteration two ulps from where counting every record put it: the count
+  fell again an ulp past an iteration's start, so the search for the
+  time ended on another edge when it started from a guess. The count
+  now rounds as the timing model does and never falls (record
+  mtwn-0037, amended).
 
 ### Changed
 

@@ -155,6 +155,16 @@ static void TestExamples(void)
     r = At(&timing, 8.0);
     CHECK(r.phase == mtwn_phaseAfter && r.iteration == 2.0 && r.simpleProgress == 1.0,
           "the last iteration has no delay after it");
+    // Iterations of 0.1 s with delays of 0.1 s: at 0.5 s the third
+    // iteration's delay starts, where the progress 0.1 / 0.1 rounds to just
+    // below 1 and 2 plus it rounds to 3, the next iteration's start shown
+    // for one time before the delay held the end.
+    timing.duration = 0.1;
+    timing.iterations = 5.0;
+    timing.repeatDelay = 0.1;
+    r = At(&timing, 0.5);
+    CHECK(r.inRepeatDelay && r.iteration == 2.0 && r.simpleProgress == 1.0,
+          "a progress rounded to the end holds it");
     // Repeating the shape: an ease-in stays an ease-in on the way back.
     timing = mtwnDefaultTiming();
     timing.duration = 1.0;

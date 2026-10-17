@@ -148,16 +148,22 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
         double position = scaled + floor(s) * cycle + (s - floor(s)) * d;
         j = floor(position / cycle);
         double within = position - j * cycle;
-        *inDelay = within >= d;
-        // As the timing model forms it (its overall progress j plus the
-        // fraction, less j), so a child time here is the one Times and the
-        // values see, bit for bit (record mtwn-0042).
-        q = *inDelay ? 1.0 : (j + within / d) - j;
-        if (*inDelay && within == d && shape->forwardRate)
+        // As the timing model forms them, so a child time here is the one
+        // Times and the values see, bit for bit (record mtwn-0042): a
+        // quotient rounded up to j puts the position in the delay before
+        // j, and a progress rounded to the end has reached the delay.
+        if (within < 0.0 && j - 1.0 >= floor(s))
         {
-            // At the delay's start exactly, going forwards: the end is
-            // reached now.
-            q = 1.0;
+            j -= 1.0;
+            within += cycle;
+        }
+        double overall = within < d ? j + within / d : j + 1.0;
+        *inDelay = within >= d || overall - j >= 1.0;
+        q = *inDelay ? 1.0 : overall - j;
+        if (*inDelay && within <= d && shape->forwardRate)
+        {
+            // At the delay's start, going forwards: the end is reached
+            // now.
             *inDelay = false;
         }
     }
