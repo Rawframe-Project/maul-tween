@@ -133,9 +133,31 @@ static void CheckEach(const Bytes* in, const char* what, const double* values, i
 static const double s_progress[] = {-1.5, -0.25,         0.0, 0x1p-40, 0.1, 0.5,
                                     0.75, 1.0 - 0x1p-40, 1.0, 1.25,    2.5};
 
+// The fit's tolerance (fuzz_fit's alone). A fit costs about as many
+// points as the curve needs, so an even draw of the tolerance spent the
+// target's time on a few fits near the limit (19 inputs a second): most
+// draws are from 2^-2 to 2^-16 now, one in sixteen is one the fit
+// refuses, and only an input drawn deep may take one that runs the fit
+// to MTWN_MAX_FIT_POINTS, once.
+static double FitTolerance(Bytes* in, bool* deep)
+{
+    uint32_t b = Byte(in);
+    if (b % 16 == 0)
+    {
+        static const double refused[4] = {0.0, -0x1p-8, (double)NAN, HUGE_VAL};
+        return refused[b / 16 % 4];
+    }
+    if (b % 16 == 1 && *deep)
+    {
+        *deep = false;
+        return (b & 16) != 0 ? 1e-300 : 0x1p-40;
+    }
+    return ldexp(1.0 + (double)Byte(in) / 256.0, -(int)(2 + b % 15));
+}
+
 // The fit of linear() is fuzz_fit's: at its limit it takes a thousand
 // times another section's inputs, so here it would starve the rest.
-static void Easings(Bytes* in, bool fit)
+static void Easings(Bytes* in, bool fit, bool* deep)
 {
     in->ordinary = true;
     in->finite = true;
@@ -236,9 +258,9 @@ static void Easings(Bytes* in, bool fit)
     {
         return;
     }
-    mtwnLinearPoint fitted[64];
+    static mtwnLinearPoint fitted[256];
     uint32_t fittedCount = 0;
-    if (mtwnFitLinearEasing(&e, Positive(in, 0.05), fitted, 64, &fittedCount) == mtwn_success)
+    if (mtwnFitLinearEasing(&e, FitTolerance(in, deep), fitted, 256, &fittedCount) == mtwn_success)
     {
         mtwnEasing linear;
         if (mtwnMakeLinearEasing(fitted, fittedCount, &linear) != mtwn_success)
@@ -547,9 +569,11 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     (void)Values;
     (void)Paths;
     (void)Staggers;
+    // One input in sixteen may run one fit to its limit.
+    bool deep = Below(&in, 16) == 0;
     while (in.at < in.size)
     {
-        Easings(&in, true);
+        Easings(&in, true, &deep);
     }
 #else
     while (in.at < in.size)
@@ -557,7 +581,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         switch (Below(&in, 6))
         {
         case 0:
-            Easings(&in, false);
+            Easings(&in, false, NULL);
             break;
         case 1:
             Springs(&in);
