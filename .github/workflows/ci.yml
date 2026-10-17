@@ -41,6 +41,8 @@ jobs:
           python3 tools/gen_math_constants.py --check
           python3 tools/gen_color_matrices.py --check
           python3 tools/oracle/timing_oracle.py --check
+          python3 tools/oracle/exact_oracle.py --check
+          python3 tools/oracle/zoom_oracle.py --check
       - name: clang-tidy
         run: |
           cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \

@@ -13,6 +13,7 @@ spring: elementary spring_easing spring_internal
 decay: elementary
 color: elementary
 rotation: elementary
+scale: elementary
 signal: elementary
 timing: timing_internal
 stagger: stagger_internal

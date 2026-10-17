@@ -63,3 +63,4 @@ are listed in [README.md](README.md).
 | [mtwn-0056](mtwn-0056-clip-players-on-the-hosts-tasks.md) | Clip players on the host's task system | Accepted |
 | [mtwn-0057](mtwn-0057-players-in-step-share-their-work.md) | Players in step share their work | Accepted |
 | [mtwn-0058](mtwn-0058-values-speed-targets.md) | The values layer's speed targets, measured | Accepted |
+| [mtwn-0059](mtwn-0059-scales-and-zooms.md) | Scales and zooms | Accepted |

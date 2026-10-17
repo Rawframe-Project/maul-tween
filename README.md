@@ -14,7 +14,8 @@ It covers:
   bounce; decay for flings; rubber banding; punch and seeded shake.
 - **Values:** scalars, vectors, colors interpolated in Oklab or another
   named space, rotations as quaternions, angles, integers, discrete
-  values, keyframe tracks and paths at constant speed.
+  values, scales moved geometrically, van Wijk and Nuij's smooth zoom
+  and pan, keyframe tracks and paths at constant speed.
 - **Timelines:** Web Animations' timing on every node (delays, fill,
   direction, fractional and infinite iterations), positions and labels,
   nesting, players with play, pause, reverse, seek and rate, events as
@@ -50,7 +51,7 @@ to 9% on one worker; 0.3.0, earlier that day, had slower clip players
 and records that could miss a crossing where a frame landed on a held
 time's edge; 0.2.1, on 2026-10-15, ran them on the calling thread only
 and several times slower; 0.1.0 lacked staggers and reduced motion. The library has
-110 public functions.
+115 public functions.
 
 ## Building
 
@@ -77,6 +78,10 @@ them:
 
 - `timing_oracle.py`: Web Animations' timing steps, written again in
   Python.
+- `exact_oracle.py`: the timing model's iterations and the crossings'
+  counts in exact rationals.
+- `zoom_oracle.py`: scales and van Wijk and Nuij's zoom and pan in
+  60-digit decimals, the path as the paper writes it.
 - `rivals.mjs`: GSAP 3.15.0, tween.js 25.0.0, Motion's springs
   (motion-dom 14.2.0 with motion-utils 14.1.1) and CSS Color 4's
   `conversions.js` (w3c/csswg-drafts at af8661b), run under Node. Each
@@ -119,7 +124,7 @@ composition, paths or crossings (record mtwn-0047).
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 22.9 kB | 22.3 kB | 18.9 kB | 24 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.5 kB | 38.1 kB | 39.9 kB | 50 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.5 kB | 38.1 kB | 39.9 kB | 54 kB |
 | transitions: a context, targets and transitions | 50.7 kB | 42.3 kB | 41.2 kB | 54 kB |
 | clips: clips, players, events | 127.4 kB | 104.5 kB | 104.6 kB | 135 kB |
 | everything | 138.0 kB | 137.8 kB | 114.9 kB | 146 kB |

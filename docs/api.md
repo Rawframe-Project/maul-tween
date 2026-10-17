@@ -288,6 +288,31 @@ mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
 Samples a rotation mix: its rotations normalized exactly at 0 and 1 (the second negated when the path needed it), between and beyond them slerp, of unit length to a float's rounding.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The rotation. @par Thread safety Safe from any thread.
 
 ```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeScaleMix(double from, double to, mtwnScaleMix* mixOut);
+```
+Makes the geometric interpolation between two scales.  @param from    The scale at progress 0, finite and above 0. @param to      The scale at progress 1, likewise. @param mixOut  Receives the mix. @return mtwn_success; mtwn_errorInvalid for a null pointer or a scale outside the above. @par Thread safety Safe from any thread.
+
+```c
+double mtwnMixScale(const mtwnScaleMix* mix, double progress);
+```
+Samples a scale mix: from (to / from)^progress, exactly from at 0 and to at 1; outside 0 to 1 it extends, to infinity or 0 past the doubles' range.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The scale. @par Thread safety Safe from any thread.
+
+```c
+MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeZoomMix(mtwnZoomView from, mtwnZoomView to, double rho, mtwnZoomMix* mixOut);
+```
+Makes the zoom and pan between two views that van Wijk and Nuij found optimal ("Smooth and efficient zooming and panning", 2003): it zooms out as far as the pan needs and back in, so the eye can follow; with the centres equal it is a geometric zoom.  @param from    The view at progress 0: finite, its width above 0. @param to      The view at progress 1, likewise. @param rho     How much it zooms out against panning, finite and above 0: the paper's measured sqrt(2) (d3's default), 1.42 (Mapbox's); toward 0 it pans with little zoom. @param mixOut  Receives the mix. @return mtwn_success; mtwn_errorInvalid for a null pointer, a view or rho outside the above, or views whose path leaves the doubles' range (widths, or a pan against the width, about 1e150 times apart). @par Thread safety Safe from any thread.
+
+```c
+mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress);
+```
+Samples a zoom mix: exactly from at 0 and to at 1, between them the path at that share of its length; outside 0 to 1 it extends.  @param mix       A mix made by this library. @param progress  The progress, finite. @return The view. @par Thread safety Safe from any thread.
+
+```c
+double mtwnZoomLength(const mtwnZoomMix* mix);
+```
+A zoom mix's path length, the paper's S: a zoom by a factor of e with no pan is 1 / rho long. The measure a duration is taken from (d3 takes S rho / sqrt(2) seconds); 0 for equal views.  @param mix  A mix made by this library. @return The length. @par Thread safety Safe from any thread.
+
+```c
 int64_t mtwnMixInteger(int64_t from, int64_t to, double progress);
 ```
 Interpolates an integer: the interpolation in double, rounded to nearest with ties away from zero, so it passes through every integer between. Exact at the ends, and between them for values within 2^53.  @param from      The value at progress 0. @param to        The value at progress 1. @param progress  The progress, finite; outside 0 to 1 extends, clamped to the type's range. @return The value. @par Thread safety Safe from any thread.
@@ -607,4 +632,4 @@ Starts a transition: from the target's current value, at the next update, to the
 
 ---
 
-110 functions across 13 headers.
+115 functions across 13 headers.

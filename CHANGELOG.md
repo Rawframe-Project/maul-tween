@@ -7,6 +7,14 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- Scales moved in their logarithm, so equal steps multiply by equal
+  ratios (`mtwnMakeScaleMix`, `mtwnMixScale`), and van Wijk and Nuij's
+  smooth zoom and pan between two views (`mtwnMakeZoomMix`,
+  `mtwnMixZoom`, `mtwnZoomLength`), record mtwn-0059. The values part's
+  size budget is 54 kB, from 50.
+
 ### Changed
 
 - `event.h` states which iteration an iteration record names: the one
