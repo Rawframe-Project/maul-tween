@@ -7,6 +7,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-17
+
 ### Added
 
 - `test/fuzz_api.c`: the public API driven by bytes, the same script on

@@ -75,3 +75,15 @@ each part's size then (GCC 14, x86-64, `-O2`): curves 21.8 kB, budget
 the sharing's capacities in the def, the count of advances left
 serial, and the writers kept as they change (transitions 0.3 kB, clips
 0.4 kB).
+
+## Amended 2026-10-17: restated at 0.5.0
+
+At 0.5.0 every budget is restated by mtwn-0051's rule, about 6% over
+each part's size then (GCC 14, x86-64): curves 22.9 kB, budget 24 kB
+(23 before); values 47.6, 50 (48); transitions 50.7, 54 (52); clips
+127.4, 135 (132); everything 138.1, 146 (144). Since 0.4.1 the parts
+grew by the guards the values' fuzz asked for: far phases reduced in
+springs, punches and rotations, a rotation's overflowing cubic scaled,
+the fit's limit and its finite points, the length's cap on rule pairs,
+linear()'s overflowing span (curves 1.1 kB, values 1.8 kB, the parts
+above them by what they call).

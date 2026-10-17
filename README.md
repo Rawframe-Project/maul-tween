@@ -27,7 +27,7 @@ platform.
 
 ## Status
 
-0.4.1 (2026-10-17) holds the whole library: Penner's families and
+0.5.0 (2026-10-17) holds the whole library: Penner's families and
 CSS Easing Level 2, in four modes, with even tables and fitted CSS
 linear() points; springs in closed form, as easings too, decay and the
 rubber band; colors as CSS Color 4 interpolates them; angles,
@@ -108,11 +108,11 @@ composition, paths or crossings (record mtwn-0047).
 
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
-| curves: easings, sampling, springs, decay, rubber band | 21.8 kB | 21.3 kB | 18.6 kB | 23 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 45.8 kB | 37.2 kB | 39.2 kB | 48 kB |
-| transitions: a context, targets and transitions | 49.5 kB | 41.4 kB | 40.9 kB | 52 kB |
-| clips: clips, players, events | 125.6 kB | 103.5 kB | 103.8 kB | 132 kB |
-| everything | 136.2 kB | 136.0 kB | 114.0 kB | 144 kB |
+| curves: easings, sampling, springs, decay, rubber band | 22.9 kB | 22.3 kB | 18.9 kB | 24 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.6 kB | 38.2 kB | 39.9 kB | 50 kB |
+| transitions: a context, targets and transitions | 50.7 kB | 42.3 kB | 41.2 kB | 54 kB |
+| clips: clips, players, events | 127.4 kB | 104.6 kB | 104.6 kB | 135 kB |
+| everything | 138.1 kB | 137.9 kB | 114.9 kB | 146 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets
