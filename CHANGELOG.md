@@ -24,6 +24,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   now split at the speed's minima. Lengths and points at constant speed
   move within the old tolerance elsewhere; a path sample costs about
   20% more instructions.
+- A path's lengths were measured to an agreement of 1e-9 between two
+  rules, which near a sharp slowing of the speed is about the error
+  itself: lengths up to 2.5e-9 of a segment off, where points at
+  constant speed are placed to 1e-12. The rules now agree to 1e-12;
+  lengths are within about 1e-11, as `path.h` now states, and random
+  paths' lengths exact to their last bits. A path sample at constant
+  speed costs about 13% more instructions again.
 
 ## [0.5.1] - 2026-10-17
 

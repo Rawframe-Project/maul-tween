@@ -20,12 +20,14 @@
 
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
-#define WIDE_SQRT sqrtl
-#define WIDE_POW  powl
+#define WIDE_SQRT  sqrtl
+#define WIDE_POW   powl
+#define WIDE_ASINH asinhl
 #else
 typedef double Wide;
-#define WIDE_SQRT sqrt
-#define WIDE_POW  pow
+#define WIDE_SQRT  sqrt
+#define WIDE_POW   pow
+#define WIDE_ASINH asinh
 #endif
 
 static mtwnKeyframe Key(double offset, float x, float y, mtwnSegmentKind kind)
@@ -511,6 +513,47 @@ static void TestTurnBack(void)
     }
 }
 
+// Near a turn: x = 6h u (1 - u) and y = e u, so the speed is
+// sqrt(k^2 (u - 1/2)^2 + e^2) with k = 12h, and the length is
+// 2 F(1/2), F(t) = t/2 sqrt(k^2 t^2 + e^2) + e^2 / (2k) asinh(k t / e).
+// Where e is small the speed's minimum is sharp, and each half is a
+// piece ending there: lengths agreeing to 1e-9 came 1.2e-9 off (h 1/16,
+// e 3 2^-19), at 1e-12 the worst is 2.0e-12 (record mtwn-0031).
+static void TestNearTurn(void)
+{
+    double worst = 0.0;
+    for (int hk = -4; hk <= 4; ++hk)
+    {
+        for (int ek = 0; ek <= 40; ++ek)
+        {
+            float h = ldexpf(1.0f, hk);
+            float third = ldexpf(1.0f, -ek);
+            mtwnKeyframe keys[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                                    Key(1.0, 0.0f, 3.0f * third, mtwn_segmentLinear)};
+            keys[0].out = (mtwnVec4){2.0f * h, third, 0.0f, 0.0f};
+            keys[1].in = (mtwnVec4){2.0f * h, 2.0f * third, 0.0f, 0.0f};
+            double lengths[2];
+            mtwnPath path;
+            if (mtwnMakePath(keys, 2, 2, 0.5, lengths, &path) != mtwn_success)
+            {
+                worst = 1.0;
+                continue;
+            }
+            Wide k = 12 * (Wide)h;
+            Wide e = 3 * (Wide)third;
+            Wide exact =
+                (Wide)0.5 * WIDE_SQRT(k * k / 4 + e * e) + e * e / k * WIDE_ASINH(k / (2 * e));
+            double error = fabs((double)(((Wide)lengths[1] - exact) / exact));
+            worst = error > worst ? error : worst;
+        }
+    }
+    if (!(worst <= 1e-11))
+    {
+        printf("  near a turn: %.3g\n", worst);
+    }
+    CHECK(worst <= 1e-11, "a sharp minimum's length within 1e-11 relative");
+}
+
 // The length of a two-channel Bezier from 0 to u by Simpson's rule.
 static Wide Simpson(const Wide p[2][4], Wide u, int panels)
 {
@@ -810,6 +853,7 @@ int main(void)
     TestNumberLength();
     TestSpeedDrift();
     TestTurnBack();
+    TestNearTurn();
     TestStillEnds();
     TestEdges();
     TestRefusals();

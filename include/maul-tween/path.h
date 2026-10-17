@@ -67,7 +67,9 @@ extern "C"
     /// Makes a path. With lengths it travels at constant speed: the
     /// cumulative arc length at each keyframe is measured into them, and a
     /// progress is a share of the whole length, the keyframes' offsets and
-    /// easings no longer timing it.
+    /// easings no longer timing it. Each segment's length is within about
+    /// 1e-11 of it relative, and a point at constant speed within about
+    /// 1e-11 of its segment's length.
     ///
     /// @param keyframes  At least 2: offsets finite, not decreasing, the
     ///                   first 0 and the last 1; values finite in the path's

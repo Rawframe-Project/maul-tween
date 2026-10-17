@@ -9,7 +9,7 @@
 // with the ends' missing neighbors reflected, and each gap raised to
 // 1e-12 of the largest of the three, so the curve is the same at any
 // scale and coincident keyframes hold still. Arc length is adaptive
-// Gauss-Kronrod, 15 points against 7 agreeing to 1e-9 relative, split at
+// Gauss-Kronrod, 15 points against 7 agreeing to 1e-12 relative, split at
 // the speed's minima, and the parameter at a length is safeguarded Halley
 // on it.
 
@@ -24,8 +24,11 @@
 
 // The smallest knot gap, as a share of the segment's largest.
 static const double s_smallestGap = 1e-12;
-// Two quadrature orders agreeing to this, relative, end the splitting.
-static const double s_lengthTolerance = 1e-9;
+// Two quadrature orders agreeing to this, relative, end the splitting:
+// the inverse's own tolerance. Where a piece ends at a sharp minimum of
+// the speed the agreement is about the error itself, not orders above
+// it, so a looser one let lengths be off by about it.
+static const double s_lengthTolerance = 1e-12;
 // The intervals the splitting may hold at once, and the narrowest it
 // splits, as a share of the segment.
 enum

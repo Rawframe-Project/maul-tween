@@ -128,9 +128,10 @@ the rules disagree until the splitting reaches it, instead of between
 their points. Halley's Taylor shortcut is not taken across a minimum.
 
 Options weighed: a test of the minimum's sharpness (split only where
-the speed's width about it, |v| / |a|, is under the span) changed no
-measured result and saved 17 instructions of 380; splitting always is
-the simpler rule. Tightening the agreement does not help: both rules
+the speed's width about it, |v| / |a|, is under the span) was no more
+accurate (near turns the worst 6.1e-9 at one to four times the span,
+against 2.5e-9 splitting always) and saved 17 instructions of 380;
+splitting always is the simpler rule. Tightening the agreement does not help: both rules
 are exact on the polynomial outside the turns and agree to the last
 bit.
 
@@ -143,11 +144,12 @@ Measured against exact lengths:
   1.3e-15 and 3.4e-15 relative.
 - Near turns, a line's cubic with a constant sideways speed from 2^0
   to 2^-29 of its scale, against long double quadrature split at the
-  turns, 120,000 spans: the worst 6.1e-9 of the segment, where it was
+  turns, 120,000 spans: the worst 2.5e-9 of the segment, where it was
   4.2e-3. A piece ending at so sharp a minimum is accepted at the
   rules' 1e-9 agreement, which there is about the error itself rather
-  than orders above it (once six times under it): 13,055 spans were off
-  by more than 1e-12, where 2,452 were before but up to 4.2e-3.
+  than orders above it: 13,054 spans were off by more than 1e-12, where
+  2,452 were before but up to 4.2e-3. (First written as 6.1e-9 and
+  13,055, which were the sharpness test's figures.)
 - 2,000 random paths of two and three channels: the worst path length
   2.5e-10 relative before and after, 9 and 9 paths off by more than
   1e-11. A third of the lengths and points at constant speed move in
@@ -164,3 +166,45 @@ object smaller and the part 0.3 kB larger, and was left out.
 `test_path` measures lines turning back in two to four channels, each
 length to 1e-14 relative and each share's point to 1e-11 of the length
 against the total variation; it fails on the earlier code.
+
+## Amended 2026-10-17: lengths agree to 1e-12
+
+The rules now agree to 1e-12 relative, the inverse's own tolerance,
+where they agreed to 1e-9. The amendments above showed why the looser
+agreement did not hold its measured accuracy: away from sharp minima of
+the speed the 15-point result is orders closer than its agreement with
+the 7-point one, but on a piece ending at such a minimum the two are
+about the error itself. At 1e-9 that left near turns 2.5e-9 of a
+segment off and random paths 2.5e-10, against points placed to 1e-12.
+
+Measured at each agreement (the near turns and random paths of the
+amendment above; the path bench, record mtwn-0058):
+
+| Agreement | Near turns, worst | Spans past 1e-12 | Random paths, worst | Bench |
+|---|---|---|---|---|
+| 1e-9 | 2.5e-9 | 13,054 | 2.5e-10 | 2,305 |
+| 1e-10 | 3.6e-10 | 8,968 | 2.9e-12 | 2,397 |
+| 1e-11 | 8.2e-11 | 4,834 | 2.9e-12 | 2,488 |
+| 1e-12 | 6.1e-12 | 1,159 | 4.8e-16 | 2,595 |
+| 1e-13 | 6.9e-13 | 0 | 4.9e-16 | 2,785 |
+
+1e-12 is where random paths become exact to the last bits and the near
+turns fall to a few times the inverse's tolerance, for 12.6% more
+instructions a sample; 1e-13 costs 7% more again for the near turns
+alone. A higher Kronrod pair (21 or 31 points) was not taken: what
+binds is pieces ending at a sharp minimum, which no order resolves
+without splitting, and on smooth pieces the 15 points are already far
+inside the agreement. QUADPACK's own estimate,
+`resasc * min(1, (200 |K - G| / resasc)^1.5)`, is smaller than
+|K - G| wherever the integrand is smooth, so it would accept these
+pieces sooner, not later.
+
+So a host may rely on: each segment's length within about 1e-11
+relative, and a point at constant speed within about 1e-11 of its
+segment's length (the inverse's 1e-12 plus the length's own error).
+`test_path` checks a turn with a constant sideways speed, whose length
+has a closed form, from 3 to 3 2^-40 of sideways speed over nine
+scales: within 1e-11 relative (2.0e-12 at worst), where 1e-9 left it
+1.2e-9 off, 1e-10 9.7e-11 and 1e-11 2.7e-11. The capped lengths of the
+amendment before: 21,481 of 146,756, the worst 1.7e-19 of a segment;
+the still end's test reaches the cap at the same 25 shares.
