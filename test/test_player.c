@@ -28,14 +28,12 @@ typedef struct Fixture
     mtwnTargetId target;
 } Fixture;
 
-// A context with one finished clip: a 2 s scalar track on slot 0, a root
-// mark 3 at 0.75 and label 3 at 1.25; endless when asked.
-static Fixture Make(bool endless, uint32_t bindings)
+// A context of a def with one finished clip: a 2 s scalar track on slot 0,
+// a root mark 3 at 0.75 and label 3 at 1.25; endless when asked.
+static Fixture MakeFrom(const mtwnContextDef* def, bool endless)
 {
     Fixture f = {0};
-    mtwnContextDef def = mtwnDefaultContextDef();
-    def.bindingCapacity = bindings;
-    CHECK(mtwnCreateContext(&def, &f.context) == mtwn_success, "a context");
+    CHECK(mtwnCreateContext(def, &f.context) == mtwn_success, "a context");
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     CHECK(mtwnCreateClip(f.context, &clipDef, &f.clip) == mtwn_success, "a clip");
     mtwnKeyframe keys[2];
@@ -61,6 +59,14 @@ static Fixture Make(bool endless, uint32_t bindings)
     CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &f.target) == mtwn_success,
           "a target");
     return f;
+}
+
+// The same in a default context of so many bindings.
+static Fixture Make(bool endless, uint32_t bindings)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.bindingCapacity = bindings;
+    return MakeFrom(&def, endless);
 }
 
 static mtwnPlayerId Player(Fixture* f, bool play, double rate)
@@ -314,6 +320,33 @@ static void TestRuns(void)
     CHECK(mtwnTakeRun(&runs, 1, &d) && d == b, "the hole reused first");
     CHECK(mtwnTakeRun(&runs, 1, &d) && d == b + 1, "and its rest");
     CHECK(mtwnTakeRun(&runs, 4, &d) && d == 6, "then the tail");
+}
+
+// A player refused for want of a player's slot gives back the bindings
+// it took first: grown to two players, the context makes two.
+static void TestFullPoolKeepsBindings(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.playerCapacity = 1;
+    def.bindingCapacity = 2;
+    Fixture f = MakeFrom(&def, false);
+    mtwnPlayerId first = Player(&f, true, 1.0);
+    mtwnBinding binding = mtwnBind(0, f.target);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = f.clip;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    mtwnPlayerId refused = {0, 0};
+    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorLimit &&
+              refused.index1 == 0,
+          "no player's slot left");
+    def.playerCapacity = 2;
+    CHECK(mtwnGrowContext(&f.context, &def) == mtwn_success, "grown to two players");
+    mtwnPlayerId second = {0, 0};
+    CHECK(mtwnCreatePlayer(f.context, &playerDef, &second) == mtwn_success &&
+              mtwnPlayer_IsValid(f.context, first),
+          "the bindings the refused player took are there again");
+    mtwnDestroyContext(f.context);
 }
 
 static void TestOrder(void)
@@ -617,6 +650,7 @@ int main(void)
     TestSeekCancel();
     TestBindings();
     TestRuns();
+    TestFullPoolKeepsBindings();
     TestOrder();
     TestClipChain();
     return s_failures == 0 ? 0 : 1;

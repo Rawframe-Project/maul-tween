@@ -317,6 +317,41 @@ static double MiddleHue(mtwnColor from, mtwnColor to, mtwnHueMethod method)
     return lch[2];
 }
 
+// Two colors either side of hue 0 in OkLCh, 20 degrees apart.
+static void AcrossZero(mtwnColor* below, mtwnColor* above)
+{
+    const double degree = s_pi / 180.0;
+    const double low[4] = {0.7, 0.1, 350.0 * degree, 1.0};
+    const double high[4] = {0.7, 0.1, 10.0 * degree, 1.0};
+    CHECK(mtwnColorFromSpace(low, mtwn_colorOklch, below) == mtwn_success &&
+              mtwnColorFromSpace(high, mtwn_colorOklch, above) == mtwn_success,
+          "colors either side of hue 0");
+}
+
+// Its distance from hue 0, whichever side.
+static double FromZero(double hue)
+{
+    double h = fmod(hue, 2.0 * s_pi);
+    h = h < 0.0 ? h + 2.0 * s_pi : h;
+    return h < s_pi ? h : 2.0 * s_pi - h;
+}
+
+static void TestShorterAcrossZero(void)
+{
+    // The shorter way between 350 and 10 degrees crosses 0, from either
+    // end: CSS Color 4 adds a turn to the smaller hue (to the first going
+    // up, to the second going down); the longer way passes 180.
+    mtwnColor below;
+    mtwnColor above;
+    AcrossZero(&below, &above);
+    CHECK(FromZero(MiddleHue(below, above, mtwn_hueShorter)) <= 1e-4,
+          "350 to 10 degrees the shorter way through 0");
+    CHECK(FromZero(MiddleHue(above, below, mtwn_hueShorter)) <= 1e-4,
+          "10 to 350 degrees the shorter way through 0");
+    CHECK(fabs(FromZero(MiddleHue(below, above, mtwn_hueLonger)) - s_pi) <= 1e-4,
+          "the longer way through 180");
+}
+
 static void TestEqualHues(void)
 {
     // Equal hues, as a powerless end makes them: CSS's longer turns a full
@@ -410,6 +445,7 @@ int main(void)
     TestPremultiplication();
     TestMixes();
     TestEqualHues();
+    TestShorterAcrossZero();
     TestBelowZeroAlpha();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;
