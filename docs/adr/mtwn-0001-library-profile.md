@@ -49,3 +49,12 @@ A host links only what it calls: the curves alone need no context. Two
 machines given the same calls at the same times agree to the bit, so
 replays, lockstep games and frame tests work across platforms, and the
 host decides when time passes and where every byte lives.
+
+## Amended 2026-10-17: release commits
+
+A release is one commit `release: X.Y.Z`, as the family's conventions
+(section 15, the release checklist) fix it for every library; the
+commit areas above are for every other commit. 0.5.0 and 0.5.1 were
+committed as `api: version X.Y.Z`, outside that rule; the releases
+from 0.5.2 on follow it, with the library's own steps in
+`docs/releasing.md`.

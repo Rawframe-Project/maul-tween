@@ -17,6 +17,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [0.5.1] - 2026-10-17
 
+A patch: the active start of a timing whose whole iteration start meets
+a repeat delay no longer shows an iteration before the first.
+
 ### Fixed
 
 - A timing whose whole iteration start's cycles round below it on the
@@ -28,6 +31,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   mtwn-0012, amended).
 
 ## [0.5.0] - 2026-10-17
+
+The value functions fuzzed with wild parameters and their defects at
+extreme inputs fixed; a fit of linear() limited by
+`MTWN_MAX_FIT_POINTS`; a fuzz target over the public API.
 
 ### Added
 
@@ -92,6 +99,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   (record mtwn-0040, amended).
 
 ## [0.4.1] - 2026-10-17
+
+A patch: values beside repeat delays and a negative rate's start, and
+records past repeat delays, fixed.
 
 ### Fixed
 

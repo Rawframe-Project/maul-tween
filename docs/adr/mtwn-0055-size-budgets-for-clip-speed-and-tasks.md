@@ -86,4 +86,14 @@ grew by the guards the values' fuzz asked for: far phases reduced in
 springs, punches and rotations, a rotation's overflowing cubic scaled,
 the fit's limit and its finite points, the length's cap on rule pairs,
 linear()'s overflowing span (curves 1.1 kB, values 1.8 kB, the parts
-above them by what they call).
+above them by what they call). By object (GCC 14, bytes, 0.4.1 to
+0.5.0's code): spring +800, the far phases' reduction inlined into its
+three callers; path +442, a rotation's cubic scaled where it overflows
+and the length's cap on rule pairs; rotation +291, a far progress
+reduced by whole turns; css_easing +128, linear()'s span; clip +128,
+the refusal of an incremental track of endless iterations of no
+duration; sample +94, the fit's limit and its finite points; decay +65
+and signal +64, the rubber band's and the punch's and shake's guards;
+easing -32 (back's form), timing -24 and crossing -48 (the first
+iteration's floor, after 0.5.0). Every growth is a guard a defect asked
+for; none is a feature's.

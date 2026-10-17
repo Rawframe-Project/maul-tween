@@ -121,7 +121,9 @@ apply to GCC 14's default build on x86-64 only; the Clang 20 column
 a growth one compiler shows and the other does not is seen as the
 compiler's, not the library's (records mtwn-0051 and mtwn-0055).
 `--budget` fails past one, and growing past one takes a recorded
-decision.
+decision. A release follows the family's checklist with this library's own
+steps, the sizes and the budgets among them:
+[docs/releasing.md](docs/releasing.md).
 
 ## Design
 
