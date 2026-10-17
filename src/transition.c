@@ -11,6 +11,7 @@
 
 #include "context_internal.h"
 #include "easing_internal.h"
+#include "elementary.h"
 #include "fpenv.h"
 #include "spring_internal.h"
 
@@ -48,7 +49,9 @@ static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
         return kind != mtwn_valueDiscrete && mtwnIsSpring(&def->spring) &&
                IsTolerance(def->restOffset) && IsTolerance(def->restSpeed);
     case mtwn_transitionDecay:
-        return kind != mtwn_valueDiscrete && !mtwnIsPathKind(kind) &&
+        // A scale decays in its logarithm; colors and rotations have no
+        // line to coast along.
+        return kind != mtwn_valueDiscrete && (!mtwnIsPathKind(kind) || kind == mtwn_valueScale) &&
                IsTolerance(def->decay.rate) && IsTolerance(def->restSpeed);
     default:
         return false;
@@ -71,6 +74,17 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
             return false;
         }
         out->velocity[i] = (double)v[i];
+    }
+    if (target->kind == mtwn_valueScale)
+    {
+        // The rate in the logarithm, v / value; a spring's or easing's
+        // progress takes it over the logarithm's distance.
+        double rate = out->velocity[0] / (double)out->from.x;
+        double distance = mtwnLog((double)out->to.x) - mtwnLog((double)out->from.x);
+        out->velocity[0] = def->spec == mtwn_transitionDecay ? rate
+                           : distance != 0.0                 ? rate / distance
+                                                             : 0.0;
+        return isfinite(out->velocity[0]);
     }
     if (mtwnIsPathKind(target->kind))
     {
@@ -132,10 +146,13 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     out->endTime = end;
     if (def->spec == mtwn_transitionDecay)
     {
+        bool scale = out->kind == mtwn_valueScale;
         for (uint8_t i = 0; i < channels; ++i)
         {
             double position = 0.0;
-            mtwnSampleDecay(&out->decay, (double)from[i], out->velocity[i], end, &position, NULL);
+            double start = scale ? mtwnLog((double)from[i]) : (double)from[i];
+            mtwnSampleDecay(&out->decay, start, out->velocity[i], end, &position, NULL);
+            position = scale ? mtwnExp(position) : position;
             to[i] = (float)(out->kind == mtwn_valueInteger ? round(position) : position);
         }
     }
@@ -192,6 +209,9 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     case mtwn_valueRotation:
         return mtwnMakeRotationMix(ToQuat(out->from), ToQuat(out->to), def->rotationPath,
                                    &out->mix.rotation);
+    case mtwn_valueScale:
+        // A decay's end rounded to float may leave a scale's range.
+        return mtwnMakeScaleMix((double)out->from.x, (double)out->to.x, &out->mix.scale);
     default:
         return mtwn_success;
     }

@@ -53,3 +53,21 @@ length (and duration).
 The values part (record mtwn-0055) grows 2.9 kB, nearly all of it
 `scale.c`, to 52.2 kB; its budget is restated from 50.0 to 54.0 kB by
 this record.
+
+## Amended 2026-10-17: the scale kind in targets and transitions
+
+`mtwn_valueScale`, one channel above 0, is a kind of target. A
+transition eases it along its scale mix; a spring moves the mix's
+progress, as for colors and rotations, so it overshoots by a ratio, its
+start velocity taken as a rate in the logarithm, v / value, over the
+logarithm's distance; a decay coasts in the logarithm, its start
+velocity v / value, its rest speed a share of the value a second, its
+value the exponential and its velocity the value times the rate. A
+target or end of 0 or below is refused, and so is a decay whose stop
+rounds to a float's 0 or infinity. Clips' tracks take the kind with
+their own amendment; until then a clip has no track of it to bind.
+
+The zoom now lives apart from the scale (`zoom.c`), so a program that
+transitions a scale links the scale's mix alone: in one file the zoom
+came along and the transitions part went to 54.5 kB, over its 54.0 kB;
+apart, it is 52.0 kB (from 50.7) and the clips' 130.3 kB (from 129.1).

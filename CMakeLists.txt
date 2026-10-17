@@ -57,6 +57,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/fpenv.c
     src/rotation.c
     src/scale.c
+    src/zoom.c
     src/path.c
     src/player.c
     src/player_slot.c

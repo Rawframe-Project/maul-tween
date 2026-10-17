@@ -289,7 +289,7 @@ static void TestValues(void)
         CHECK(mtwnDestroyTarget(context, id) == mtwn_success, "freed");
     }
     mtwnTargetId id;
-    CHECK(mtwnCreateTarget(context, 9, given, &id) == mtwn_errorInvalid, "an unknown kind");
+    CHECK(mtwnCreateTarget(context, 10, given, &id) == mtwn_errorInvalid, "an unknown kind");
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){NAN, 0, 0, 0}, &id) ==
               mtwn_errorInvalid,
           "NaN");

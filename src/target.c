@@ -12,7 +12,7 @@
 
 static bool IsKind(mtwnValueKind kind)
 {
-    return kind <= mtwn_valueDiscrete;
+    return kind <= mtwn_valueScale;
 }
 
 static uint32_t Bits(float value)
@@ -52,7 +52,7 @@ bool mtwnAcceptValue(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out)
         }
         zero = zero && IsZeroBits(channels[i]);
     }
-    if (kind == mtwn_valueRotation && zero)
+    if ((kind == mtwn_valueRotation && zero) || (kind == mtwn_valueScale && !(channels[0] > 0.0f)))
     {
         return false;
     }

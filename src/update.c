@@ -10,6 +10,7 @@
 
 #include "context_internal.h"
 #include "easing_internal.h"
+#include "elementary.h"
 #include "fpenv.h"
 
 #include <math.h>
@@ -49,6 +50,9 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
     case mtwn_valueDiscrete:
         out[0] = (double)(progress < 0.5 ? from[0] : to[0]);
         return;
+    case mtwn_valueScale:
+        out[0] = mtwnMixScale(&slot->mix.scale, progress);
+        return;
     default:
         for (uint8_t i = 0; i < mtwnKindChannels(slot->kind); ++i)
         {
@@ -77,6 +81,19 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
     }
     const float* from = &slot->from.x;
     const float* to = &slot->to.x;
+    if (slot->kind == mtwn_valueScale)
+    {
+        // A decay in the logarithm: the value its exponential, the
+        // velocity the value times the logarithm's rate.
+        double position = 0.0;
+        double rate = 0.0;
+        mtwnSampleDecay(&slot->decay, mtwnLog((double)from[0]), slot->velocity[0], t, &position,
+                        &rate);
+        value[1] = value[2] = value[3] = velocity[1] = velocity[2] = velocity[3] = 0.0;
+        value[0] = mtwnExp(position);
+        velocity[0] = value[0] * rate;
+        return true;
+    }
     mtwnSpringMotion motion = {0};
     if (slot->spec == mtwn_transitionSpring)
     {

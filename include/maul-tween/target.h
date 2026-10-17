@@ -35,8 +35,9 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param kind      The kind.
-    /// @param value     The value: finite in the kind's channels, and for a
-    ///                  rotation not all zero. Stored as given.
+    /// @param value     The value: finite in the kind's channels, for a
+    ///                  rotation not all zero, for a scale above 0. Stored
+    ///                  as given.
     /// @param targetOut Receives the target's id, or the null id on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, an
     ///         unknown kind or a value outside the above; mtwn_errorLimit

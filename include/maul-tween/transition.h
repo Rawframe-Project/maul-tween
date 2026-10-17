@@ -71,7 +71,8 @@ extern "C"
         mtwnDecay decay;
         // A spring rests within restOffset of its end and restSpeed of
         // rest, a decay at restSpeed: in the kind's channels, in progress
-        // from 0 to 1 for colors and rotations; finite, above 0.
+        // from 0 to 1 for colors, rotations and scales, and for a scale's
+        // decay as a share of the value a second; finite, above 0.
         double restOffset;
         double restSpeed;
         // For a color: the space it is interpolated in, and the hue method
@@ -141,7 +142,9 @@ extern "C"
     /// rest. A spring or decay starts with the start velocity: on numbers,
     /// vectors, angles and integers per channel, with the spring's or
     /// decay's own velocity; colors and rotations spring their path's
-    /// progress, the start velocity projected on the end minus the start.
+    /// progress, the start velocity projected on the end minus the start;
+    /// a scale springs its mix's progress, so it overshoots by a ratio, and
+    /// decays in its logarithm, its start velocity a share of its value.
     /// An angle's end moves by the method's whole turns when started. At its
     /// end, a spring's settling time or a decay's stop, the end value (a
     /// decay's: where it stopped) becomes the target's base value, its
@@ -159,7 +162,8 @@ extern "C"
     ///         unknown spec, velocity source, color space, hue method or
     ///         rotation path, a color with alpha outside 0 to 1, the longest
     ///         way between equal rotations, a spring or decay for a discrete
-    ///         value or a decay for a color or rotation;
+    ///         value, a decay for a color or rotation, or a scale's decay
+    ///         stopping where a float is 0 or infinite;
     ///         mtwn_errorVersion for a def built against another major or
     ///         minor version; mtwn_errorStale for a target that is not alive;
     ///         mtwn_errorLimit when the context holds its capacity of

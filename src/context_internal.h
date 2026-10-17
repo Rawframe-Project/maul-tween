@@ -155,15 +155,17 @@ typedef struct mtwnPlayerSlot
             {
                 mtwnColorMix color;
                 mtwnRotationMix rotation;
+                mtwnScaleMix scale;
             } mix;
         };
     };
 } mtwnPlayerSlot;
 
-// Whether a kind moves along a path by its progress: colors and rotations.
+// Whether a kind moves along a path by its progress: colors, rotations and
+// scales.
 static inline bool mtwnIsPathKind(mtwnValueKind kind)
 {
-    return kind == mtwn_valueColor || kind == mtwn_valueRotation;
+    return kind == mtwn_valueColor || kind == mtwn_valueRotation || kind == mtwn_valueScale;
 }
 
 // A node of a clip.
@@ -373,7 +375,7 @@ static inline mtwnPlayerId mtwnPlayerIdAt(const mtwnContext* context, uint32_t i
 // The channels a kind uses.
 static inline uint8_t mtwnKindChannels(mtwnValueKind kind)
 {
-    static const uint8_t channels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1};
+    static const uint8_t channels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1, 1};
     return channels[kind];
 }
 

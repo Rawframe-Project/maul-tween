@@ -199,7 +199,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         def.parent = parent;
         def.position = at;
         def.slot = Below(in, 4);
-        def.track.kind = (mtwnValueKind)Below(in, 10);
+        def.track.kind = (mtwnValueKind)Below(in, 11);
         def.keyframes = keys;
         def.keyframeCount = count;
         def.timing = RandomTiming(in);
@@ -266,7 +266,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
     case 11:
     {
         uint32_t t = Below(in, s_targets);
-        r = mtwnCreateTarget(context, (mtwnValueKind)Below(in, 10), StartOf(mtwn_valueScalar),
+        r = mtwnCreateTarget(context, (mtwnValueKind)Below(in, 11), StartOf(mtwn_valueScalar),
                              &targets[t]);
         break;
     }
@@ -308,7 +308,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
     mtwnTargetId targets[s_targets];
     for (uint32_t t = 0; t < s_targets; ++t)
     {
-        mtwnValueKind kind = (mtwnValueKind)Below(&in, 10);
+        mtwnValueKind kind = (mtwnValueKind)Below(&in, 11);
         Status(&run, mtwnCreateTarget(context, kind, StartOf(kind), &targets[t]));
     }
     mtwnClipDef clipDef = mtwnDefaultClipDef();

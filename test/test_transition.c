@@ -443,6 +443,85 @@ static void TestPathSprings(void)
     mtwnDestroyContext(context);
 }
 
+// A scale (record mtwn-0059): eased along its mix, sprung along its mix's
+// progress with the start velocity as a rate over the logarithm's
+// distance, decayed in its logarithm; zero, negative and an end past a
+// float's range refused.
+static void TestScales(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId s = Target(context, mtwn_valueScale, (mtwnVec4){1.0f, 0, 0, 0});
+    mtwnTransitionDef def = Linear(s, (mtwnVec4){100.0f, 0, 0, 0}, 1.0);
+    Start(context, &def);
+    Update(context, 0);
+    Update(context, s_second / 2);
+    mtwnScaleMix mix;
+    CHECK(mtwnMakeScaleMix(1.0, 100.0, &mix) == mtwn_success, "the mix");
+    mtwnTargetState state = State(context, s);
+    CHECK(state.value.x == (float)mtwnMixScale(&mix, 0.5), "halfway from 1 to 100 is 10");
+    // d/dt 100^t at 1/2 is 10 ln 100, measured over the last millisecond:
+    // a backward difference, under it by about 10 ln(100)^2 / 2000, 0.11.
+    CHECK(fabs((double)state.velocity.x - 10.0 * log(100.0)) <= 0.15, "its velocity, 46");
+    // A spring from there to 4 takes that velocity as a rate in the
+    // logarithm over log(4 / 10).
+    mtwnTransitionDef spring = SpringTo(s, (mtwnVec4){4.0f, 0, 0, 0});
+    Start(context, &spring);
+    uint32_t index1 = mtwnTargetAt(context, s.index1)->header.link;
+    double from = (double)state.value.x;
+    double progress = (double)state.velocity.x / from / (log(4.0) - log(from));
+    CHECK(fabs(mtwnPlayerAt(context, index1)->velocity[0] - progress) <= 1e-12 * fabs(progress),
+          "the start velocity as progress along the logarithm");
+    Update(context, s_second / 2);
+    Update(context, s_second);
+    double offset = 0.0;
+    mtwnSampleSpring(&spring.spring, -1.0, mtwnPlayerAt(context, index1)->velocity[0], 0.5, &offset,
+                     NULL);
+    CHECK(mtwnMakeScaleMix(from, 4.0, &mix) == mtwn_success, "the spring's mix");
+    CHECK(State(context, s).value.x == (float)mtwnMixScale(&mix, 1.0 + offset),
+          "the scale at the spring's progress along its mix");
+    Update(context, 30 * s_second);
+    CHECK(State(context, s).base.x == 4.0f, "it ends exactly on 4");
+    // A decay: 3 a second at 1 is a rate of 3 in the logarithm.
+    mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0});
+    mtwnTransitionDef coast = mtwnDefaultTransitionDef();
+    coast.target = z;
+    coast.spec = mtwn_transitionDecay;
+    coast.velocitySource = mtwn_velocityGiven;
+    coast.velocity = (mtwnVec4){6.0f, 0, 0, 0};
+    mtwnPlayerId player = Start(context, &coast);
+    Update(context, 40 * s_second);
+    Update(context, 40 * s_second + s_second / 4);
+    double position = 0.0;
+    double rate = 0.0;
+    mtwnSampleDecay(&coast.decay, log(2.0), 3.0, 0.25, &position, &rate);
+    CHECK(fabsf(State(context, z).value.x - (float)exp(position)) <=
+                  1e-6f * State(context, z).value.x &&
+              fabs((double)State(context, z).velocity.x - exp(position) * rate) <=
+                  1e-5 * exp(position) * rate,
+          "the decay in the logarithm, its velocity the value times the rate");
+    double stop = mtwnDecayStopTime(&coast.decay, 3.0, coast.restSpeed);
+    Update(context, 40 * s_second + (uint64_t)(stop * 1e9) + 1);
+    mtwnSampleDecay(&coast.decay, log(2.0), 3.0, stop, &position, NULL);
+    CHECK(!mtwnPlayer_IsValid(context, player) &&
+              fabsf(State(context, z).base.x - (float)exp(position)) <=
+                  1e-6f * (float)exp(position),
+          "it ends where its logarithm stopped");
+    // Refusals.
+    mtwnTargetId unused = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScale, (mtwnVec4){0.0f, 0, 0, 0}, &unused) ==
+                  mtwn_errorInvalid &&
+              mtwnCreateTarget(context, mtwn_valueScale, (mtwnVec4){-1.0f, 0, 0, 0}, &unused) ==
+                  mtwn_errorInvalid,
+          "a scale of 0 or below refused");
+    mtwnPlayerId refused = {0, 0};
+    def = Linear(s, (mtwnVec4){0.0f, 0, 0, 0}, 1.0);
+    CHECK(mtwnStartTransition(context, &def, &refused) == mtwn_errorInvalid, "a transition to 0");
+    coast.velocity = (mtwnVec4){1e30f, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &coast, &refused) == mtwn_errorInvalid,
+          "a decay stopping past a float's range");
+    mtwnDestroyContext(context);
+}
+
 static void TestAngleTurns(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -1015,6 +1094,7 @@ int main(void)
     TestHandover();
     TestDecay();
     TestPathSprings();
+    TestScales();
     TestAngleTurns();
     TestSpecRefusals();
     TestRefusals();

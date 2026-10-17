@@ -14,6 +14,7 @@ decay: elementary
 color: elementary
 rotation: elementary
 scale: elementary
+zoom: elementary
 signal: elementary
 timing: timing_internal
 stagger: stagger_internal
@@ -25,8 +26,8 @@ pool:
 context_internal: crossing pool runs
 context: allocator context_internal pool
 target: context_internal pool
-transition: context_internal easing_internal fpenv pool spring_internal
-update: context_internal easing_internal fpenv pool
+transition: context_internal easing_internal elementary fpenv pool spring_internal
+update: context_internal easing_internal elementary fpenv pool
 path: elementary path_internal
 path_internal:
 clip: allocator context_internal fpenv pool

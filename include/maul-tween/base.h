@@ -137,6 +137,9 @@ extern "C"
         mtwn_valueInteger = 7,
         // A discrete value the host indexes, in x: it steps at progress 1/2.
         mtwn_valueDiscrete = 8,
+        // A scale, in x, above 0: moved in its logarithm, so equal steps
+        // multiply it by equal ratios (record mtwn-0059).
+        mtwn_valueScale = 9,
     };
 
     /// Returns the version of the library that was linked, which may differ
