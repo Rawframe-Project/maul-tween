@@ -171,3 +171,10 @@ At 1.0.2 (GCC 14, x86-64) values, clips and everything are 128 bytes
 more than at 1.0.1, an angle's controls moved by the unwrap in double
 and held (`path`); curves and transitions are 1.0.1's to the byte.
 Every part stays within its budget, and the budgets stand.
+
+## Amended 2026-10-19: 1.0.3
+
+At 1.0.3 (GCC 14, x86-64) transitions are 192 bytes more than at 1.0.2
+and clips and everything 640, a number held at a bound kept still
+(`update` 192, `compose` 451); curves and values are 1.0.2's to the
+byte. Every part stays within its budget, and the budgets stand.

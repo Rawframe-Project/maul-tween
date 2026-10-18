@@ -15,13 +15,15 @@ API and the ABI.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-10-19
+
 ### Fixed
 
 - A number held at a bound of the floats is still, as record mtwn-0069
-  says: a spring or decay transition overshooting past the floats
-  reported its curve's speed while its value was held, and players adding
-  past them reported their velocities' sum; both are now 0 where the
-  value is held.
+  says: a spring or decay transition moving past the floats reported its
+  curve's speed while its value was held, and players adding past them
+  reported their velocities' sum; both are now 0 where the value is
+  held.
 
 ## [1.0.2] - 2026-10-18
 
