@@ -32,7 +32,7 @@ at build time.
 
 ## Status
 
-0.6.1 (2026-10-18) holds the whole library: Penner's families and
+0.7.0 (2026-10-18) holds the whole library: Penner's families and
 CSS Easing Level 2, in four modes, with even tables and fitted CSS
 linear() points, and rough easings from a seed; springs in closed form,
 as easings too, decay, inertia landing on an end or within bounds, and
@@ -48,7 +48,10 @@ nested timelines with labels and marks; players controlling clips by Web
 Animations' procedures; events as counted records in a bounded queue;
 players layered by replace and add with weights; reduced motion; a
 context grown only when the host asks; clips' players run on the
-host's task system if it gives one. 0.6.0, earlier that day, had the
+host's task system if it gives one. 0.6.1, earlier that day, had the
+same features, took inputs whose reserved bytes were not 0, mixed values
+by the weighted sum, up to 2^-14 of the result off far past ends one ulp
+apart, and was not tested on 32-bit x86; 0.6.0, earlier that day, had the
 same features, took a call back in from the host's code into the
 context it was serving, let a number eased past the floats' range turn
 infinite and an extreme mix of equal ends move; 0.5.1, on 2026-10-17, had
@@ -138,10 +141,10 @@ composition, paths or crossings (record mtwn-0047).
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 25.0 kB | 24.4 kB | 20.8 kB | 27 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 56.6 kB | 47.4 kB | 48.6 kB | 60 kB |
-| transitions: a context, targets and transitions | 58.7 kB | 50.5 kB | 47.8 kB | 60 kB |
-| clips: clips, players, events | 142.3 kB | 112.7 kB | 119.0 kB | 147 kB |
-| everything | 159.1 kB | 158.9 kB | 133.8 kB | 165 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 56.4 kB | 47.2 kB | 48.6 kB | 60 kB |
+| transitions: a context, targets and transitions | 59.5 kB | 51.4 kB | 47.3 kB | 63 kB |
+| clips: clips, players, events | 143.0 kB | 113.5 kB | 119.0 kB | 152 kB |
+| everything | 159.7 kB | 159.3 kB | 133.8 kB | 169 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets

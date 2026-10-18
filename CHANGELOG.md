@@ -7,6 +7,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-18
+
+A minor release: inputs whose reserved bytes are not 0 are refused and
+what the library writes has them 0, every mix takes the form exact at
+its ends with its error at most u |r| + 2u |t (b - a)| at any progress
+(its results moved), and 32-bit x86 is tested.
+
 ### Added
 
 - 32-bit x86 (gcc 14 `-m32 -msse2 -mfpmath=sse`) is built and tested in
@@ -21,9 +28,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   color between distinct ends may differ from 0.6.1's in its last bit;
   the determinism scenario's hash is unchanged.
 - Every mix is `a + t (b - a)`, `b` at t = 1 (record mtwn-0070): exact
-  at both ends and for equal ends, monotone in t, and far past its ends
-  within a few roundings of its result where near ends cross 0, which
-  the weighted sum missed by up to 2^-14 of it. Results: number, angle,
+  at both ends and for equal ends, monotone in t, its error at most
+  u |r| + 2u |t (b - a)| for the result r (u = 2^-53), where near ends
+  cross 0 far past them the weighted sum missed by up to 2^-14 of r. Results: number, angle,
   integer, rotation and signal mixes may differ in their last bits; the
   determinism scenario's hash moves from 0x79567506efccc400 to
   0x7b710979e70fff40.

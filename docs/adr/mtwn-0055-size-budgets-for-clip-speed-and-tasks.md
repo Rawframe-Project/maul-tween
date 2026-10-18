@@ -131,3 +131,21 @@ that allows it, so a release cycle's growth past 10% is decided as
 such, not reached step by step. The table moves at each release with
 the budgets.
 
+
+## Amended 2026-10-18: restated at 0.7.0
+
+At 0.7.0 every budget is restated by mtwn-0051's rule, about 6% over
+each part's size then (GCC 14, x86-64): curves 25.0 kB, budget 27 kB
+(unchanged); values 56.4, 60 (unchanged); transitions 59.5, 63 (60);
+clips 143.0, 152 (147); everything 159.7, 169 (165). Since 0.6.1 (GCC 14,
+bytes): curves +0, values -192, transitions +832, clips +704, everything
++640. By object: update +896, of which the mix's test of t (record
+mtwn-0070, every mix `t == 1 ? b : a + t (b - a)`) about +960, which GCC
+compiles into each loop's two versions, and the unreachable number
+branch removed after the coverage audit about -512 (`update.c` alone at
+-O3: 13,291 bytes at 0.6.1, 12,779 without the branch, 13,739 with the
+new mix); the rest within 256 bytes either way, the reserved bytes'
+checks (record mtwn-0071: timing, transition, context and path +64 to
++80, player +16) and the mix's form (color -112, signal -64, rotation
+-48) among them, clip -256 and stagger -98. No instruction count moved
+with the mix (record mtwn-0058's targets and the bench's frames).

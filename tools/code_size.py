@@ -38,25 +38,25 @@ PARTS = [
     ("clips", ["clip.h", "player.h", "event.h"]),
 ]
 
-# Each part's budget in bytes, about 6% over its size at 0.6.0 (records
+# Each part's budget in bytes, about 6% over its size at 0.7.0 (records
 # mtwn-0051 and mtwn-0055, amended).
 BUDGETS = {
     "curves": 27000,
     "values": 60000,
-    "transitions": 60000,
-    "clips": 147000,
-    "everything": 165000,
+    "transitions": 63000,
+    "clips": 152000,
+    "everything": 169000,
 }
 
 
-# Each part's size in bytes at the last release, 0.6.0, its budgets'
+# Each part's size in bytes at the last release, 0.7.0, its budgets'
 # ceiling GROWTH over it, and the records raising a ceiling past it.
 RELEASED = {
-    "curves": 24985,
-    "values": 56281,
-    "transitions": 56601,
-    "clips": 138762,
-    "everything": 155353,
+    "curves": 25049,
+    "values": 56409,
+    "transitions": 59545,
+    "clips": 143017,
+    "everything": 159705,
 }
 GROWTH = 0.10
 RAISED = {}
