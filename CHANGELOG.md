@@ -15,6 +15,16 @@ API and the ABI.
 
 ## [Unreleased]
 
+### Fixed
+
+- `mtwnMakeTrack` (and a clip's track) for angles moves a Bezier
+  segment's controls with their unwrapped keyframe in double, held
+  within the floats (record mtwn-0069): a shift past the floats' range
+  (keyframes at -3e38 and 3e38, say) made a control infinite, the track
+  was refused, and the refusal left the keyframes rewritten where the
+  header says they are as they were. A shifted control is now rounded
+  once, not twice, so its last bit can differ.
+
 ## [1.0.1] - 2026-10-18
 
 ### Fixed

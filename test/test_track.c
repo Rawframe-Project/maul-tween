@@ -11,6 +11,7 @@
 #include "maul-tween/path.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -483,6 +484,35 @@ static void TestScales(void)
           "a value below 0 refused");
 }
 
+static void TestAnglesFarOut(void)
+{
+    // From -3e38 the shorter way to 3e38 unwraps it to about -3e38: its
+    // control on it moves the 6e38 with it, a shift no float holds, to
+    // the value's own float.
+    mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){-3e38f, 0, 0, 0}, mtwn_segmentBezier),
+                            Key(1.0, (mtwnVec4){3e38f, 0, 0, 0}, mtwn_segmentLinear)};
+    keys[0].out = (mtwnVec4){-3e38f, 0, 0, 0};
+    keys[1].in = (mtwnVec4){3e38f, 0, 0, 0};
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueAngle);
+    mtwnTrack track;
+    bool made = mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_success;
+    CHECK(made, "unwrapped by 6e38: made");
+    CHECK(fabs((double)keys[1].value.x + 3e38) <= 0x1p104 && keys[1].in.x == keys[1].value.x,
+          "the control on its keyframe moved with it");
+    mtwnVec4 half = made ? mtwnSampleTrack(&track, 0.5) : (mtwnVec4){0};
+    CHECK(fabs((double)half.x + 3e38) <= 0x1p104, "and the segment between them");
+    // A control 6e38 below its keyframe at 3e38, unwrapped to about 0:
+    // past the floats, held at the lowest.
+    mtwnKeyframe far[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentBezier),
+                           Key(1.0, (mtwnVec4){3e38f, 0, 0, 0}, mtwn_segmentLinear)};
+    far[1].in = (mtwnVec4){-3e38f, 0, 0, 0};
+    made = mtwnMakeTrack(&def, far, 2, NULL, NULL, &track) == mtwn_success;
+    CHECK(made && fabsf(far[1].value.x) <= 8.0f && far[1].in.x == -0x1.fffffep127f,
+          "a control moved past the floats: made, held at the lowest");
+    half = made ? mtwnSampleTrack(&track, 0.5) : (mtwnVec4){0};
+    CHECK(isfinite(half.x) && half.x < -1e37f, "its segment drawn toward it");
+}
+
 int main(void)
 {
     TestRotationZero();
@@ -492,6 +522,7 @@ int main(void)
     TestSamplePastFloats();
     TestDiscrete();
     TestAngles();
+    TestAnglesFarOut();
     TestColors();
     TestRotations();
     TestRefusals();

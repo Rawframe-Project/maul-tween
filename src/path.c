@@ -553,9 +553,13 @@ static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, u
     return true;
 }
 
-static void Shift(mtwnVec4* v, float by)
+// A control moved by its keyframe's whole turns, in double: the shift can
+// pass the floats' range (from -3e38 to 3e38 is 6e38), and a control far
+// from its keyframe can land past it, held as every number is (record
+// mtwn-0069).
+static void Shift(mtwnVec4* v, double by)
 {
-    v->x += by;
+    v->x = (float)mtwnNumberHeld((double)v->x + by);
 }
 
 static void Negate(mtwnVec4* v)
@@ -581,7 +585,7 @@ static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         {
             float moved = (float)mtwnMixAngle((double)keyframes[i - 1].value.x, (double)k->value.x,
                                               def->angleMethod, 1.0);
-            float by = moved - k->value.x;
+            double by = (double)moved - (double)k->value.x;
             k->value.x = moved;
             Shift(&k->in, by);
             Shift(&k->out, by);
@@ -604,7 +608,10 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         return mtwn_errorInvalid;
     }
     // Only the longest way between equal rotations refuses a mix, and it
-    // flips nothing, so a refusal leaves the keyframes as they were.
+    // flips nothing, so a refusal leaves the keyframes as they were. What
+    // the canonical form writes is finite (an angle within a turn of a
+    // float before it, a control held), so the path's check after it
+    // refuses nothing the check before it passed.
     Canonicalize(def, keyframes, count);
     bool mixed = def->kind == mtwn_valueColor || def->kind == mtwn_valueRotation;
     for (uint32_t i = 0; mixed && i + 1 < count; ++i)
