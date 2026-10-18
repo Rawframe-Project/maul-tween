@@ -26,7 +26,9 @@ It covers:
 The curves need no setup and allocate nothing. Everything else lives
 in a context the host creates with its allocator and fixed capacities;
 nothing is allocated afterwards, and results are identical on every
-platform.
+platform. CI builds and tests it on x86-64 and 32-bit x86 (with SSE2
+arithmetic), AArch64 and WebAssembly; x87's excess precision is refused
+at build time.
 
 ## Status
 

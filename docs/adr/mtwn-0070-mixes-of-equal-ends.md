@@ -105,3 +105,16 @@ and as the float it becomes, without a clamp. `test_mix` holds it on
 400,000 float ends (random, one ulp apart, thirty orders apart, powers
 of two) at t within 64 ulps below 1, at 1 - 2^-24 and below, and in
 [0, 1]; a search of 40 million such cases found none outside.
+
+## Amended 2026-10-18: the conditions the argument needs
+
+The argument above, like every bit-exact result of the library, holds for
+doubles rounded to nearest and evaluated as written: no excess precision
+and no fused contraction of `a + t * (b - a)`. The build holds each:
+`src/fpenv.c` refuses to compile where `FLT_EVAL_METHOD` is not 0 (x87's
+80 bits) and accepts only x86 with SSE2 arithmetic, AArch64 and
+WebAssembly; the family's flags turn contraction off for GCC, Clang and
+clang-cl; the update holds round to nearest in the control register
+(record mtwn-0029). `test_mix` runs in every CI job that tests: x86-64
+(GCC, Clang, its sanitizers, shared), 32-bit x86 with SSE2, AArch64
+(Linux and macOS), Windows and WebAssembly under Node.

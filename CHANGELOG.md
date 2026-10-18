@@ -7,6 +7,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- 32-bit x86 (gcc 14 `-m32 -msse2 -mfpmath=sse`) is built and tested in
+  CI, the determinism hash included; x87 arithmetic was and is refused
+  at build time.
+
 ### Changed
 
 - A color's mix is `a + t (b - a)`, its ends returned before it: its
