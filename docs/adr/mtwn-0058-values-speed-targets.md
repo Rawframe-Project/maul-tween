@@ -85,3 +85,27 @@ up to 7.7e-4 of the length off. (This amendment was first published
 with the gate's `-O3` counts, 2,595 and a target of 2,650; this
 record's targets are `-O2` counts. Counted so, the others hold: Oklab
 1,779, OkLCh 2,012, slerp 794 and the track 239.)
+
+## Amended 2026-10-18: counted again after scales, inertia and directions
+
+Counted again (`-O2`) after records mtwn-0059 to mtwn-0065: Oklab
+1,779, OkLCh 2,012 and slerp 794, unmoved; the path 2,776 and the track
+243, both within their targets. The path's growth since 2,727: 41 from
+scale tracks, which a path reads as their logarithms, testing at each
+keyframe it loads whether to take one, and which moved the arc length
+to a file of its own, so the sample calls it; 2 from a segment of a
+length within rounding of none held still; 6 from the direction's
+access to segments. A Catmull-Rom segment loaded its two keyframes
+twice, once for the segment and once for its tangents, two tests each:
+it now takes them from the segment, and the path is 2,754 (2,621 in
+the gate's `-O3` build, 2,646 before). The track's 4, the test on the
+linear segment's two loads, stays: it is the scale kind's.
+
+The bench's frames, counted at `-O3` against record mtwn-0043's bounds,
+had grown about 0.6% (the clips 5.946 to 5.981 million): 4 instructions
+a track sample from scale tracks, 3 more where a clip's track moves on
+by its iterations, whose scale case made the common return, a track
+that does not, dearer, and the test of a context's record capacity
+(record mtwn-0062), 3,100 a frame. The moving on is now out of line
+behind a test of whether the track moves on at all: the clips 5.886
+million, below their count before, and every other frame lower too.

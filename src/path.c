@@ -93,15 +93,13 @@ static void Hermite(const double p1[4], const double p2[4], const double m1[4], 
     }
 }
 
-static void CatmullRom(const mtwnPath* path, uint32_t i, mtwnCubic* out)
+// Through p1 and p2, keyframes i and i + 1 as the path moves them.
+static void CatmullRom(const mtwnPath* path, uint32_t i, const double p1[4], const double p2[4],
+                       mtwnCubic* out)
 {
     const mtwnKeyframe* k = path->keyframes;
     double p0[4];
-    double p1[4];
-    double p2[4];
     double p3[4];
-    LoadOf(path, k[i].value, p1);
-    LoadOf(path, k[i + 1].value, p2);
     for (int c = 0; c < 4; ++c)
     {
         p0[c] = 2.0 * p1[c] - p2[c];
@@ -170,7 +168,7 @@ static void SegmentCubic(const mtwnPath* path, uint32_t i, mtwnCubic* out)
         return;
     }
     case mtwn_segmentCatmullRom:
-        CatmullRom(path, i, out);
+        CatmullRom(path, i, p0, p3, out);
         return;
     default:
         for (int c = 0; c < 4; ++c)

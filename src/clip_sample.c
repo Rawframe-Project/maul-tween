@@ -11,6 +11,7 @@
 #include "compose.h"
 #include "context_internal.h"
 #include "elementary.h"
+#include "fpenv.h"
 #include "scale_internal.h"
 
 #include "maul-tween/path.h"
@@ -234,9 +235,9 @@ static mtwnVec4 Power(mtwnVec4 q, double k)
 }
 
 // An incremental track's value at an iteration: moved on k steps.
-static mtwnVec4 Moved(const mtwnClipNode* node, mtwnVec4 value, double k)
+static MTWN_NOINLINE mtwnVec4 MovedOn(const mtwnClipNode* node, mtwnVec4 value, double k)
 {
-    if (!node->incremental || k == 0.0)
+    if (k == 0.0)
     {
         return value;
     }
@@ -261,6 +262,13 @@ static mtwnVec4 Moved(const mtwnClipNode* node, mtwnVec4 value, double k)
                       (float)((double)value.y + k * (double)node->step.y),
                       (float)((double)value.z + k * (double)node->step.z),
                       (float)((double)value.w + k * (double)node->step.w)};
+}
+
+// Kept apart from MovedOn, the frame's common case, a track that does not
+// move on, stays a test.
+static mtwnVec4 Moved(const mtwnClipNode* node, mtwnVec4 value, double k)
+{
+    return node->incremental ? MovedOn(node, value, k) : value;
 }
 
 // A track's value, an integer's unrounded for its velocity.

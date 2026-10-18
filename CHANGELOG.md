@@ -58,6 +58,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- A path's Catmull-Rom segment loads its keyframes once: a path's
+  sample at constant speed takes about 22 fewer instructions.
+- A clip's track that does not move on by its iterations costs a test:
+  the bench's clip frames take 1.6% fewer instructions.
 - A context of `eventCapacity` 0 makes no records and drops none; its
   clips' players skip the sweeps that find crossings (record
   mtwn-0062). Before, every record was made and dropped, counted. A

@@ -39,7 +39,7 @@ clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
 player_slot: context_internal pool runs
-clip_sample: compose context_internal elementary pool runs scale_internal
+clip_sample: compose context_internal elementary fpenv pool runs scale_internal
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal
 compose: elementary scale_internal
