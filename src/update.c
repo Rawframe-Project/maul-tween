@@ -347,7 +347,8 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         WriteEased(context, slot, target, t);
         return;
     }
-    if (!Sample(slot, t, now, speed))
+    bool sampledSpeed = Sample(slot, t, now, speed);
+    if (!sampledSpeed)
     {
         // The change over the curve's last millisecond, from its start
         // before that; none for a discrete value.
@@ -377,15 +378,20 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     }
     float value[4];
     float velocity[4];
+    // A curve's own speed is the value's where the value is not held; held
+    // past the floats it is still, as the speed the values held give
+    // (record mtwn-0069).
     for (int i = 0; i < 4; ++i)
     {
         value[i] = (float)now[i];
-        velocity[i] = mtwnVelocityFloat(speed[i]);
+        bool still = sampledSpeed && now[i] != mtwnNumberHeld(now[i]);
+        velocity[i] = still ? 0.0f : mtwnVelocityFloat(speed[i]);
     }
     if (slot->kind == mtwn_valueScale)
     {
         value[0] = mtwnScaleFloat(now[0]);
-        velocity[0] = mtwnVelocityFloat(speed[0]);
+        bool still = sampledSpeed && now[0] != mtwnScaleHeld(now[0]);
+        velocity[0] = still ? 0.0f : mtwnVelocityFloat(speed[0]);
     }
     // Numbers held within the floats (record mtwn-0069); a scale's value
     // is within them already.

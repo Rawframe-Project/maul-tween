@@ -32,19 +32,25 @@ static mtwnVec4 Pack(const double v[4])
     return mtwnNumbersHeld((mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]});
 }
 
-// Per channel: the sum for add, then the mix by the weight.
-static mtwnVec4 Linear(mtwnComposite composite, double weight, mtwnVec4 under, mtwnVec4 effect)
+// Per channel: the sum for add, then the mix by the weight, in double.
+static void Sums(mtwnComposite composite, double weight, mtwnVec4 under, mtwnVec4 effect,
+                 double out[4])
 {
     double a[4];
     double b[4];
     Unpack(under, a);
     Unpack(effect, b);
-    double out[4];
     for (int i = 0; i < 4; ++i)
     {
         double composed = composite == mtwn_compositeAdd ? a[i] + b[i] : b[i];
         out[i] = weight == 1.0 ? composed : a[i] + weight * (composed - a[i]);
     }
+}
+
+static mtwnVec4 Linear(mtwnComposite composite, double weight, mtwnVec4 under, mtwnVec4 effect)
+{
+    double out[4];
+    Sums(composite, weight, under, effect, out);
     return Pack(out);
 }
 
@@ -174,10 +180,24 @@ mtwnMoving mtwnCompose(mtwnValueKind kind, mtwnComposite composite, double weigh
     case mtwn_valueScale:
         return Scale(composite, weight, underlying, effect);
     default:
-        out.value = Linear(composite, weight, underlying.value, effect.value);
+    {
+        double sums[4];
+        Sums(composite, weight, underlying.value, effect.value, sums);
+        out.value = Pack(sums);
+        out.velocity = Linear(composite, weight, underlying.velocity, effect.velocity);
+        // Held past the floats, a number is still (record mtwn-0069).
+        float* velocity = &out.velocity.x;
+        for (int i = 0; i < 4; ++i)
+        {
+            velocity[i] = sums[i] != mtwnNumberHeld(sums[i]) ? 0.0f : velocity[i];
+        }
         break;
     }
-    out.velocity = Linear(composite, weight, underlying.velocity, effect.velocity);
+    }
+    if (kind == mtwn_valueColor || kind == mtwn_valueRotation)
+    {
+        out.velocity = Linear(composite, weight, underlying.velocity, effect.velocity);
+    }
     if (kind == mtwn_valueInteger)
     {
         out.value.x = (float)round((double)out.value.x);

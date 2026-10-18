@@ -13,10 +13,12 @@
 
 #include "maul-tween/clip.h"
 #include "maul-tween/player.h"
+#include "maul-tween/spring.h"
 #include "maul-tween/target.h"
 #include "maul-tween/transition.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -273,11 +275,86 @@ static void TestAdding(void)
     CHECK(wrong == 0, "two players adding as the oracle");
 }
 
+static void TestStill(void)
+{
+    // Springs between ends near the bounds, some overshooting past them:
+    // a number held at a bound is still (record mtwn-0069), its velocity
+    // that of the value held, not the curve's.
+    uint32_t moving = 0;
+    uint32_t held = 0;
+    for (uint32_t trial = 0; trial < 100u; ++trial)
+    {
+        float a = trial == 0 ? 0.0f : End();
+        float b = trial == 0 ? 3e38f : End();
+        World w = MakeWorld(a);
+        mtwnTransitionDef def = mtwnDefaultTransitionDef();
+        def.target = w.target;
+        def.value = (mtwnVec4){b, 0, 0, 0};
+        def.spec = mtwn_transitionSpring;
+        CHECK(mtwnMakeSpringFromFrequency(1.0 + 3.0 * Unit(), 0.05 + 0.5 * Unit(), &def.spring) ==
+                  mtwn_success,
+              "a spring");
+        mtwnPlayerId player;
+        CHECK(mtwnStartTransition(w.context, &def, &player) == mtwn_success, "a transition");
+        for (int k = 1; k <= 120; ++k)
+        {
+            CHECK(mtwnUpdate(w.context, (uint64_t)k * 25000000u, NULL, 0, NULL) == mtwn_success,
+                  "updated");
+            mtwnTargetState state;
+            CHECK(mtwnTarget_GetState(w.context, w.target, &state) == mtwn_success, "read");
+            bool bound = fabsf(state.value.x) == 0x1.fffffep127f;
+            held += bound;
+            moving += bound && state.velocity.x != 0.0f;
+        }
+        mtwnDestroyContext(w.context);
+    }
+    CHECK(held > 0, "some held at a bound");
+    CHECK(moving == 0, "held at a bound: still");
+    // A clip track eased past the bound, by one player replacing and by
+    // two adding.
+    for (int players = 1; players <= 2; ++players)
+    {
+        held = 0;
+        moving = 0;
+        World w = MakeWorld(0.0f);
+        for (int i = 0; i < players; ++i)
+        {
+            mtwnKeyframe keys[2];
+            memset(keys, 0, sizeof keys);
+            keys[1].offset = 1.0;
+            keys[1].value.x = 3e38f;
+            keys[1].easing = mtwnLinearEasing();
+            CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &keys[0].easing) == mtwn_success,
+                  "a back out");
+            mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+            track.keyframes = keys;
+            track.keyframeCount = 2;
+            track.timing.duration = 1.0;
+            Play(&w, &track, 1, players == 1 ? mtwn_compositeReplace : mtwn_compositeAdd);
+        }
+        for (int k = 1; k < 60; ++k)
+        {
+            CHECK(mtwnUpdate(w.context, 1000000000u + (uint64_t)k * 16666667u, NULL, 0, NULL) ==
+                      mtwn_success,
+                  "updated");
+            mtwnTargetState state;
+            CHECK(mtwnTarget_GetState(w.context, w.target, &state) == mtwn_success, "read");
+            bool bound = fabsf(state.value.x) == 0x1.fffffep127f;
+            held += bound;
+            moving += bound && state.velocity.x != 0.0f;
+        }
+        CHECK(held > 0 && moving == 0,
+              players == 1 ? "a track held at a bound: still" : "two adding, held: still");
+        mtwnDestroyContext(w.context);
+    }
+}
+
 int main(void)
 {
     TestTransitions();
     TestTracks();
     TestIncremental();
     TestAdding();
+    TestStill();
     return s_failures == 0 ? 0 : 1;
 }
