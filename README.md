@@ -32,45 +32,49 @@ at build time.
 
 ## Status
 
-1.0.0 (2026-10-18), the first stable release, holds the whole library:
-Penner's families and CSS Easing Level 2, in four modes, with even
-tables and fitted CSS linear() points, and rough easings from a seed;
-springs in closed form, as easings too, decay, inertia landing on an end
-or within bounds, and the rubber band; colors as CSS Color 4
-interpolates them; angles, rotations, integers, discrete values, scales
-in their logarithm, van Wijk and Nuij's zoom, punch and shake; Web
-Animations' timing with playback rate and repeat delay; staggers over a
-row or a grid; a context in one block holding targets, and transitions
-advanced by an update that guards the floating-point environment;
-keyframe paths, Catmull-Rom, monotone or Bezier, at constant speed if
-asked, with their direction, and tracks of every value kind over them;
-clips holding tracks on nested timelines with labels and marks; players
-controlling clips by Web Animations' procedures; events as counted
-records in a bounded queue; players layered by replace and add with
-weights; reduced motion; a context grown only when the host asks; clips'
-players run on the host's task system if it gives one. From 1.0.0 the
-source interface only grows within 1.x and results are the same bits on
-every platform (record mtwn-0072). 0.7.0, earlier that day, had the same
-features, named the misuse count `mtwnContext_GetMisuseCount`, and
-promised none of this; 0.6.1, earlier that day, had the same features,
-took inputs whose reserved bytes were not 0, mixed values by the
-weighted sum, up to 2^-14 of the result off far past ends one ulp apart,
-and was not tested on 32-bit x86; 0.6.0, earlier that day, had the same
-features, took a call back in from the host's code into the context it
-was serving, let a number eased past the floats' range turn infinite and
-an extreme mix of equal ends move; 0.5.1, on 2026-10-17, had neither
-scales, zooms, rough easings, inertia's ends and bounds, a path's
-direction nor monotone segments, and made every record even in a context
-that wanted none; 0.4.0, earlier that day, had the same features, values
-that could jump to an iteration's start for one time beside a repeat
-delay or a negative rate's start, and records that could be lost or two
-ulps off past a repeat delay; 0.3.1, the day before, had the same
-features, the sharing's memory fixed and the task hooks costing up to 9%
-on one worker; 0.3.0, earlier that day, had slower clip players and
-records that could miss a crossing where a frame landed on a held time's
-edge; 0.2.1, on 2026-10-15, ran them on the calling thread only and
-several times slower; 0.1.0 lacked staggers and reduced motion. The
-library has 124 public functions.
+1.0.1 (2026-10-18) holds the whole library: Penner's families and CSS
+Easing Level 2, in four modes, with even tables and fitted CSS linear()
+points, and rough easings from a seed; springs in closed form, as
+easings too, decay, inertia landing on an end or within bounds, and the
+rubber band; colors as CSS Color 4 interpolates them; angles, rotations,
+integers, discrete values, scales in their logarithm, van Wijk and
+Nuij's zoom, punch and shake; Web Animations' timing with playback rate
+and repeat delay; staggers over a row or a grid; a context in one block
+holding targets, and transitions advanced by an update that guards the
+floating-point environment; keyframe paths, Catmull-Rom, monotone or
+Bezier, at constant speed if asked, with their direction, and tracks of
+every value kind over them; clips holding tracks on nested timelines
+with labels and marks; players controlling clips by Web Animations'
+procedures; events as counted records in a bounded queue; players
+layered by replace and add with weights; reduced motion; a context grown
+only when the host asks; clips' players run on the host's task system if
+it gives one. From 1.0.0 the source interface only grows within 1.x and
+results are the same bits on every platform (record mtwn-0072). 1.0.0,
+earlier that day, the first stable release, had the same features, gave
+NaN for a rubber band of an endless coefficient and no drag, ended an
+unbounded number decay stopping past the floats' range infinite, and
+moved an incremental number track whose step passed the floats' range to
+the bound. 0.7.0, earlier that day, had the same features, named the
+misuse count `mtwnContext_GetMisuseCount`, and promised none of this;
+0.6.1, earlier that day, had the same features, took inputs whose
+reserved bytes were not 0, mixed values by the weighted sum, up to 2^-14
+of the result off far past ends one ulp apart, and was not tested on
+32-bit x86; 0.6.0, earlier that day, had the same features, took a call
+back in from the host's code into the context it was serving, let a
+number eased past the floats' range turn infinite and an extreme mix of
+equal ends move; 0.5.1, on 2026-10-17, had neither scales, zooms, rough
+easings, inertia's ends and bounds, a path's direction nor monotone
+segments, and made every record even in a context that wanted none;
+0.4.0, earlier that day, had the same features, values that could jump
+to an iteration's start for one time beside a repeat delay or a negative
+rate's start, and records that could be lost or two ulps off past a
+repeat delay; 0.3.1, the day before, had the same features, the
+sharing's memory fixed and the task hooks costing up to 9% on one
+worker; 0.3.0, earlier that day, had slower clip players and records
+that could miss a crossing where a frame landed on a held time's edge;
+0.2.1, on 2026-10-15, ran them on the calling thread only and several
+times slower; 0.1.0 lacked staggers and reduced motion. The library has
+124 public functions.
 
 ## Building
 
@@ -146,9 +150,9 @@ composition, paths or crossings (record mtwn-0047).
 |---|---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 25.0 kB | 24.4 kB | 20.8 kB | 27 kB |
 | values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 56.4 kB | 47.2 kB | 48.6 kB | 60 kB |
-| transitions: a context, targets and transitions | 59.5 kB | 51.4 kB | 47.3 kB | 63 kB |
-| clips: clips, players, events | 143.0 kB | 113.5 kB | 119.1 kB | 152 kB |
-| everything | 159.7 kB | 159.3 kB | 133.9 kB | 169 kB |
+| transitions: a context, targets and transitions | 59.6 kB | 51.5 kB | 47.4 kB | 63 kB |
+| clips: clips, players, events | 143.1 kB | 113.5 kB | 119.1 kB | 152 kB |
+| everything | 159.8 kB | 159.4 kB | 133.9 kB | 169 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets

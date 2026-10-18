@@ -49,15 +49,14 @@ BUDGETS = {
 }
 
 
-# Each part's size in bytes at the last release, 1.0.0 (0.7.0's, to the
-# byte), its budgets'
+# Each part's size in bytes at the last release, 1.0.1, its budgets'
 # ceiling GROWTH over it, and the records raising a ceiling past it.
 RELEASED = {
     "curves": 25049,
     "values": 56409,
-    "transitions": 59545,
-    "clips": 143017,
-    "everything": 159705,
+    "transitions": 59609,
+    "clips": 143097,
+    "everything": 159769,
 }
 GROWTH = 0.10
 RAISED = {}

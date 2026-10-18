@@ -155,3 +155,12 @@ with the mix (record mtwn-0058's targets and the bench's frames).
 At 1.0.0 the parts are 0.7.0's to the byte (GCC 14, x86-64; the misuse
 count's rename moves no code), so the budgets restated at 0.7.0 stand.
 Clang 20's clips and everything are 0.1 kB more.
+
+## Amended 2026-10-18: 1.0.1
+
+At 1.0.1 (GCC 14, x86-64) curves and values are 1.0.0's to the byte;
+transitions and everything are 64 bytes more and clips 80, from the
+decay's end held within the floats (`transition` 48 bytes) and the
+rubber band's zero distance (`decay` 16); the incremental step taken in
+double moves 64 bytes from `clip` to `clip_sample`. Every part stays
+within its budget, and the budgets stand.

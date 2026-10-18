@@ -15,6 +15,8 @@ API and the ABI.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-18
+
 ### Fixed
 
 - `mtwnRubberBand` with an infinite coefficient and no distance past the
