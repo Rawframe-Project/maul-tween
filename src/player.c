@@ -10,6 +10,7 @@
 
 #include "context_internal.h"
 #include "fpenv.h"
+#include "invariant.h"
 #include "reserved_internal.h"
 
 #include <math.h>
@@ -174,7 +175,9 @@ static mtwnResult Play(mtwnClipPlay* play, double now, double end)
     {
         play->startTime = (double)NAN;
     }
-    if (isnan(play->holdTime) && isnan(seek))
+    // A seek sets the hold time.
+    MTWN_ASSERT(isnan(seek) || play->holdTime == seek);
+    if (isnan(play->holdTime))
     {
         // Already running: nothing to do but a pending rate, which the next
         // update applies from the time it reaches.
@@ -287,16 +290,17 @@ static void StartPending(mtwnClipPlay* play, double now)
     }
     if (play->pending)
     {
-        // The pending play's ready time is this update's.
+        // The pending play's ready time is this update's. A play is
+        // pending only with its hold time resolved (Play), and nothing
+        // clears it while the start time is unresolved, so Level 1's other
+        // case, a start time with a pending rate, is StartPending's first.
+        MTWN_ASSERT(!isnan(play->holdTime));
         play->pending = false;
         ApplyPendingRate(play);
-        if (!isnan(play->holdTime))
+        play->startTime = play->rate != 0.0 ? now - play->holdTime / play->rate : now;
+        if (play->rate != 0.0)
         {
-            play->startTime = play->rate != 0.0 ? now - play->holdTime / play->rate : now;
-            if (play->rate != 0.0)
-            {
-                play->holdTime = (double)NAN;
-            }
+            play->holdTime = (double)NAN;
         }
     }
 }
