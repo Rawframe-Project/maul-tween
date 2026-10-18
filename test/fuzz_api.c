@@ -120,8 +120,37 @@ static double Value(Bytes* in, double scale)
         in->at = at;
         return Wild(in, scale);
     }
-    double fraction = (double)(1 + Byte(in)) / 256.0;
+    // About one draw in 64 (48 of this case's 256) is a value that breaks
+    // arithmetic exactly; the rest a fraction of the largest float.
+    static const double rare[6] = {0x1.fffffep127, -0x1.fffffep127, 0x1p-149, -0x1p-149,
+                                   -0.0,           1.0 - 0x1p-24};
+    uint32_t f = Byte(in);
+    if (f < 48)
+    {
+        return rare[f % 6];
+    }
+    double fraction = (double)(1 + f) / 256.0;
     return (b / 12 % 2 == 0 ? fraction : -fraction) * 0x1.fffffep127;
+}
+
+// An offset or a time: Wild's draws, but about one in 61 (10 of its last
+// case's 256) a progress at the edge of its rounding: just below 1, at
+// the floats' and the doubles' last steps there, the smallest subnormal,
+// -0. It takes the same bytes as Wild.
+static double Progress(Bytes* in, double scale)
+{
+    size_t at = in->at;
+    uint32_t b = Byte(in);
+    uint32_t f = Byte(in);
+    in->at = at;
+    if (b % 12 < 7 || f >= 10)
+    {
+        return Wild(in, scale);
+    }
+    (void)Byte(in);
+    (void)Byte(in);
+    static const double rare[5] = {1.0 - 0x1p-24, 1.0 - 0x1p-53, 0x1p-24, 0x1p-149, -0.0};
+    return rare[f % 5];
 }
 
 static mtwnTiming RandomTiming(Bytes* in)
@@ -243,7 +272,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         for (uint32_t k = 0; k < count; ++k)
         {
             keys[k].value = (mtwnVec4){(float)Value(in, 4.0), 0.5f, 0.0f, 1.0f};
-            keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Wild(in, 1.0));
+            keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Progress(in, 1.0));
             keys[k].easing = mtwnLinearEasing();
             if (k == 1)
             {
@@ -289,7 +318,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
     switch (Below(in, 14))
     {
     case 0:
-        r = mtwnPlayer_Seek(context, player, Wild(in, 4.0));
+        r = mtwnPlayer_Seek(context, player, Progress(in, 4.0));
         break;
     case 1:
         r = mtwnPlayer_Reverse(context, player);
@@ -304,7 +333,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         r = mtwnPlayer_Play(context, player);
         break;
     case 5:
-        r = mtwnPlayer_Sweep(context, player, Wild(in, 4.0));
+        r = mtwnPlayer_Sweep(context, player, Progress(in, 4.0));
         break;
     case 6:
         r = mtwnPlayer_Finish(context, player);
