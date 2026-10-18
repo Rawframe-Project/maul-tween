@@ -55,3 +55,30 @@ a clip track's first key drawn below 0, by a host curve that peaks near
 paths; with the helper removed it fails. A host easing returning a
 non-finite output remains the host's: the library neither checks nor
 forces its ends.
+
+## Amended 2026-10-18: where a value is held, and an oracle
+
+Three values were not held where they became floats: an unbounded
+number decay's end past the floats (infinite, found fuzzing), an
+incremental track's step past them (infinite, every later iteration at
+the bound, a finite value no fuzzer's check sees) and an angle track's
+Bezier controls moved by the unwrap past them (infinite, the track
+refused). Each is now computed in double and held where it becomes a
+float (1.0.1 and after).
+
+Players composing onto one target compose each onto the value the layer
+before wrote, a float the target holds, so a sum that leaves the floats
+and comes back is held between layers: a base of 3e38 adding 3e38 and
+then -3e38 ends at the largest float less 3e38, not at 3e38. Carrying a
+double per target through an update would cost 32 bytes a target and the
+composition's path for sums no float target's animation reaches; the
+layer's value as the target holds it is what Web Animations composites
+the next effect onto, its underlying value.
+
+`test_bounds` checks each place against an oracle: inputs near the
+bounds (a transition eased past its ends, three-keyframe clip tracks, an
+incremental repeat, two players adding) against the same arithmetic in
+double from the inputs, held once where a target takes it. A value at
+the bound where the oracle is not, or short of it where the oracle is,
+fails; with the incremental step rounded to a float again, as in 1.0.0,
+it fails.
