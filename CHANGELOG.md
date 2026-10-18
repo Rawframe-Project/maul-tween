@@ -24,6 +24,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   value at most the largest float: within a float's rounding of before,
   with no case for a rate of 0 (record mtwn-0059).
 
+### Fixed
+
+- A bounded decay with a lower bound of infinity or an upper of
+  -infinity is refused: it had nowhere finite to rest and turned NaN.
+
 ## [0.6.0] - 2026-10-18
 
 A minor release: scales moved in their logarithm and van Wijk and

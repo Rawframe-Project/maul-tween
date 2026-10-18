@@ -204,7 +204,8 @@ static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* ou
 {
     float lower = (&def->lower.x)[i];
     float upper = (&def->upper.x)[i];
-    if (!(lower <= upper) || (out->kind == mtwn_valueScale && !(lower > 0.0f)))
+    if (!(lower <= upper) || lower == INFINITY || upper == -INFINITY ||
+        (out->kind == mtwn_valueScale && !(lower > 0.0f)))
     {
         return false;
     }

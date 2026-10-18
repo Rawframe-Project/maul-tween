@@ -70,7 +70,9 @@ extern "C"
         // The decay of mtwn_transitionDecay.
         mtwnDecay decay;
         // For a bounded decay, the bounds it is held between, per channel
-        // (a scale's above 0); each may be infinite, for none.
+        // (a scale's above 0); each may be infinite on its own side, for
+        // none (a lower bound of infinity or an upper of -infinity is
+        // refused).
         mtwnVec4 lower;
         mtwnVec4 upper;
         // A spring rests within restOffset of its end and restSpeed of

@@ -566,7 +566,7 @@ Makes the decay that comes to rest at an end from a start, keeping the start's v
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeBoundedDecay(const mtwnDecay* decay, const mtwnSpring* spring, double lower, double upper, mtwnBoundedDecay* boundedOut);
 ```
-Makes a bounded decay.  @param decay    A decay made by this library. @param spring   A spring made by this library, the bounce. @param lower    The lower bound; may be -infinity, for none. @param upper    The upper bound, at least the lower; may be infinity, for none. @param boundedOut  Receives the bounded decay. @return mtwn_success; mtwn_errorInvalid for a null pointer, a NaN bound or a lower bound above the upper. @par Thread safety Safe from any thread.
+Makes a bounded decay.  @param decay    A decay made by this library. @param spring   A spring made by this library, the bounce. @param lower    The lower bound; may be -infinity, for none. @param upper    The upper bound, at least the lower; may be infinity, for none. @param boundedOut  Receives the bounded decay. @return mtwn_success; mtwn_errorInvalid for a null pointer, a NaN bound, a lower bound above the upper, a lower bound of infinity or an upper of -infinity. @par Thread safety Safe from any thread.
 
 ```c
 void mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded, double position, double velocity, double seconds, double* positionOut, double* velocityOut);

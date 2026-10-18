@@ -27,7 +27,10 @@ mtwnResult mtwnMakeDecayToRest(double position, double velocity, double rest, mt
 mtwnResult mtwnMakeBoundedDecay(const mtwnDecay* decay, const mtwnSpring* spring, double lower,
                                 double upper, mtwnBoundedDecay* boundedOut)
 {
-    if (decay == NULL || spring == NULL || boundedOut == NULL || !(lower <= upper))
+    // A lower bound of infinity or an upper of -infinity leaves nowhere
+    // finite to rest: a start short of it would bounce toward it forever.
+    if (decay == NULL || spring == NULL || boundedOut == NULL || !(lower <= upper) ||
+        lower == HUGE_VAL || upper == -HUGE_VAL)
     {
         return mtwn_errorInvalid;
     }

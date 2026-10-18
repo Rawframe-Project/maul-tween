@@ -268,7 +268,8 @@ extern "C"
     ///                 infinity, for none.
     /// @param boundedOut  Receives the bounded decay.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a NaN
-    ///         bound or a lower bound above the upper.
+    ///         bound, a lower bound above the upper, a lower bound of
+    ///         infinity or an upper of -infinity.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeBoundedDecay(const mtwnDecay* decay,

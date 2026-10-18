@@ -205,7 +205,15 @@ static void TestRefusals(void)
         mtwnMakeBoundedDecay(&decay, &spring, (double)NAN, 1.0, &bounded) == mtwn_errorInvalid;
     refused +=
         mtwnMakeBoundedDecay(&decay, &spring, 0.0, (double)NAN, &bounded) == mtwn_errorInvalid;
-    CHECK(refused == 6, "no decay, spring or out, bounds the wrong way round or NaN refused");
+    refused += mtwnMakeBoundedDecay(&decay, &spring, (double)INFINITY, (double)INFINITY,
+                                    &bounded) == mtwn_errorInvalid;
+    refused += mtwnMakeBoundedDecay(&decay, &spring, -(double)INFINITY, -(double)INFINITY,
+                                    &bounded) == mtwn_errorInvalid;
+    CHECK(refused == 8, "no decay, spring or out, bounds the wrong way round or NaN, a lower "
+                        "bound of infinity or an upper of -infinity refused");
+    CHECK(mtwnMakeBoundedDecay(&decay, &spring, -(double)INFINITY, (double)INFINITY, &bounded) ==
+              mtwn_success,
+          "no bounds at all, a plain decay");
     CHECK(mtwnMakeBoundedDecay(&decay, &spring, 5.0, 5.0, &bounded) == mtwn_success,
           "equal bounds, a single resting place");
 }
