@@ -256,7 +256,9 @@ static void TestNumbersPastFloats(void)
         Start(context, &def);
     }
     int infinite = 0;
-    int held = 0;
+    // Frames each channel spent held at its bound and still: the scalar's,
+    // the vector's two and the integer's, each on its own.
+    int held[4] = {0, 0, 0, 0};
     for (int k = 0; k <= 60; ++k)
     {
         Update(context, (uint64_t)k * s_second / 60u);
@@ -269,12 +271,73 @@ static void TestNumbersPastFloats(void)
             {
                 infinite += !isfinite(value[c]) || !isfinite(velocity[c]);
             }
-            held += state.value.x == 0x1.fffffep127f && state.velocity.x == 0.0f;
-            held += i == 1 && state.value.y == -0x1.fffffep127f && state.velocity.y == 0.0f;
+            held[i == 2 ? 3 : i] += state.value.x == 0x1.fffffep127f && state.velocity.x == 0.0f;
+            held[2] += i == 1 && state.value.y == -0x1.fffffep127f && state.velocity.y == 0.0f;
         }
     }
     CHECK(infinite == 0, "finite throughout, every kind");
-    CHECK(held > 0, "held at the nearest finite float, and still there");
+    CHECK(held[0] > 0 && held[1] > 0 && held[2] > 0 && held[3] > 0,
+          "each channel held at its nearest finite float, and still there");
+    mtwnDestroyContext(context);
+}
+
+// A spring of numbers whose bounce overshoots past the floats' range: 0
+// to 3e38 overshoots near 5e38. Held at the bound, every frame finite
+// (record mtwn-0069).
+static void TestSpringPastFloats(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueVec2, (mtwnVec4){0});
+    mtwnTransitionDef def = Linear(x, (mtwnVec4){3e38f, -3e38f, 0, 0}, 1.0);
+    def.spec = mtwn_transitionSpring;
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.9, &def.spring) == mtwn_success, "a bouncy spring");
+    Start(context, &def);
+    int infinite = 0;
+    int held = 0;
+    for (int k = 0; k <= 120; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 60u);
+        mtwnTargetState state = State(context, x);
+        infinite += !isfinite(state.value.x) || !isfinite(state.value.y) ||
+                    !isfinite(state.velocity.x) || !isfinite(state.velocity.y);
+        held += state.value.x == 0x1.fffffep127f && state.value.y == -0x1.fffffep127f;
+    }
+    CHECK(infinite == 0 && held > 0, "a spring past the floats: held, finite");
+    mtwnDestroyContext(context);
+}
+
+// A color eased so far past its ends that its channels pass the floats'
+// range: they are held there and still (record mtwn-0069).
+static double Enormous(void* unused, double progress)
+{
+    (void)unused;
+    return progress + 1e45 * progress * progress * (1.0 - progress);
+}
+
+static void TestColorPastFloats(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId color = Target(context, mtwn_valueColor, (mtwnVec4){0, 0, 0, 1.0f});
+    mtwnTransitionDef def = Linear(color, (mtwnVec4){1.0f, 1.0f, 1.0f, 1.0f}, 1.0);
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Enormous, NULL, &def.easing) == mtwn_success,
+          "an enormous easing");
+    Start(context, &def);
+    int infinite = 0;
+    int still = 0;
+    for (int k = 0; k <= 60; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 60u);
+        mtwnTargetState state = State(context, color);
+        const float* value = &state.value.x;
+        const float* velocity = &state.velocity.x;
+        for (int c = 0; c < 4; ++c)
+        {
+            infinite += !isfinite(value[c]) || !isfinite(velocity[c]);
+        }
+        still += state.value.x == 0x1.fffffep127f && state.velocity.x == 0.0f &&
+                 state.velocity.y == 0.0f && state.velocity.z == 0.0f;
+    }
+    CHECK(infinite == 0 && still > 0, "a color past the floats: held and still, finite");
     mtwnDestroyContext(context);
 }
 
@@ -1286,6 +1349,8 @@ int main(void)
     TestHalfTurns();
     TestScaleOvershootPastFloats();
     TestNumbersPastFloats();
+    TestSpringPastFloats();
+    TestColorPastFloats();
     TestExactness();
     TestSpring();
     TestHandover();
