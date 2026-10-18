@@ -125,6 +125,12 @@ double mtwnRubberBand(double distance, double dimension, double coefficient)
         return 0.0;
     }
     double past = fabs(distance);
+    // Nothing past the limit moves nothing, for any coefficient: an endless
+    // one's c x would be NaN.
+    if (past == 0.0)
+    {
+        return distance;
+    }
     // s d / (s + d) with s = c x, as m / (1 + m / M) for the smaller m and
     // larger M of the two, which neither overflows nor underflows, and is d
     // for an infinite drag; m when both are infinite, as the form tends to.

@@ -15,6 +15,12 @@ API and the ABI.
 
 ## [Unreleased]
 
+### Fixed
+
+- `mtwnRubberBand` with an infinite coefficient and no distance past the
+  limit returns 0 (the signed zero given) instead of NaN; found fuzzing
+  1.0.0.
+
 ## [1.0.0] - 2026-10-18
 
 The first stable release: what 0.7.0 does, with the promises above and
