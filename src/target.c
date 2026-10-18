@@ -66,8 +66,8 @@ static mtwnTargetSlot* Find(const mtwnContext* context, mtwnTargetId target)
     return (mtwnTargetSlot*)mtwnPoolFind(&context->targets, target.index1, target.generation);
 }
 
-mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
-                            mtwnTargetId* targetOut)
+static mtwnResult RunCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
+                                  mtwnTargetId* targetOut)
 {
     if (context == NULL)
     {
@@ -80,7 +80,7 @@ mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 v
         {
             *targetOut = (mtwnTargetId){0, 0};
         }
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
     *targetOut = (mtwnTargetId){0, 0};
@@ -97,7 +97,19 @@ mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 v
     return mtwn_success;
 }
 
-mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
+mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
+                            mtwnTargetId* targetOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunCreateTarget(context, kind, value, targetOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunDestroyTarget(mtwnContext* context, mtwnTargetId target)
 {
     if (context == NULL)
     {
@@ -106,7 +118,7 @@ mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
     mtwnTargetSlot* slot = Find(context, target);
     if (slot == NULL)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorStale;
     }
     if (slot->header.link != 0)
@@ -133,6 +145,17 @@ mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
     return mtwn_success;
 }
 
+mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunDestroyTarget(context, target);
+    mtwnLeave(context);
+    return result;
+}
+
 bool mtwnTarget_IsValid(const mtwnContext* context, mtwnTargetId target)
 {
     return context != NULL && Find(context, target) != NULL;
@@ -144,13 +167,13 @@ static mtwnResult Resolve(mtwnContext* context, mtwnTargetId target, mtwnTargetS
     *slotOut = Find(context, target);
     if (*slotOut == NULL)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorStale;
     }
     return mtwn_success;
 }
 
-mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec4 value)
+static mtwnResult RunTargetSetBase(mtwnContext* context, mtwnTargetId target, mtwnVec4 value)
 {
     if (context == NULL)
     {
@@ -165,7 +188,7 @@ mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec
     mtwnVec4 accepted = {0};
     if (!mtwnAcceptValue(slot->kind, value, &accepted))
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
     slot->base = accepted;
@@ -180,13 +203,24 @@ mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec
     return mtwn_success;
 }
 
-mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut)
+mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec4 value)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunTargetSetBase(context, target, value);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunTargetGetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut)
 {
     if (context == NULL || valueOut == NULL)
     {
         if (context != NULL)
         {
-            ++context->misuse;
+            mtwnCountMisuse(context);
         }
         return mtwn_errorInvalid;
     }
@@ -200,13 +234,25 @@ mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVe
     return resolved;
 }
 
-mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTargetState* stateOut)
+mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunTargetGetValue(context, target, valueOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunTargetGetState(mtwnContext* context, mtwnTargetId target,
+                                    mtwnTargetState* stateOut)
 {
     if (context == NULL || stateOut == NULL)
     {
         if (context != NULL)
         {
-            ++context->misuse;
+            mtwnCountMisuse(context);
         }
         return mtwn_errorInvalid;
     }
@@ -223,14 +269,25 @@ mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTa
     return resolved;
 }
 
-mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count,
-                           mtwnVec4* valuesOut)
+mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTargetState* stateOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunTargetGetState(context, target, stateOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count,
+                                 mtwnVec4* valuesOut)
 {
     if (context == NULL || (count != 0 && (targets == NULL || valuesOut == NULL)))
     {
         if (context != NULL)
         {
-            ++context->misuse;
+            mtwnCountMisuse(context);
         }
         return mtwn_errorInvalid;
     }
@@ -240,12 +297,24 @@ mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, ui
         const mtwnTargetSlot* slot = Find(context, targets[i]);
         if (slot == NULL)
         {
-            ++context->misuse;
+            mtwnCountMisuse(context);
             result = mtwn_errorStale;
             valuesOut[i] = (mtwnVec4){0};
             continue;
         }
         valuesOut[i] = slot->value;
     }
+    return result;
+}
+
+mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count,
+                           mtwnVec4* valuesOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunReadTargets(context, targets, count, valuesOut);
+    mtwnLeave(context);
     return result;
 }

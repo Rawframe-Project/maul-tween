@@ -418,8 +418,8 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     }
 }
 
-mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
-                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
+                            uint32_t changedCapacity, uint32_t* changedTotalOut)
 {
     if (context == NULL)
     {
@@ -428,7 +428,7 @@ mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* chang
     // The first update may come at any time: none is below 0.
     if ((changedOut == NULL && changedCapacity != 0) || timeNs < context->lastTimeNs)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
     uint64_t beforeNs = context->lastTimeNs;
@@ -453,4 +453,16 @@ mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* chang
     }
     context->changedCount = 0;
     return mtwn_success;
+}
+
+mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
+                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunUpdate(context, timeNs, changedOut, changedCapacity, changedTotalOut);
+    mtwnLeave(context);
+    return result;
 }

@@ -407,7 +407,7 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
 
 static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
 {
-    ++context->misuse;
+    mtwnCountMisuse(context);
     return result;
 }
 
@@ -557,7 +557,8 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     return mtwn_success;
 }
 
-mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut)
+static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def,
+                                  mtwnPlayerId* playerOut)
 {
     if (context == NULL)
     {
@@ -582,7 +583,18 @@ mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwn
     return result;
 }
 
-mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
+mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunCreatePlayer(context, def, playerOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
 {
     if (context == NULL)
     {
@@ -618,6 +630,17 @@ mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     target->velocity = (mtwnVec4){0};
     mtwnMarkChanged(context, index1);
     return mtwn_success;
+}
+
+mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunDestroyPlayer(context, player);
+    mtwnLeave(context);
+    return result;
 }
 
 bool mtwnPlayer_IsValid(const mtwnContext* context, mtwnPlayerId player)
@@ -774,8 +797,8 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
     return mtwn_success;
 }
 
-static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control control, double argument,
-                        uint32_t key)
+static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control control,
+                             double argument, uint32_t key)
 {
     if (context == NULL)
     {
@@ -808,6 +831,19 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
     mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
     mtwnFloatEnvLeave(&env);
     return result == mtwn_success ? result : Misuse(context, result);
+}
+
+// A control, the context entered for it (record mtwn-0068).
+static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control control, double argument,
+                        uint32_t key)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunControl(context, player, control, argument, key);
+    mtwnLeave(context);
+    return result;
 }
 
 mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player)
@@ -865,7 +901,8 @@ mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, doubl
     return Apply(context, player, s_setWeight, weight, 0);
 }
 
-mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)
+static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
+                                    mtwnPlayerState* stateOut)
 {
     if (context == NULL)
     {
@@ -895,4 +932,15 @@ mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPl
                                   .pending = play->pending || !isnan(play->pendingRate),
                                   .playsOnReduced = PlaysOn(context, play, state)};
     return mtwn_success;
+}
+
+mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunPlayerGetState(context, player, stateOut);
+    mtwnLeave(context);
+    return result;
 }

@@ -18,6 +18,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- A call back in from the host's code (a host easing, the allocator, the
+  task system) to a function taking the context it serves is refused
+  with `mtwn_errorState` and counted as misuse, and
+  `mtwnDestroyContext` from there destroys nothing (record mtwn-0068);
+  the misuse count is atomic.
 - `tools/code_size.py --budget` fails a part's budget set more than 10%
   over its size at the last release unless a record raises it.
 - The guide's animation on twos states its grid: from the timeline's

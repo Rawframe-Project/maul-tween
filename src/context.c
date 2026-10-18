@@ -311,7 +311,7 @@ static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* bl
     SetGroups(to, block, layout);
 }
 
-mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+static mtwnResult RunGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
 {
     if (contextInOut == NULL || *contextInOut == NULL)
     {
@@ -325,7 +325,7 @@ mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def
     }
     if (checked != mtwn_success)
     {
-        ++from->misuse;
+        mtwnCountMisuse(from);
         return checked;
     }
     Layout layout = {0};
@@ -350,12 +350,26 @@ mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def
     return mtwn_success;
 }
 
+mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+{
+    // The context moves: what it was enters, what it is leaves.
+    if (!mtwnEnter(contextInOut == NULL ? NULL : *contextInOut))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunGrowContext(contextInOut, def);
+    mtwnLeave(contextInOut == NULL ? NULL : *contextInOut);
+    return result;
+}
+
 void mtwnDestroyContext(mtwnContext* context)
 {
-    if (context == NULL)
+    if (context == NULL || !mtwnEnter(context))
     {
         return;
     }
+    // Busy to the end: the allocator's calls back in are refused until the
+    // context's own block goes.
     // The clips' blocks first, then the context's; the allocator is read
     // out before the block that holds it is freed.
     mtwnAllocator allocator = context->allocator;
@@ -372,7 +386,7 @@ void mtwnDestroyContext(mtwnContext* context)
 
 uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context)
 {
-    return context->misuse;
+    return atomic_load_explicit(&context->misuse, memory_order_relaxed);
 }
 
 uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context)
@@ -385,7 +399,7 @@ uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context)
     return context->blockBytes;
 }
 
-mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
+static mtwnResult RunContextSetReducedMotion(mtwnContext* context, bool reduced)
 {
     if (context == NULL)
     {
@@ -393,6 +407,17 @@ mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
     }
     context->reducedMotion = reduced;
     return mtwn_success;
+}
+
+mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunContextSetReducedMotion(context, reduced);
+    mtwnLeave(context);
+    return result;
 }
 
 bool mtwnContext_IsReducedMotion(const mtwnContext* context)

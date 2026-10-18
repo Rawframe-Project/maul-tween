@@ -103,7 +103,7 @@ Reads a finished clip's duration: its root's end.  @param context     The contex
 
 ## `context.h`
 
-The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, clips and players, made from a def that names every capacity and allocated in one block through the host's allocator. Nothing allocates after creation.
+The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of targets, clips and players, made from a def that names every capacity and allocated in one block through the host's allocator. Nothing allocates after creation. The host's code a context's functions run (a host easing, the allocator, the task system's functions and tasks) calls no function of that context: while one runs, those taking the context non-const refuse with mtwn_errorState and count one misuse, and the const ones read it in the middle of a call (record mtwn-0068).
 
 ```c
 static inline mtwnContextDef mtwnDefaultContextDef(void);
@@ -128,7 +128,7 @@ Grows a context to a def's capacities, each at least the context's own but the s
 ```c
 uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
 ```
-Returns how many calls against the context were refused for an invalid argument or a stale id since it was made.  @param context  The context. @return The count. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Returns how many calls against the context were refused for an invalid argument, a stale id or a call back in from the host's code (record mtwn-0068) since it was made.  @param context  The context. @return The count. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context);
@@ -192,7 +192,7 @@ Makes the elastic easing, GSAP's elastic(amplitude, period): out is 1 + a 2^(-10
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void* context, mtwnEasing* easingOut);
 ```
-Makes an easing of a host function, called with progress clamped to 0 to 1, under the mode's reflections. The library neither checks nor forces its ends.  @param mode       The mode. @param function   The function; it must be safe to call from every thread that samples the easing. @param context    Passed to the function; may be NULL. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null function or easingOut or an unknown mode. @par Thread safety Safe from any thread.
+Makes an easing of a host function, called with progress clamped to 0 to 1, under the mode's reflections. The library neither checks nor forces its ends.  @param mode       The mode. @param function   The function; it must be safe to call from every thread that samples the easing, and calls no function of a context sampling it (record mtwn-0068). @param context    Passed to the function; may be NULL. @param easingOut  Receives the easing. @return mtwn_success; mtwn_errorInvalid for a null function or easingOut or an unknown mode. @par Thread safety Safe from any thread.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnEasing* easingOut);

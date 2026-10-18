@@ -262,7 +262,9 @@ extern "C"
     ///
     /// @param mode       The mode.
     /// @param function   The function; it must be safe to call from every
-    ///                   thread that samples the easing.
+    ///                   thread that samples the easing, and calls no
+    ///                   function of a context sampling it (record
+    ///                   mtwn-0068).
     /// @param context    Passed to the function; may be NULL.
     /// @param easingOut  Receives the easing.
     /// @return mtwn_success; mtwn_errorInvalid for a null function or

@@ -20,6 +20,7 @@
 #include "maul-tween/target.h"
 #include "maul-tween/transition.h"
 
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -288,11 +289,17 @@ struct mtwnContext
     mtwnContextDef def;
     // The block holding the context and everything in it, and its size.
     uint64_t blockBytes;
-    uint64_t misuse;
+    // Counted by mtwnCountMisuse: atomic, as a refusal may come from a task
+    // on the host's worker while the update's thread waits.
+    _Atomic uint64_t misuse;
     // Clip players' advances a task system's groups left to the serial
     // pass (mtwnContext_GetSerialAdvances).
     uint64_t serialAdvances;
     uint64_t lastTimeNs;
+    // Set while one of the context's own functions runs (mtwnEnter), so the
+    // host's code it runs (a host easing, the allocator, the task system)
+    // calling back in is refused (record mtwn-0068).
+    bool busy;
     mtwnPool targets;
     mtwnPool players;
     mtwnPool clips;
@@ -364,6 +371,39 @@ static inline bool mtwnSameBits(double a, double b)
     memcpy(&x, &a, sizeof x);
     memcpy(&y, &b, sizeof y);
     return x == y;
+}
+
+// Counts one misuse; relaxed, its only reader the count's getter.
+static inline void mtwnCountMisuse(mtwnContext* context)
+{
+    atomic_fetch_add_explicit(&context->misuse, 1, memory_order_relaxed);
+}
+
+// Marks a context busy for one of its functions: false, with one misuse
+// counted, when one is running already, the host's code it runs calling
+// back in (record mtwn-0068). A NULL context passes, for the call to refuse.
+static inline bool mtwnEnter(mtwnContext* context)
+{
+    if (context == NULL)
+    {
+        return true;
+    }
+    if (context->busy)
+    {
+        mtwnCountMisuse(context);
+        return false;
+    }
+    context->busy = true;
+    return true;
+}
+
+// Ends what mtwnEnter began.
+static inline void mtwnLeave(mtwnContext* context)
+{
+    if (context != NULL)
+    {
+        context->busy = false;
+    }
 }
 
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)

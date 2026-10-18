@@ -83,6 +83,20 @@ static double Wild(Bytes* in, double scale)
     }
 }
 
+// The context a script runs on, and whether a host easing ran on it while
+// it was not busy: every call running host code must flag it (record
+// mtwn-0068), and this finds one that does not.
+static mtwnContext* s_watched;
+static bool s_unflagged;
+
+// The power easing of 3.5 as a host's, watching its context.
+static double Watched(void* unused, double progress)
+{
+    (void)unused;
+    s_unflagged = s_unflagged || s_watched == NULL || !s_watched->busy;
+    return pow(progress, 3.5);
+}
+
 static mtwnTiming RandomTiming(Bytes* in)
 {
     mtwnTiming t = mtwnDefaultTiming();
@@ -101,7 +115,15 @@ static mtwnTiming RandomTiming(Bytes* in)
     {
         // Drawn in order, not as arguments, whose order C leaves open.
         mtwnEaseMode mode = (mtwnEaseMode)Below(in, 4);
-        (void)mtwnMakePowerEasing(mode, 1.5 + Below(in, 3), &t.easing);
+        uint32_t power = Below(in, 3);
+        if (power == 2)
+        {
+            (void)mtwnMakeHostEasing(mode, Watched, NULL, &t.easing);
+        }
+        else
+        {
+            (void)mtwnMakePowerEasing(mode, 1.5 + power, &t.easing);
+        }
     }
     return t;
 }
@@ -193,6 +215,10 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
             keys[k].value = (mtwnVec4){(float)Wild(in, 4.0), 0.5f, 0.0f, 1.0f};
             keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Wild(in, 1.0));
             keys[k].easing = mtwnLinearEasing();
+            if (k == 1)
+            {
+                (void)mtwnMakeHostEasing(mtwn_easeIn, Watched, NULL, &keys[k].easing);
+            }
             keys[k].kind = (mtwnSegmentKind)Below(in, 6);
         }
         mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
@@ -315,6 +341,8 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         return run;
     }
     context->countEvery = mode == 2;
+    s_watched = context;
+    s_unflagged = false;
     mtwnTargetId targets[s_targets];
     for (uint32_t t = 0; t < s_targets; ++t)
     {
@@ -405,6 +433,8 @@ static Run Script(const uint8_t* data, size_t size, int mode)
             run.bad = run.bad || !ordered || !spanned || !counted;
         }
     }
+    run.bad = run.bad || s_unflagged;
+    s_watched = NULL;
     mtwnDestroyContext(context);
     return run;
 }

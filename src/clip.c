@@ -70,7 +70,7 @@ static mtwnClipSlot* FindClip(const mtwnContext* context, mtwnClipId clip)
 // Counts a refusal against a live context as misuse.
 static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
 {
-    ++context->misuse;
+    mtwnCountMisuse(context);
     return result;
 }
 
@@ -110,7 +110,7 @@ mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut)
     return mtwn_success;
 }
 
-mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
+static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
 {
     if (context == NULL)
     {
@@ -168,7 +168,18 @@ mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClip
     return mtwn_success;
 }
 
-mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
+mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunCreateClip(context, def, clipOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunDestroyClip(mtwnContext* context, mtwnClipId clip)
 {
     if (context == NULL)
     {
@@ -191,6 +202,17 @@ mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
     context->clipStorageUsed -= slot->blockBytes;
     mtwnPoolRelease(&context->clips, clip.index1);
     return mtwn_success;
+}
+
+mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunDestroyClip(context, clip);
+    mtwnLeave(context);
+    return result;
 }
 
 bool mtwnClip_IsValid(const mtwnContext* context, mtwnClipId clip)
@@ -531,8 +553,8 @@ static mtwnResult Counted(mtwnContext* context, mtwnResult result)
     return result == mtwn_errorInvalid ? Misuse(context, result) : result;
 }
 
-mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnClipTrackDef* def,
-                             mtwnNode* nodeOut)
+static mtwnResult RunClipAddTrack(mtwnContext* context, mtwnClipId clip,
+                                  const mtwnClipTrackDef* def, mtwnNode* nodeOut)
 {
     if (context == NULL)
     {
@@ -554,8 +576,20 @@ mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnCl
     return Counted(context, result);
 }
 
-mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
-                                const mtwnClipTimelineDef* def, mtwnNode* nodeOut)
+mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnClipTrackDef* def,
+                             mtwnNode* nodeOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipAddTrack(context, clip, def, nodeOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunClipAddTimeline(mtwnContext* context, mtwnClipId clip,
+                                     const mtwnClipTimelineDef* def, mtwnNode* nodeOut)
 {
     if (context == NULL)
     {
@@ -575,6 +609,18 @@ mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
     result = AddTimelineWorker(slot, def, nodeOut);
     mtwnFloatEnvLeave(&env);
     return Counted(context, result);
+}
+
+mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
+                                const mtwnClipTimelineDef* def, mtwnNode* nodeOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipAddTimeline(context, clip, def, nodeOut);
+    mtwnLeave(context);
+    return result;
 }
 
 static mtwnResult AddInstant(mtwnContext* context, mtwnClipId clip, mtwnNodeKind kind,
@@ -599,16 +645,40 @@ static mtwnResult AddInstant(mtwnContext* context, mtwnClipId clip, mtwnNodeKind
     return Counted(context, result);
 }
 
+static mtwnResult RunClipAddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
+                                  mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
+{
+    return AddInstant(context, clip, mtwn_nodeLabel, parent, position, key, nodeOut);
+}
+
 mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
                              mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
 {
-    return AddInstant(context, clip, mtwn_nodeLabel, parent, position, key, nodeOut);
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipAddLabel(context, clip, parent, position, key, nodeOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunClipAddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
+                                 mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
+{
+    return AddInstant(context, clip, mtwn_nodeMark, parent, position, key, nodeOut);
 }
 
 mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
                             mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
 {
-    return AddInstant(context, clip, mtwn_nodeMark, parent, position, key, nodeOut);
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipAddMark(context, clip, parent, position, key, nodeOut);
+    mtwnLeave(context);
+    return result;
 }
 
 // Whether two doubles are the same bits (a signed zero is not the other).
@@ -677,7 +747,7 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
     slot->finished = true;
 }
 
-mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
+static mtwnResult RunClipFinish(mtwnContext* context, mtwnClipId clip)
 {
     if (context == NULL)
     {
@@ -699,6 +769,17 @@ mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
     return mtwn_success;
 }
 
+mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipFinish(context, clip);
+    mtwnLeave(context);
+    return result;
+}
+
 // The finished clip an id names, with the refusal counted.
 static mtwnResult Finished(mtwnContext* context, mtwnClipId clip, mtwnClipSlot** slotOut)
 {
@@ -714,8 +795,8 @@ static mtwnResult Finished(mtwnContext* context, mtwnClipId clip, mtwnClipSlot**
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                             mtwnClipTrack* trackOut)
+static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
+                                  mtwnClipTrack* trackOut)
 {
     if (context == NULL)
     {
@@ -741,8 +822,20 @@ mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode nod
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                            mtwnClipNodeInfo* infoOut)
+mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
+                             mtwnClipTrack* trackOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipGetTrack(context, clip, node, trackOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunClipGetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
+                                 mtwnClipNodeInfo* infoOut)
 {
     if (context == NULL)
     {
@@ -774,8 +867,20 @@ mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, uint32_t key,
-                              double* secondsOut)
+mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
+                            mtwnClipNodeInfo* infoOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipGetNode(context, clip, node, infoOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunClipFindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
+                                   uint32_t key, double* secondsOut)
 {
     if (context == NULL)
     {
@@ -801,7 +906,19 @@ mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode pa
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
+mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, uint32_t key,
+                              double* secondsOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipFindLabel(context, clip, parent, key, secondsOut);
+    mtwnLeave(context);
+    return result;
+}
+
+static mtwnResult RunClipGetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
 {
     if (context == NULL)
     {
@@ -818,5 +935,16 @@ mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* s
     {
         *secondsOut = slot->nodes[0].childrenEnd;
     }
+    return result;
+}
+
+mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunClipGetDuration(context, clip, secondsOut);
+    mtwnLeave(context);
     return result;
 }

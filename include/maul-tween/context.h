@@ -5,6 +5,12 @@
 // targets, clips and players, made from a def that names every capacity
 // and allocated in one block through the host's allocator. Nothing
 // allocates after creation.
+//
+// The host's code a context's functions run (a host easing, the
+// allocator, the task system's functions and tasks) calls no function of
+// that context: while one runs, those taking the context non-const refuse
+// with mtwn_errorState and count one misuse, and the const ones read it in
+// the middle of a call (record mtwn-0068).
 
 #ifndef MAUL_TWEEN_CONTEXT_H
 #define MAUL_TWEEN_CONTEXT_H
@@ -42,7 +48,8 @@ extern "C"
     // returns a handle that finishTask waits on. A host that ran every range
     // before returning may return NULL, and finishTask is then not called.
     // Results never depend on the split or the order: each item writes only
-    // its own memory.
+    // its own memory. Neither it nor the task calls a function of the
+    // context (record mtwn-0068).
     typedef void* mtwnEnqueueTaskFn(mtwnTaskFn* task, int32_t itemCount, int32_t minRange,
                                     void* taskContext, void* userContext);
 
@@ -174,7 +181,8 @@ extern "C"
                                                        const mtwnContextDef* def);
 
     /// Returns how many calls against the context were refused for an
-    /// invalid argument or a stale id since it was made.
+    /// invalid argument, a stale id or a call back in from the host's code
+    /// (record mtwn-0068) since it was made.
     ///
     /// @param context  The context.
     /// @return The count.

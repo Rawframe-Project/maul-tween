@@ -112,8 +112,8 @@ void mtwnPlayerEvent(mtwnContext* context, uint32_t player, mtwnEventKind kind, 
     mtwnPushEvent(context, &event, 0.0);
 }
 
-mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
-                          uint32_t* countOut, uint64_t* droppedOut)
+static mtwnResult RunReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
+                                uint32_t* countOut, uint64_t* droppedOut)
 {
     if (context == NULL)
     {
@@ -121,7 +121,7 @@ mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t c
     }
     if (countOut == NULL || (eventsOut == NULL && capacity != 0))
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
     uint32_t n = capacity < context->eventCount ? capacity : context->eventCount;
@@ -141,6 +141,18 @@ mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t c
     }
     context->droppedSinceRead = 0;
     return mtwn_success;
+}
+
+mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
+                          uint32_t* countOut, uint64_t* droppedOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunReadEvents(context, eventsOut, capacity, countOut, droppedOut);
+    mtwnLeave(context);
+    return result;
 }
 
 uint32_t mtwnContext_GetEventCount(const mtwnContext* context)

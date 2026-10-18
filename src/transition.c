@@ -375,7 +375,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
                                                            def->target.generation);
     if (target == NULL)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorStale;
     }
     mtwnPlayerSlot prepared = {0};
@@ -383,7 +383,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
         Prepare(def, target, mtwnTargetVelocity(context, def->target.index1), &prepared);
     if (result != mtwn_success)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return result;
     }
     Reverse(context, def, target, &prepared);
@@ -416,8 +416,8 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     return mtwn_success;
 }
 
-mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                               mtwnPlayerId* playerOut)
+static mtwnResult RunStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                     mtwnPlayerId* playerOut)
 {
     if (context == NULL)
     {
@@ -429,18 +429,30 @@ mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* de
     }
     if (def == NULL || playerOut == NULL || def->cookie != MTWN_TRANSITION_DEF_COOKIE)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
     if (def->version != MTWN_ABI_VERSION)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorVersion;
     }
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);
     mtwnResult result = StartWorker(context, def, playerOut);
     mtwnFloatEnvLeave(&env);
+    return result;
+}
+
+mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                               mtwnPlayerId* playerOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunStartTransition(context, def, playerOut);
+    mtwnLeave(context);
     return result;
 }
 
@@ -488,8 +500,8 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     return mtwn_success;
 }
 
-mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                                 double* distanceOut)
+static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                       double* distanceOut)
 {
     if (distanceOut != NULL)
     {
@@ -501,19 +513,19 @@ mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* 
     }
     if (def == NULL || distanceOut == NULL || def->cookie != MTWN_TRANSITION_DEF_COOKIE)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
     if (def->version != MTWN_ABI_VERSION)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorVersion;
     }
     const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
         &context->targets, def->target.index1, def->target.generation);
     if (target == NULL)
     {
-        ++context->misuse;
+        mtwnCountMisuse(context);
         return mtwn_errorStale;
     }
     mtwnVec4 end = {0};
@@ -526,8 +538,20 @@ mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* 
     if (result != mtwn_success)
     {
         *distanceOut = 0.0;
-        ++context->misuse;
+        mtwnCountMisuse(context);
     }
+    return result;
+}
+
+mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                 double* distanceOut)
+{
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunMeasureTransition(context, def, distanceOut);
+    mtwnLeave(context);
     return result;
 }
 
