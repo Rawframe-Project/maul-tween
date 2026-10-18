@@ -168,6 +168,8 @@ static void TestRefusals(void)
     refused += mtwnMakeRoughEasing(&def, NULL, 8, &easing) == mtwn_errorInvalid;
     refused += mtwnMakeRoughEasing(&def, points, 8, NULL) == mtwn_errorInvalid;
     refused += mtwnMakeRoughEasing(&def, points, 1, &easing) == mtwn_errorInvalid;
+    // No points at all: the last would be points[UINT32_MAX].
+    refused += mtwnMakeRoughEasing(&def, points, 0, &easing) == mtwn_errorInvalid;
     const double strengths[] = {-0.1, HUGE_VAL, (double)NAN};
     for (int i = 0; i < 3; ++i)
     {
@@ -190,9 +192,9 @@ static void TestRefusals(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Infinite, NULL, &bad.shape) == mtwn_success,
           "a host shape");
     refused += mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_errorInvalid;
-    CHECK(refused == 11, "no def, points or easing, one point, a strength below 0, infinite or "
-                         "NaN, an unknown taper or flag, and a shape giving NaN or an infinity "
-                         "refused");
+    CHECK(refused == 12, "no def, points or easing, one point or none, a strength below 0, "
+                         "infinite or NaN, an unknown taper or flag, and a shape giving NaN or "
+                         "an infinity refused");
 }
 
 int main(void)
