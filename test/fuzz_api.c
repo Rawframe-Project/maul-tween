@@ -393,66 +393,87 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
     Status(run, r);
 }
 
-// The calls no byte draws, made once the script's steps end with fixed
-// arguments, so every seed's bytes keep their meaning: the clip's and the
-// targets' queries, the controls the steps do not draw, a measure, the
-// clip destroyed, and one more update. Structs are read for their status
-// only, their padding unhashed.
-static void Remaining(Run* run, mtwnContext* context, mtwnClipId clip, const mtwnPlayerId* players,
-                      const mtwnTargetId* targets, uint64_t now)
+// The calls the steps do not draw, in up to four rounds once the steps
+// end, their arguments drawn from the bytes left (none left, each draw is
+// 0): nodes and labels queried there or not, the clip's duration, some or
+// all of the targets read, a base set, a measure, seeks by progress past
+// the ends and by labels not found, cancels (again across rounds), the
+// clip destroyed with players on it or not, and an update after each
+// round. The steps read their bytes as before, so every seed keeps its
+// meaning up to here. Structs are read for their status only, their
+// padding unhashed.
+static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip,
+                      const mtwnPlayerId* players, const mtwnTargetId* targets, uint64_t now)
 {
-    for (mtwnNode node = MTWN_ROOT_NODE; node < MTWN_ROOT_NODE + 16u; ++node)
+    for (uint32_t round = 0; round < 4 && (round == 0 || in->at < in->size); ++round)
     {
-        mtwnClipNodeInfo info;
-        mtwnClipTrack track;
-        double label = 0.0;
-        Status(run, mtwnClip_GetNode(context, clip, node, &info));
-        Status(run, mtwnClip_GetTrack(context, clip, node, &track));
-        Status(run, mtwnClip_FindLabel(context, clip, node, node % 4u, &label));
-        Mix(run, &label, sizeof label);
-    }
-    double duration = 0.0;
-    Status(run, mtwnClip_GetDuration(context, clip, &duration));
-    Mix(run, &duration, sizeof duration);
-    mtwnVec4 values[s_targets];
-    memset(values, 0, sizeof values);
-    Status(run, mtwnReadTargets(context, targets, s_targets, values));
-    Mix(run, values, sizeof values);
-    for (uint32_t t = 0; t < s_targets; ++t)
-    {
-        mtwnVec4 value = {0};
-        Status(run, mtwnTarget_GetValue(context, targets[t], &value));
-        Mix(run, &value, sizeof value);
-    }
-    Status(run, mtwnTarget_SetBase(context, targets[0], (mtwnVec4){0.25f, 0, 0, 1.0f}));
-    mtwnTransitionDef def = mtwnDefaultTransitionDef();
-    def.target = targets[1];
-    def.value = (mtwnVec4){0.75f, 0, 0, 1.0f};
-    def.duration = 0.5;
-    double distance = 0.0;
-    Status(run, mtwnMeasureTransition(context, &def, &distance));
-    Mix(run, &distance, sizeof distance);
-    Status(run, mtwnPlayer_SeekProgress(context, players[0], 0.5));
-    Status(run, mtwnPlayer_SeekLabel(context, players[1], 1));
-    Status(run, mtwnPlayer_Cancel(context, players[2]));
-    for (uint32_t p = 0; p < s_players; ++p)
-    {
-        mtwnPlayerState state;
-        Status(run, mtwnPlayer_GetState(context, players[p], &state));
-    }
-    Status(run, mtwnDestroyClip(context, clip));
-    uint32_t total = 0;
-    Status(run, mtwnUpdate(context, now + 250000000u, NULL, 0, &total));
-    Mix(run, &total, sizeof total);
-    for (uint32_t t = 0; t < s_targets; ++t)
-    {
-        mtwnTargetState state;
-        mtwnResult r = mtwnTarget_GetState(context, targets[t], &state);
-        Status(run, r);
-        if (r == mtwn_success)
+        for (uint32_t q = 0; q < 4; ++q)
         {
-            Mix(run, &state.value, sizeof state.value);
-            run->bad = run->bad || !Finite(state.value) || !Finite(state.velocity);
+            mtwnNode node = MTWN_ROOT_NODE + Below(in, 24);
+            mtwnClipNodeInfo info;
+            mtwnClipTrack track;
+            double label = 0.0;
+            Status(run, mtwnClip_GetNode(context, clip, node, &info));
+            Status(run, mtwnClip_GetTrack(context, clip, node, &track));
+            Status(run, mtwnClip_FindLabel(context, clip, node, Below(in, 6), &label));
+            Mix(run, &label, sizeof label);
+        }
+        double duration = 0.0;
+        Status(run, mtwnClip_GetDuration(context, clip, &duration));
+        Mix(run, &duration, sizeof duration);
+        uint32_t first = Below(in, s_targets);
+        uint32_t count = Below(in, s_targets - first + 1);
+        mtwnVec4 values[s_targets];
+        memset(values, 0, sizeof values);
+        Status(run, mtwnReadTargets(context, targets + first, count, values));
+        Mix(run, values, sizeof values);
+        mtwnVec4 value = {0};
+        Status(run, mtwnTarget_GetValue(context, targets[Below(in, s_targets)], &value));
+        Mix(run, &value, sizeof value);
+        uint32_t based = Below(in, s_targets);
+        Status(run, mtwnTarget_SetBase(context, targets[based],
+                                       (mtwnVec4){(float)Value(in, 4.0), 0, 0, 1.0f}));
+        mtwnTransitionDef def = mtwnDefaultTransitionDef();
+        def.target = targets[Below(in, s_targets)];
+        def.value = (mtwnVec4){(float)Value(in, 4.0), 0.25f, 0.5f, 1.0f};
+        def.duration = Wild(in, 1.0);
+        def.spec = (mtwnTransitionSpec)Below(in, 3);
+        (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
+                                         &def.spring);
+        double distance = 0.0;
+        Status(run, mtwnMeasureTransition(context, &def, &distance));
+        Mix(run, &distance, sizeof distance);
+        uint32_t sought = Below(in, s_players);
+        Status(run, mtwnPlayer_SeekProgress(context, players[sought], Progress(in, 1.5)));
+        uint32_t labelled = Below(in, s_players);
+        Status(run, mtwnPlayer_SeekLabel(context, players[labelled], Below(in, 6)));
+        if (Below(in, 2) == 0)
+        {
+            Status(run, mtwnPlayer_Cancel(context, players[Below(in, s_players)]));
+        }
+        for (uint32_t p = 0; p < s_players; ++p)
+        {
+            mtwnPlayerState state;
+            Status(run, mtwnPlayer_GetState(context, players[p], &state));
+        }
+        if (Below(in, 4) == 0)
+        {
+            Status(run, mtwnDestroyClip(context, clip));
+        }
+        now += 1000000u + (uint64_t)Byte(in) * 4000000u;
+        uint32_t total = 0;
+        Status(run, mtwnUpdate(context, now, NULL, 0, &total));
+        Mix(run, &total, sizeof total);
+        for (uint32_t t = 0; t < s_targets; ++t)
+        {
+            mtwnTargetState state;
+            mtwnResult r = mtwnTarget_GetState(context, targets[t], &state);
+            Status(run, r);
+            if (r == mtwn_success)
+            {
+                Mix(run, &state.value, sizeof state.value);
+                run->bad = run->bad || !Finite(state.value) || !Finite(state.velocity);
+            }
         }
     }
 }
@@ -566,7 +587,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
             run.bad = run.bad || !ordered || !spanned || !counted;
         }
     }
-    Remaining(&run, context, clip, players, targets, now);
+    Remaining(&in, &run, context, clip, players, targets, now);
     run.bad = run.bad || s_unflagged;
     s_watched = NULL;
     mtwnDestroyContext(context);
