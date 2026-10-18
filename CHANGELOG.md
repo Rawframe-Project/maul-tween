@@ -33,6 +33,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Fixed
 
+- A number driven past the floats' range (an overshooting easing, an
+  incremental repeat, adding players) is held at the nearest finite
+  float, and still while held, instead of turning infinite; a track's
+  sample likewise (record mtwn-0069).
 - An eased scale transition overshooting past the floats' range no
   longer reports a NaN velocity: held at the largest float, it is still.
 - A bounded decay with a lower bound of infinity or an upper of

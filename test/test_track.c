@@ -90,6 +90,21 @@ static void TestKeyframeOffsets(void)
     CHECK(wrong == 0, "each keyframe's value at its offset");
 }
 
+// A track's sample past the floats' range is held at the nearest finite
+// float, as a target's value is (record mtwn-0069): a back out of 100
+// takes 0 to 3e38 near 4e39.
+static void TestSamplePastFloats(void)
+{
+    mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
+                            Key(1.0, (mtwnVec4){3e38f, -3e38f, 0, 0}, mtwn_segmentLinear)};
+    CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &keys[0].easing) == mtwn_success, "a back out");
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueVec2);
+    mtwnTrack track;
+    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_success, "a track");
+    mtwnVec4 half = mtwnSampleTrack(&track, 0.5);
+    CHECK(half.x == 0x1.fffffep127f && half.y == -0x1.fffffep127f, "held at the bounds");
+}
+
 static void TestDiscrete(void)
 {
     mtwnKeyframe keys[3] = {Key(0.0, (mtwnVec4){4, 0, 0, 0}, mtwn_segmentLinear),
@@ -474,6 +489,7 @@ int main(void)
     TestRotationFarOut();
     TestNumbers();
     TestKeyframeOffsets();
+    TestSamplePastFloats();
     TestDiscrete();
     TestAngles();
     TestColors();

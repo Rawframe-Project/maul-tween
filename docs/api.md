@@ -389,7 +389,7 @@ Makes a track. Numbers and vectors are their path; integers the path rounded to 
 ```c
 mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress);
 ```
-Samples a track: its value at a progress, as mtwnSamplePath finds the segment and eases it.  @param track     A track made by this library. @param progress  The progress, finite. @return The value, the kind's channels used and the rest 0. @par Thread safety Safe from any thread.
+Samples a track: its value at a progress, as mtwnSamplePath finds the segment and eases it.  @param track     A track made by this library. @param progress  The progress, finite. @return The value, the kind's channels used and the rest 0; a number past the floats' range held at the nearest finite float, as a target holds it (record mtwn-0069). @par Thread safety Safe from any thread.
 
 ## `player.h`
 

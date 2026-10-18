@@ -97,6 +97,16 @@ static double Watched(void* unused, double progress)
     return pow(progress, 3.5);
 }
 
+// A host curve 0 and 1 at its ends and near 1.5e44 between: whatever the
+// change it eases, it goes past the floats' range, where its values are
+// held (record mtwn-0069). Watching its context too.
+static double Overshooting(void* unused, double progress)
+{
+    (void)unused;
+    s_unflagged = s_unflagged || s_watched == NULL || !s_watched->busy;
+    return progress + 1e45 * progress * progress * (1.0 - progress);
+}
+
 static mtwnTiming RandomTiming(Bytes* in)
 {
     mtwnTiming t = mtwnDefaultTiming();
@@ -219,6 +229,11 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
             {
                 (void)mtwnMakeHostEasing(mtwn_easeIn, Watched, NULL, &keys[k].easing);
             }
+            // A first key drawn below 0 eases its segment past the floats.
+            if (k == 0 && keys[k].value.x < 0.0f)
+            {
+                (void)mtwnMakeHostEasing(mtwn_easeIn, Overshooting, NULL, &keys[k].easing);
+            }
             keys[k].kind = (mtwnSegmentKind)Below(in, 6);
         }
         mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
@@ -301,6 +316,11 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         mtwnTransitionDef def = mtwnDefaultTransitionDef();
         def.target = targets[Below(in, s_targets)];
         def.value = (mtwnVec4){(float)Wild(in, 4.0), 0.25f, 0.5f, 1.0f};
+        // A value drawn below 0 eases past the floats on the way.
+        if (def.value.x < 0.0f)
+        {
+            (void)mtwnMakeHostEasing(mtwn_easeIn, Overshooting, NULL, &def.easing);
+        }
         def.delay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
         def.duration = Wild(in, 1.0);
         def.spec = (mtwnTransitionSpec)Below(in, 3);

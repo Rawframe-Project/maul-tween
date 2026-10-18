@@ -16,7 +16,7 @@ decay: elementary
 color: elementary
 rotation: elementary
 scale: elementary
-scale_internal:
+bounds_internal:
 zoom: elementary
 signal: elementary
 timing: timing_internal
@@ -30,8 +30,8 @@ context_internal: crossing pool runs
 context: allocator context_internal pool
 target: context_internal pool
 transition: coast context_internal easing_internal elementary fpenv pool spring_internal
-update: coast context_internal easing_internal elementary fpenv pool scale_internal
-path: elementary fpenv path_internal path_length scale_internal
+update: coast context_internal easing_internal elementary fpenv pool bounds_internal
+path: elementary fpenv path_internal path_length bounds_internal
 path_length: elementary
 path_internal: path_length
 path_direction: elementary path_internal path_length
@@ -39,10 +39,10 @@ clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
 player_slot: context_internal pool runs
-clip_sample: compose context_internal elementary fpenv pool runs scale_internal
+clip_sample: compose context_internal elementary fpenv pool runs bounds_internal
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal
-compose: elementary scale_internal
+compose: elementary bounds_internal
 crossing: timing_internal
 event: context_internal pool
 sweep: context_internal crossing pool runs

@@ -20,7 +20,9 @@ extern "C"
 #endif
 
     // A target as it is: its kind, base value, current value and velocity
-    // (channels per second).
+    // (channels per second). The value and velocity are always finite: one
+    // driven past the floats' range is held at the nearest finite float,
+    // and still while held (records mtwn-0059 and mtwn-0069).
     typedef struct mtwnTargetState
     {
         mtwnVec4 base;

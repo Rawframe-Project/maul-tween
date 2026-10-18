@@ -15,11 +15,11 @@
 
 #include "maul-tween/path.h"
 
+#include "bounds_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
 #include "path_internal.h"
 #include "path_length.h"
-#include "scale_internal.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -637,9 +637,11 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     return mtwn_success;
 }
 
+// A number track's sample as floats, held within the finite floats
+// (record mtwn-0069): converted together, then held together.
 static mtwnVec4 ToVec4(const double v[4])
 {
-    return (mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]};
+    return mtwnNumbersHeld((mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]});
 }
 
 // A cubic extrapolated far enough to overflow its squares, scaled by its

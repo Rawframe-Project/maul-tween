@@ -254,7 +254,9 @@ extern "C"
     ///
     /// @param track     A track made by this library.
     /// @param progress  The progress, finite.
-    /// @return The value, the kind's channels used and the rest 0.
+    /// @return The value, the kind's channels used and the rest 0; a number
+    ///         past the floats' range held at the nearest finite float, as
+    ///         a target holds it (record mtwn-0069).
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_API mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress);

@@ -239,6 +239,45 @@ static void TestScaleOvershootPastFloats(void)
     mtwnDestroyContext(context);
 }
 
+// Numbers eased past the floats' range: a back out of 100 takes 0 to 3e38
+// near 4e39 (infinite values and velocities before). Each channel is held
+// at the nearest finite float, and still while held there (record
+// mtwn-0069).
+static void TestNumbersPastFloats(void)
+{
+    mtwnContext* context = Make(4, 4);
+    const mtwnValueKind kinds[3] = {mtwn_valueScalar, mtwn_valueVec2, mtwn_valueInteger};
+    mtwnTargetId targets[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        targets[i] = Target(context, kinds[i], (mtwnVec4){0});
+        mtwnTransitionDef def = Linear(targets[i], (mtwnVec4){3e38f, -3e38f, 0, 0}, 1.0);
+        CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &def.easing) == mtwn_success, "a back out");
+        Start(context, &def);
+    }
+    int infinite = 0;
+    int held = 0;
+    for (int k = 0; k <= 60; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 60u);
+        for (int i = 0; i < 3; ++i)
+        {
+            mtwnTargetState state = State(context, targets[i]);
+            const float* value = &state.value.x;
+            const float* velocity = &state.velocity.x;
+            for (int c = 0; c < 4; ++c)
+            {
+                infinite += !isfinite(value[c]) || !isfinite(velocity[c]);
+            }
+            held += state.value.x == 0x1.fffffep127f && state.velocity.x == 0.0f;
+            held += i == 1 && state.value.y == -0x1.fffffep127f && state.velocity.y == 0.0f;
+        }
+    }
+    CHECK(infinite == 0, "finite throughout, every kind");
+    CHECK(held > 0, "held at the nearest finite float, and still there");
+    mtwnDestroyContext(context);
+}
+
 static bool NearQuat(mtwnVec4 got, double x, double y, double z, double w)
 {
     return fabs((double)got.x - x) <= 1e-6 && fabs((double)got.y - y) <= 1e-6 &&
@@ -1246,6 +1285,7 @@ int main(void)
     TestKinds();
     TestHalfTurns();
     TestScaleOvershootPastFloats();
+    TestNumbersPastFloats();
     TestExactness();
     TestSpring();
     TestHandover();

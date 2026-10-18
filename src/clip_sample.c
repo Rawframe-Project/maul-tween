@@ -8,11 +8,11 @@
 // to its slot, later tracks over earlier ones. A moving player's velocity
 // is its values' change over the last millisecond, as a transition's is.
 
+#include "bounds_internal.h"
 #include "compose.h"
 #include "context_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
-#include "scale_internal.h"
 
 #include "maul-tween/path.h"
 
@@ -258,10 +258,10 @@ static MTWN_NOINLINE mtwnVec4 MovedOn(const mtwnClipNode* node, mtwnVec4 value, 
         // The turn so far, then the iteration's own path in its frame.
         return mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 1.0, under, over).value;
     }
-    return (mtwnVec4){(float)((double)value.x + k * (double)node->step.x),
-                      (float)((double)value.y + k * (double)node->step.y),
-                      (float)((double)value.z + k * (double)node->step.z),
-                      (float)((double)value.w + k * (double)node->step.w)};
+    return mtwnNumbersHeld((mtwnVec4){(float)((double)value.x + k * (double)node->step.x),
+                                      (float)((double)value.y + k * (double)node->step.y),
+                                      (float)((double)value.z + k * (double)node->step.z),
+                                      (float)((double)value.w + k * (double)node->step.w)});
 }
 
 // Kept apart from MovedOn, the frame's common case, a track that does not

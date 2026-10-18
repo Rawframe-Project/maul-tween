@@ -329,6 +329,62 @@ static float ShownAt(World* w, double seconds, double rate)
     return value;
 }
 
+// A clip's numbers past the floats' range, by each path that sums or eases
+// past it: a segment's back out of 100, an endless incremental repeat, two
+// players adding (infinite values and velocities before). Each frame
+// finite, the value held at the largest float (record mtwn-0069).
+static void TestNumbersPastFloats(void)
+{
+    for (int path = 0; path < 3; ++path)
+    {
+        World w = MakeWorld();
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        keys[1].value.x = 3e38f;
+        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        if (path == 0)
+        {
+            CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &keys[0].easing) == mtwn_success,
+                  "a back out");
+        }
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 1.0;
+        track.incremental = path == 1;
+        track.timing.iterations = path == 1 ? HUGE_VAL : 1.0;
+        mtwnNode node = 0;
+        CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success &&
+                  mtwnClip_Finish(w.context, w.clip) == mtwn_success,
+              "a track");
+        for (int p = 0; p < (path == 2 ? 2 : 1); ++p)
+        {
+            mtwnBinding binding = mtwnBind(0, w.target);
+            binding.composite = path == 2 ? mtwn_compositeAdd : mtwn_compositeReplace;
+            mtwnPlayerDef def = mtwnDefaultPlayerDef();
+            def.clip = w.clip;
+            def.bindings = &binding;
+            def.bindingCount = 1;
+            mtwnPlayerId id = {0, 0};
+            CHECK(mtwnCreatePlayer(w.context, &def, &id) == mtwn_success, "a player");
+        }
+        int infinite = 0;
+        int held = 0;
+        for (int k = 0; k <= 180; ++k)
+        {
+            Update(&w, (double)k / 60.0);
+            mtwnTargetState state = Read(&w, w.target);
+            infinite += !isfinite(state.value.x) || !isfinite(state.velocity.x);
+            held += state.value.x == 0x1.fffffep127f;
+        }
+        CHECK(infinite == 0 && held > 0, path == 0   ? "a segment past the floats: held"
+                                         : path == 1 ? "an incremental repeat past them: held"
+                                                     : "two adding past them: held");
+        mtwnDestroyContext(w.context);
+    }
+}
+
 static void TestBoundaries(void)
 {
     // At a track's start exactly: active going forwards, before it going
@@ -635,6 +691,7 @@ int main(void)
     TestOrder();
     TestEndlessTimeline();
     TestBoundaries();
+    TestNumbersPastFloats();
     TestSeeksPastEnds();
     TestTimelineShapes();
     TestStaleTarget();

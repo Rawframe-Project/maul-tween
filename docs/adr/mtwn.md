@@ -73,3 +73,4 @@ are listed in [README.md](README.md).
 | [mtwn-0066](mtwn-0066-snapped-output.md) | Snapped values stay the host's | Accepted |
 | [mtwn-0067](mtwn-0067-monotone-segments.md) | Monotone segments | Accepted |
 | [mtwn-0068](mtwn-0068-calls-back-in.md) | Calls back in from the host's code | Accepted |
+| [mtwn-0069](mtwn-0069-numbers-held.md) | Numbers held within the floats | Accepted |

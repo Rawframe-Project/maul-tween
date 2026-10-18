@@ -11,8 +11,8 @@
 
 #include "compose.h"
 
+#include "bounds_internal.h"
 #include "elementary.h"
-#include "scale_internal.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -29,7 +29,7 @@ static void Unpack(mtwnVec4 v, double out[4])
 
 static mtwnVec4 Pack(const double v[4])
 {
-    return (mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]};
+    return mtwnNumbersHeld((mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]});
 }
 
 // Per channel: the sum for add, then the mix by the weight.

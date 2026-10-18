@@ -8,12 +8,12 @@
 // or else its curve's over the last millisecond, and at its end commits
 // its end value as the target's base (records mtwn-0029 and mtwn-0030).
 
+#include "bounds_internal.h"
 #include "coast.h"
 #include "context_internal.h"
 #include "easing_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
-#include "scale_internal.h"
 
 #include <math.h>
 #include <string.h>
@@ -201,7 +201,8 @@ static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double
     for (uint8_t i = 0; i < channels; ++i)
     {
         double before = (1.0 - q) * (double)from[i] + q * (double)to[i];
-        velocity[i] = (float)((value[i] - before) / (t - earlier));
+        velocity[i] =
+            mtwnVelocityFloat((mtwnNumberHeld(value[i]) - mtwnNumberHeld(before)) / (t - earlier));
     }
     return (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]};
 }
@@ -282,7 +283,8 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
         (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
     // Numbers only (IsEasedNumbers): a scale is a path kind, written by
     // Sample.
-    mtwnVec4 value = {(float)now[0], (float)now[1], (float)now[2], (float)now[3]};
+    mtwnVec4 value =
+        mtwnNumbersHeld((mtwnVec4){(float)now[0], (float)now[1], (float)now[2], (float)now[3]});
     WriteValue(context, target, value);
 }
 
@@ -360,7 +362,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         speed[0] = speed[1] = speed[2] = speed[3] = 0.0;
         for (uint8_t i = 0; i < channels; ++i)
         {
-            speed[i] = (now[i] - before[i]) / (t - earlier);
+            speed[i] = (mtwnNumberHeld(now[i]) - mtwnNumberHeld(before[i])) / (t - earlier);
         }
         // A scale's speed is that of the value the target holds: past the
         // floats' range both ends are held at its bound, and still (two
@@ -381,14 +383,17 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     for (int i = 0; i < 4; ++i)
     {
         value[i] = (float)now[i];
-        velocity[i] = (float)speed[i];
+        velocity[i] = mtwnVelocityFloat(speed[i]);
     }
     if (slot->kind == mtwn_valueScale)
     {
         value[0] = mtwnScaleFloat(now[0]);
         velocity[0] = mtwnVelocityFloat(speed[0]);
     }
-    WriteTarget(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
+    // Numbers held within the floats (record mtwn-0069); a scale's value
+    // is within them already.
+    WriteTarget(context, target,
+                mtwnNumbersHeld((mtwnVec4){value[0], value[1], value[2], value[3]}),
                 (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});
 }
 
