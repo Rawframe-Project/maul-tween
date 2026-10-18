@@ -23,8 +23,9 @@
 static const double s_velocitySpan = 0.001;
 
 // The value along the transition's path at a progress, before rounding:
-// a color's or rotation's mix, a discrete value's step, the others'
-// straight line (an angle's end already moved by its turns).
+// a color's or rotation's mix, a scale's, or a discrete value's step.
+// Numbers never come here: eased ones are WriteEased's, and Sample
+// computes their springs and decays itself.
 static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
 {
     const float* from = &slot->from.x;
@@ -50,17 +51,12 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
         out[3] = (double)q.w;
         return;
     }
-    case mtwn_valueDiscrete:
-        out[0] = (double)(progress < 0.5 ? from[0] : to[0]);
-        return;
     case mtwn_valueScale:
         out[0] = mtwnMixScale(&slot->mix.scale, progress);
         return;
     default:
-        for (uint8_t i = 0; i < mtwnKindChannels(slot->kind); ++i)
-        {
-            out[i] = mtwnMix((double)from[i], (double)to[i], progress);
-        }
+        // A discrete value, the only kind left.
+        out[0] = (double)(progress < 0.5 ? from[0] : to[0]);
         return;
     }
 }
