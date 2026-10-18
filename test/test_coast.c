@@ -278,8 +278,14 @@ static void TestRefusals(void)
     refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
     def.lower = (mtwnVec4){(float)NAN, 0, 0, 0};
     refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
+    def.lower = (mtwnVec4){0.0f, 0, 0, 0};
+    def.upper = (mtwnVec4){(float)NAN, 0, 0, 0};
+    refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
     def.lower = (mtwnVec4){(float)INFINITY, 0, 0, 0};
     def.upper = (mtwnVec4){(float)INFINITY, 0, 0, 0};
+    refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
+    def.lower = (mtwnVec4){-(float)INFINITY, 0, 0, 0};
+    def.upper = (mtwnVec4){-(float)INFINITY, 0, 0, 0};
     refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
     def.lower = (mtwnVec4){0.0f, 0, 0, 0};
     def.upper = (mtwnVec4){600.0f, 0, 0, 0};
@@ -295,9 +301,10 @@ static void TestRefusals(void)
     refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
     def.velocity = (mtwnVec4){0.0f, 0, 0, 0};
     refused += mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid;
-    CHECK(refused == 8, "bounded and landing, bounds the wrong way round or NaN, a lower "
-                        "bound of infinity, no rest tolerance, a scale's bound of 0, a landing "
-                        "behind or with no velocity refused");
+    CHECK(refused == 10, "bounded and landing, bounds the wrong way round or NaN on either "
+                         "side, a lower bound of infinity or an upper of -infinity, no rest "
+                         "tolerance, a scale's bound of 0, a landing "
+                         "behind or with no velocity refused");
     def.value = (mtwnVec4){40.0f, 0, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success,
           "landing where it is with no velocity: it stays");

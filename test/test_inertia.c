@@ -104,6 +104,27 @@ static void TestWithin(void)
     double plain = 0.0;
     mtwnSampleDecay(&decay, 0.0, 1e6, 10.0, &plain, NULL);
     CHECK(far == plain, "no bounds, no spring");
+    // A start at an infinite bound, on its own side: it stays there, both
+    // ways, at the decay's velocity and stop.
+    mtwnBoundedDecay below = Bounded(-HUGE_VAL, 600.0);
+    mtwnBoundedDecay above = Bounded(-600.0, HUGE_VAL);
+    double at[4] = {0.0, 0.0, 0.0, 0.0};
+    double speed[4] = {0.0, 0.0, 0.0, 0.0};
+    double decayed = 0.0;
+    mtwnSampleBoundedDecay(&below, -HUGE_VAL, -300.0, 0.5, &at[0], &speed[0]);
+    mtwnSampleBoundedDecay(&below, -HUGE_VAL, 300.0, 0.5, &at[1], &speed[1]);
+    mtwnSampleBoundedDecay(&above, HUGE_VAL, -300.0, 0.5, &at[2], &speed[2]);
+    mtwnSampleBoundedDecay(&above, HUGE_VAL, 300.0, 0.5, &at[3], &speed[3]);
+    mtwnSampleDecay(&decay, 0.0, 300.0, 0.5, NULL, &decayed);
+    CHECK(at[0] == -HUGE_VAL && at[1] == -HUGE_VAL && at[2] == HUGE_VAL && at[3] == HUGE_VAL &&
+              speed[0] == -decayed && speed[1] == decayed && speed[2] == -decayed &&
+              speed[3] == decayed,
+          "a start at an infinite bound on its side: there, at the decay's velocity");
+    CHECK(mtwnBoundedDecayStopTime(&below, -HUGE_VAL, 300.0, 0.5, 1.0) ==
+                  mtwnDecayStopTime(&decay, 300.0, 1.0) &&
+              mtwnBoundedDecayStopTime(&above, HUGE_VAL, -300.0, 0.5, 1.0) ==
+                  mtwnDecayStopTime(&decay, -300.0, 1.0),
+          "and the decay's stop");
 }
 
 static void TestCrossing(void)
