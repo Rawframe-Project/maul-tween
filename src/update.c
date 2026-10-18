@@ -93,8 +93,9 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
                     &position, &rate);
         value[1] = value[2] = value[3] = velocity[1] = velocity[2] = velocity[3] = 0.0;
         value[0] = mtwnExp(position);
-        // At rest past the floats the value is infinite and moves at 0.
-        velocity[0] = rate == 0.0 ? 0.0 : value[0] * rate;
+        // The velocity of the value the target holds, at most the largest
+        // float: finite, and 0 at rest wherever the logarithm lies.
+        velocity[0] = (double)mtwnScaleFloat(value[0]) * rate;
         return true;
     }
     mtwnSpringMotion motion = {0};
