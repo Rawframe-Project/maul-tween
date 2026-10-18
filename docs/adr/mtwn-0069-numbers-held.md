@@ -71,9 +71,10 @@ before wrote, a float the target holds, so a sum that leaves the floats
 and comes back is held between layers: a base of 3e38 adding 3e38 and
 then -3e38 ends at the largest float less 3e38, not at 3e38. Carrying a
 double per target through an update would cost 32 bytes a target and the
-composition's path for sums no float target's animation reaches; the
-layer's value as the target holds it is what Web Animations composites
-the next effect onto, its underlying value.
+composition's path for sums no float target's animation reaches. Web
+Animations composites the next effect onto its underlying value and
+leaves how a value is represented to the implementation; this library's
+is the layer's value as the target holds it.
 
 `test_bounds` checks each place against an oracle: inputs near the
 bounds (a transition eased past its ends, three-keyframe clip tracks, an

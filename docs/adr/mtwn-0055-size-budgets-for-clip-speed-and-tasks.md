@@ -164,3 +164,10 @@ decay's end held within the floats (`transition` 48 bytes) and the
 rubber band's zero distance (`decay` 16); the incremental step taken in
 double moves 64 bytes from `clip` to `clip_sample`. Every part stays
 within its budget, and the budgets stand.
+
+## Amended 2026-10-18: 1.0.2
+
+At 1.0.2 (GCC 14, x86-64) values, clips and everything are 128 bytes
+more than at 1.0.1, an angle's controls moved by the unwrap in double
+and held (`path`); curves and transitions are 1.0.1's to the byte.
+Every part stays within its budget, and the budgets stand.

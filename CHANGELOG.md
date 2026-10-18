@@ -15,6 +15,8 @@ API and the ABI.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-18
+
 ### Fixed
 
 - `mtwnMakeTrack` (and a clip's track) for angles moves a Bezier
