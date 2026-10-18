@@ -16,6 +16,7 @@
 #include "maul-tween/path.h"
 
 #include "elementary.h"
+#include "fpenv.h"
 #include "path_internal.h"
 #include "path_length.h"
 #include "scale_internal.h"
@@ -137,6 +138,91 @@ static void CatmullRom(const mtwnPath* path, uint32_t i, const double p1[4], con
     Hermite(p1, p2, m1, m2, out);
 }
 
+// The sign of a secant, 0 counted as rising, as Steffen's slope takes it.
+static double SignOf(double s)
+{
+    return s < 0.0 ? -1.0 : 1.0;
+}
+
+// Steffen's slope at a keyframe between secants a, over a width of ha,
+// and b, over hb: 0 where they differ in sign, else at most twice the
+// lesser and the parabola's through the three keyframes.
+static double Steffen(double a, double b, double ha, double hb)
+{
+    double p = (a * hb + b * ha) / (ha + hb);
+    double least = fabs(a) < fabs(b) ? fabs(a) : fabs(b);
+    least = 0.5 * fabs(p) < least ? 0.5 * fabs(p) : least;
+    return (SignOf(a) + SignOf(b)) * least;
+}
+
+// Whether a keyframe's neighbour on one side leaves a width to measure a
+// secant over: not past the ends, and not a jump.
+static bool Measured(double width)
+{
+    return width > 0x1p-52;
+}
+
+// Channel c of a monotone segment, as Hermite makes it: points hold
+// keyframes i - 1 to i + 2 as the path moves them, widths the offsets'
+// between them,
+// has whether the width before and after is measured; a jump, not
+// measured itself, is its line. Out of line, the four channels one call
+// each: unrolled they took 1.8 kB.
+static MTWN_NOINLINE void MonotoneChannel(const double* const points[4], const double widths[3],
+                                          const bool has[2], int c, mtwnCubic* out)
+{
+    double p[4] = {points[0][c], points[1][c], points[2][c], points[3][c]};
+    double m1 = p[2] - p[1];
+    double m2 = m1;
+    if (Measured(widths[1]))
+    {
+        double s = m1 / widths[1];
+        double t1 = has[0] ? Steffen((p[1] - p[0]) / widths[0], s, widths[0], widths[1]) : s;
+        double t2 = has[1] ? Steffen(s, (p[3] - p[2]) / widths[2], widths[1], widths[2]) : s;
+        if (has[0] != has[1])
+        {
+            t1 = has[0] ? t1 : 0.5 * (3.0 * s - t2);
+            t2 = has[1] ? t2 : 0.5 * (3.0 * s - t1);
+        }
+        m1 = t1 * widths[1];
+        m2 = t2 * widths[1];
+    }
+    out->a[c] = p[1];
+    out->b[c] = m1;
+    out->c[c] = 3.0 * (p[2] - p[1]) - 2.0 * m1 - m2;
+    out->d[c] = 2.0 * (p[1] - p[2]) + m1 + m2;
+}
+
+// A monotone segment (record mtwn-0067): channel by channel, the Hermite
+// cubic of Steffen's slopes in time, the offsets the time; at an end, or
+// beside a jump, d3's one-sided slope (3 s - t) / 2, of curvature 0;
+// with neither side measured, the line. p1 and p2 are keyframes i and
+// i + 1 as the path moves them.
+static void Monotone(const mtwnPath* path, uint32_t i, const double p1[4], const double p2[4],
+                     mtwnCubic* out)
+{
+    const mtwnKeyframe* k = path->keyframes;
+    double widths[3] = {i > 0 ? k[i].offset - k[i - 1].offset : 0.0, k[i + 1].offset - k[i].offset,
+                        i + 2 < path->count ? k[i + 2].offset - k[i + 1].offset : 0.0};
+    bool measured = Measured(widths[1]);
+    bool has[2] = {measured && Measured(widths[0]), measured && Measured(widths[2])};
+    double p0[4] = {0.0, 0.0, 0.0, 0.0};
+    double p3[4] = {0.0, 0.0, 0.0, 0.0};
+    if (has[0])
+    {
+        LoadOf(path, k[i - 1].value, p0);
+    }
+    if (has[1])
+    {
+        LoadOf(path, k[i + 2].value, p3);
+    }
+    const double* const points[4] = {p0, p1, p2, p3};
+    for (int c = 0; c < 4; ++c)
+    {
+        MonotoneChannel(points, widths, has, c, out);
+    }
+}
+
 // Segment i, from keyframe i to keyframe i + 1, as a cubic.
 static void SegmentCubic(const mtwnPath* path, uint32_t i, mtwnCubic* out)
 {
@@ -169,6 +255,9 @@ static void SegmentCubic(const mtwnPath* path, uint32_t i, mtwnCubic* out)
     }
     case mtwn_segmentCatmullRom:
         CatmullRom(path, i, p0, p3, out);
+        return;
+    case mtwn_segmentMonotone:
+        Monotone(path, i, p0, p3, out);
         return;
     default:
         for (int c = 0; c < 4; ++c)
@@ -221,7 +310,7 @@ static bool IsValid(const mtwnKeyframe* keyframes, uint32_t count, uint8_t chann
         const mtwnKeyframe* k = &keyframes[i];
         bool segment = i + 1 < count;
         if (!isfinite(k->offset) || (segment && keyframes[i + 1].offset < k->offset) ||
-            k->kind > mtwn_segmentCatmullRom || !IsFinite4(k->value, channels) ||
+            k->kind > mtwn_segmentMonotone || !IsFinite4(k->value, channels) ||
             !IsFinite4(k->in, channels) || !IsFinite4(k->out, channels) ||
             (constantSpeed && segment && k->kind == mtwn_segmentStep))
         {

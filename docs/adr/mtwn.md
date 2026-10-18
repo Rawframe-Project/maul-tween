@@ -71,3 +71,4 @@ are listed in [README.md](README.md).
 | [mtwn-0064](mtwn-0064-path-direction.md) | A path's direction | Accepted |
 | [mtwn-0065](mtwn-0065-shake-noise.md) | A shake's noise on its own clock | Accepted |
 | [mtwn-0066](mtwn-0066-snapped-output.md) | Snapped values stay the host's | Accepted |
+| [mtwn-0067](mtwn-0067-monotone-segments.md) | Monotone segments | Accepted |

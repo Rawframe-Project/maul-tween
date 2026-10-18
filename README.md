@@ -38,9 +38,9 @@ rotations, integers, discrete values, punch and shake; Web Animations'
 timing with playback rate and repeat delay; staggers over a row or a
 grid; a context in one block holding targets, and transitions advanced
 by an update that guards the floating-point environment; keyframe
-paths, Catmull-Rom or Bezier, at constant speed if asked, and tracks
-of every value kind over them; clips holding tracks on nested
-timelines with labels and marks; players controlling clips by Web
+paths, Catmull-Rom, monotone or Bezier, at constant speed if asked,
+and tracks of every value kind over them; clips holding tracks on
+nested timelines with labels and marks; players controlling clips by Web
 Animations' procedures; events as counted records in a bounded queue;
 players layered by replace and add with weights; reduced motion; a
 context grown only when the host asks; clips' players run on the

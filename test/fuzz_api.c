@@ -193,7 +193,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
             keys[k].value = (mtwnVec4){(float)Wild(in, 4.0), 0.5f, 0.0f, 1.0f};
             keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Wild(in, 1.0));
             keys[k].easing = mtwnLinearEasing();
-            keys[k].kind = (mtwnSegmentKind)Below(in, 5);
+            keys[k].kind = (mtwnSegmentKind)Below(in, 6);
         }
         mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
         def.parent = parent;

@@ -184,8 +184,12 @@ Colors mix in Oklab, OkLCh, linear sRGB or sRGB, premultiplied by
 alpha, with CSS's hue methods; angles by CSS's methods too
 (`mtwnMixAngle`); rotations along the shortest or longest arc
 (`mtwnMakeRotationMix`, `mtwnMixRotation`). Keyframes of any kind make
-paths (`mtwnMakePath`, `mtwnMakeTrack`): linear, stepped, Bezier or
-Catmull-Rom segments, at constant speed if asked. Something moving
+paths (`mtwnMakePath`, `mtwnMakeTrack`): linear, stepped, Bezier,
+Catmull-Rom or monotone segments, at constant speed if asked. A
+Catmull-Rom curve is a point's path, smooth in space; a monotone one
+is a value's over time, as the curve editors' clamped tangents are:
+each channel stays between its keyframes, flat where it turns, its
+speed continuous across keyframes however far apart. Something moving
 along a path turns with it by the path's direction, as CSS's
 `offset-rotate: auto` and SVG's rules take it, holds still and cusps
 included (`mtwnPathDirection`, a unit vector; `mtwnPathAngle`, its

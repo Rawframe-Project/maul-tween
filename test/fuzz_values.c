@@ -23,6 +23,7 @@
 #include "maul-tween/spring.h"
 #include "maul-tween/timing.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -501,6 +502,32 @@ static void Values(Bytes* in)
     }
 }
 
+// A monotone segment's value lies between its keyframes' in every
+// channel (record mtwn-0067).
+static void CheckMonotone(const Bytes* in, const mtwnKeyframe* keys, uint32_t count,
+                          uint8_t channels, double progress, const double value[4])
+{
+    if (!in->ordinary || count < 2 || progress < 0.0 || progress > 1.0)
+    {
+        return;
+    }
+    uint32_t i = 0;
+    while (i + 2 < count && keys[i + 1].offset <= progress)
+    {
+        ++i;
+    }
+    for (int c = 0; c < channels && keys[i].kind == mtwn_segmentMonotone; ++c)
+    {
+        double a = (double)(&keys[i].value.x)[c];
+        double b = (double)(&keys[i + 1].value.x)[c];
+        double slack = 8.0 * DBL_EPSILON * fmax(fabs(a), fabs(b));
+        if (value[c] < fmin(a, b) - slack || value[c] > fmax(a, b) + slack)
+        {
+            Fail("a monotone segment's value", value[c]);
+        }
+    }
+}
+
 static void Paths(Bytes* in)
 {
     in->ordinary = true;
@@ -515,7 +542,7 @@ static void Paths(Bytes* in)
         keys[k].in = Vec(in, 100.0, 0.0, 0.0);
         keys[k].out = Vec(in, 100.0, 0.0, 0.0);
         keys[k].easing = mtwnLinearEasing();
-        keys[k].kind = (mtwnSegmentKind)Below(in, 4);
+        keys[k].kind = (mtwnSegmentKind)Below(in, 5);
     }
     double lengths[6];
     mtwnPath path;
@@ -531,6 +558,10 @@ static void Paths(Bytes* in)
             mtwnSamplePath(&path, s_progress[i], value, tangent);
             CheckEach(in, "a path's value", value, 4);
             CheckEach(in, "a path's tangent", tangent, 4);
+            if (!even)
+            {
+                CheckMonotone(in, keys, count, channels, s_progress[i], value);
+            }
             // Its direction is a unit vector wherever the path is finite.
             double direction[4];
             mtwnPathDirection(&path, s_progress[i], direction);

@@ -841,7 +841,7 @@ static void TestRefusals(void)
     keys[1].in.x = NAN;
     CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "a NaN in control");
     keys[1].in.x = 0.0f;
-    keys[1].kind = 4;
+    keys[1].kind = mtwn_segmentMonotone + 1;
     CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "an unknown kind");
 }
 

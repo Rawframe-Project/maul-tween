@@ -33,6 +33,11 @@ extern "C"
         mtwn_segmentBezier = 2,
         // Catmull-Rom through the neighbors, with the path's knot exponent.
         mtwn_segmentCatmullRom = 3,
+        // A cubic through the keyframes in time that never passes them in
+        // any channel: Steffen's slopes over the offsets, flat at a
+        // channel's turn, its speed continuous across keyframes of any
+        // spacing under a linear easing (record mtwn-0067).
+        mtwn_segmentMonotone = 4,
     };
 
     // A keyframe: a value at an offset, and the segment that starts there.

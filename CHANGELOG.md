@@ -9,6 +9,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- `mtwn_segmentMonotone`: a segment through the keyframes in time that
+  never passes them in any channel, by Steffen's slopes over the
+  offsets (record mtwn-0067), as curve editors' clamped tangents keep
+  a value's curve; flat where a channel turns, its speed continuous
+  across keyframes of any spacing.
 - The guide's update: a value shown on a grid is snapped where the host
   shows it (record mtwn-0066).
 - `mtwnShakeNoise`: a shake's noise alone on any clock, for camera
