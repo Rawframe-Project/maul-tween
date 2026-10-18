@@ -13,6 +13,7 @@
 #include "maul-tween/player.h"
 #include "maul-tween/transition.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -306,11 +307,49 @@ static void TestScales(void)
     mtwnDestroyContext(w.context);
 }
 
+// Velocities past the floats held within them (record mtwn-0059): a
+// scale added onto another, its product past the floats, and a clip's
+// track moving faster than the largest float a second.
+static void TestPastFloats(void)
+{
+    mtwnMoving under = {{1e30f, 0, 0, 0}, {0.0f, 0, 0, 0}};
+    mtwnMoving effect = {{1e30f, 0, 0, 0}, {1e30f, 0, 0, 0}};
+    mtwnMoving r = mtwnCompose(mtwn_valueScale, mtwn_compositeAdd, 1.0, under, effect);
+    CHECK(r.value.x == FLT_MAX && r.velocity.x == FLT_MAX, "a product past the floats");
+    World w = MakeWorld(0.0f);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(w.context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value.x = -3e38f;
+    keys[1].offset = 1.0;
+    keys[1].value.x = 3e38f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(w.context, clip) == mtwn_success,
+          "6e38 a second");
+    Layer(&w, clip, mtwn_compositeReplace, 1.0f, false);
+    Update(&w, 0.0);
+    Update(&w, 0.5);
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(w.context, w.target, &state) == mtwn_success &&
+              state.velocity.x == FLT_MAX,
+          "its velocity the largest float");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestKinds();
     TestLayers();
     TestCommitAndRefusals();
     TestScales();
+    TestPastFloats();
     return s_failures == 0 ? 0 : 1;
 }

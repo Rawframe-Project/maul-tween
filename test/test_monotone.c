@@ -124,6 +124,13 @@ static void TestSlopes(void)
     double right = SlopeAt(&path, 0.1, 0.9);
     CHECK(fabs(left - 20.0 / 9.0) < 1e-6 && fabs(right - 20.0 / 9.0) < 1e-12,
           "the slope in time continuous, Steffen's");
+    // Secants close enough that the parabola binds: 0, 1, 2 at 0, 0.4
+    // and 1, secants 5/2 and 5/3, the slope the parabola's, weighted by
+    // the widths: (5/2 0.6 + 5/3 0.4) / 1 = 13/6 (2.08 unweighted).
+    mtwnKeyframe near[3] = {Key(0.0, 0.0f, 0.0f), Key(0.4, 1.0f, 0.0f), Key(1.0, 2.0f, 0.0f)};
+    mtwnPath nearPath;
+    CHECK(mtwnMakePath(near, 3, 1, 0.5, NULL, &nearPath) == mtwn_success, "near secants");
+    CHECK(fabs(SlopeAt(&nearPath, 0.4, 0.6) - 13.0 / 6.0) < 1e-12, "the parabola's slope");
     // The ends' slope (3 s - t) / 2: curvature 0 there.
     double start = SlopeAt(&path, 0.0, 0.1);
     double end = SlopeAt(&path, 1.0, 0.9);
@@ -138,6 +145,17 @@ static void TestSlopes(void)
     mtwnSamplePath(&path, 0.45, value, NULL);
     CHECK(SlopeAt(&path, 0.3, 0.3) == 0.0 && SlopeAt(&path, 0.6, 0.4) == 0.0 && value[0] == 1.0,
           "flat at the turns, held between them");
+    // A width within rounding of none is a jump, not a secant: after
+    // keyframes 1e-17 apart the next segment starts as an end, here as
+    // its line (a secant of 1e17 would start it at 2).
+    mtwnKeyframe jump[3] = {Key(0.0, 0.0f, 0.0f), Key(1e-17, 1.0f, 0.0f), Key(1.0, 2.0f, 0.0f)};
+    CHECK(mtwnMakePath(jump, 3, 1, 0.5, NULL, &path) == mtwn_success, "a near jump");
+    CHECK(fabs(SlopeAt(&path, 1e-17, 1.0 - 1e-17) - 1.0) < 1e-12, "measured as a jump");
+    // At the bound itself, 2^-52, as a segment's easing takes it.
+    jump[1].offset = 0x1p-52;
+    CHECK(mtwnMakePath(jump, 3, 1, 0.5, NULL, &path) == mtwn_success &&
+              fabs(SlopeAt(&path, 0x1p-52, 1.0 - 0x1p-52) - 1.0) < 1e-12,
+          "a jump at the bound");
     // Two keyframes: a line.
     mtwnKeyframe two[2] = {Key(0.0, 2.0f, -1.0f), Key(1.0, 4.0f, 3.0f)};
     CHECK(mtwnMakePath(two, 2, 2, 0.5, NULL, &path) == mtwn_success, "two keyframes");
