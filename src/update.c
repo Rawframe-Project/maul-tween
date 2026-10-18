@@ -389,9 +389,10 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     }
     if (slot->kind == mtwn_valueScale)
     {
+        // A scale's curve speed is a decay's, never past the floats (record
+        // mtwn-0059); a spring's is taken from the values held, above.
         value[0] = mtwnScaleFloat(now[0]);
-        bool still = sampledSpeed && now[0] != mtwnScaleHeld(now[0]);
-        velocity[0] = still ? 0.0f : mtwnVelocityFloat(speed[0]);
+        velocity[0] = mtwnVelocityFloat(speed[0]);
     }
     // Numbers held within the floats (record mtwn-0069); a scale's value
     // is within them already.
