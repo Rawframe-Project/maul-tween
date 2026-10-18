@@ -357,12 +357,39 @@ static void TestRotationFarOut(void)
                            (double)q.z * (double)q.z + (double)q.w * (double)q.w);
         unit = unit && fabs(norm - 1.0) < 1e-6;
     }
-    // At -1e-220 the segment's progress is -1e80: the cubic finite, its
-    // squares not.
-    mtwnVec4 q = mtwnSampleTrack(&track, -1e-220);
-    double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
-                       (double)q.z * (double)q.z + (double)q.w * (double)q.w);
-    CHECK(unit && fabs(norm - 1.0) < 1e-6, "unit far past the first segment");
+    CHECK(unit, "unit before, within and after its segments");
+    // A segment of width 1 extended: a Catmull-Rom of two keyframes, its
+    // cubic of degree 1, to -1e200 (the components finite, their squares
+    // not), and a Bezier of degree 3 to -1e120 (its components past the
+    // doubles). Unit still, the largest components ruling.
+    mtwnKeyframe wide[2] = {Key(0.0, (mtwnVec4){0, -0.64f, 0, 1}, mtwn_segmentCatmullRom),
+                            Key(1.0, (mtwnVec4){0, 0.3f, 0, 1}, mtwn_segmentCatmullRom)};
+    mtwnKeyframe curved[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentBezier),
+                              Key(1.0, (mtwnVec4){0, 0.3f, 0, 1}, mtwn_segmentLinear)};
+    curved[0].out = (mtwnVec4){0, 2.0f, 0, 1};
+    curved[1].in = (mtwnVec4){0, -2.0f, 0, 1};
+    for (int far = 0; far < 2; ++far)
+    {
+        CHECK(mtwnMakeTrack(&def, far == 0 ? wide : curved, 2, NULL, mixes, &track) == mtwn_success,
+              "made");
+        mtwnVec4 q = mtwnSampleTrack(&track, far == 0 ? -1e200 : -1e120);
+        double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
+                           (double)q.z * (double)q.z + (double)q.w * (double)q.w);
+        CHECK(fabs(norm - 1.0) < 1e-6,
+              far == 0 ? "unit where the squares overflow" : "unit where the components do");
+    }
+    // The longest way, a Bezier whose w crosses 0 at half way with x, y
+    // and z 0: the cubic cancels to nothing, and the segment's start
+    // stands in.
+    def.rotationPath = mtwn_rotationLongest;
+    mtwnKeyframe through[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentBezier),
+                               Key(1.0, (mtwnVec4){0, 0, 0, -1}, mtwn_segmentLinear)};
+    through[0].out = (mtwnVec4){0, 0, 0, 0.5f};
+    through[1].in = (mtwnVec4){0, 0, 0, -0.5f};
+    CHECK(mtwnMakeTrack(&def, through, 2, NULL, mixes, &track) == mtwn_success, "made");
+    mtwnVec4 half = mtwnSampleTrack(&track, 0.5);
+    CHECK(half.x == 0.0f && half.y == 0.0f && half.z == 0.0f && half.w == 1.0f,
+          "cancelled to nothing: the segment's start");
 }
 
 static void TestRefusals(void)
