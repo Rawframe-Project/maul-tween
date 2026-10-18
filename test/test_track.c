@@ -315,6 +315,10 @@ static void TestRotationZero(void)
                             Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
     CHECK(mtwnMakeTrack(&def, half, 2, NULL, mixes, &track) == mtwn_success,
           "a half turn about x taken");
+    mtwnVec4 quarter = mtwnSampleTrack(&track, 0.5);
+    CHECK(fabs((double)quarter.x - sqrt(0.5)) <= 1e-6 && quarter.y == 0.0f && quarter.z == 0.0f &&
+              fabs((double)quarter.w - sqrt(0.5)) <= 1e-6,
+          "from it, a quarter turn about x half way, no snap");
 }
 
 // A curved rotation extrapolated so far its cubic overflows: still a unit

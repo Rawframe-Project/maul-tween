@@ -215,6 +215,48 @@ static void TestKinds(void)
     mtwnDestroyContext(context);
 }
 
+static bool NearQuat(mtwnVec4 got, double x, double y, double z, double w)
+{
+    return fabs((double)got.x - x) <= 1e-6 && fabs((double)got.y - y) <= 1e-6 &&
+           fabs((double)got.z - z) <= 1e-6 && fabs((double)got.w - w) <= 1e-6;
+}
+
+// Rotations from and to exactly a half turn (w == 0) turn the right way,
+// none snapping to its end (PrimeTween 1.4.8 fixed one that did).
+static void TestHalfTurns(void)
+{
+    mtwnContext* context = Make(8, 8);
+    const mtwnVec4 halfY = {0, 1.0f, 0, 0};
+    const mtwnVec4 still = {0, 0, 0, 1.0f};
+    mtwnTargetId fromHalf = Target(context, mtwn_valueRotation, halfY);
+    mtwnTargetId between = Target(context, mtwn_valueRotation, halfY);
+    mtwnTargetId negated = Target(context, mtwn_valueRotation, halfY);
+    mtwnTargetId toHalf = Target(context, mtwn_valueRotation, still);
+    mtwnTransitionDef def = Linear(fromHalf, still, 1.0);
+    Start(context, &def);
+    def = Linear(between, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
+    Start(context, &def);
+    def = Linear(negated, (mtwnVec4){0, -1.0f, 0, 0}, 1.0);
+    Start(context, &def);
+    def = Linear(toHalf, halfY, 1.0);
+    Start(context, &def);
+    Update(context, 0);
+    Update(context, s_second / 2);
+    double r = sqrt(0.5);
+    CHECK(NearQuat(State(context, fromHalf).value, 0, r, 0, r) &&
+              NearQuat(State(context, toHalf).value, 0, r, 0, r),
+          "a quarter turn about y half way, from a half turn and to one");
+    CHECK(NearQuat(State(context, between).value, r, r, 0, 0),
+          "between half turns about y and x: about their bisector");
+    mtwnVec4 held = State(context, negated).value;
+    CHECK(fabs(fabs((double)held.y) - 1.0) <= 1e-6, "to -q: the same rotation, held");
+    Update(context, s_second);
+    CHECK(State(context, fromHalf).value.w == 1.0f && State(context, toHalf).value.y == 1.0f &&
+              State(context, between).value.x == 1.0f,
+          "each ends on its end value");
+    mtwnDestroyContext(context);
+}
+
 static void TestExactness(void)
 {
     mtwnContext* context = Make(8, 8);
@@ -1178,6 +1220,7 @@ int main(void)
     TestDelayAndEasing();
     TestInterruption();
     TestKinds();
+    TestHalfTurns();
     TestExactness();
     TestSpring();
     TestHandover();
