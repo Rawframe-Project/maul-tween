@@ -14,8 +14,10 @@
 #include "maul-tween/easing.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static mtwnTiming Timing(double duration, double iterations)
@@ -466,6 +468,17 @@ static double Random(void)
     return (double)(s_seed >> 11) / 9007199254740992.0;
 }
 
+// The generator's state from a number (SplitMix64's finalizer): each
+// oracle trial seeds its own, so a slice of the trials runs the very cases
+// the whole run does.
+static void Seed(uint64_t n)
+{
+    uint64_t z = n * 0x9E3779B97F4A7C15u + 0x632BE59BD9B4E019u;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9u;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBu;
+    s_seed = (z ^ (z >> 31)) | 1u;
+}
+
 static double Pick(const double* values, int count)
 {
     return values[(int)(Random() * count) % count];
@@ -584,7 +597,9 @@ static int GuessesAgree(const mtwnLevel* levels, uint32_t count, const mtwnLeaf*
     return compared;
 }
 
-static void TestOracle(void)
+// Slice part of parts of the trials: every one when parts is 1, the
+// counts the checks ask for in proportion.
+static void TestOracle(int part, int parts)
 {
     int mismatches = 0;
     int timeMismatches = 0;
@@ -593,8 +608,11 @@ static void TestOracle(void)
     int guessMismatches = 0;
     int memoCounted = 0;
     int memoMismatches = 0;
-    for (int trial = 0; trial < 3000; ++trial)
+    // A block of consecutive trials, which keeps every third one's leaf of
+    // iterations in each slice.
+    for (int trial = part * 3000 / parts; trial < (part + 1) * 3000 / parts; ++trial)
     {
+        Seed((uint64_t)trial);
         mtwnLevel levels[3];
         memset(levels, 0, sizeof levels);
         uint32_t count = 1 + (uint32_t)(Random() * 3.0) % 3;
@@ -678,11 +696,11 @@ static void TestOracle(void)
         }
     }
     CHECK(mismatches == 0, "random nested levels agree with the sampled oracle");
-    CHECK(memoMismatches == 0 && memoCounted > 50000,
+    CHECK(memoMismatches == 0 && memoCounted > 50000 / parts,
           "counts with remembered walks the same bits as without, open and closed");
-    CHECK(guessMismatches == 0 && guessed > 20000,
+    CHECK(guessMismatches == 0 && guessed > 20000 / parts,
           "a search from any guess finds where the count flips, as one from none does");
-    CHECK(timeMismatches == 0 && timed > 5000,
+    CHECK(timeMismatches == 0 && timed > 5000 / parts,
           "and the first crossing's time with where the oracle meets it");
 }
 
@@ -692,6 +710,7 @@ static void TestOracle(void)
 // something before its start, a negative delay, is not passed.
 static void TestPassedLevels(void)
 {
+    Seed(1u << 20);
     static const mtwnCrossingWay s_ways[3] = {mtwn_crossingEither, mtwn_crossingForwards,
                                               mtwn_crossingBackwards};
     int passed = 0;
@@ -795,17 +814,34 @@ static void TestPassedLevels(void)
           "not passed over a level with something before its start");
 }
 
-int main(void)
+// No argument: every test. "exact": all but the oracle's trials; "oracle
+// K N": slice K of N of those, so ctest runs the slices side by side.
+int main(int argc, char** argv)
 {
-    TestEnds();
-    TestRepeats();
-    TestDelaysAndRates();
-    TestIterations();
-    TestStartBelowItsQuotient();
-    TestCountNeverFalls();
-    TestExactEdges();
-    TestTimes();
-    TestOracle();
-    TestPassedLevels();
+    bool exact = argc == 1 || (argc == 2 && strcmp(argv[1], "exact") == 0);
+    bool sliced = argc == 4 && strcmp(argv[1], "oracle") == 0;
+    int part = sliced ? atoi(argv[2]) : 0;
+    int parts = sliced ? atoi(argv[3]) : 1;
+    if ((!exact && !sliced) || parts < 1 || part < 0 || part >= parts)
+    {
+        printf("usage: test_crossing [exact | oracle K N]\n");
+        return 2;
+    }
+    if (exact)
+    {
+        TestEnds();
+        TestRepeats();
+        TestDelaysAndRates();
+        TestIterations();
+        TestStartBelowItsQuotient();
+        TestCountNeverFalls();
+        TestExactEdges();
+        TestTimes();
+        TestPassedLevels();
+    }
+    if (sliced || argc == 1)
+    {
+        TestOracle(part, parts);
+    }
     return s_failures == 0 ? 0 : 1;
 }
