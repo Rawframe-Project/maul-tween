@@ -123,6 +123,11 @@ static void TestClipsAndPlayers(void)
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     CHECK(mtwnClip_AddTrack(context, clip, &track, NULL) == mtwn_errorInvalid,
           "a track with nowhere to give its node");
+    mtwnNode orphan = 0;
+    track.parent = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &orphan) == mtwn_errorInvalid,
+          "a track under node 0, no timeline");
+    track.parent = MTWN_ROOT_NODE;
     mtwnNode node = 0;
     track.cookie = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,

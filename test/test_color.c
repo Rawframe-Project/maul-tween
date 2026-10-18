@@ -454,6 +454,23 @@ static void TestFarProgress(void)
           "1e44 on: held at the largest float");
 }
 
+// A powerless hue, NaN as mtwnColorToSpace gives it for a gray, converts
+// back as a hue of 0: no chroma, the same gray.
+static void TestPowerlessHue(void)
+{
+    double gray[4] = {0.6, 0.0, (double)NAN, 1.0};
+    double zero[4] = {0.6, 0.0, 0.0, 1.0};
+    mtwnColor fromNaN;
+    mtwnColor fromZero;
+    CHECK(mtwnColorFromSpace(gray, mtwn_colorOklch, &fromNaN) == mtwn_success &&
+              mtwnColorFromSpace(zero, mtwn_colorOklch, &fromZero) == mtwn_success,
+          "an OkLCh gray from a NaN hue and from 0");
+    CHECK(fromNaN.red == fromZero.red && fromNaN.green == fromZero.green &&
+              fromNaN.blue == fromZero.blue && fromNaN.alpha == fromZero.alpha &&
+              !isnan(fromNaN.red),
+          "the same color");
+}
+
 int main(void)
 {
     TestConversionsAgainstConversionsJs();
@@ -467,5 +484,6 @@ int main(void)
     TestBelowZeroAlpha();
     TestRefusals();
     TestFarProgress();
+    TestPowerlessHue();
     return s_failures == 0 ? 0 : 1;
 }

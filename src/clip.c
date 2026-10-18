@@ -450,7 +450,7 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     node.slot = def->slot;
     node.kind = mtwn_nodeTrack;
     node.incremental = def->incremental;
-    if (def->incremental && def->keyframeCount > 0 && def->track.kind == mtwn_valueRotation)
+    if (def->incremental && def->track.kind == mtwn_valueRotation)
     {
         node.step = Turn(keyframes[0].value, keyframes[def->keyframeCount - 1].value);
     }

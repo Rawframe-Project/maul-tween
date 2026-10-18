@@ -253,6 +253,12 @@ static void TestEndsOfTime(void)
               velocity == m.velocityFromOffset * 2.0 + m.velocityFromVelocity * -3.0,
           "a sample is the motion applied");
     mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, NULL, NULL);
+    double alone = 0.0;
+    mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, &alone, NULL);
+    CHECK(alone == offset, "the offset alone");
+    alone = 0.0;
+    mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, NULL, &alone);
+    CHECK(alone == velocity, "the velocity alone");
 }
 
 static void TestRefusals(void)

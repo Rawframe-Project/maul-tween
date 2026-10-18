@@ -35,7 +35,7 @@ target: context_internal pool
 transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
 path: elementary fpenv path_internal path_length bounds_internal reserved_internal
-path_length: elementary
+path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length
 clip: allocator context_internal fpenv pool reserved_internal

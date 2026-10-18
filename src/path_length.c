@@ -9,6 +9,7 @@
 #include "path_length.h"
 
 #include "elementary.h"
+#include "invariant.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -262,10 +263,8 @@ mtwnMinima mtwnSpeedMinima(const mtwnCubic* cubic, uint8_t channels)
 double mtwnArcLength(const mtwnCubic* cubic, uint8_t channels, const mtwnMinima* minima, double a,
                      double b)
 {
-    if (cubic->step)
-    {
-        return 0.0;
-    }
+    // Only constant speed measures, which refuses a step (mtwnMakePath).
+    MTWN_ASSERT(!cubic->step);
     if (channels == 1)
     {
         return TurnsLength(cubic, a, b);
