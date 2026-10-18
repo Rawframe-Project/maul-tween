@@ -436,6 +436,24 @@ static void TestRefusals(void)
     CHECK(mtwnColorFromSpace(NULL, mtwn_colorOklab, &out) == mtwn_errorInvalid, "no coordinates");
 }
 
+// Far past its ends a mix is the line: equal coordinates stay what they
+// are (an alpha of 1 mixed to 1 was 0 at 1e20, the weighted sum's terms
+// cancelling), and the channels are held within the floats, as a target's
+// are (records mtwn-0069 and mtwn-0070).
+static void TestFarProgress(void)
+{
+    mtwnColorMix mix;
+    CHECK(mtwnMakeColorMix((mtwnColor){0, 0, 0, 1.0f}, (mtwnColor){1.0f, 1.0f, 1.0f, 1.0f},
+                           mtwn_colorOklab, mtwn_hueShorter, &mix) == mtwn_success,
+          "black to white");
+    mtwnColor far = mtwnMixColor(&mix, 1e20);
+    CHECK(far.alpha == 1.0f && isfinite(far.red) && far.red > 1e20f, "1e20 on: alpha still 1");
+    mtwnColor farther = mtwnMixColor(&mix, 1e44);
+    CHECK(farther.red == 0x1.fffffep127f && farther.green == 0x1.fffffep127f &&
+              farther.blue == 0x1.fffffep127f && farther.alpha == 1.0f,
+          "1e44 on: held at the largest float");
+}
+
 int main(void)
 {
     TestConversionsAgainstConversionsJs();
@@ -448,5 +466,6 @@ int main(void)
     TestShorterAcrossZero();
     TestBelowZeroAlpha();
     TestRefusals();
+    TestFarProgress();
     return s_failures == 0 ? 0 : 1;
 }

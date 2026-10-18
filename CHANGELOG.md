@@ -33,6 +33,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Fixed
 
+- A mix of equal ends is that end at any progress: far past its ends the
+  weighted sum cancelled (a color's alpha of 1 to 1 read 0 at 1e20); a
+  color mixed far out is held within the floats (record mtwn-0070).
 - A number driven past the floats' range (an overshooting easing, an
   incremental repeat, adding players) is held at the nearest finite
   float, and still while held, instead of turning infinite; a track's

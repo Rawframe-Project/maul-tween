@@ -14,6 +14,7 @@
 #include "easing_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
+#include "mix_internal.h"
 
 #include <math.h>
 #include <string.h>
@@ -58,7 +59,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
     default:
         for (uint8_t i = 0; i < mtwnKindChannels(slot->kind); ++i)
         {
-            out[i] = (1.0 - progress) * (double)from[i] + progress * (double)to[i];
+            out[i] = mtwnMix((double)from[i], (double)to[i], progress);
         }
         return;
     }
@@ -184,7 +185,7 @@ static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4])
     value[0] = value[1] = value[2] = value[3] = 0.0;
     for (uint8_t i = 0; i < channels; ++i)
     {
-        value[i] = (1.0 - p) * (double)from[i] + p * (double)to[i];
+        value[i] = mtwnMix((double)from[i], (double)to[i], p);
     }
 }
 
@@ -200,7 +201,7 @@ static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double
     float velocity[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     for (uint8_t i = 0; i < channels; ++i)
     {
-        double before = (1.0 - q) * (double)from[i] + q * (double)to[i];
+        double before = mtwnMix((double)from[i], (double)to[i], q);
         velocity[i] =
             mtwnVelocityFloat((mtwnNumberHeld(value[i]) - mtwnNumberHeld(before)) / (t - earlier));
     }

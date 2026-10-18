@@ -28,7 +28,7 @@
 #include <string.h>
 
 // The scenario's hash, the same everywhere.
-static const uint64_t s_expected = 0x903662ec241ad680u;
+static const uint64_t s_expected = 0x79567506efccc400u;
 
 enum
 {

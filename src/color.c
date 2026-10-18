@@ -8,7 +8,9 @@
 // Oklab, OkLCh with its hue in radians. A mix holds both ends converted and
 // premultiplied, so a sample costs one conversion back.
 
+#include "bounds_internal.h"
 #include "elementary.h"
+#include "mix_internal.h"
 
 #include "generated/color_matrices.h"
 #include "generated/math_constants.h"
@@ -128,7 +130,10 @@ static mtwnColor FromSpace(const double in[4], mtwnColorSpace space)
         gamma[2] = ToGamma(linear[2]);
     }
     double alpha = in[3] < 0.0 ? 0.0 : (in[3] > 1.0 ? 1.0 : in[3]);
-    return (mtwnColor){(float)gamma[0], (float)gamma[1], (float)gamma[2], (float)alpha};
+    // Held within the floats as a target holds a color (record mtwn-0069).
+    mtwnVec4 held = mtwnNumbersHeld(
+        (mtwnVec4){(float)gamma[0], (float)gamma[1], (float)gamma[2], (float)alpha});
+    return (mtwnColor){held.x, held.y, held.z, held.w};
 }
 
 // CSS Color 4's hue fix-ups, in radians, on the two ends' hues.
@@ -214,11 +219,10 @@ mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress)
     {
         return mix->toColor;
     }
-    double keep = 1.0 - progress;
     double at[4];
     for (int i = 0; i < 4; ++i)
     {
-        at[i] = keep * mix->from[i] + progress * mix->to[i];
+        at[i] = mtwnMix(mix->from[i], mix->to[i], progress);
     }
     if (at[3] > 0.0)
     {

@@ -292,8 +292,17 @@ static void TestRefusals(void)
           "null out");
 }
 
+// Equal angles mix to that angle at any progress (record mtwn-0070).
+static void TestAngleFarProgress(void)
+{
+    CHECK(mtwnMixAngle(1.25, 1.25, mtwn_angleRaw, 1e20) == 1.25 &&
+              mtwnMixAngle(1.25, 1.25, mtwn_angleShorter, -1e20) == 1.25,
+          "equal ends, far out: the end");
+}
+
 int main(void)
 {
+    TestAngleFarProgress();
     TestHalfTurns();
     TestFarExtrapolation();
     TestAngles();

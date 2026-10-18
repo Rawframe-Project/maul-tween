@@ -314,6 +314,28 @@ static double Enormous(void* unused, double progress)
     return progress + 1e45 * progress * progress * (1.0 - progress);
 }
 
+// A channel whose ends are the same stays there however far the easing
+// carries the others: (1 - p) 5 + p 5 lost the 5 once p passed 2^53
+// (record mtwn-0070).
+static void TestEqualEndsFarOut(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueVec2, (mtwnVec4){0, 5.0f, 0, 0});
+    mtwnTransitionDef def = Linear(x, (mtwnVec4){1.0f, 5.0f, 0, 0}, 1.0);
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Enormous, NULL, &def.easing) == mtwn_success,
+          "an enormous easing");
+    Start(context, &def);
+    int moved = 0;
+    for (int k = 0; k <= 60; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 60u);
+        mtwnTargetState state = State(context, x);
+        moved += state.value.y != 5.0f || state.velocity.y != 0.0f;
+    }
+    CHECK(moved == 0, "the channel with equal ends stays, and is still");
+    mtwnDestroyContext(context);
+}
+
 static void TestColorPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -1351,6 +1373,7 @@ int main(void)
     TestNumbersPastFloats();
     TestSpringPastFloats();
     TestColorPastFloats();
+    TestEqualEndsFarOut();
     TestExactness();
     TestSpring();
     TestHandover();

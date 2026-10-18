@@ -12,6 +12,7 @@
 // so it is not normalized again.
 
 #include "elementary.h"
+#include "mix_internal.h"
 
 #include "generated/math_constants.h"
 #include "maul-tween/interpolate.h"
@@ -73,7 +74,7 @@ double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progr
     // The end moved by the whole turns the method added, exact when none.
     double turns = floor((turned - difference) / s_turn + 0.5);
     double end = to + turns * s_turn;
-    return (1.0 - progress) * from + progress * end;
+    return mtwnMix(from, end, progress);
 }
 
 // sin(x) / x.

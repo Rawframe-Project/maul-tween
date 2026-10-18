@@ -13,12 +13,13 @@ spring_easing:
 spring_internal:
 spring: elementary spring_easing spring_internal
 decay: elementary
-color: elementary
-rotation: elementary
+color: bounds_internal elementary mix_internal
+rotation: elementary mix_internal
 scale: elementary
 bounds_internal:
+mix_internal:
 zoom: elementary
-signal: elementary
+signal: elementary mix_internal
 timing: timing_internal
 stagger: stagger_internal
 stagger_internal:
@@ -30,7 +31,7 @@ context_internal: crossing pool runs
 context: allocator context_internal pool
 target: context_internal pool
 transition: coast context_internal easing_internal elementary fpenv pool spring_internal
-update: coast context_internal easing_internal elementary fpenv pool bounds_internal
+update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
 path: elementary fpenv path_internal path_length bounds_internal
 path_length: elementary
 path_internal: path_length

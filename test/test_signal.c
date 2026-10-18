@@ -205,8 +205,17 @@ static void TestShakeNoise(void)
     CHECK(largest <= 1.0 && largest > 0.7, "within [-1, 1], filling most of it");
 }
 
+// Equal ends mix to that end at any progress, past 2^53 too, where the
+// weighted sum's terms cancelled (record mtwn-0070).
+static void TestIntegerFarProgress(void)
+{
+    CHECK(mtwnMixInteger(7, 7, 1e20) == 7 && mtwnMixInteger(-3, -3, -1e20) == -3,
+          "equal ends, far out: the end");
+}
+
 int main(void)
 {
+    TestIntegerFarProgress();
     TestIntegers();
     TestDiscrete();
     TestPunch();

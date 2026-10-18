@@ -74,3 +74,4 @@ are listed in [README.md](README.md).
 | [mtwn-0067](mtwn-0067-monotone-segments.md) | Monotone segments | Accepted |
 | [mtwn-0068](mtwn-0068-calls-back-in.md) | Calls back in from the host's code | Accepted |
 | [mtwn-0069](mtwn-0069-numbers-held.md) | Numbers held within the floats | Accepted |
+| [mtwn-0070](mtwn-0070-mixes-of-equal-ends.md) | Mixes of equal ends | Accepted |

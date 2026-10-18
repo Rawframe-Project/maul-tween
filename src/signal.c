@@ -10,6 +10,7 @@
 // repeats exactly on every platform.
 
 #include "elementary.h"
+#include "mix_internal.h"
 
 #include "generated/math_constants.h"
 #include "maul-tween/interpolate.h"
@@ -30,7 +31,7 @@ int64_t mtwnMixInteger(int64_t from, int64_t to, double progress)
     {
         return to;
     }
-    double value = round((1.0 - progress) * (double)from + progress * (double)to);
+    double value = round(mtwnMix((double)from, (double)to, progress));
     // 2^63 is the first double past the type's range on either side.
     if (!(value < 0x1.0p63))
     {
