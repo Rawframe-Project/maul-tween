@@ -154,10 +154,13 @@ static void Mix(Run* run, const void* bytes, size_t size)
     }
 }
 
+// Every call's status, and whether the call left its context busy: each
+// one leaves what it enters (record mtwn-0068), on every return.
 static void Status(Run* run, mtwnResult r)
 {
     int32_t v = (int32_t)r;
     Mix(run, &v, sizeof v);
+    run->bad = run->bad || s_watched == NULL || s_watched->busy;
 }
 
 static bool Finite(mtwnVec4 v)

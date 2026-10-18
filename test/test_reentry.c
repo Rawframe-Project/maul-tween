@@ -134,7 +134,9 @@ static void TestHostEasing(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, CallingIn, NULL, &def2.easing) == mtwn_success,
           "a host easing");
     CHECK(mtwnStartTransition(context, &def2, &s_probe.player) == mtwn_success, "started");
-    CHECK(CallEverything(context, false) == 0, "not busy, none of the calls returns a state error");
+    CHECK(CallEverything(context, false) == 0 &&
+              mtwnContext_SetReducedMotion(context, false) == mtwn_success,
+          "not busy, none of the calls returns a state error, the last left too");
     uint64_t before = mtwnContext_GetMisuseCount(context);
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
