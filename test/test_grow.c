@@ -163,9 +163,9 @@ static void TestGrow(void)
           "nor the same functions with another context");
     other = def;
     other.clipStorageBytes = def.clipStorageBytes / 2;
-    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    uint64_t misuse = mtwnGetContextMisuse(context);
     CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old &&
-              mtwnContext_GetMisuseCount(context) == misuse + 1,
+              mtwnGetContextMisuse(context) == misuse + 1,
           "nor less clip storage, the refusal counted");
     CHECK(mtwnGrowContext(&context, NULL) == mtwn_errorInvalid &&
               mtwnGrowContext(NULL, &def) == mtwn_errorInvalid,

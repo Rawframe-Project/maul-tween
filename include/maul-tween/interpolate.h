@@ -66,7 +66,7 @@ extern "C"
         mtwnColor fromColor;
         mtwnColor toColor;
         mtwnColorSpace space;
-        // 0 as made (record mtwn-0071).
+        // 0 as made; padding through 1.x (record mtwn-0071).
         uint8_t reserved[7];
     } mtwnColorMix;
 

@@ -126,7 +126,7 @@ MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut, c
 Grows a context to a def's capacities, each at least the context's own but the sharing's, which may be any, and takes the def's task system, with the allocator it was made with: the one time after its creation it allocates, and only when asked (it never grows by itself). Its objects move to one new block, their ids unchanged, and the old block is freed, so the context's address changes: the call writes the new one. On any failure nothing changes.  @param contextInOut  The context; receives the grown one. @param def           The capacities: start from the context's own. @return mtwn_success; mtwn_errorInvalid for a null argument, a def without its cookie, a capacity below the context's or past its limit, another allocator, or a task system with one function of the two; mtwn_errorVersion for a def of another version; mtwn_errorCapacity when the allocator fails. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
-uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
+uint64_t mtwnGetContextMisuse(const mtwnContext* context);
 ```
 Returns how many calls against the context were refused for an invalid argument, a stale id or a call back in from the host's code (record mtwn-0068) since it was made.  @param context  The context. @return The count. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 

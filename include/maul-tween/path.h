@@ -70,7 +70,7 @@ extern "C"
         // Whether its values are scales, the path over their logarithms (a
         // scale track's; record mtwn-0059).
         uint8_t logarithmic;
-        // 0 as made (record mtwn-0071).
+        // 0 as made; padding through 1.x (record mtwn-0071).
         uint8_t reserved[2];
     } mtwnPath;
 
@@ -206,7 +206,7 @@ extern "C"
         mtwnPath path;
         const mtwnSegmentMix* mixes;
         mtwnValueKind kind;
-        // 0 as made (record mtwn-0071).
+        // 0 as made; padding through 1.x (record mtwn-0071).
         uint8_t reserved[7];
     } mtwnTrack;
 

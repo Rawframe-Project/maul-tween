@@ -136,7 +136,8 @@ extern "C"
         mtwnEasingKind kind;
         mtwnEaseMode mode;
         mtwnStepPosition position;
-        // 0 as made: a call taking it in refuses another value (record mtwn-0071).
+        // 0 as made, refused otherwise where taken in; padding through 1.x
+        // (record mtwn-0071).
         uint8_t reserved;
     } mtwnEasing;
 

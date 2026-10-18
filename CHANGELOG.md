@@ -7,6 +7,15 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- `mtwnContext_GetMisuseCount` is renamed `mtwnGetContextMisuse`, the
+  name the family's libraries give their misuse counts.
+- The reserved bytes of easings, springs, color mixes, paths and tracks,
+  which samples read unchecked, stay padding through 1.x (record
+  mtwn-0071); the defs', their parts' and the outputs' may take a
+  meaning in a 1.y.
+
 ## [0.7.0] - 2026-10-18
 
 A minor release: inputs whose reserved bytes are not 0 are refused and

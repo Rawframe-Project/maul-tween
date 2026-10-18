@@ -56,3 +56,18 @@ each with 0xFF before the call. A stagger `mtwnComputeStagger` takes is
 an input like the others and is refused the same way. Each reserved
 field's comment says which of the three it is: refused if not 0, 0 as
 made, or written 0.
+
+## Amended 2026-10-18: the values only samples read
+
+Easings, springs, color mixes, paths and tracks are made by the makers
+and read by samples, which do not check them: a program that builds one
+by hand and samples it without a context is never refused, so their
+reserved bytes could not take a meaning in a 1.y without changing such a
+program. Checking them where a sample reads them would cost every
+frame, and outside a context there is no earlier first use. Their
+reserved bytes are therefore padding through 1.x: always 0 as made,
+refused where a context or maker takes an easing or spring in, and
+never given a meaning before 2.0. A field such a value needs in a 1.y
+is added at its end, as the family's rules allow within a major (the
+ABI is a minor's). The defs, their parts and the outputs keep the rule
+above: their reserved bytes may take a meaning in a 1.y.

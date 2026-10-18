@@ -385,7 +385,7 @@ void mtwnDestroyContext(mtwnContext* context)
     mtwnRelease(&allocator, context, (size_t)context->blockBytes, s_blockAlignment);
 }
 
-uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context)
+uint64_t mtwnGetContextMisuse(const mtwnContext* context)
 {
     return atomic_load_explicit(&context->misuse, memory_order_relaxed);
 }

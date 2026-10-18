@@ -66,15 +66,15 @@ static void TestDefs(void)
     CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "taken with them 0");
 
     tried = refused = 0;
-    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    uint64_t misuse = mtwnGetContextMisuse(context);
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     REFUSED_EACH(clipDef.reserved, mtwnCreateClip(context, &clipDef, &clip));
-    CHECK(refused == tried && mtwnContext_GetMisuseCount(context) == misuse + tried, "a clip def");
+    CHECK(refused == tried && mtwnGetContextMisuse(context) == misuse + tried, "a clip def");
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip with them 0");
 
     tried = refused = 0;
-    misuse = mtwnContext_GetMisuseCount(context);
+    misuse = mtwnGetContextMisuse(context);
     mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
@@ -88,12 +88,12 @@ static void TestDefs(void)
     REFUSED_EACH(track.position.reserved, mtwnClip_AddTrack(context, clip, &track, &node));
     REFUSED_EACH(keys[0].reserved, mtwnClip_AddTrack(context, clip, &track, &node));
     REFUSED_EACH(keys[1].easing.reserved, mtwnClip_AddTrack(context, clip, &track, &node));
-    CHECK(refused == tried && mtwnContext_GetMisuseCount(context) == misuse + tried,
+    CHECK(refused == tried && mtwnGetContextMisuse(context) == misuse + tried,
           "a clip track def, its timing, easing, track, position and keyframes");
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track with them 0");
 
     tried = refused = 0;
-    misuse = mtwnContext_GetMisuseCount(context);
+    misuse = mtwnGetContextMisuse(context);
     mtwnClipTimelineDef timeline = mtwnDefaultClipTimelineDef();
     timeline.position = At(0.0);
     timeline.timing.duration = 1.0;
@@ -105,7 +105,7 @@ static void TestDefs(void)
     mtwnPosition at = At(0.5);
     REFUSED_EACH(at.reserved, mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, at, 3, &node));
     REFUSED_EACH(at.reserved, mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, at, 7, &node));
-    CHECK(refused == tried && mtwnContext_GetMisuseCount(context) == misuse + tried,
+    CHECK(refused == tried && mtwnGetContextMisuse(context) == misuse + tried,
           "a timeline def, its timing and position; a mark's and a label's position");
     CHECK(mtwnClip_AddTimeline(context, clip, &timeline, &node) == mtwn_success &&
               mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, at, 3, &node) == mtwn_success &&
@@ -114,7 +114,7 @@ static void TestDefs(void)
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "the clip finished");
 
     tried = refused = 0;
-    misuse = mtwnContext_GetMisuseCount(context);
+    misuse = mtwnGetContextMisuse(context);
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
@@ -126,12 +126,12 @@ static void TestDefs(void)
     mtwnPlayerId id;
     REFUSED_EACH(player.reserved, mtwnCreatePlayer(context, &player, &id));
     REFUSED_EACH(binding.reserved, mtwnCreatePlayer(context, &player, &id));
-    CHECK(refused == tried && mtwnContext_GetMisuseCount(context) == misuse + tried,
+    CHECK(refused == tried && mtwnGetContextMisuse(context) == misuse + tried,
           "a player def and its binding");
     CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player with them 0");
 
     tried = refused = 0;
-    misuse = mtwnContext_GetMisuseCount(context);
+    misuse = mtwnGetContextMisuse(context);
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     transition.target = target;
     transition.value = (mtwnVec4){1.0f, 0, 0, 0};
@@ -143,7 +143,7 @@ static void TestDefs(void)
                  mtwnMeasureTransition(context, &transition, &distance));
     REFUSED_EACH(transition.spring.reserved,
                  mtwnMeasureTransition(context, &transition, &distance));
-    CHECK(refused == tried && mtwnContext_GetMisuseCount(context) == misuse + tried,
+    CHECK(refused == tried && mtwnGetContextMisuse(context) == misuse + tried,
           "a transition def's easing and spring, started or measured");
     CHECK(mtwnMeasureTransition(context, &transition, &distance) == mtwn_success &&
               mtwnStartTransition(context, &transition, &id) == mtwn_success,

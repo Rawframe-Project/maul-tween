@@ -893,14 +893,14 @@ static void TestRefusals(void)
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "an infinite delay");
     def = Linear((mtwnTargetId){9, 1}, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorStale, "a stale target");
-    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    uint64_t misuse = mtwnGetContextMisuse(context);
     CHECK(misuse == 8, "each refusal with a context counted");
     def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     mtwnPlayerId first = Start(context, &def);
     def.target = y;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorLimit && id.index1 == 0,
           "the pool full");
-    CHECK(mtwnContext_GetMisuseCount(context) == misuse, "a full pool is not misuse");
+    CHECK(mtwnGetContextMisuse(context) == misuse, "a full pool is not misuse");
     CHECK(mtwnDestroyTarget(context, x) == mtwn_success && !mtwnPlayer_IsValid(context, first),
           "destroying a target ends its transition");
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "its slot free again");
@@ -947,7 +947,7 @@ static void TestUpdateReport(void)
     CHECK(mtwnUpdate(context, 9, NULL, 0, &total) == mtwn_errorInvalid, "time going back");
     CHECK(mtwnUpdate(context, 11, NULL, 1, &total) == mtwn_errorInvalid, "a capacity, no array");
     CHECK(mtwnUpdate(NULL, 11, NULL, 0, &total) == mtwn_errorInvalid, "no context");
-    CHECK(mtwnContext_GetMisuseCount(context) == 2, "the two with a context counted");
+    CHECK(mtwnGetContextMisuse(context) == 2, "the two with a context counted");
     // Setting the base under a transition changes the base only.
     def = Linear(ids[0], (mtwnVec4){4.0f, 0, 0, 0}, 1.0);
     Start(context, &def);

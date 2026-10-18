@@ -26,7 +26,7 @@ says what each shows.
   `mtwn_errorState`, `mtwn_errorVersion`), and `mtwnResultName` names
   any of them. They are marked `[[nodiscard]]` where the compiler
   supports it. A refused call changes nothing, and a context counts
-  the calls refused as misuse (`mtwnContext_GetMisuseCount`).
+  the calls refused as misuse (`mtwnGetContextMisuse`).
 - **Defs and limits.** A context, a clip, a track, a timeline, a
   transition and a player are made from a def you get from its
   `mtwnDefault...Def` function and adjust. The defs carry named

@@ -338,9 +338,9 @@ static void TestBindings(void)
     def = mtwnDefaultPlayerDef();
     def.clip = open;
     def.version = MTWN_ABI_VERSION + 1u;
-    uint64_t misuse = mtwnContext_GetMisuseCount(f.context);
+    uint64_t misuse = mtwnGetContextMisuse(f.context);
     CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorVersion &&
-              mtwnContext_GetMisuseCount(f.context) == misuse + 1,
+              mtwnGetContextMisuse(f.context) == misuse + 1,
           "another version, a misuse");
     mtwnDestroyContext(f.context);
 }
@@ -657,7 +657,7 @@ static void TestRateLimit(void)
     Fixture f = Make(false, 8);
     mtwnPlayerId p = Player(&f, true, 1.0);
     CHECK(mtwnUpdate(f.context, 0, NULL, 0, NULL) == mtwn_success, "started");
-    uint64_t misuse = mtwnContext_GetMisuseCount(f.context);
+    uint64_t misuse = mtwnGetContextMisuse(f.context);
     CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_RATE_LIMIT) == mtwn_success &&
               mtwnPlayer_SetRate(f.context, p, -MTWN_RATE_LIMIT) == mtwn_success,
           "the limit itself, either way");
@@ -672,8 +672,7 @@ static void TestRateLimit(void)
           "past the limit, NaN and infinity refused");
     mtwnPlayerState after;
     CHECK(mtwnPlayer_GetState(f.context, p, &after) == mtwn_success && after.rate == before.rate &&
-              after.pending == before.pending &&
-              mtwnContext_GetMisuseCount(f.context) == misuse + 4,
+              after.pending == before.pending && mtwnGetContextMisuse(f.context) == misuse + 4,
           "the player unchanged, each counted as misuse");
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f.clip;

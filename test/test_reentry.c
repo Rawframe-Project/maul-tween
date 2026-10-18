@@ -137,13 +137,13 @@ static void TestHostEasing(void)
     CHECK(CallEverything(context, false) == 0 &&
               mtwnContext_SetReducedMotion(context, false) == mtwn_success,
           "not busy, none of the calls returns a state error, the last left too");
-    uint64_t before = mtwnContext_GetMisuseCount(context);
+    uint64_t before = mtwnGetContextMisuse(context);
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
-    CHECK(mtwnContext_GetMisuseCount(context) == before + 38, "each counted, the destroy too");
+    CHECK(mtwnGetContextMisuse(context) == before + 38, "each counted, the destroy too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, s_probe.target, &value) == mtwn_success && value.x == 0.5f,
@@ -207,8 +207,7 @@ static void TestAllocator(void)
           "an update from the allocation refused");
     CHECK(calling.frees == 1 && calling.inFree == mtwn_errorState,
           "a change from freeing the old block refused");
-    CHECK(mtwnContext_GetMisuseCount(context) == 1,
-          "the allocation's refusal counted, moved along");
+    CHECK(mtwnGetContextMisuse(context) == 1, "the allocation's refusal counted, moved along");
     CHECK(!mtwnContext_IsReducedMotion(context), "nothing changed");
     calling.context = context;
     calling.inFree = mtwn_success;
@@ -282,13 +281,13 @@ static void TestTasks(void)
         mtwnPlayerId player;
         CHECK(mtwnCreatePlayer(context, &def2, &player) == mtwn_success, "a player");
     }
-    uint64_t before = mtwnContext_GetMisuseCount(context);
+    uint64_t before = mtwnGetContextMisuse(context);
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_enqueued > 0 && s_finished > 0, "the clips' players ran on the tasks");
     CHECK(s_taskRefused == s_enqueued + s_finished, "every call back in refused");
-    CHECK(mtwnContext_GetMisuseCount(context) == before + s_taskRefused, "each counted");
+    CHECK(mtwnGetContextMisuse(context) == before + s_taskRefused, "each counted");
     mtwnDestroyContext(context);
 }
 

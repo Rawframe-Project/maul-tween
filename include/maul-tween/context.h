@@ -189,7 +189,7 @@ extern "C"
     /// @return The count.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_API uint64_t mtwnContext_GetMisuseCount(const mtwnContext* context);
+    MTWN_API uint64_t mtwnGetContextMisuse(const mtwnContext* context);
 
     /// Returns how many clip players' advances a context with a task system
     /// ran on the calling thread since it was made (record mtwn-0056): a

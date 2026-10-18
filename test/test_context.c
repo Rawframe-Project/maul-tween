@@ -62,7 +62,7 @@ static void TestCreate(void)
     CHECK(mtwnContext_GetMemoryBytes(context) == counter.bytes &&
               counter.bytes >= 100 * sizeof(mtwnTargetSlot),
           "the block holds the targets and is the size reported");
-    CHECK(mtwnContext_GetMisuseCount(context) == 0, "no misuse yet");
+    CHECK(mtwnGetContextMisuse(context) == 0, "no misuse yet");
     mtwnDestroyContext(context);
     CHECK(counter.frees == 1, "one free");
     mtwnDestroyContext(NULL);
@@ -217,14 +217,14 @@ static void TestIds(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &d) == mtwn_errorLimit &&
               d.index1 == 0 && d.generation == 0,
           "the capacity reached");
-    CHECK(mtwnContext_GetMisuseCount(context) == 0, "a full pool is not misuse");
+    CHECK(mtwnGetContextMisuse(context) == 0, "a full pool is not misuse");
     CHECK(mtwnDestroyTarget(context, b) == mtwn_success &&
               mtwnDestroyTarget(context, a) == mtwn_success,
           "destroyed");
     CHECK(!mtwnTarget_IsValid(context, a) && !mtwnTarget_IsValid(context, b) &&
               mtwnTarget_IsValid(context, c),
           "stale and alive");
-    CHECK(mtwnContext_GetMisuseCount(context) == 0, "validity queries are not misuse");
+    CHECK(mtwnGetContextMisuse(context) == 0, "validity queries are not misuse");
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &d) == mtwn_success && d.index1 == 1 &&
               d.generation == 2,
           "the last freed slot first, its generation advanced");
@@ -241,7 +241,7 @@ static void TestIds(void)
     CHECK(mtwnTarget_SetBase(context, (mtwnTargetId){0, 0}, one) == mtwn_errorStale, "the null id");
     CHECK(mtwnTarget_GetValue(context, (mtwnTargetId){99, 1}, &value) == mtwn_errorStale,
           "an index past the pool");
-    CHECK(mtwnContext_GetMisuseCount(context) == 4, "each counted as misuse");
+    CHECK(mtwnGetContextMisuse(context) == 4, "each counted as misuse");
     CHECK(!mtwnTarget_IsValid(NULL, c), "no context");
     mtwnDestroyContext(context);
 }
@@ -320,8 +320,7 @@ static void TestValues(void)
     CHECK(mtwnCreateTarget(NULL, mtwn_valueScalar, given, &id) == mtwn_errorInvalid, "no context");
     CHECK(mtwnTarget_GetValue(context, id, NULL) == mtwn_errorInvalid, "null value out");
     CHECK(mtwnTarget_GetState(context, id, NULL) == mtwn_errorInvalid, "null state out");
-    CHECK(mtwnContext_GetMisuseCount(context) == 8,
-          "every refusal counted, none without a context");
+    CHECK(mtwnGetContextMisuse(context) == 8, "every refusal counted, none without a context");
     mtwnDestroyContext(context);
 }
 
@@ -344,7 +343,7 @@ static void TestReadMany(void)
     CHECK(mtwnReadTargets(context, ids, 4, values) == mtwn_errorStale, "a stale id among them");
     CHECK(values[1].x == 0.0f && values[3].x == 0.0f && values[2].x == 2.0f,
           "stale ones zero, the others read");
-    CHECK(mtwnContext_GetMisuseCount(context) == 2, "each stale id counted");
+    CHECK(mtwnGetContextMisuse(context) == 2, "each stale id counted");
     CHECK(mtwnReadTargets(context, NULL, 0, NULL) == mtwn_success, "nothing to read");
     CHECK(mtwnReadTargets(context, NULL, 1, values) == mtwn_errorInvalid, "null ids");
     mtwnDestroyContext(context);
@@ -357,10 +356,10 @@ static void TestReadRefusals(void)
     mtwnContext* context = Make(2);
     mtwnVec4 values[1];
     mtwnTargetId ids[1] = {{0, 0}};
-    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    uint64_t misuse = mtwnGetContextMisuse(context);
     CHECK(mtwnReadTargets(context, NULL, 1, values) == mtwn_errorInvalid &&
               mtwnReadTargets(context, ids, 1, NULL) == mtwn_errorInvalid &&
-              mtwnContext_GetMisuseCount(context) == misuse + 2,
+              mtwnGetContextMisuse(context) == misuse + 2,
           "no ids or no room: misuse, counted");
     CHECK(mtwnReadTargets(NULL, ids, 1, values) == mtwn_errorInvalid, "no context refused");
     mtwnDestroyContext(context);

@@ -107,7 +107,7 @@ static void TestStorage(void)
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "one fits");
     CHECK(mtwnCreateClip(context, &def, &b) == mtwn_errorLimit && counter.allocations == 2,
           "a second would pass the clip storage, nothing allocated");
-    CHECK(mtwnContext_GetMisuseCount(context) == 0, "a limit is not misuse");
+    CHECK(mtwnGetContextMisuse(context) == 0, "a limit is not misuse");
     mtwnDestroyContext(context);
     // A failed allocation gives its slot back; a used clip is busy.
     counter = (Counter){0};
@@ -227,7 +227,7 @@ static void TestTracks(void)
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorState && node == 0,
           "nothing is added once finished");
     CHECK(mtwnClip_Finish(context, clip) == mtwn_errorState, "finished once");
-    CHECK(mtwnContext_GetMisuseCount(context) == 4, "each refusal counted");
+    CHECK(mtwnGetContextMisuse(context) == 4, "each refusal counted");
     mtwnDestroyContext(context);
 }
 
@@ -257,7 +257,7 @@ static void TestRefusals(void)
     def.keyframes = keys;
     def.keyframeCount = 2;
     mtwnNode node;
-    uint64_t misuse = mtwnContext_GetMisuseCount(context);
+    uint64_t misuse = mtwnGetContextMisuse(context);
     def.parent = 2;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no such parent");
     def.parent = MTWN_ROOT_NODE;
@@ -291,7 +291,7 @@ static void TestRefusals(void)
     def.version = MTWN_ABI_VERSION + 1;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorVersion, "a version");
     def.version = MTWN_ABI_VERSION;
-    CHECK(mtwnContext_GetMisuseCount(context) == misuse + 11, "each counted");
+    CHECK(mtwnGetContextMisuse(context) == misuse + 11, "each counted");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "then it fits");
     def.parent = node;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid,
