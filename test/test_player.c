@@ -138,6 +138,48 @@ static void TestPlayPause(void)
     mtwnDestroyContext(f.context);
 }
 
+// A pause at a rate other than 1 and a play again: the player resumes from
+// the time held, at its rate, never ahead (Motion 14.1.0 fixed animations
+// jumping ahead there).
+static void TestPauseAtRate(void)
+{
+    Fixture f = Make(false, 64);
+    mtwnPlayerId p = Player(&f, true, 2.0);
+    Update(&f, 0.0);
+    Update(&f, 0.25);
+    CHECK(Near(State(&f, p).currentTime, 0.5), "a quarter second at 2");
+    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success, "paused");
+    Update(&f, 1.0);
+    CHECK(Near(State(&f, p).currentTime, 0.5), "held");
+    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success, "played");
+    Update(&f, 5.0);
+    CHECK(Near(State(&f, p).currentTime, 0.5), "from the time held, after a long pause");
+    Update(&f, 5.25);
+    CHECK(Near(State(&f, p).currentTime, 1.0), "at 2 again");
+    // A rate set and a pause before the next update: the rate is taken at
+    // the pause, and runs from the time held.
+    CHECK(mtwnPlayer_SetRate(f.context, p, 3.0) == mtwn_success &&
+              mtwnPlayer_Pause(f.context, p) == mtwn_success && State(&f, p).rate == 3.0,
+          "a rate pending at a pause, taken");
+    Update(&f, 5.5);
+    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success, "played");
+    Update(&f, 6.0);
+    Update(&f, 6.1);
+    CHECK(Near(State(&f, p).currentTime, 1.3), "from 1 at 3");
+    // Backwards: the same.
+    CHECK(mtwnPlayer_SetRate(f.context, p, -2.0) == mtwn_success, "-2");
+    Update(&f, 6.2);
+    CHECK(Near(State(&f, p).currentTime, 1.6), "the old rate to the update");
+    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success, "paused");
+    Update(&f, 7.0);
+    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success, "played");
+    Update(&f, 8.0);
+    Update(&f, 8.1);
+    CHECK(Near(State(&f, p).currentTime, 1.4) && State(&f, p).rate == -2.0,
+          "from the time held, backwards at 2");
+    mtwnDestroyContext(f.context);
+}
+
 static void TestSeeks(void)
 {
     Fixture f = Make(false, 64);
@@ -645,6 +687,7 @@ int main(void)
     TestAfterLastPlayer();
     TestFirstSweepAtRest();
     TestPlayPause();
+    TestPauseAtRate();
     TestSeeks();
     TestFinishReverse();
     TestSeekCancel();

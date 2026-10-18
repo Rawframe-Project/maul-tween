@@ -361,6 +361,57 @@ static void TestBoundaries(void)
     mtwnDestroyContext(w.context);
 }
 
+// Seeks past a clip's ends and into a delayed child, on its own and in a
+// delayed timeline, forwards and back (anime.js 4.5.0 fixed scrubbing past
+// a sequence's ends and seeks with delayed tweens).
+static void TestSeeksPastEnds(void)
+{
+    for (int nested = 0; nested < 2; ++nested)
+    {
+        World w = MakeWorld();
+        mtwnNode parent = MTWN_ROOT_NODE;
+        if (nested)
+        {
+            mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+            group.timing.delay = 0.25;
+            group.timing.fill = mtwn_fillBoth;
+            CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &parent) == mtwn_success,
+                  "a delayed timeline");
+        }
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[0].value.x = 2.0f;
+        keys[1].offset = 1.0;
+        keys[1].value.x = 8.0f;
+        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.track.kind = mtwn_valueScalar;
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.parent = parent;
+        track.timing.duration = 1.0;
+        track.timing.delay = 0.5;
+        track.timing.fill = mtwn_fillBoth;
+        mtwnNode node = 0;
+        CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
+              "a delayed track");
+        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        double lead = 0.5 + (nested ? 0.25 : 0.0);
+        const double seconds[7] = {-1.0, lead - 0.25, lead + 0.25, lead + 1.0,
+                                   10.0, lead + 0.25, -5.0};
+        const float want[7] = {2.0f, 2.0f, 3.5f, 8.0f, 8.0f, 3.5f, 2.0f};
+        int wrong = 0;
+        for (int i = 0; i < 7; ++i)
+        {
+            wrong += ShownAt(&w, seconds[i], 1.0) != want[i];
+            wrong += ShownAt(&w, seconds[i], -1.0) != want[i];
+        }
+        CHECK(wrong == 0, nested ? "in a delayed timeline: the ends' and the child's values"
+                                 : "the ends' values past them, the child's in it");
+        mtwnDestroyContext(w.context);
+    }
+}
+
 static void TestTimelineShapes(void)
 {
     // A reversed timeline of infinite set duration holds its end: its
@@ -584,6 +635,7 @@ int main(void)
     TestOrder();
     TestEndlessTimeline();
     TestBoundaries();
+    TestSeeksPastEnds();
     TestTimelineShapes();
     TestStaleTarget();
     TestCommitReported();

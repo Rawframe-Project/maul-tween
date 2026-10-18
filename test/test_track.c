@@ -63,6 +63,33 @@ static void TestNumbers(void)
           "below zero too");
 }
 
+// Keyframes at offsets that are sums with rounding (0.1 + 0.2 is
+// 0.30000000000000004): each segment kind gives the keyframes' own values
+// at their offsets (anime.js 4.5.0 fixed floating-point errors in keyframe
+// arrays).
+static void TestKeyframeOffsets(void)
+{
+    const double offsets[5] = {0.0, 0.1, 0.1 + 0.2, 0.1 + 0.2 + 0.4, 1.0};
+    const float values[5] = {3.0f, -7.0f, 11.5f, 0.25f, 9.0f};
+    int wrong = 0;
+    for (mtwnSegmentKind kind = mtwn_segmentLinear; kind <= mtwn_segmentMonotone; ++kind)
+    {
+        mtwnKeyframe keys[5];
+        for (int i = 0; i < 5; ++i)
+        {
+            keys[i] = Key(offsets[i], (mtwnVec4){values[i], 0, 0, 0}, kind);
+        }
+        mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScalar);
+        mtwnTrack track;
+        CHECK(mtwnMakeTrack(&def, keys, 5, NULL, NULL, &track) == mtwn_success, "a track");
+        for (int i = 0; i < 5; ++i)
+        {
+            wrong += mtwnSampleTrack(&track, offsets[i]).x != values[i];
+        }
+    }
+    CHECK(wrong == 0, "each keyframe's value at its offset");
+}
+
 static void TestDiscrete(void)
 {
     mtwnKeyframe keys[3] = {Key(0.0, (mtwnVec4){4, 0, 0, 0}, mtwn_segmentLinear),
@@ -442,6 +469,7 @@ int main(void)
     TestRotationZero();
     TestRotationFarOut();
     TestNumbers();
+    TestKeyframeOffsets();
     TestDiscrete();
     TestAngles();
     TestColors();
