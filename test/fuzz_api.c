@@ -107,6 +107,23 @@ static double Overshooting(void* unused, double progress)
     return progress + 1e45 * progress * progress * (1.0 - progress);
 }
 
+// A value or velocity: Wild's draws, but one in twelve a signed fraction
+// of the largest float, so the script reaches the floats' range without
+// a host curve tuned to (record mtwn-0069). It takes the same bytes as
+// Wild, so a seed's later draws keep their meaning.
+static double Value(Bytes* in, double scale)
+{
+    size_t at = in->at;
+    uint32_t b = Byte(in);
+    if (b % 12 != 11)
+    {
+        in->at = at;
+        return Wild(in, scale);
+    }
+    double fraction = (double)(1 + Byte(in)) / 256.0;
+    return (b / 12 % 2 == 0 ? fraction : -fraction) * 0x1.fffffep127;
+}
+
 static mtwnTiming RandomTiming(Bytes* in)
 {
     mtwnTiming t = mtwnDefaultTiming();
@@ -225,7 +242,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         uint32_t count = 1 + Below(in, 3);
         for (uint32_t k = 0; k < count; ++k)
         {
-            keys[k].value = (mtwnVec4){(float)Wild(in, 4.0), 0.5f, 0.0f, 1.0f};
+            keys[k].value = (mtwnVec4){(float)Value(in, 4.0), 0.5f, 0.0f, 1.0f};
             keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Wild(in, 1.0));
             keys[k].easing = mtwnLinearEasing();
             if (k == 1)
@@ -318,7 +335,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
     {
         mtwnTransitionDef def = mtwnDefaultTransitionDef();
         def.target = targets[Below(in, s_targets)];
-        def.value = (mtwnVec4){(float)Wild(in, 4.0), 0.25f, 0.5f, 1.0f};
+        def.value = (mtwnVec4){(float)Value(in, 4.0), 0.25f, 0.5f, 1.0f};
         // A value drawn below 0 eases past the floats on the way.
         if (def.value.x < 0.0f)
         {
@@ -333,7 +350,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         {
             // A fling, bounded or landing (record mtwn-0063).
             def.velocitySource = mtwn_velocityGiven;
-            def.velocity = (mtwnVec4){(float)Wild(in, 8.0), (float)Wild(in, 8.0), 0.0f, 0.0f};
+            def.velocity = (mtwnVec4){(float)Value(in, 8.0), (float)Value(in, 8.0), 0.0f, 0.0f};
             def.bounded = Below(in, 2) == 0;
             def.lands = !def.bounded && Below(in, 2) == 0;
             def.lower = (mtwnVec4){(float)Wild(in, 2.0), -1.0f, 0.0f, 0.0f};
