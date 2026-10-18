@@ -149,3 +149,9 @@ checks (record mtwn-0071: timing, transition, context and path +64 to
 +80, player +16) and the mix's form (color -112, signal -64, rotation
 -48) among them, clip -256 and stagger -98. No instruction count moved
 with the mix (record mtwn-0058's targets and the bench's frames).
+
+## Amended 2026-10-18: 1.0.0
+
+At 1.0.0 the parts are 0.7.0's to the byte (GCC 14, x86-64; the misuse
+count's rename moves no code), so the budgets restated at 0.7.0 stand.
+Clang 20's clips and everything are 0.1 kB more.

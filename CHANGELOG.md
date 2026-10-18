@@ -2,10 +2,24 @@
 
 All notable changes to this project are recorded here. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
-the project uses [Semantic Versioning](https://semver.org/). Before
-1.0.0, any minor release may change the API and the ABI.
+the project uses [Semantic Versioning](https://semver.org/). From
+1.0.0, within a major version: the source interface only grows (fields
+are added at the end of their struct, enumerations gain values, limits
+only rise, and a removal waits for the next major), and results are the
+same bits on every platform for the same calls, a change to them a line
+under Changed or Fixed (record mtwn-0072). The binary interface holds
+within a minor version: a program built against 1.y runs with any 1.y.z,
+and a library of another minor refuses its defs with
+`mtwn_errorVersion`. Before 1.0.0, any minor release could change the
+API and the ABI.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-10-18
+
+The first stable release: what 0.7.0 does, with the promises above and
+those of record mtwn-0072. Maul Tween defines no file format, so none is
+kept.
 
 ### Changed
 
