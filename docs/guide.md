@@ -345,6 +345,13 @@ for (uint32_t i = 0; i < total && i < 64; ++i)
 `total` may exceed the array; those past it are left out of the report
 only. A context at rest reports nothing and costs next to nothing.
 
+A value shown on a grid (whole pixels, a snap step, the nearest of a
+list) is snapped where the host shows it: round the value, and skip the
+write when the snapped value is the one already shown. The library
+keeps the exact value, which every writer of the target composes and
+which velocities and springs need; a count that steps by whole numbers
+is an `mtwn_valueInteger` target instead (record mtwn-0066).
+
 ## Clips
 
 A clip is a definition: tracks of keyframes on timelines, made once

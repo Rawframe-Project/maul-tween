@@ -70,3 +70,4 @@ are listed in [README.md](README.md).
 | [mtwn-0063](mtwn-0063-inertia.md) | Inertia: landing and bounds | Accepted |
 | [mtwn-0064](mtwn-0064-path-direction.md) | A path's direction | Accepted |
 | [mtwn-0065](mtwn-0065-shake-noise.md) | A shake's noise on its own clock | Accepted |
+| [mtwn-0066](mtwn-0066-snapped-output.md) | Snapped values stay the host's | Accepted |
