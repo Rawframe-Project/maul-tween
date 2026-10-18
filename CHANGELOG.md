@@ -66,6 +66,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- A monotone segment works only its path's channels: a one-channel
+  monotone track's sample takes 518 instructions, from 805; the bench
+  counts it (record mtwn-0058's target, at most 600).
 - A path's Catmull-Rom segment loads its keyframes once: a path's
   sample at constant speed takes about 22 fewer instructions.
 - A clip's track that does not move on by its iterations costs a test:

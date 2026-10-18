@@ -217,7 +217,8 @@ static void Monotone(const mtwnPath* path, uint32_t i, const double p1[4], const
         LoadOf(path, k[i + 2].value, p3);
     }
     const double* const points[4] = {p0, p1, p2, p3};
-    for (int c = 0; c < 4; ++c)
+    // The path's channels only: SegmentCubic left the others 0.
+    for (int c = 0; c < path->channels; ++c)
     {
         MonotoneChannel(points, widths, has, c, out);
     }

@@ -17,9 +17,9 @@
 // (step, spread, clips, repeat, churn; -tasks after one runs it in groups
 // on the calling thread, -quiet in a context of no records) and a number
 // of updates, and the clip's period if not 1 s, or a values case (oklab,
-// oklch, slerp, path, track) and a number of samples, it runs only those,
-// for an instruction counter; --compiler prints the compiler it was built
-// with.
+// oklch, slerp, path, track, monotone) and a number of samples, it runs
+// only those, for an instruction counter; --compiler prints the compiler
+// it was built with.
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -118,7 +118,8 @@ static void Check(mtwnResult status, const char* what)
 // Oklab and in OkLCh; a rotation, identity to 120 degrees about
 // (1, 2, 3), by slerp; a path through eight points at constant speed
 // (centripetal Catmull-Rom); a track of a number, 0, 100, 0 at 0, 1/2
-// and 1, a quadratic out on each segment.
+// and 1, a quadratic out on each segment; a monotone track of a number
+// (record mtwn-0067), 0, 30, 40, 100, 100 at 0, 0.1, 0.4, 0.5 and 1.
 enum
 {
     VALUE_OKLAB,
@@ -126,10 +127,12 @@ enum
     VALUE_SLERP,
     VALUE_PATH,
     VALUE_TRACK,
+    VALUE_MONOTONE,
     VALUE_CASES
 };
 
-static const char* const s_valueCases[VALUE_CASES] = {"oklab", "oklch", "slerp", "path", "track"};
+static const char* const s_valueCases[VALUE_CASES] = {"oklab", "oklch", "slerp",
+                                                      "path",  "track", "monotone"};
 
 typedef struct Values
 {
@@ -140,6 +143,8 @@ typedef struct Values
     mtwnPath path;
     mtwnKeyframe trackKeys[3];
     mtwnTrack track;
+    mtwnKeyframe monotoneKeys[5];
+    mtwnTrack monotone;
 } Values;
 
 static void MakeValues(Values* v)
@@ -177,6 +182,16 @@ static void MakeValues(Values* v)
     }
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScalar);
     Check(mtwnMakeTrack(&def, v->trackKeys, 3, NULL, NULL, &v->track), "a track");
+    static const float rising[5] = {0.0f, 30.0f, 40.0f, 100.0f, 100.0f};
+    static const double at[5] = {0.0, 0.1, 0.4, 0.5, 1.0};
+    for (int k = 0; k < 5; ++k)
+    {
+        v->monotoneKeys[k].value.x = rising[k];
+        v->monotoneKeys[k].offset = at[k];
+        v->monotoneKeys[k].easing = mtwnLinearEasing();
+        v->monotoneKeys[k].kind = mtwn_segmentMonotone;
+    }
+    Check(mtwnMakeTrack(&def, v->monotoneKeys, 5, NULL, NULL, &v->monotone), "a monotone track");
 }
 
 // Samples a case at n progresses, (i + 0.5) / n: the sum of the results.
@@ -204,7 +219,7 @@ static double SampleValues(const Values* v, int which, uint32_t n)
         }
         else
         {
-            sum += (double)mtwnSampleTrack(&v->track, p).x;
+            sum += (double)mtwnSampleTrack(which == VALUE_TRACK ? &v->track : &v->monotone, p).x;
         }
     }
     return sum;
@@ -583,7 +598,7 @@ static int Count(const char* name, int count)
         stderr,
         "--count takes step, spread, clips, repeat or churn, each with -tasks, -quiet or neither, "
         "oklab, "
-        "oklch, slerp, path or track\n");
+        "oklch, slerp, path, track or monotone\n");
     return 1;
 }
 
@@ -631,7 +646,7 @@ int main(int argc, char** argv)
     Tweens tweens = {HUGE_VAL, HUGE_VAL, HUGE_VAL, 0.0};
     Curves curves = {HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL};
     double clips = HUGE_VAL;
-    double values[VALUE_CASES] = {HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL};
+    double values[VALUE_CASES] = {HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL, HUGE_VAL};
     for (int run = 0; run < RUNS; ++run)
     {
         RunTweens(&tweens, changed);
@@ -657,5 +672,6 @@ int main(int argc, char** argv)
     Report("rotation slerp sample", values[VALUE_SLERP], "ns");
     Report("path sample, constant speed", values[VALUE_PATH], "ns");
     Report("track sample, three keyframes", values[VALUE_TRACK], "ns");
+    Report("track sample, monotone, five keyframes", values[VALUE_MONOTONE], "ns");
     return 0;
 }

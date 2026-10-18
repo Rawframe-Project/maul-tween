@@ -46,6 +46,8 @@ misses clips-tasks clips 1000 1.12 l2_cache_req_stat.ls_rd_blk_c:u
 # 2026-10-17), the bound again about 3% over.
 path     100000 2675
 track    100000 272
+# A monotone track of five keyframes (record mtwn-0067): 518 when set.
+monotone 100000 535
 oklab    100000 1520
 oklch    100000 1695
 slerp    100000 610

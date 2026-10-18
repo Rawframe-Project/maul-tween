@@ -109,3 +109,14 @@ that does not, dearer, and the test of a context's record capacity
 (record mtwn-0062), 3,100 a frame. The moving on is now out of line
 behind a test of whether the track moves on at all: the clips 5.886
 million, below their count before, and every other frame lower too.
+
+## Amended 2026-10-18: the monotone track's target
+
+Record mtwn-0067's monotone segment is a values case of its own: a
+scalar track of five keyframes, 0, 30, 40, 100 and 100 at 0, 0.1, 0.4,
+0.5 and 1, sampled as the track is. Its segments first worked all four
+channels whatever the path's; they now work its channels only, the
+others left 0: 805 instructions to 518 at `-O3`, the same keyframes as
+Catmull-Rom taking 547. Counted as this record counts (`-O2`): 551. The
+target is at most 600 instructions a sample; the bench's bound 535.
+
