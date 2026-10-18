@@ -450,6 +450,75 @@ static void TestTwos(void)
     mtwnDestroyContext(context);
 }
 
+static void TestEasedRate(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    mtwnTargetId x = {0, 0};
+    mtwnTargetId speed = {0, 0};
+    mtwnClipId clip = {0, 0};
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnNode node = 0;
+    mtwnResult made = mtwn_success;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0}, &speed) ==
+                  mtwn_success &&
+              mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
+              Line(context, clip, 0, 1000.0f, 10.0, mtwnLinearEasing(), &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a track at 100 a second");
+    mtwnBinding binding = mtwnBind(0, x);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = clip;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    mtwnPlayerId player;
+    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
+          "playing");
+    // At 1 s the speed eases from 1 to 0 over a second, a quadratic out.
+    mtwnTransitionDef slow = mtwnDefaultTransitionDef();
+    slow.target = speed;
+    slow.value = (mtwnVec4){0.0f, 0, 0, 0};
+    slow.duration = 1.0;
+    CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &slow.easing) == mtwn_success, "an ease out");
+    double last = 0.0;
+    double lastRate = 1.0;
+    double running = 1.0; // the rate the player moves at, a frame behind
+    int jumps = 0;
+    for (int frame = 1; frame <= 180; ++frame)
+    {
+        if (frame == 60)
+        {
+            mtwnPlayerId slowing;
+            CHECK(mtwnStartTransition(context, &slow, &slowing) == mtwn_success, "slowing");
+        }
+        CHECK(mtwnUpdate(context, (uint64_t)frame * 1000000000u / 60u, NULL, 0, NULL) ==
+                  mtwn_success,
+              "a frame");
+        mtwnVec4 v;
+        CHECK(mtwnTarget_GetValue(context, x, &v) == mtwn_success, "read");
+        // Each frame moves by the rate running since the last update: no
+        // jump, no step back. A rate set takes over at the next update.
+        double step = (double)v.x - last;
+        jumps += fabs(step - 100.0 * running / 60.0) > 1e-3;
+        last = (double)v.x;
+        running = lastRate;
+        // After each update: the rate the speed transition has reached.
+        mtwnVec4 rate;
+        made = mtwnTarget_GetValue(context, speed, &rate);
+        made = mtwnPlayer_SetRate(context, player, (double)rate.x);
+
+        CHECK(made == mtwn_success, "the rate set");
+        lastRate = (double)rate.x;
+    }
+    CHECK(jumps == 0, "each frame the distance its rate gives");
+    CHECK(lastRate == 0.0 && last > 100.0 && last < 200.0,
+          "stopped between 1 and 2 s of the track");
+    mtwnDestroyContext(context);
+}
+
 static void TestTrauma(void)
 {
     mtwnShake noise;
@@ -627,6 +696,7 @@ int main(void)
     TestScroll();
     TestJump();
     TestTwos();
+    TestEasedRate();
     TestHandles();
     TestTrauma();
     TestValues();

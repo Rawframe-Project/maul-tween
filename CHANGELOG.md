@@ -7,6 +7,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- The guide's eased rate: a transition run each frame into
+  `mtwnPlayer_SetRate` slows a player to a stop as GSAP tweens a
+  timeline's timeScale, a frame behind as Web Animations' seamless
+  rate change takes it.
+
 ### Changed
 
 - `tools/code_size.py --budget` fails a part's budget set more than 10%

@@ -528,6 +528,20 @@ playing = mtwnPlayer_Play(context, intro);
 player not kept commits its last values as the targets' bases when it
 finishes and frees itself; a target no player writes shows its base.
 
+A rate set each frame eases it, as GSAP tweens a timeline's `timeScale`
+to a stop: a transition on a scalar target runs the rate, and after each
+update the host gives the player what it reached. The player keeps its
+time at every change, so it slows without a jump and holds at 0; a
+moving player takes a new rate at the next update, as Web Animations'
+seamless change does, so it runs a frame behind the transition:
+
+```c
+// After each update: the rate the speed transition has reached.
+mtwnVec4 rate;
+made = mtwnTarget_GetValue(context, speed, &rate);
+made = mtwnPlayer_SetRate(context, player, (double)rate.x);
+```
+
 Scroll drives a clip as CSS's scroll timelines do when a paused player
 is swept to the scroll's progress before each update: `mtwnPlayer_Sweep`
 crosses everything between, so marks and starts fire as they are
