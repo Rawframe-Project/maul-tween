@@ -195,6 +195,29 @@ along a path turns with it by the path's direction, as CSS's
 included (`mtwnPathDirection`, a unit vector; `mtwnPathAngle`, its
 angle in the plane, the same bits on every platform).
 
+A curve editor's key has handles in time as well as value (Blender's
+F-curve handles, Unity's weighted tangents): its segment is a Bezier
+in both. It is a Bezier segment through the handles' values, timed by
+a cubic-bezier easing of the handles' times as shares of the span; the
+easing's y controls 1/3 and 2/3 make it give the curve's own
+parameter. A handle reaching past the span is shortened along itself
+first, as Blender does. Here the handles of a key at 0 s and value 0,
+and one at 2 s and value 10, lie at (0.5 s, 6) and (1.2 s, 10):
+
+```c
+mtwnKeyframe keys[2] = {0};
+keys[0].kind = mtwn_segmentBezier;
+keys[0].out = (mtwnVec4){6.0f, 0, 0, 0}; // the out handle's value
+keys[1].offset = 1.0;
+keys[1].value = (mtwnVec4){10.0f, 0, 0, 0};
+keys[1].in = (mtwnVec4){10.0f, 0, 0, 0}; // the in handle's value
+// Their times, 0.5 s and 1.2 s, as shares of the 2 s span.
+mtwnResult made = mtwnMakeCubicBezier(0.25, 1.0 / 3.0, 0.6, 2.0 / 3.0, &keys[0].easing);
+```
+
+A segment's channels share its easing, so handles timed apart per
+channel are a track a channel, as Blender's F-curves are.
+
 A scale (a zoom factor, a size from 1 to 100) mixed linearly seems to
 slow down, each step adding the same amount; a scale moves in its
 logarithm instead, so equal steps multiply by equal ratios. As a kind,

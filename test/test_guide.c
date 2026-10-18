@@ -12,6 +12,7 @@
 #include "maul-tween/easing.h"
 #include "maul-tween/event.h"
 #include "maul-tween/interpolate.h"
+#include "maul-tween/path.h"
 #include "maul-tween/player.h"
 #include "maul-tween/spring.h"
 #include "maul-tween/target.h"
@@ -107,6 +108,55 @@ static void TestZoom(void)
     mtwnZoomView view = mtwnMixZoom(&flight, 0.5);
     CHECK(made == mtwn_success && seconds > 0.0 && view.width > 2.0,
           "a flight that zooms out to pan");
+}
+
+// A cubic Bezier's coordinate at u.
+static double Bezier3(double a, double b, double c, double d, double u)
+{
+    double v = 1.0 - u;
+    return v * v * v * a + 3.0 * v * v * u * b + 3.0 * v * u * u * c + u * u * u * d;
+}
+
+static void TestHandles(void)
+{
+    mtwnKeyframe keys[2] = {0};
+    keys[0].kind = mtwn_segmentBezier;
+    keys[0].out = (mtwnVec4){6.0f, 0, 0, 0}; // the out handle's value
+    keys[1].offset = 1.0;
+    keys[1].value = (mtwnVec4){10.0f, 0, 0, 0};
+    keys[1].in = (mtwnVec4){10.0f, 0, 0, 0}; // the in handle's value
+    // Their times, 0.5 s and 1.2 s, as shares of the 2 s span.
+    mtwnResult made = mtwnMakeCubicBezier(0.25, 1.0 / 3.0, 0.6, 2.0 / 3.0, &keys[0].easing);
+
+    mtwnPath path;
+    CHECK(made == mtwn_success && mtwnMakePath(keys, 2, 1, 0.5, NULL, &path) == mtwn_success,
+          "a segment timed by its handles");
+    // Blender's way: the parameter whose time is the one asked, by
+    // bisection, and the value there.
+    double worst = 0.0;
+    for (int k = 0; k <= 200; ++k)
+    {
+        double time = 2.0 * k / 200.0;
+        double lo = 0.0;
+        double hi = 1.0;
+        for (int i = 0; i < 100; ++i)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (Bezier3(0.0, 0.5, 1.2, 2.0, mid) < time)
+            {
+                lo = mid;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        double expected = Bezier3(0.0, 6.0, 10.0, 10.0, 0.5 * (lo + hi));
+        double value[4];
+        mtwnSamplePath(&path, time / 2.0, value, NULL);
+        worst = fmax(worst, fabs(value[0] - expected));
+    }
+    CHECK(worst < 1e-9, "the editors' curve, solved for its time");
 }
 
 static void TestStagger(void)
@@ -519,6 +569,7 @@ int main(void)
     TestFling();
     TestScroll();
     TestJump();
+    TestHandles();
     TestTrauma();
     TestValues();
     TestScales();

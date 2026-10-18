@@ -9,6 +9,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- The guide's keyframe handles: a curve editor's segment, a Bezier in
+  time and value (Blender's F-curve handles, Unity's weighted
+  tangents), as a Bezier segment timed by a cubic-bezier easing.
 - `mtwn_segmentMonotone`: a segment through the keyframes in time that
   never passes them in any channel, by Steffen's slopes over the
   offsets (record mtwn-0067), as curve editors' clamped tangents keep
