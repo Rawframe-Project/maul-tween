@@ -76,6 +76,7 @@ extern "C"
         // For mtwn_positionAtLabel: the label's key.
         uint32_t label;
         mtwnPositionKind kind;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[3];
     } mtwnPosition;
 
@@ -91,6 +92,7 @@ extern "C"
         uint32_t nodeCapacity;
         uint32_t keyframeCapacity;
         uint32_t slotCapacity;
+        // 0: a call refuses another value (record mtwn-0071).
         uint32_t reserved;
     } mtwnClipDef;
 
@@ -151,6 +153,7 @@ extern "C"
         // Numbers, vectors, angles, integers and rotations; not endless
         // iterations of no duration, which pass at once.
         bool incremental;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[2];
     } mtwnClipTrackDef;
 
@@ -195,6 +198,7 @@ extern "C"
         // children arrive (infinite after an endless child, which makes the
         // timeline endless); otherwise the timing's duration, which clips.
         bool autoDuration;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[3];
         mtwnPosition position;
         // Its timing; its easing must be monotonic.
@@ -241,6 +245,7 @@ extern "C"
         uint32_t slot;
         uint32_t key;
         mtwnNodeKind kind;
+        // Written 0 (record mtwn-0071).
         uint8_t reserved[3];
     } mtwnClipNodeInfo;
 

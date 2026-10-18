@@ -22,7 +22,7 @@ reserved_internal:
 zoom: elementary
 signal: elementary mix_internal
 timing: reserved_internal timing_internal
-stagger: stagger_internal
+stagger: reserved_internal stagger_internal
 stagger_internal:
 timing_internal:
 allocator:

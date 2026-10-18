@@ -27,6 +27,7 @@ extern "C"
     {
         double parameters[5];
         uint32_t regime;
+        // 0 as made: a call taking it in refuses another value (record mtwn-0071).
         uint32_t reserved;
     } mtwnSpring;
 

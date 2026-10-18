@@ -45,6 +45,7 @@ extern "C"
     {
         uint32_t slot;
         mtwnComposite composite;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[3];
         mtwnTargetId target;
         // In [0, 1]: how far from what lies under it toward the composited
@@ -96,6 +97,7 @@ extern "C"
         // fade, a color, or motion essential to what it shows; the others
         // finish at once if their end is finite.
         bool essential;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved;
         // The playback rate, at most MTWN_RATE_LIMIT in size; negative
         // plays backwards, 0 holds.
@@ -165,6 +167,7 @@ extern "C"
         // end is infinite or its rate 0, so it could not finish (record
         // mtwn-0049). The host's to keep, seek or stop.
         bool playsOnReduced;
+        // Written 0 (record mtwn-0071).
         uint8_t reserved[5];
     } mtwnPlayerState;
 

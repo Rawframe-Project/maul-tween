@@ -83,6 +83,7 @@ extern "C"
         mtwnEventKind kind;
         // Whether the crossings went backwards.
         bool backwards;
+        // Written 0 (record mtwn-0071).
         uint8_t reserved[6];
     } mtwnEvent;
 

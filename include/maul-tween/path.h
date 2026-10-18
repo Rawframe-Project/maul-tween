@@ -54,6 +54,7 @@ extern "C"
         // The easing of the segment that starts here, and its kind.
         mtwnEasing easing;
         mtwnSegmentKind kind;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[7];
     } mtwnKeyframe;
 
@@ -69,6 +70,7 @@ extern "C"
         // Whether its values are scales, the path over their logarithms (a
         // scale track's; record mtwn-0059).
         uint8_t logarithmic;
+        // 0 as made (record mtwn-0071).
         uint8_t reserved[2];
     } mtwnPath;
 
@@ -168,6 +170,7 @@ extern "C"
         mtwnAngleMethod angleMethod;
         // For rotations: the way each segment turns.
         mtwnRotationPath rotationPath;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[3];
     } mtwnTrackDef;
 
@@ -203,6 +206,7 @@ extern "C"
         mtwnPath path;
         const mtwnSegmentMix* mixes;
         mtwnValueKind kind;
+        // 0 as made (record mtwn-0071).
         uint8_t reserved[7];
     } mtwnTrack;
 

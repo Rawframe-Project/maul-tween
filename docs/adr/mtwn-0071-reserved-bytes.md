@@ -43,3 +43,16 @@ that set a reserved byte gets `mtwn_errorInvalid` where it got its
 input taken before 1.0. The checks are a few compares per def, outside
 the update. `test_reserved` sets each reserved byte of each input in
 turn and expects the refusal and its misuse.
+
+## Amended 2026-10-18: what the library writes
+
+The rule's other half, now held by `test_reserved`: what the library
+writes has its reserved bytes 0 whatever the caller's buffer held. Its
+outputs (`mtwnEvent`, `mtwnPlayerState`, `mtwnTargetState`,
+`mtwnTimingResult`, `mtwnClipNodeInfo`), the values its makers produce
+(every easing and spring maker, `mtwnMakeColorMix`, `mtwnMakePath`,
+`mtwnMakeTrack`) and its default defs, timing and stagger: the test fills
+each with 0xFF before the call. A stagger `mtwnComputeStagger` takes is
+an input like the others and is refused the same way. Each reserved
+field's comment says which of the three it is: refused if not 0, 0 as
+made, or written 0.

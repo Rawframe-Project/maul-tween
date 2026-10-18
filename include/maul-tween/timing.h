@@ -87,6 +87,7 @@ extern "C"
         mtwnFill fill;
         mtwnDirection direction;
         mtwnAlternateEasing alternateEasing;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[5];
     } mtwnTiming;
 
@@ -117,6 +118,7 @@ extern "C"
         bool inRepeatDelay;
         // Whether the current iteration runs forwards, by the direction.
         bool forwards;
+        // Written 0 (record mtwn-0071).
         uint8_t reserved[4];
     } mtwnTimingResult;
 
@@ -228,6 +230,7 @@ extern "C"
         mtwnStaggerOrigin origin;
         mtwnStaggerAxis axis;
         mtwnStaggerSpacing spacingKind;
+        // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[5];
     } mtwnStagger;
 

@@ -10,6 +10,7 @@
 // offsets are the same bits on every platform. A random order is an
 // inside-out shuffle driven by SplitMix64 of the seed.
 
+#include "reserved_internal.h"
 #include "stagger_internal.h"
 
 #include "maul-tween/timing.h"
@@ -50,7 +51,8 @@ static bool IsValid(const mtwnStagger* stagger, uint32_t count, const double* of
     bool finite = isfinite(stagger->start) && isfinite(stagger->spacing) &&
                   fabs(stagger->pointX) <= s_pointLimit && fabs(stagger->pointY) <= s_pointLimit;
     bool index = stagger->origin != mtwn_staggerIndex || count == 0 || stagger->index < count;
-    return known && finite && index;
+    return known && finite && index &&
+           mtwnReservedClear(stagger->reserved, sizeof stagger->reserved);
 }
 
 static Grid MakeGrid(const mtwnStagger* stagger, uint32_t count)

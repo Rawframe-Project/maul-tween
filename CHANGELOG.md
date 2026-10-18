@@ -30,9 +30,10 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 - An input whose reserved bytes are not 0 is refused with
   `mtwn_errorInvalid`, one misuse counted where a context takes it: the
   defs, their timings, positions, keyframes, bindings and track defs,
-  the easings and springs inside them, and the timing, keyframes and
-  track def the values layer validates or makes from (record mtwn-0071),
-  so a later 1.y may give a reserved byte a meaning.
+  the easings and springs inside them, and the timing, keyframes, track
+  def and stagger the values layer validates, makes or computes from
+  (record mtwn-0071), so a later 1.y may give a reserved byte a meaning;
+  outputs and made values have them 0.
 
 ## [0.6.1] - 2026-10-18
 

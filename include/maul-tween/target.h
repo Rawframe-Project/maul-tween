@@ -29,6 +29,7 @@ extern "C"
         mtwnVec4 value;
         mtwnVec4 velocity;
         mtwnValueKind kind;
+        // Written 0 (record mtwn-0071).
         uint8_t reserved[3];
     } mtwnTargetState;
 

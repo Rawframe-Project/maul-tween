@@ -98,6 +98,7 @@ extern "C"
         // work and in each group's with a task system.
         uint32_t sharedNodeCapacity;
         uint32_t sharedRecordCapacity;
+        // 0: a call refuses another value (record mtwn-0071).
         uint32_t reserved;
         // Bytes for the clips' contents, up to MTWN_MAX_CLIP_STORAGE.
         uint64_t clipStorageBytes;
