@@ -347,6 +347,11 @@ double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
 ```
 Samples a shake for one channel: a factor from -1 to 1, each channel its own noise; exactly 0 at 0, at the duration and outside them.  @param shake    A shake made by this library. @param channel  Which channel, any value. @param seconds  The time since its start. @return The factor. @par Thread safety Safe from any thread.
 
+```c
+double mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds);
+```
+Samples a shake's noise alone, its envelope left to the host (record mtwn-0065): for a shake driven by "trauma" (Eiserloh's camera shake: an amount the host raises at each hit and lets decay, the shake its square), on a clock that runs on through the hits, so the noise never jumps where the amplitude changes. Each channel its own noise.  @param shake    A shake made by this library; its duration and exponent are not used. @param channel  Which channel, any value. @param seconds  The clock, from 0 while the frequency times it is below 2^53. @return A factor from -1 to 1: 0 on the lattice points and outside the clock's range. @par Thread safety Safe from any thread.
+
 ## `path.h`
 
 Paths and tracks (records mtwn-0016, mtwn-0031 and mtwn-0032): keyframe curves of one to four channels, segment by segment linear, step, cubic Bezier or Catmull-Rom (centripetal by default), timed by their keyframes or traveled at constant speed by arc length; and tracks, which give every value kind its keyframes. Both reference the caller's arrays and allocate nothing.
@@ -672,4 +677,4 @@ Measures how far a transition would move its target: from the target's current v
 
 ---
 
-123 functions across 13 headers.
+124 functions across 13 headers.

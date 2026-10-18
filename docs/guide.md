@@ -116,6 +116,29 @@ coasts from a velocity; `mtwnDecayStopTime` and `mtwnDecayCrossingTime`
 say when it stops and when it passes a point, and `mtwnRubberBand`
 gives iOS's resistance past an edge.
 
+Punch (`mtwnMakePunch`, a decaying sine) and shake (`mtwnMakeShake`,
+seeded smooth noise per channel, the same on every platform) are
+offsets that end where they began, for a hit or a rumble. A camera
+shake driven by trauma, as Eiserloh's talk on game cameras has it,
+takes the shake's noise alone (`mtwnShakeNoise`) on one clock and
+multiplies it by the trauma squared, which the host raises at each hit
+and lets decay:
+
+```c
+// A hit raises the trauma (Eiserloh's camera shake), up to 1.
+trauma = fmin(trauma + 0.4, 1.0);
+```
+
+```c
+// Each frame: trauma decays 0.5 a second; the shake is its square, on
+// one clock that runs through every hit, so the noise never jumps.
+trauma = fmax(trauma - 0.5 * dt, 0.0);
+double shake = trauma * trauma;
+double roll = 10.0 * shake * mtwnShakeNoise(&noise, 0, now); // degrees
+double dx = 20.0 * shake * mtwnShakeNoise(&noise, 1, now);   // pixels
+double dy = 20.0 * shake * mtwnShakeNoise(&noise, 2, now);
+```
+
 A fling that snaps lands where the host chooses: the decay's natural
 rest is its sample at infinity, and `mtwnMakeDecayToRest` makes the
 decay that rests on a chosen end with the same start velocity. A

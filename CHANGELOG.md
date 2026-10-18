@@ -9,6 +9,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- `mtwnShakeNoise`: a shake's noise alone on any clock, for camera
+  shake driven by trauma (record mtwn-0065); the guide shows it.
 - The guide's jump: DOTween's DOJump as a clip of three tracks, the
   hops added over the height's line, repeating up and down.
 - A path's direction (`mtwnPathDirection`) and angle (`mtwnPathAngle`)

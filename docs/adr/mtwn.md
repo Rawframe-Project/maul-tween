@@ -69,3 +69,4 @@ are listed in [README.md](README.md).
 | [mtwn-0062](mtwn-0062-a-context-without-records.md) | A context without records | Accepted |
 | [mtwn-0063](mtwn-0063-inertia.md) | Inertia: landing and bounds | Accepted |
 | [mtwn-0064](mtwn-0064-path-direction.md) | A path's direction | Accepted |
+| [mtwn-0065](mtwn-0065-shake-noise.md) | A shake's noise on its own clock | Accepted |

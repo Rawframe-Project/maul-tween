@@ -177,6 +177,34 @@ static void TestShakeRepeats(void)
     CHECK(mtwnMakeShake(1.0, 1.0, 1.0, 0, NULL) == mtwn_errorInvalid, "null out");
 }
 
+// The noise alone (record mtwn-0065): the shake without its envelope, on
+// a clock past its duration, 0 on the lattice and outside its range.
+static void TestShakeNoise(void)
+{
+    mtwnShake shake;
+    CHECK(mtwnMakeShake(10.0, 2.0, 1.0, 1234, &shake) == mtwn_success, "a shake");
+    int apart = 0;
+    for (int k = 1; k < 200; ++k)
+    {
+        double t = (double)k * 0.0093;
+        double envelope = 1.0 - t / 2.0;
+        apart += mtwnSampleShake(&shake, 4, t) != mtwnShakeNoise(&shake, 4, t) * envelope;
+    }
+    CHECK(apart == 0, "the shake is its noise times its envelope, bit for bit");
+    CHECK(mtwnShakeNoise(&shake, 4, 3.07) != 0.0 && mtwnSampleShake(&shake, 4, 3.07) == 0.0,
+          "the noise runs on past the duration");
+    CHECK(mtwnShakeNoise(&shake, 4, 0.3) == 0.0 && mtwnShakeNoise(&shake, 4, -0.07) == 0.0 &&
+              mtwnShakeNoise(&shake, 4, 0x1p53 / 10.0) == 0.0 &&
+              mtwnShakeNoise(&shake, 4, (double)NAN) == 0.0,
+          "0 on the lattice, before 0, past 2^53 points and for NaN");
+    double largest = 0.0;
+    for (int k = 0; k < 100000; ++k)
+    {
+        largest = fmax(largest, fabs(mtwnShakeNoise(&shake, 9, (double)k * 1e-3)));
+    }
+    CHECK(largest <= 1.0 && largest > 0.7, "within [-1, 1], filling most of it");
+}
+
 int main(void)
 {
     TestIntegers();
@@ -184,5 +212,6 @@ int main(void)
     TestPunch();
     TestShakeShape();
     TestShakeRepeats();
+    TestShakeNoise();
     return s_failures == 0 ? 0 : 1;
 }

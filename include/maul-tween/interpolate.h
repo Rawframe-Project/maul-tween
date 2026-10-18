@@ -419,6 +419,23 @@ extern "C"
     /// Safe from any thread.
     MTWN_API double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds);
 
+    /// Samples a shake's noise alone, its envelope left to the host (record
+    /// mtwn-0065): for a shake driven by "trauma" (Eiserloh's camera shake:
+    /// an amount the host raises at each hit and lets decay, the shake its
+    /// square), on a clock that runs on through the hits, so the noise never
+    /// jumps where the amplitude changes. Each channel its own noise.
+    ///
+    /// @param shake    A shake made by this library; its duration and
+    ///                 exponent are not used.
+    /// @param channel  Which channel, any value.
+    /// @param seconds  The clock, from 0 while the frequency times it is
+    ///                 below 2^53.
+    /// @return A factor from -1 to 1: 0 on the lattice points and outside
+    ///         the clock's range.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API double mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds);
+
 #ifdef __cplusplus
 }
 #endif

@@ -53,7 +53,7 @@ to 9% on one worker; 0.3.0, earlier that day, had slower clip players
 and records that could miss a crossing where a frame landed on a held
 time's edge; 0.2.1, on 2026-10-15, ran them on the calling thread only
 and several times slower; 0.1.0 lacked staggers and reduced motion. The library has
-123 public functions.
+124 public functions.
 
 ## Building
 

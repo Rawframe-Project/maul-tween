@@ -122,6 +122,18 @@ static double Gradient(uint64_t seed, uint32_t channel, uint64_t index)
     return (double)(z >> 11) * 0x1.0p-52 - 1.0;
 }
 
+// The noise at lattice coordinate x, from 0 to below 2^53.
+static double Noise(const mtwnShake* shake, uint32_t channel, double x)
+{
+    double lattice = floor(x);
+    double u = x - lattice;
+    uint64_t index = (uint64_t)lattice;
+    double left = Gradient(shake->seed, channel, index) * u;
+    double right = Gradient(shake->seed, channel, index + 1u) * (u - 1.0);
+    double fade = u * u * u * (u * (u * 6.0 - 15.0) + 10.0);
+    return s_noiseScale * (left + fade * (right - left));
+}
+
 double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
 {
     double envelope = Envelope(seconds, shake->duration, shake->exponent);
@@ -129,12 +141,11 @@ double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
     {
         return 0.0;
     }
+    return Noise(shake, channel, shake->frequency * seconds) * envelope;
+}
+
+double mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds)
+{
     double x = shake->frequency * seconds;
-    double lattice = floor(x);
-    double u = x - lattice;
-    uint64_t index = (uint64_t)lattice;
-    double left = Gradient(shake->seed, channel, index) * u;
-    double right = Gradient(shake->seed, channel, index + 1u) * (u - 1.0);
-    double fade = u * u * u * (u * (u * 6.0 - 15.0) + 10.0);
-    return s_noiseScale * (left + fade * (right - left)) * envelope;
+    return x >= 0.0 && x < s_shakePoints ? Noise(shake, channel, x) : 0.0;
 }

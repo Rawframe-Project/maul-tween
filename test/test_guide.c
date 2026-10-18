@@ -343,6 +343,38 @@ static void TestJump(void)
     mtwnDestroyContext(context);
 }
 
+static void TestTrauma(void)
+{
+    mtwnShake noise;
+    CHECK(mtwnMakeShake(20.0, 1.0, 1.0, 99, &noise) == mtwn_success, "a noise");
+    double trauma = 0.0;
+    double dt = 1.0 / 60.0;
+    int over = 0;
+    int moved = 0;
+    double last = 0.0;
+    for (int frame = 0; frame <= 240; ++frame)
+    {
+        double now = frame * dt;
+        if (frame == 0 || frame == 30)
+        {
+            // A hit raises the trauma (Eiserloh's camera shake), up to 1.
+            trauma = fmin(trauma + 0.4, 1.0);
+        }
+        // Each frame: trauma decays 0.5 a second; the shake is its square, on
+        // one clock that runs through every hit, so the noise never jumps.
+        trauma = fmax(trauma - 0.5 * dt, 0.0);
+        double shake = trauma * trauma;
+        double roll = 10.0 * shake * mtwnShakeNoise(&noise, 0, now); // degrees
+        double dx = 20.0 * shake * mtwnShakeNoise(&noise, 1, now);   // pixels
+        double dy = 20.0 * shake * mtwnShakeNoise(&noise, 2, now);
+        over += fabs(roll) > 10.0 * shake || fabs(dx) > 20.0 * shake || fabs(dy) > 20.0 * shake;
+        moved += dx != 0.0;
+        last = fabs(roll) + fabs(dx) + fabs(dy);
+    }
+    CHECK(over == 0 && moved > 60, "within the trauma's square, shaking while it lasts");
+    CHECK(last == 0.0 && trauma == 0.0, "still once the trauma is gone");
+}
+
 static void TestHost(void)
 {
     uint64_t nowNs = 0;
@@ -487,6 +519,7 @@ int main(void)
     TestFling();
     TestScroll();
     TestJump();
+    TestTrauma();
     TestValues();
     TestScales();
     TestZoom();
