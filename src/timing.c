@@ -10,6 +10,7 @@
 
 #include "maul-tween/timing.h"
 
+#include "reserved_internal.h"
 #include "timing_internal.h"
 
 #include <math.h>
@@ -36,7 +37,9 @@ mtwnResult mtwnValidateTiming(const mtwnTiming* timing)
         isfinite(timing->repeatDelay) && timing->repeatDelay >= 0.0 &&
         isfinite(timing->playbackRate) && timing->playbackRate != 0.0 &&
         timing->fill <= mtwn_fillBoth && timing->direction <= mtwn_directionAlternateReverse &&
-        timing->alternateEasing <= mtwn_alternateRepeatsShape;
+        timing->alternateEasing <= mtwn_alternateRepeatsShape &&
+        mtwnReservedClear(timing->reserved, sizeof timing->reserved) &&
+        mtwnEasingClear(&timing->easing);
     // A node played backwards starts from its active interval's end, which
     // must exist.
     if (valid && timing->playbackRate < 0.0)

@@ -10,6 +10,7 @@
 
 #include "context_internal.h"
 #include "fpenv.h"
+#include "reserved_internal.h"
 
 #include <math.h>
 
@@ -390,6 +391,7 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
             &context->targets, binding->target.index1, binding->target.generation);
         if (binding->slot >= clip->slotCount || target == NULL ||
             binding->composite > mtwn_compositeAdd || !IsWeight((double)binding->weight) ||
+            !mtwnReservedClear(binding->reserved, sizeof binding->reserved) ||
             clip->slotKinds[binding->slot] != target->kind + 1)
         {
             return false;
@@ -575,6 +577,10 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     if (def->version != MTWN_ABI_VERSION)
     {
         return Misuse(context, mtwn_errorVersion);
+    }
+    if (def->reserved != 0)
+    {
+        return Misuse(context, mtwn_errorInvalid);
     }
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);

@@ -18,9 +18,10 @@ rotation: elementary mix_internal
 scale: elementary
 bounds_internal:
 mix_internal:
+reserved_internal:
 zoom: elementary
 signal: elementary mix_internal
-timing: timing_internal
+timing: reserved_internal timing_internal
 stagger: stagger_internal
 stagger_internal:
 timing_internal:
@@ -28,17 +29,17 @@ allocator:
 fpenv:
 pool:
 context_internal: crossing pool runs
-context: allocator context_internal pool
+context: allocator context_internal pool reserved_internal
 target: context_internal pool
-transition: coast context_internal easing_internal elementary fpenv pool spring_internal
+transition: coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
-path: elementary fpenv path_internal path_length bounds_internal
+path: elementary fpenv path_internal path_length bounds_internal reserved_internal
 path_length: elementary
 path_internal: path_length
 path_direction: elementary path_internal path_length
-clip: allocator context_internal fpenv pool
+clip: allocator context_internal fpenv pool reserved_internal
 runs:
-player: context_internal fpenv pool runs
+player: context_internal fpenv pool reserved_internal runs
 player_slot: context_internal pool runs
 clip_sample: compose context_internal elementary fpenv pool runs bounds_internal
 clip_tasks: context_internal fpenv pool runs

@@ -27,6 +27,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   integer, rotation and signal mixes may differ in their last bits; the
   determinism scenario's hash moves from 0x79567506efccc400 to
   0x7b710979e70fff40.
+- An input whose reserved bytes are not 0 is refused with
+  `mtwn_errorInvalid`, one misuse counted where a context takes it: the
+  defs, their timings, positions, keyframes, bindings and track defs,
+  the easings and springs inside them, and the timing, keyframes and
+  track def the values layer validates or makes from (record mtwn-0071),
+  so a later 1.y may give a reserved byte a meaning.
 
 ## [0.6.1] - 2026-10-18
 

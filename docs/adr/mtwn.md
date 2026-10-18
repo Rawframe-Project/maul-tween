@@ -75,3 +75,4 @@ are listed in [README.md](README.md).
 | [mtwn-0068](mtwn-0068-calls-back-in.md) | Calls back in from the host's code | Accepted |
 | [mtwn-0069](mtwn-0069-numbers-held.md) | Numbers held within the floats | Accepted |
 | [mtwn-0070](mtwn-0070-mixes-of-equal-ends.md) | Mixes of equal ends | Accepted |
+| [mtwn-0071](mtwn-0071-reserved-bytes.md) | Reserved bytes are zero | Accepted |

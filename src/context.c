@@ -8,6 +8,7 @@
 
 #include "allocator.h"
 #include "context_internal.h"
+#include "reserved_internal.h"
 
 #include <stdckdint.h>
 #include <string.h>
@@ -39,7 +40,7 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
                  IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
                  IsCount(def->sharedRecordCapacity) &&
-                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
+                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE && def->reserved == 0;
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
 

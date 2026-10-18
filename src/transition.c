@@ -14,6 +14,7 @@
 #include "easing_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
+#include "reserved_internal.h"
 #include "spring_internal.h"
 
 #include <math.h>
@@ -42,6 +43,10 @@ static bool IsTolerance(double value)
 // tolerances are valid.
 static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
 {
+    if (!mtwnEasingClear(&def->easing) || def->spring.reserved != 0)
+    {
+        return false;
+    }
     switch (def->spec)
     {
     case mtwn_transitionEasing:
@@ -520,6 +525,11 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
     {
         mtwnCountMisuse(context);
         return mtwn_errorVersion;
+    }
+    if (!mtwnEasingClear(&def->easing) || def->spring.reserved != 0)
+    {
+        mtwnCountMisuse(context);
+        return mtwn_errorInvalid;
     }
     const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
         &context->targets, def->target.index1, def->target.generation);

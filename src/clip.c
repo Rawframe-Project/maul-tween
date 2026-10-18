@@ -10,6 +10,7 @@
 #include "allocator.h"
 #include "context_internal.h"
 #include "fpenv.h"
+#include "reserved_internal.h"
 
 #include <math.h>
 #include <stdckdint.h>
@@ -85,8 +86,8 @@ static mtwnResult CheckClipDef(const mtwnClipDef* def)
     {
         return mtwn_errorVersion;
     }
-    bool counts =
-        IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) && IsCount(def->slotCapacity);
+    bool counts = IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) &&
+                  IsCount(def->slotCapacity) && def->reserved == 0;
     return counts ? mtwn_success : mtwn_errorInvalid;
 }
 
@@ -272,6 +273,7 @@ static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition po
 static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
 {
     return position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
+           mtwnReservedClear(position.reserved, sizeof position.reserved) &&
            (position.kind != mtwn_positionAtLabel ||
             FindLabelIn(clip, parent, position.label) != 0) &&
            isfinite(StartOf(clip, parent, position));
@@ -409,7 +411,9 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
         !def->incremental || (def->track.kind != mtwn_valueColor &&
                               def->track.kind != mtwn_valueDiscrete && !endlessAtOnce);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) || !slot ||
-        !incremental || def->keyframes == NULL || mtwnValidateTiming(&def->timing) != mtwn_success)
+        !incremental || def->keyframes == NULL ||
+        mtwnValidateTiming(&def->timing) != mtwn_success ||
+        !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return mtwn_errorInvalid;
     }
@@ -471,7 +475,8 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     mtwnTiming resolved = ResolvedTiming(&node, 0.0);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
         mtwnValidateTiming(&resolved) != mtwn_success ||
-        !mtwnIsEasingMonotonic(&def->timing.easing))
+        !mtwnIsEasingMonotonic(&def->timing.easing) ||
+        !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return mtwn_errorInvalid;
     }
