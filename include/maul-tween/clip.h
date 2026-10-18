@@ -265,7 +265,7 @@ extern "C"
     /// context's clipStorageBytes for the clips it makes.
     ///
     /// @param def         The clip's def.
-    /// @param bytesOut    Receives the bytes.
+    /// @param bytesOut    Receives the bytes; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a def
     ///         without its cookie or a capacity past MTWN_MAX_COUNT;
     ///         mtwn_errorVersion for a def of another version.
@@ -409,9 +409,9 @@ extern "C"
     /// @param context   The context.
     /// @param clip      The clip.
     /// @param node      A track node of the clip.
-    /// @param trackOut  Receives the track, its timing, start, parent and
-    ///                  slot; sample it with mtwnComputeTiming and
-    ///                  mtwnSampleTrack from any thread while the clip lives.
+    /// @param trackOut  Receives the track, its timing, start, parent and slot;
+    ///                  sample it with mtwnComputeTiming and mtwnSampleTrack
+    ///                  from any thread while the clip lives; zero on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument or a node
     ///         that is not a track of the clip; mtwn_errorStale for a clip
     ///         that is not alive; mtwn_errorState for one not finished.
@@ -425,7 +425,7 @@ extern "C"
     /// @param context  The context.
     /// @param clip     The clip.
     /// @param node     A node of the clip, the root included.
-    /// @param infoOut  Receives what the node is.
+    /// @param infoOut  Receives what the node is; zero on failure.
     /// @return As mtwnClip_GetTrack, for any node.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
@@ -438,7 +438,7 @@ extern "C"
     /// @param clip        The clip.
     /// @param parent      The timeline the label is in.
     /// @param key         The label's key.
-    /// @param secondsOut  Receives its time in the parent.
+    /// @param secondsOut  Receives its time in the parent; 0 on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a parent
     ///         that is not a timeline of the clip, or no such label;
     ///         mtwn_errorStale and mtwn_errorState as mtwnClip_GetTrack.
@@ -452,7 +452,7 @@ extern "C"
     ///
     /// @param context     The context.
     /// @param clip        The clip.
-    /// @param secondsOut  Receives the duration.
+    /// @param secondsOut  Receives the duration; 0 on failure.
     /// @return As mtwnClip_GetTrack, without the node.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.

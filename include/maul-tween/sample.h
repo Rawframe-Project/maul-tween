@@ -26,7 +26,7 @@ extern "C"
     ///
     /// @param easing     An easing made by this library.
     /// @param count      The number of samples, at least 2.
-    /// @param valuesOut  Receives count values.
+    /// @param valuesOut  Receives count values; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         count below 2.
     /// @par Thread safety
@@ -44,10 +44,11 @@ extern "C"
     /// @param easing     An easing made by this library, not steps.
     /// @param tolerance  The largest error allowed, finite and above 0.
     /// @param pointsOut  Receives the points, with their inputs; may be NULL
-    ///                   when capacity is 0.
+    ///                   when capacity is 0; unspecified on failure.
     /// @param capacity   The number of points pointsOut holds.
     /// @param countOut   Receives the number of points the fit has, also
-    ///                   when they do not fit.
+    ///                   when they do not fit; unchanged on the other
+    ///                   failures.
     /// @return mtwn_success; mtwn_errorCapacity when more than capacity
     ///         points are needed, the contents of pointsOut then
     ///         unspecified; mtwn_errorLimit when more than

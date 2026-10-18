@@ -22,11 +22,18 @@ API and the ABI.
   those returned with it untouched: creating a target, clip or player,
   starting a transition, adding to a clip, and reading a target's value
   or state.
+- `mtwnMakeTrack` refused at a later rotation segment (the longest way
+  between equal rotations) leaves its mixes as they were, where it had
+  written the earlier segments'.
 
 ### Changed
 
 - `mtwnPlayer_GetState` clears its state on failure, as the target
   getters do.
+- Every output's header says what a failure leaves in it (record
+  mtwn-0073): a call on a context clears its outputs, the clip getters'
+  and the event and update counts now on every failure too; a call
+  without one leaves them as they were.
 
 ## [1.0.3] - 2026-10-19
 

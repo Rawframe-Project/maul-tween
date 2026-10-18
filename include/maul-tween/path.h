@@ -91,8 +91,9 @@ extern "C"
     ///                   a segment), 0 uniform, 1 chordal.
     /// @param lengthsOut Count doubles for constant speed, or NULL. Every
     ///                   segment but the last keyframe's then may not be a
-    ///                   step, which has no length to travel.
-    /// @param pathOut    Receives the path.
+    ///                   step, which has no length to travel; unchanged on
+    ///                   failure.
+    /// @param pathOut    Receives the path; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or an
     ///         argument outside the above.
     /// @par Thread safety
@@ -239,11 +240,12 @@ extern "C"
     ///                    copies them first.
     /// @param count       The number of keyframes.
     /// @param lengthsOut  Count doubles for constant speed, or NULL; only
-    ///                    numbers, vectors, angles, integers and scales take
-    ///                    it (a scale's lengths are its logarithm's).
-    /// @param mixesOut    Count - 1 mixes for colors and rotations, else
-    ///                    NULL or unused.
-    /// @param trackOut    Receives the track.
+    ///                    numbers, vectors, angles, integers and scales take it
+    ///                    (a scale's lengths are its logarithm's); unchanged on
+    ///                    failure.
+    /// @param mixesOut    Count - 1 mixes for colors and rotations, else NULL
+    ///                    or unused; unchanged on failure.
+    /// @param trackOut    Receives the track; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or an
     ///         argument outside the above.
     /// @par Thread safety

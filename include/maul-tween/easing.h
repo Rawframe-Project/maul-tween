@@ -198,7 +198,7 @@ extern "C"
     ///
     /// @param mode        The mode.
     /// @param exponent    k, finite and above 0.
-    /// @param easingOut   Receives the easing.
+    /// @param easingOut   Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown mode or an exponent outside the above.
     /// @par Thread safety
@@ -215,7 +215,7 @@ extern "C"
     /// @param kind       mtwn_easingSine, mtwn_easingExpo, mtwn_easingCirc
     ///                   or mtwn_easingBounce.
     /// @param mode       The mode.
-    /// @param easingOut  Receives the easing.
+    /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, another
     ///         kind or an unknown mode.
     /// @par Thread safety
@@ -230,7 +230,7 @@ extern "C"
     ///
     /// @param mode       The mode.
     /// @param overshoot  s, finite and at least 0; 0 is the cubic.
-    /// @param easingOut  Receives the easing.
+    /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown mode or an overshoot outside the above.
     /// @par Thread safety
@@ -250,7 +250,7 @@ extern "C"
     /// @param mode       The mode.
     /// @param amplitude  a, finite and above 0.
     /// @param period     P, finite and above 0, in units of progress.
-    /// @param easingOut  Receives the easing.
+    /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown mode or a parameter outside the above.
     /// @par Thread safety
@@ -268,7 +268,7 @@ extern "C"
     ///                   function of a context sampling it (record
     ///                   mtwn-0068).
     /// @param context    Passed to the function; may be NULL.
-    /// @param easingOut  Receives the easing.
+    /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null function or
     ///         easingOut or an unknown mode.
     /// @par Thread safety
@@ -285,7 +285,8 @@ extern "C"
     /// @param y1         Its y, finite.
     /// @param x2         The second control point's x, from 0 to 1.
     /// @param y2         Its y, finite.
-    /// @param easingOut  Receives the easing, in mode mtwn_easeIn.
+    /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
+    ///                   failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         point outside the above.
     /// @par Thread safety
@@ -299,7 +300,8 @@ extern "C"
     ///
     /// @param count      The steps: at least 1, or 2 for mtwn_jumpNone.
     /// @param position   Where it jumps.
-    /// @param easingOut  Receives the easing, in mode mtwn_easeIn.
+    /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
+    ///                   failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown position or a count outside the above.
     /// @par Thread safety
@@ -310,7 +312,8 @@ extern "C"
     /// Makes the easing a CSS keyword names.
     ///
     /// @param keyword    The keyword.
-    /// @param easingOut  Receives the easing, in mode mtwn_easeIn.
+    /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
+    ///                   failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or an
     ///         unknown keyword.
     /// @par Thread safety
@@ -328,7 +331,8 @@ extern "C"
     /// @param points     The points, in order: at least 2, each output
     ///                   finite and each input finite or NaN.
     /// @param count      The number of points.
-    /// @param easingOut  Receives the easing, in mode mtwn_easeIn.
+    /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
+    ///                   failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or points
     ///         outside the above, leaving the points as they were.
     /// @par Thread safety
@@ -348,7 +352,8 @@ extern "C"
     /// @param points     Receives the points, which the easing references:
     ///                   they must outlive it and not change.
     /// @param count      The number of points, at least 2.
-    /// @param easingOut  Receives the easing, in mode mtwn_easeIn.
+    /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
+    ///                   failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, fewer
     ///         than 2 points, a strength below 0 or not finite, an unknown
     ///         taper or flag, or a shape giving a value not finite.

@@ -79,7 +79,7 @@ extern "C"
     /// @param to      The color at progress 1, likewise.
     /// @param space   The space to interpolate in.
     /// @param hue     The hue method, read for OkLCh only.
-    /// @param mixOut  Receives the mix.
+    /// @param mixOut  Receives the mix; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown space or method, or a color outside the above.
     /// @par Thread safety
@@ -106,10 +106,10 @@ extern "C"
     ///
     /// @param color           Finite, alpha from 0 to 1.
     /// @param space           The space.
-    /// @param coordinatesOut  Receives the three coordinates and the
-    ///                        alpha; an OkLCh hue in radians from 0 to
-    ///                        2 pi (CSS's degrees times pi / 180), NaN
-    ///                        where it is powerless.
+    /// @param coordinatesOut  Receives the three coordinates and the alpha; an
+    ///                        OkLCh hue in radians from 0 to 2 pi (CSS's
+    ///                        degrees times pi / 180), NaN where it is
+    ///                        powerless; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown space or a color outside the above.
     /// @par Thread safety
@@ -122,7 +122,8 @@ extern "C"
     /// @param coordinates  The three coordinates and the alpha; a NaN OkLCh
     ///                     hue counts as 0, as CSS's missing hue does.
     /// @param space        The space.
-    /// @param colorOut     Receives the color, alpha clamped to 0 to 1.
+    /// @param colorOut     Receives the color, alpha clamped to 0 to 1;
+    ///                     unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown space, or a coordinate or alpha not finite, a NaN
     ///         hue excepted.
@@ -201,7 +202,7 @@ extern "C"
     ///                normalized.
     /// @param to      The rotation at progress 1, likewise.
     /// @param path    Which way.
-    /// @param mixOut  Receives the mix.
+    /// @param mixOut  Receives the mix; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown path, a rotation outside the above, or the longest
     ///         way between rotations so close (|q0 + q1| under 1e-6 once
@@ -240,7 +241,7 @@ extern "C"
     ///
     /// @param from    The scale at progress 0, finite and above 0.
     /// @param to      The scale at progress 1, likewise.
-    /// @param mixOut  Receives the mix.
+    /// @param mixOut  Receives the mix; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         scale outside the above.
     /// @par Thread safety
@@ -291,7 +292,7 @@ extern "C"
     /// @param rho     How much it zooms out against panning, finite and
     ///                above 0: the paper's measured sqrt(2) (d3's default),
     ///                1.42 (Mapbox's); toward 0 it pans with little zoom.
-    /// @param mixOut  Receives the mix.
+    /// @param mixOut  Receives the mix; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a view
     ///         or rho outside the above, or views whose path leaves the
     ///         doubles' range (widths, or a pan against the width, about
@@ -372,7 +373,7 @@ extern "C"
     /// @param duration   Seconds, finite and above 0.
     /// @param exponent   The envelope's, finite and above 0: 1 fades
     ///                   linearly, above 1 sooner, below 1 later.
-    /// @param punchOut   Receives the punch.
+    /// @param punchOut   Receives the punch; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         parameter outside the above.
     /// @par Thread safety
@@ -399,7 +400,7 @@ extern "C"
     ///                   fewer than 2^53 lattice points.
     /// @param exponent   The envelope's, finite and above 0.
     /// @param seed       Any value; the same seed shakes the same way.
-    /// @param shakeOut   Receives the shake.
+    /// @param shakeOut   Receives the shake; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         parameter outside the above.
     /// @par Thread safety

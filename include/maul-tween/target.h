@@ -114,7 +114,8 @@ extern "C"
     /// @param targets    The ids; NULL only with a count of 0.
     /// @param count      How many.
     /// @param valuesOut  Receives count values, zero for an id that names
-    ///                   no live target.
+    ///                   no live target; nothing written on the other
+    ///                   failures.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument;
     ///         mtwn_errorStale when any id names no live target, each such id
     ///         counted as misuse, the others read.

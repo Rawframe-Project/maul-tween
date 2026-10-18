@@ -607,10 +607,25 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     {
         return mtwn_errorInvalid;
     }
-    // Only the longest way between equal rotations refuses a mix, and it
-    // flips nothing, so a refusal leaves the keyframes as they were. What
-    // the canonical form writes is finite (an angle within a turn of a
-    // float before it, a control held), so the path's check after it
+    // Only the longest way between equal rotations refuses a mix: each is
+    // tried before anything is written, so a refusal leaves the keyframes
+    // and the mixes as they were (record mtwn-0073).
+    for (uint32_t i = 0; def->kind == mtwn_valueRotation &&
+                         def->rotationPath == mtwn_rotationLongest && i + 1 < count;
+         ++i)
+    {
+        mtwnVec4 a = keyframes[i].value;
+        mtwnVec4 b = keyframes[i + 1].value;
+        mtwnRotationMix tried;
+        if (keyframes[i].kind == mtwn_segmentLinear &&
+            mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
+                                def->rotationPath, &tried) != mtwn_success)
+        {
+            return mtwn_errorInvalid;
+        }
+    }
+    // What the canonical form writes is finite (an angle within a turn of
+    // a float before it, a control held), so the path's check after it
     // refuses nothing the check before it passed.
     Canonicalize(def, keyframes, count);
     bool mixed = def->kind == mtwn_valueColor || def->kind == mtwn_valueRotation;

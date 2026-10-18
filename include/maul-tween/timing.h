@@ -252,7 +252,7 @@ extern "C"
     ///
     /// @param stagger     The stagger; its easing made by this library.
     /// @param count       The items; 0 writes nothing.
-    /// @param offsetsOut  Receives count offsets.
+    /// @param offsetsOut  Receives count offsets; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer with a
     ///         count, an unknown origin, axis or spacing, an index not below a count above 0
     ///         for mtwn_staggerIndex, a start or spacing not finite, a

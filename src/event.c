@@ -146,6 +146,15 @@ static mtwnResult RunReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint
 mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
                           uint32_t* countOut, uint64_t* droppedOut)
 {
+    // Cleared first, so a busy or missing context's failure clears them too.
+    if (countOut != NULL)
+    {
+        *countOut = 0;
+    }
+    if (droppedOut != NULL)
+    {
+        *droppedOut = 0;
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;

@@ -50,7 +50,7 @@ extern "C"
     /// @param stiffness  Finite and above 0.
     /// @param damping    Finite and at least 0.
     /// @param mass       Finite and above 0.
-    /// @param springOut  Receives the spring.
+    /// @param springOut  Receives the spring; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         parameter outside the above or giving a frequency outside the
     ///         finite range above 0.
@@ -64,7 +64,7 @@ extern "C"
     ///
     /// @param hertz         Finite and above 0.
     /// @param dampingRatio  Finite and at least 0.
-    /// @param springOut     Receives the spring.
+    /// @param springOut     Receives the spring; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         parameter outside the above.
     /// @par Thread safety
@@ -81,7 +81,7 @@ extern "C"
     /// @param duration   Seconds, finite and above 0.
     /// @param bounce     Above -1 and at most 1: 0 is critical, 1 never
     ///                   settles, below 0 is overdamped.
-    /// @param springOut  Receives the spring.
+    /// @param springOut  Receives the spring; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         parameter outside the above.
     /// @par Thread safety
@@ -144,7 +144,7 @@ extern "C"
     /// @param velocity   The start velocity in units of the whole change a
     ///                   second, finite: 0 from rest.
     /// @param mode       The mode.
-    /// @param easingOut  Receives the easing.
+    /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown mode, a duration or velocity outside the above, or a
     ///         spring back at its start at the duration.
@@ -166,7 +166,7 @@ extern "C"
     /// Makes a decay whose velocity falls as e^(-rate t).
     ///
     /// @param rate      The rate a second, finite and above 0.
-    /// @param decayOut  Receives the decay.
+    /// @param decayOut  Receives the decay; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a rate
     ///         outside the above.
     /// @par Thread safety
@@ -178,7 +178,7 @@ extern "C"
     /// is -1000 ln of it.
     ///
     /// @param perMillisecond  Above 0 and below 1.
-    /// @param decayOut        Receives the decay.
+    /// @param decayOut        Receives the decay; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
     ///         share outside the above.
     /// @par Thread safety
@@ -236,7 +236,7 @@ extern "C"
     /// @param position  The start's position.
     /// @param velocity  The start's velocity, per second.
     /// @param rest      The end to come to rest at.
-    /// @param decayOut  Receives the decay.
+    /// @param decayOut  Receives the decay; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a value
     ///         not finite, an end the velocity does not move toward (behind
     ///         the start, at it, or a velocity of 0), or a rate that
@@ -268,7 +268,7 @@ extern "C"
     /// @param lower    The lower bound; may be -infinity, for none.
     /// @param upper    The upper bound, at least the lower; may be
     ///                 infinity, for none.
-    /// @param boundedOut  Receives the bounded decay.
+    /// @param boundedOut  Receives the bounded decay; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a NaN
     ///         bound, a lower bound above the upper, a lower bound of
     ///         infinity or an upper of -infinity.

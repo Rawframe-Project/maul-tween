@@ -485,6 +485,11 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
 mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
                       uint32_t changedCapacity, uint32_t* changedTotalOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (changedTotalOut != NULL)
+    {
+        *changedTotalOut = 0;
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
