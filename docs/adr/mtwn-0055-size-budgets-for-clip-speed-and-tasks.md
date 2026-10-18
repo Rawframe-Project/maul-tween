@@ -97,3 +97,23 @@ and signal +64, the rubber band's and the punch's and shake's guards;
 easing -32 (back's form), timing -24 and crossing -48 (the first
 iteration's floor, after 0.5.0). Every growth is a guard a defect asked
 for; none is a feature's.
+
+## Amended 2026-10-18: restated at 0.6.0
+
+At 0.6.0 every budget is restated by mtwn-0051's rule, about 6% over
+each part's size then (GCC 14, x86-64): curves 25.0 kB, budget 27 kB
+(25 before); values 56.3, 60 (57); transitions 56.6, 60 (58); clips
+138.8, 147 (139); everything 155.4, 165 (156). Since 0.5.1 the parts
+grew by features, each restating its part's budget by its own record
+as it came (mtwn-0059 to mtwn-0067): curves 2.1 kB, values 8.8 kB,
+transitions 5.9 kB, clips 11.4 kB, everything 17.4 kB. By object (GCC
+14, bytes, 0.5.1 to 0.6.0's code): path and path_length +4,119 (the
+arc length moved to a file of its own, scale tracks over their
+logarithms, monotone segments; path -1,871, path_length +5,990);
+transition +3,569, bounded and landing decays; zoom +2,778 and scale
++466, van Wijk and Nuij's zoom and the scale mix; path_direction
++1,815; rough +1,319; inertia +1,111; clip_sample +1,087, scale tracks
+composed and moved on, the moving on out of line; compose +955, scales
+in their logarithm; update +877, scales and coasts in the update; coast
++554; signal +488, the shake's noise on its own clock; target +129;
+spring +40. Every growth is a feature's or its guard's.

@@ -7,6 +7,14 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-18
+
+A minor release: scales moved in their logarithm and van Wijk and
+Nuij's zoom, rough easings, contexts without records, inertia that
+lands or is bounded, a path's direction, a shake's noise on its own
+clock, monotone segments, and recipes for jumps, trauma shake, keyframe
+handles and animation on twos; each part's size budget restated.
+
 ### Added
 
 - The guide's animation on twos: a timeline eased by steps() holds its

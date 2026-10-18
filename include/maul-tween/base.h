@@ -19,8 +19,8 @@ extern "C"
 
 // The library version. CMake reads it from here.
 #define MTWN_VERSION_MAJOR 0
-#define MTWN_VERSION_MINOR 5
-#define MTWN_VERSION_PATCH 1
+#define MTWN_VERSION_MINOR 6
+#define MTWN_VERSION_PATCH 0
 
 // The major and minor version in one number: a def built against
 // headers of another major or minor version is refused.

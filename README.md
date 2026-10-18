@@ -30,21 +30,26 @@ platform.
 
 ## Status
 
-0.5.1 (2026-10-17) holds the whole library: Penner's families and
+0.6.0 (2026-10-18) holds the whole library: Penner's families and
 CSS Easing Level 2, in four modes, with even tables and fitted CSS
-linear() points; springs in closed form, as easings too, decay and the
-rubber band; colors as CSS Color 4 interpolates them; angles,
-rotations, integers, discrete values, punch and shake; Web Animations'
+linear() points, and rough easings from a seed; springs in closed form,
+as easings too, decay, inertia landing on an end or within bounds, and
+the rubber band; colors as CSS Color 4 interpolates them; angles,
+rotations, integers, discrete values, scales in their logarithm, van
+Wijk and Nuij's zoom, punch and shake; Web Animations'
 timing with playback rate and repeat delay; staggers over a row or a
 grid; a context in one block holding targets, and transitions advanced
 by an update that guards the floating-point environment; keyframe
 paths, Catmull-Rom, monotone or Bezier, at constant speed if asked,
-and tracks of every value kind over them; clips holding tracks on
+with their direction, and tracks of every value kind over them; clips holding tracks on
 nested timelines with labels and marks; players controlling clips by Web
 Animations' procedures; events as counted records in a bounded queue;
 players layered by replace and add with weights; reduced motion; a
 context grown only when the host asks; clips' players run on the
-host's task system if it gives one. 0.4.0, earlier that day, had the
+host's task system if it gives one. 0.5.1, on 2026-10-17, had
+neither scales, zooms, rough easings, inertia's ends and bounds, a
+path's direction nor monotone segments, and made every record even in
+a context that wanted none; 0.4.0, earlier that day, had the
 same features, values that could jump to an iteration's start for one
 time beside a repeat delay or a negative rate's start, and records that
 could be lost or two ulps off past a repeat delay; 0.3.1, the day before, had the
@@ -125,11 +130,11 @@ composition, paths or crossings (record mtwn-0047).
 
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
-| curves: easings, sampling, springs, decay, rubber band | 22.9 kB | 22.3 kB | 18.9 kB | 25 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.5 kB | 38.1 kB | 39.9 kB | 57 kB |
-| transitions: a context, targets and transitions | 50.7 kB | 42.3 kB | 41.2 kB | 58 kB |
-| clips: clips, players, events | 127.4 kB | 104.5 kB | 104.6 kB | 139 kB |
-| everything | 138.0 kB | 137.8 kB | 114.9 kB | 156 kB |
+| curves: easings, sampling, springs, decay, rubber band | 25.0 kB | 24.3 kB | 20.8 kB | 27 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 56.3 kB | 47.0 kB | 48.5 kB | 60 kB |
+| transitions: a context, targets and transitions | 56.6 kB | 48.6 kB | 46.0 kB | 60 kB |
+| clips: clips, players, events | 138.8 kB | 110.6 kB | 115.9 kB | 147 kB |
+| everything | 155.4 kB | 155.3 kB | 130.5 kB | 165 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets
