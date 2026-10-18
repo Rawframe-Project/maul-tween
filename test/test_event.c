@@ -130,6 +130,46 @@ static void TestPlayed(void)
     mtwnDestroyContext(w.context);
 }
 
+// A context of no events makes none and skips the sweeps (record
+// mtwn-0062): a mark and a track's iterations and ends crossed, nothing
+// recorded or dropped, each frame's value that of a twin with a queue.
+static void TestNoQueue(void)
+{
+    World twins[2] = {MakeWorld(0), MakeWorld(64)};
+    for (int k = 0; k < 2; ++k)
+    {
+        (void)AddTrack(&twins[k], 0.5, 1.0, 3.0);
+        mtwnNode mark = 0;
+        CHECK(mtwnClip_AddMark(twins[k].context, twins[k].clip, MTWN_ROOT_NODE, At(2.0), 9,
+                               &mark) == mtwn_success &&
+                  mtwnClip_Finish(twins[k].context, twins[k].clip) == mtwn_success,
+              "a mark at 2, finished");
+        (void)Play(&twins[k], true, 1.0);
+    }
+    uint32_t differ = 0;
+    for (int f = 0; f <= 50; ++f)
+    {
+        mtwnVec4 values[2];
+        for (int k = 0; k < 2; ++k)
+        {
+            Update(&twins[k], 0.1 * f);
+            CHECK(mtwnTarget_GetValue(twins[k].context, twins[k].target, &values[k]) ==
+                      mtwn_success,
+                  "read");
+        }
+        differ += values[0].x != values[1].x;
+    }
+    CHECK(differ == 0, "every frame's value as with a queue");
+    uint64_t dropped = 7;
+    uint32_t count = 7;
+    CHECK(mtwnReadEvents(twins[0].context, NULL, 0, &count, &dropped) == mtwn_success &&
+              count == 0 && dropped == 0 && mtwnContext_GetEventCount(twins[0].context) == 0,
+          "nothing recorded, nothing dropped");
+    CHECK(mtwnContext_GetEventCount(twins[1].context) > 0, "its twin's queue holds records");
+    mtwnDestroyContext(twins[0].context);
+    mtwnDestroyContext(twins[1].context);
+}
+
 static void TestStall(void)
 {
     World w = MakeWorld(16);
@@ -1021,6 +1061,7 @@ int main(void)
     TestOneCrossingIterations();
     TestEdgeIterations();
     TestPlayed();
+    TestNoQueue();
     TestStall();
     TestBackwards();
     TestIterationLeftBackwards();

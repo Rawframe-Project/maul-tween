@@ -1269,26 +1269,53 @@ static void TestReversalSignedZero(void)
     CHECK(back->duration == 0.25, "back over the step already taken");
     mtwnDestroyContext(context);
 
-    // Every channel compares: an end differing in the last alone is not
-    // the way back.
+    // Every channel compares: an end differing in any one alone is not the
+    // way back.
+    for (int channel = 0; channel < 4; ++channel)
+    {
+        CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+        mtwnTargetId v;
+        CHECK(mtwnCreateTarget(context, mtwn_valueVec4, (mtwnVec4){1, 2, 3, 4}, &v) == mtwn_success,
+              "a vector");
+        mtwnTransitionDef def = mtwnDefaultTransitionDef();
+        def.target = v;
+        def.value = (mtwnVec4){5, 6, 7, 8};
+        def.duration = 1.0;
+        def.reverses = true;
+        mtwnPlayerId player;
+        CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
+                  mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+                  mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+              "a quarter in");
+        def.value = (mtwnVec4){1, 2, 3, 4};
+        (&def.value.x)[channel] += 0.5f;
+        CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
+                  mtwnPlayerAt(context, player.index1)->duration == 1.0,
+              "another end in one channel takes its whole duration");
+        mtwnDestroyContext(context);
+    }
+}
+
+// CSS clamps the shortening factor to [0, 1]: a back out past 1 when it is
+// reversed takes the whole way back.
+static void TestReversalOvershoot(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
-    mtwnTargetId v;
-    CHECK(mtwnCreateTarget(context, mtwn_valueVec4, (mtwnVec4){1, 2, 3, 4}, &v) == mtwn_success,
-          "a vector");
-    mtwnTransitionDef def = mtwnDefaultTransitionDef();
-    def.target = v;
-    def.value = (mtwnVec4){5, 6, 7, 8};
-    def.duration = 1.0;
-    def.reverses = true;
-    mtwnPlayerId player;
-    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
-              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
-          "a quarter in");
-    def.value = (mtwnVec4){1, 2, 3, 9};
-    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
-              mtwnPlayerAt(context, player.index1)->duration == 1.0,
-          "another end in its last channel takes its whole duration");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    mtwnEasing backOut;
+    CHECK(mtwnMakeBackEasing(mtwn_easeOut, 1.70158, &backOut) == mtwn_success, "a back out");
+    (void)Toward(context, x, 1.0f, 1.0, &backOut, true);
+    CHECK(mtwnEase(&backOut, 0.75, false) > 1.0, "past 1 three quarters in");
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "three quarters in");
+    mtwnEasing linear = mtwnLinearEasing();
+    mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
+    CHECK(back->duration == 1.0 && back->shortening == 1.0, "back over the whole way");
     mtwnDestroyContext(context);
 }
 
@@ -1361,6 +1388,7 @@ int main(void)
     TestReversal();
     TestPowerModes();
     TestReversalEdges();
+    TestReversalOvershoot();
     TestReversalSignedZero();
     TestStartVelocity();
     TestReplacedVelocity();
