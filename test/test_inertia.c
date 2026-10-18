@@ -126,6 +126,13 @@ static void TestCrossing(void)
     mtwnSampleDecay(&decay, 40.0, 1500.0, t, &plain, NULL);
     CHECK(before == plain && before < 600.0, "the decay up to it");
     CHECK(at == 600.0, "the bound at it");
+    // The velocity alone, past the handoff, as with the position.
+    double vOnly = 0.0;
+    double vWith = 0.0;
+    double unused = 0.0;
+    mtwnSampleBoundedDecay(&bounded, 40.0, 1500.0, crossing + 0.1, NULL, &vOnly);
+    mtwnSampleBoundedDecay(&bounded, 40.0, 1500.0, crossing + 0.1, &unused, &vWith);
+    CHECK(vOnly == vWith, "the velocity without the position");
     CHECK(fabs(vAt - vBefore) <= 1e-9 * vAt, "the velocity it had there, continuous");
     // The decay's own path reaches the bound there, not a frame later.
     double reached = 0.0;

@@ -156,6 +156,14 @@ static void TestSlopes(void)
     CHECK(mtwnMakePath(jump, 3, 1, 0.5, NULL, &path) == mtwn_success &&
               fabs(SlopeAt(&path, 0x1p-52, 1.0 - 0x1p-52) - 1.0) < 1e-12,
           "a jump at the bound");
+    // At constant speed segments go by length, so a jump's own segment is
+    // travelled: its line, from 1 to 2.
+    mtwnKeyframe jumped[4] = {Key(0.0, 0.0f, 0.0f), Key(0.5, 1.0f, 0.0f), Key(0.5, 2.0f, 0.0f),
+                              Key(1.0, 3.0f, 0.0f)};
+    double lengths[4];
+    CHECK(mtwnMakePath(jumped, 4, 1, 0.5, lengths, &path) == mtwn_success, "a jump at speed");
+    mtwnSamplePath(&path, 0.5 * (lengths[1] + lengths[2]) / lengths[3], value, NULL);
+    CHECK(fabs(value[0] - 1.5) < 1e-9, "the jump travelled as its line");
     // Two keyframes: a line.
     mtwnKeyframe two[2] = {Key(0.0, 2.0f, -1.0f), Key(1.0, 4.0f, 3.0f)};
     CHECK(mtwnMakePath(two, 2, 2, 0.5, NULL, &path) == mtwn_success, "two keyframes");

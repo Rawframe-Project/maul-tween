@@ -186,11 +186,36 @@ static void TestZoomShape(void)
     CHECK(refused == 6, "no width, NaN, rho 0 or infinite, NULL and a path past the range refused");
 }
 
+// Views and paths a zoom cannot take: a NaN or infinite coordinate; a
+// path whose parameter passes the exponential's range, zooming from 1
+// into 1e-305 while panning a width; a rho whose square is below the
+// normal floats, the pan's scale overflowing; a rho so small the
+// length is infinite.
+static void TestZoomRefusals(void)
+{
+    mtwnZoomMix mix;
+    mtwnZoomView a = {0.0, 0.0, 1.0};
+    int refused = 0;
+    refused += mtwnMakeZoomMix(a, (mtwnZoomView){0.0, (double)NAN, 1.0}, sqrt(2.0), &mix) ==
+               mtwn_errorInvalid;
+    refused += mtwnMakeZoomMix(a, (mtwnZoomView){0.0, 0.0, (double)INFINITY}, sqrt(2.0), &mix) ==
+               mtwn_errorInvalid;
+    refused +=
+        mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 1e-305}, sqrt(2.0), &mix) == mtwn_errorInvalid;
+    refused += mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 1.0}, 1e-160, &mix) == mtwn_errorInvalid;
+    refused += mtwnMakeZoomMix(a, (mtwnZoomView){0.0, 0.0, 2.0}, 1e-320, &mix) == mtwn_errorInvalid;
+    CHECK(refused == 5, "a NaN y, an infinite width, a range passed, a pan's scale and a "
+                        "length overflowing refused");
+    CHECK(mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 1e-300}, sqrt(2.0), &mix) == mtwn_success,
+          "into 1e-300 still taken");
+}
+
 int main(void)
 {
     TestScaleCases();
     TestScaleShape();
     TestZoomCases();
     TestZoomShape();
+    TestZoomRefusals();
     return s_failures == 0 ? 0 : 1;
 }

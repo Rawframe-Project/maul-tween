@@ -481,6 +481,14 @@ static void TestScales(void)
           "the scale at the spring's progress along its mix");
     Update(context, 30 * s_second);
     CHECK(State(context, s).base.x == 4.0f, "it ends exactly on 4");
+    // A spring to the value it holds, given a velocity: progress along a
+    // logarithm's distance of 0 has no rate to take it, so it starts still.
+    mtwnTransitionDef still = SpringTo(s, (mtwnVec4){4.0f, 0, 0, 0});
+    still.velocitySource = mtwn_velocityGiven;
+    still.velocity = (mtwnVec4){3.0f, 0, 0, 0};
+    Start(context, &still);
+    CHECK(mtwnPlayerAt(context, mtwnTargetAt(context, s.index1)->header.link)->velocity[0] == 0.0,
+          "a spring to its own scale starts still");
     // A decay: 3 a second at 1 is a rate of 3 in the logarithm.
     mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0});
     mtwnTransitionDef coast = mtwnDefaultTransitionDef();
@@ -592,6 +600,11 @@ static void TestMeasure(void)
               mtwnMeasureTransition(context, NULL, &d) == mtwn_errorInvalid &&
               mtwnMeasureTransition(NULL, &def, &d) == mtwn_errorInvalid,
           "no cookie, no def, no context");
+    def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
+    def.version += 1u;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorVersion, "another version");
+    def.version -= 1u;
+    CHECK(mtwnMeasureTransition(context, &def, NULL) == mtwn_errorInvalid, "nowhere to put it");
     CHECK(mtwnTargetAt(context, red.index1)->header.link == 0 &&
               State(context, red).value.x == 1.0f,
           "nothing started or changed");

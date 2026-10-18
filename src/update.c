@@ -279,11 +279,9 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
     mtwnTargetSlot* written = mtwnTargetAt(context, target);
     written->header.flags =
         (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
+    // Numbers only (IsEasedNumbers): a scale is a path kind, written by
+    // Sample.
     mtwnVec4 value = {(float)now[0], (float)now[1], (float)now[2], (float)now[3]};
-    if (slot->kind == mtwn_valueScale)
-    {
-        value.x = mtwnScaleFloat(now[0]);
-    }
     WriteValue(context, target, value);
 }
 

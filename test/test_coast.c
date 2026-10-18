@@ -102,6 +102,29 @@ static void TestBounded(void)
     CHECK(!mtwnPlayer_IsValid(context, player) && end.base.x == 600.0f &&
               fabsf(end.base.y - (float)rest) <= 1e-3f,
           "ends on the bound it reached, the other where it stopped");
+    // Flung down through the lower bound from within: the bounce there.
+    mtwnTargetId w = Target(context, mtwn_valueScalar, (mtwnVec4){100.0f, 0, 0, 0});
+    def = Fling(w, (mtwnVec4){-1500.0f, 0, 0, 0});
+    def.bounded = true;
+    def.lower = (mtwnVec4){0.0f, 0, 0, 0};
+    def.upper = (mtwnVec4){600.0f, 0, 0, 0};
+    uint64_t down = (uint64_t)(stop * 1e9) + s_second;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung down");
+    Update(context, down);
+    mtwnBoundedDecay low;
+    CHECK(mtwnMakeBoundedDecay(&def.decay, &def.spring, 0.0, 600.0, &low) == mtwn_success,
+          "its decay");
+    int off = 0;
+    for (int k = 1; k <= 30; ++k)
+    {
+        Update(context, down + (uint64_t)k * s_second / 30u);
+        double pw = 0.0;
+        mtwnSampleBoundedDecay(&low, 100.0, -1500.0, k / 30.0, &pw, NULL);
+        // Its clock seconds in: within the float's rounding of the decay
+        // sampled alone.
+        off += fabs((double)State(context, w).value.x - pw) > 1e-6 * fmax(1.0, fabs(pw));
+    }
+    CHECK(off == 0, "the lower bound's crossing and bounce");
     // Dragged past the lower bound and let go: the bounce from there.
     mtwnTargetId u = Target(context, mtwn_valueScalar, (mtwnVec4){-30.0f, 0, 0, 0});
     def = Fling(u, (mtwnVec4){-100.0f, 0, 0, 0});
@@ -275,6 +298,9 @@ static void TestRefusals(void)
     def.value = (mtwnVec4){40.0f, 0, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success,
           "landing where it is with no velocity: it stays");
+    def.velocity = (mtwnVec4){100.0f, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid,
+          "landing where it is with a velocity: refused, no rate takes it there");
     mtwnDestroyContext(context);
 }
 
