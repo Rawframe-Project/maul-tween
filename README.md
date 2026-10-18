@@ -119,7 +119,9 @@ before its fixed inputs: one input for each edge a campaign reached,
 in `test/generated/fuzz_seeds_<target>.h`. `tools/fuzz_seeds.py extract
 <target> <dir>` starts a campaign from them, and `write <target>
 <corpus>` records a campaign's corpus, merged with `-merge=1
--use_counters=0`.
+-use_counters=0`. An input that found a defect is kept in
+`test/fuzz_regressions/<target>/` as a `.bin` file, which `write` adds to
+every corpus it records, so no merge drops it.
 
 ## Size
 

@@ -7,7 +7,9 @@
 # per new edge) in test/generated/fuzz_seeds_<target>.h, sorted by their
 # bytes so the header is the same for the same set. ctest replays them
 # on every platform before the target's fixed random inputs; a campaign
-# starts from them again with `extract`.
+# starts from them again with `extract`. Inputs that found a defect are
+# kept apart, in test/fuzz_regressions/<target>/*.bin, and `write` adds
+# them to every corpus it writes, so no merge can drop them.
 #
 # usage: fuzz_seeds.py write <target> <corpus dir>
 #        fuzz_seeds.py extract <target> <dir>
@@ -24,10 +26,18 @@ def header_path(target):
     return os.path.join(ROOT, "test", "generated", "fuzz_seeds_" + target + ".h")
 
 
+def regressions(target):
+    folder = os.path.join(ROOT, "test", "fuzz_regressions", target)
+    if not os.path.isdir(folder):
+        return []
+    return [open(os.path.join(folder, name), "rb").read()
+            for name in sorted(os.listdir(folder)) if name.endswith(".bin")]
+
+
 def write(target, corpus):
-    seeds = sorted(open(os.path.join(corpus, name), "rb").read()
-                   for name in os.listdir(corpus))
-    seeds = [s for s in seeds if s]
+    found = [open(os.path.join(corpus, name), "rb").read() for name in os.listdir(corpus)]
+    kept = regressions(target)
+    seeds = sorted(set(s for s in found + kept if s))
     guard = "MTWN_FUZZ_SEEDS_" + target.upper() + "_H"
     lines = [
         "// SPDX-License-Identifier: MIT",
@@ -56,8 +66,8 @@ def write(target, corpus):
     lines += ["};", "", "#endif", ""]
     with open(header_path(target), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines))
-    print("wrote %d seeds, %d bytes, to %s" % (len(seeds), len(data),
-                                              os.path.normpath(header_path(target))))
+    print("wrote %d seeds (%d regressions among them), %d bytes, to %s"
+          % (len(seeds), len(kept), len(data), os.path.normpath(header_path(target))))
 
 
 def extract(target, out):
