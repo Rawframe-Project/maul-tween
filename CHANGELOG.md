@@ -7,6 +7,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- A color's mix is `a + t (b - a)`, its ends returned before it: its
+  sample within record mtwn-0058's targets again (Oklab 1,784 and OkLCh
+  2,017 instructions), equal ends still exact (record mtwn-0070).
+
 ## [0.6.1] - 2026-10-18
 
 A patch release: no declaration changed; calls back in from the host's

@@ -120,3 +120,24 @@ others left 0: 805 instructions to 518 at `-O3`, the same keyframes as
 Catmull-Rom taking 547. Counted as this record counts (`-O2`): 551. The
 target is at most 600 instructions a sample; the bench's bound 535.
 
+
+## Amended 2026-10-18: counted again after records mtwn-0067 to mtwn-0070
+
+Counted again (`-O2`) at each commit since the last count: slerp 794 and
+the path 2,754, unmoved; the track 249 and the monotone track 557, each
+6 more, within 250 and 600: a number a track samples is held within the
+floats (record mtwn-0069), a minimum and a maximum on the four channels
+at once. Oklab 1,827 and OkLCh 2,059 had passed their targets of 1,800
+and 2,050: record mtwn-0070's test of equal ends, about 40 of the 48,
+kept GCC from mixing the four coordinates as one vector, and the hold
+of the color made the rest. A color's mix no longer tests (record
+mtwn-0070's amendment): Oklab 1,784 and OkLCh 2,017, within their
+targets again (1,476 and 1,644 at `-O3`).
+
+The bench's frames, counted at `-O3` against record mtwn-0043's bounds,
+are about 0.4% above their last count (the clips 5.886 to 5.910
+million): about 24,000 a frame from the same hold, 6 a track sample.
+The hold is kept: without it a track sampled far past its keyframes
+writes an infinite number. The re-entry refusal (record mtwn-0068) adds
+5 a frame, and 1,100 to the churn's, whose players are made and ended
+each frame.

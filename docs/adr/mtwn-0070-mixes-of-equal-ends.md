@@ -41,3 +41,19 @@ alpha and stays finite. Oklab's sample is 1,503 instructions (bound
 equal channels now mixing to their end exactly where the sum rounded.
 `test_color`, `test_signal`, `test_rotation` and `test_transition` hold
 each mix far out, and each fails with the weighted sum alone.
+
+## Amended 2026-10-18: a color's mix without the test
+
+Counted as record mtwn-0058 counts (GCC 14 at `-O2`), the test of equal
+ends took Oklab's sample from 1,779 to 1,827 instructions and OkLCh's
+from 2,012 to 2,059, past their targets of 1,800 and 2,050: four tests
+on the four coordinates kept GCC from mixing them as one vector. A
+color's mix returns its ends at t = 0 and t = 1 before it mixes, so it
+needs no exact end there, and its form is now `a + t (b - a)`
+(`mtwnMixInside`), as culori 4.0.2's `lerp` is: a for a = b at any
+finite t without a test, and cheaper than the weighted sum. Oklab 1,784
+and OkLCh 2,017 at `-O2` (1,476 and 1,644 at `-O3`, bounds 1,520 and
+1,695). Every other mix, whose ends do come to it, keeps `mtwnMix`. The
+form's error far past the ends is an ulp of t (b - a), the result's own
+size; within [0, 1] it may pass b by an ulp near t = 1, which the
+color's conversion back to floats and its alpha's clamp absorb.

@@ -16,4 +16,13 @@ static inline double mtwnMix(double a, double b, double t)
     return a == b ? a : (1.0 - t) * a + t * b;
 }
 
+// The mix of a and b at t where the ends return before it (a color's):
+// a + t (b - a), a for a = b at any finite t without a test, and the
+// cheapest, its channels one vector; not exact at t = 1, which never
+// comes here. culori mixes so.
+static inline double mtwnMixInside(double a, double b, double t)
+{
+    return a + t * (b - a);
+}
+
 #endif
