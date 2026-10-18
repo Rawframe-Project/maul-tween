@@ -177,6 +177,88 @@ static void TestFling(void)
     mtwnDestroyContext(context);
 }
 
+static void TestScroll(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    mtwnTargetId shown = {0, 0};
+    mtwnClipId story = {0, 0};
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnKeyframe keys[2] = {0};
+    keys[1].offset = 1.0;
+    keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 2.0;
+    mtwnNode node = 0;
+    mtwnNode mark = 0;
+    mtwnPosition half = {0};
+    half.offset = 1.0;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &shown) == mtwn_success &&
+              mtwnCreateClip(context, &clipDef, &story) == mtwn_success &&
+              mtwnClip_AddTrack(context, story, &track, &node) == mtwn_success &&
+              mtwnClip_AddMark(context, story, MTWN_ROOT_NODE, half, 1, &mark) == mtwn_success &&
+              mtwnClip_Finish(context, story) == mtwn_success,
+          "a clip of 2 s with a mark at 1 s");
+    mtwnBinding binding = mtwnBind(0, shown);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = story;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    playerDef.keep = true;
+    mtwnPlayerId reader = {0, 0};
+    double length = 0.0;
+    CHECK(mtwnCreatePlayer(context, &playerDef, &reader) == mtwn_success &&
+              mtwnPlayer_Pause(context, reader) == mtwn_success &&
+              mtwnClip_GetDuration(context, story, &length) == mtwn_success && length == 2.0,
+          "a paused player");
+    mtwnSpring chase;
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &chase) == mtwn_success, "the chase");
+    double goal = 0.0;
+    double away = 0.0;
+    double pace = 0.0;
+    double since = 0.0;
+    double now = 0.0;
+    double scrolled = 0.75;
+    // At a scroll event: the chase from where it is, toward the new progress.
+    double offset = 0.0;
+    double speed = 0.0;
+    mtwnSampleSpring(&chase, away, pace, now - since, &offset, &speed);
+    away = goal + offset - scrolled; // the same place, against the new goal
+    pace = speed;
+    goal = scrolled;
+    since = now;
+
+    int behind = 0;
+    for (int frame = 1; frame <= 90; ++frame)
+    {
+        now = frame / 60.0;
+        // Each frame, before the update: the paused player swept to the chase.
+        mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
+        mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
+        CHECK(swept == mtwn_success, "swept");
+        CHECK(mtwnUpdate(context, (uint64_t)llround(now * 1e9), NULL, 0, NULL) == mtwn_success,
+              "updated");
+        mtwnVec4 value;
+        CHECK(mtwnTarget_GetValue(context, shown, &value) == mtwn_success, "read");
+        behind += fabs((double)value.x - (goal + offset)) > 1e-6;
+    }
+    mtwnEvent events[16];
+    uint32_t count = 0;
+    CHECK(mtwnReadEvents(context, events, 16, &count, NULL) == mtwn_success, "the records");
+    int marks = 0;
+    for (uint32_t k = 0; k < count; ++k)
+    {
+        marks += events[k].kind == mtwn_eventMark;
+    }
+    CHECK(behind == 0, "each frame shows the chase, not the frame before");
+    CHECK(marks == 1, "the mark at the middle crossed once, as scrolled past");
+    mtwnDestroyContext(context);
+}
+
 static void TestHost(void)
 {
     uint64_t nowNs = 0;
@@ -319,6 +401,7 @@ int main(void)
     TestSprings();
     TestInertia();
     TestFling();
+    TestScroll();
     TestValues();
     TestScales();
     TestZoom();

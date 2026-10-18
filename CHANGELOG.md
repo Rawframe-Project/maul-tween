@@ -9,6 +9,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- The guide's scroll-driven playback: a paused player swept to the
+  scroll's progress before each update, smoothed by a spring the host
+  retargets at each scroll event.
 - Transitions' decays bounded and landing (record mtwn-0063):
   `bounded` holds a fling between `lower` and `upper`, the def's spring
   bouncing it back from the bound it reaches; `lands` brings it to rest

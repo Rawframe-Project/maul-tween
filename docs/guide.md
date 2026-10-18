@@ -415,6 +415,31 @@ playing = mtwnPlayer_Play(context, intro);
 player not kept commits its last values as the targets' bases when it
 finishes and frees itself; a target no player writes shows its base.
 
+Scroll drives a clip as CSS's scroll timelines do when a paused player
+is swept to the scroll's progress before each update: `mtwnPlayer_Sweep`
+crosses everything between, so marks and starts fire as they are
+scrolled past, either way. To smooth it, as GSAP's `scrub: 0.5` does,
+the playhead chases the scroll on a spring the host retargets at each
+scroll event, from where it is with the velocity it has, so a new
+event never jolts it:
+
+```c
+// At a scroll event: the chase from where it is, toward the new progress.
+double offset = 0.0;
+double speed = 0.0;
+mtwnSampleSpring(&chase, away, pace, now - since, &offset, &speed);
+away = goal + offset - scrolled; // the same place, against the new goal
+pace = speed;
+goal = scrolled;
+since = now;
+```
+
+```c
+// Each frame, before the update: the paused player swept to the chase.
+mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
+mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
+```
+
 ## Events
 
 What a player's time crosses between updates is recorded, exactly,
