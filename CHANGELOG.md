@@ -14,6 +14,13 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   2,017 instructions), equal ends still exact (record mtwn-0070). A
   color between distinct ends may differ from 0.6.1's in its last bit;
   the determinism scenario's hash is unchanged.
+- Every mix is `a + t (b - a)`, `b` at t = 1 (record mtwn-0070): exact
+  at both ends and for equal ends, monotone in t, and far past its ends
+  within a few roundings of its result where near ends cross 0, which
+  the weighted sum missed by up to 2^-14 of it. Results: number, angle,
+  integer, rotation and signal mixes may differ in their last bits; the
+  determinism scenario's hash moves from 0x79567506efccc400 to
+  0x7b710979e70fff40.
 
 ## [0.6.1] - 2026-10-18
 

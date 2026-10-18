@@ -57,3 +57,35 @@ and OkLCh 2,017 at `-O2` (1,476 and 1,644 at `-O3`, bounds 1,520 and
 form's error far past the ends is an ulp of t (b - a), the result's own
 size; within [0, 1] it may pass b by an ulp near t = 1, which the
 color's conversion back to floats and its alpha's clamp absorb.
+
+## Amended 2026-10-18: one form, a + t (b - a), its error tested
+
+The decision above bounded the weighted sum's error far past its ends
+by an ulp of t a beside a result of at least t |b - a|, near 2^-29 of
+it. Tested against the exact value (`test_mix`: 400,000 float ends,
+equal, one ulp apart, thirty orders apart or random, at progress within
+[0, 1] and up to 2^70 past it, the exact `a + t (b - a)` kept as an
+unevaluated sum by TwoSum and `fma`), the claim fails: between ends one
+ulp apart the line crosses 0 near t = -a / (b - a), about 2^23 past the
+ends, where the result is far below t |b - a| and the weighted sum's
+error, about u |t a|, reached 2^-14 of it (u = 2^-53).
+
+Every mix is now `t == 1 ? b : a + t (b - a)`, the form of P0811's
+reference for ends of one sign and, without the test, culori's. Its
+error is at most u |r| + 2u |t (b - a)| for the result r (one rounding
+of the difference, of the product and of the sum), measured at 1.96 of
+u (|r| + |t (b - a)|); where the near ends cross 0, 2^-46 of the result
+where the weighted sum gave 2^-14. It is exact at t = 0, at t = 1 by its
+test, also between ends thirty orders apart whose difference rounds,
+and for equal ends at any finite t, as a + t * 0; it is monotone in t,
+each rounding being so. `test_mix` holds the bound, the exact cases
+and the monotony.
+
+The test is of t alone, the same for every channel: no count moved
+(Oklab 1,784 and OkLCh 2,017 at `-O2`, the frames unchanged), and the
+color, whose ends return before its mix, takes the same helper,
+GCC dropping the test there; `mtwnMixInside` is gone. An infinite
+progress, which only a host easing could give and which stays the
+host's (mtwn-0069), now makes equal ends NaN, as it already made
+distinct ones. The determinism scenario's hash moves to 0x7b710979e70fff40, its
+mixes rounding differently.

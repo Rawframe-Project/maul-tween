@@ -222,7 +222,7 @@ mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress)
     double at[4];
     for (int i = 0; i < 4; ++i)
     {
-        at[i] = mtwnMixInside(mix->from[i], mix->to[i], progress);
+        at[i] = mtwnMix(mix->from[i], mix->to[i], progress);
     }
     if (at[3] > 0.0)
     {
