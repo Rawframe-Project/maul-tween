@@ -259,6 +259,90 @@ static void TestScroll(void)
     mtwnDestroyContext(context);
 }
 
+// A track from 0 to a value over a duration, an easing over it.
+static mtwnResult Line(mtwnContext* context, mtwnClipId clip, uint32_t slot, float to,
+                       double seconds, mtwnEasing easing, mtwnNode* nodeOut)
+{
+    mtwnKeyframe keys[2] = {0};
+    keys[1].offset = 1.0;
+    keys[1].value = (mtwnVec4){to, 0, 0, 0};
+    keys[0].easing = easing;
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.slot = slot;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = seconds;
+    track.timing.fill = mtwn_fillForwards;
+    return mtwnClip_AddTrack(context, clip, &track, nodeOut);
+}
+
+static void TestJump(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    mtwnTargetId x = {0, 0};
+    mtwnTargetId y = {0, 0};
+    mtwnClipId clip = {0, 0};
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnNode across = 0;
+    mtwnNode rise = 0;
+    mtwnEasing outQuad;
+    mtwnResult made = mtwnMakePowerEasing(mtwn_easeOut, 2.0, &outQuad);
+    CHECK(made == mtwn_success && mtwnCreateContext(&contextDef, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &y) == mtwn_success &&
+              mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
+              Line(context, clip, 0, 300.0f, 1.2, mtwnLinearEasing(), &across) == mtwn_success &&
+              Line(context, clip, 1, 20.0f, 1.2, outQuad, &rise) == mtwn_success,
+          "across to 300 and up to 20, as DOJump's line");
+    // Three hops of 50 over 1.2 s: up and down each 0.4 s, eased out
+    // going up and back the same way down (DOTween's DOJump).
+    mtwnKeyframe hop[2] = {0};
+    hop[1].offset = 1.0;
+    hop[1].value = (mtwnVec4){50.0f, 0, 0, 0};
+    made = mtwnMakePowerEasing(mtwn_easeOut, 2.0, &hop[0].easing);
+    mtwnClipTrackDef jump = mtwnDefaultClipTrackDef();
+    jump.slot = 2; // bound to the height too, added over its line
+    jump.keyframes = hop;
+    jump.keyframeCount = 2;
+    jump.timing.duration = 0.2;
+    jump.timing.iterations = 6.0;
+    jump.timing.direction = mtwn_directionAlternate; // each hop down the way it went up
+    jump.timing.fill = mtwn_fillForwards;            // landed, it stays
+    mtwnNode hops;
+    made = mtwnClip_AddTrack(context, clip, &jump, &hops);
+
+    CHECK(made == mtwn_success && mtwnClip_Finish(context, clip) == mtwn_success, "the hops");
+    mtwnBinding bindings[3] = {mtwnBind(0, x), mtwnBind(1, y), mtwnBind(2, y)};
+    bindings[2].composite = mtwn_compositeAdd;
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = clip;
+    playerDef.bindings = bindings;
+    playerDef.bindingCount = 3;
+    playerDef.keep = true;
+    mtwnPlayerId player;
+    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
+          "a jump");
+    int off = 0;
+    for (int k = 1; k <= 12; ++k)
+    {
+        double t = k * 0.1;
+        CHECK(mtwnUpdate(context, (uint64_t)llround(t * 1e9), NULL, 0, NULL) == mtwn_success, "on");
+        mtwnVec4 vx;
+        mtwnVec4 vy;
+        CHECK(mtwnTarget_GetValue(context, x, &vx) == mtwn_success &&
+                  mtwnTarget_GetValue(context, y, &vy) == mtwn_success,
+              "read");
+        double line = 20.0 * (1.0 - (1.0 - t / 1.2) * (1.0 - t / 1.2));
+        // At the tops (0.2, 0.6, 1.0 s) 50 over the line; landed between.
+        double over = k % 4 == 2 ? 50.0 : (k % 4 == 0 ? 0.0 : 50.0 * 0.75);
+        off += fabs((double)vx.x - 250.0 * t) > 1e-3 || fabs((double)vy.x - (line + over)) > 1e-3;
+    }
+    CHECK(off == 0, "across at a steady pace, hopping 50 over the line, landing on it");
+    mtwnDestroyContext(context);
+}
+
 static void TestHost(void)
 {
     uint64_t nowNs = 0;
@@ -402,6 +486,7 @@ int main(void)
     TestInertia();
     TestFling();
     TestScroll();
+    TestJump();
     TestValues();
     TestScales();
     TestZoom();

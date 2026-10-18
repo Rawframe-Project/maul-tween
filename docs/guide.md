@@ -363,6 +363,36 @@ easing of its child time, Web Animations' model); `mtwnClip_AddLabel`
 names a time to seek to, and `mtwnClip_AddMark` a time to be told of.
 `mtwnClip_Finish` closes the clip; a finished clip is read only.
 
+Tracks compose where one helper would elsewhere. DOTween's DOJump is a
+clip of three: x straight across, y along the line to its end height,
+and the hops, a track added over that line, repeating up and down:
+
+```c
+// Three hops of 50 over 1.2 s: up and down each 0.4 s, eased out
+// going up and back the same way down (DOTween's DOJump).
+mtwnKeyframe hop[2] = {0};
+hop[1].offset = 1.0;
+hop[1].value = (mtwnVec4){50.0f, 0, 0, 0};
+made = mtwnMakePowerEasing(mtwn_easeOut, 2.0, &hop[0].easing);
+mtwnClipTrackDef jump = mtwnDefaultClipTrackDef();
+jump.slot = 2; // bound to the height too, added over its line
+jump.keyframes = hop;
+jump.keyframeCount = 2;
+jump.timing.duration = 0.2;
+jump.timing.iterations = 6.0;
+jump.timing.direction = mtwn_directionAlternate; // each hop down the way it went up
+jump.timing.fill = mtwn_fillForwards;            // landed, it stays
+mtwnNode hops;
+made = mtwnClip_AddTrack(context, clip, &jump, &hops);
+```
+
+Its slots are bound to x, to y, and to y again, adding:
+
+```c
+mtwnBinding bindings[3] = {mtwnBind(0, x), mtwnBind(1, y), mtwnBind(2, y)};
+bindings[2].composite = mtwn_compositeAdd;
+```
+
 ## Staggers
 
 A stagger spreads offsets over items by their distance from an

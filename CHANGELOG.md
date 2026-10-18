@@ -9,6 +9,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- The guide's jump: DOTween's DOJump as a clip of three tracks, the
+  hops added over the height's line, repeating up and down.
 - A path's direction (`mtwnPathDirection`) and angle (`mtwnPathAngle`)
   by SVG 2's path directionality, as CSS's `offset-rotate: auto` turns
   along a path: derivatives of 0, steps, coincident keyframes and paths
