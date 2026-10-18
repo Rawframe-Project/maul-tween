@@ -260,6 +260,31 @@ static void TestScalePastFloats(void)
     mtwnDestroyContext(context);
 }
 
+// A number flung, unbounded, so fast it would stop past the floats: the
+// end it stops at is held at the largest float, as its samples are
+// (record mtwn-0069). A scale's is refused (record mtwn-0059, in
+// test_transition).
+static void TestStopsPastFloats(void)
+{
+    mtwnContext* context = Make();
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){3e38f, 0, 0, 0});
+    mtwnTransitionDef number = Fling(x, (mtwnVec4){3e38f, 0, 0, 0});
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnStartTransition(context, &number, &player) == mtwn_success,
+          "a fling past the floats");
+    int infinite = 0;
+    for (int k = 0; k <= 100; ++k)
+    {
+        Update(context, (uint64_t)k * s_second);
+        mtwnTargetState a = State(context, x);
+        infinite += !isfinite(a.value.x) || !isfinite(a.velocity.x) || !isfinite(a.base.x);
+    }
+    mtwnTargetState a = State(context, x);
+    CHECK(infinite == 0 && a.value.x == 0x1.fffffep127f && a.base.x == 0x1.fffffep127f,
+          "finite throughout, ending held at the largest float");
+    mtwnDestroyContext(context);
+}
+
 static void TestRefusals(void)
 {
     mtwnContext* context = Make();
@@ -320,6 +345,7 @@ int main(void)
     TestLanding();
     TestScaleBounded();
     TestScalePastFloats();
+    TestStopsPastFloats();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;
 }

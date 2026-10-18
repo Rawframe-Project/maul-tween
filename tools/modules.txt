@@ -31,7 +31,7 @@ pool:
 context_internal: crossing pool runs
 context: allocator context_internal pool reserved_internal
 target: context_internal pool
-transition: coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
+transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
 path: elementary fpenv path_internal path_length bounds_internal reserved_internal
 path_length: elementary

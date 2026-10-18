@@ -9,6 +9,7 @@
 
 #include "maul-tween/transition.h"
 
+#include "bounds_internal.h"
 #include "coast.h"
 #include "context_internal.h"
 #include "easing_internal.h"
@@ -187,7 +188,11 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
         mtwnSampleDecay(&out->decay, Line(out->kind, from[i]), out->velocity[i], end, &position,
                         NULL);
         position = scale ? mtwnExp(position) : position;
-        to[i] = (float)(out->kind == mtwn_valueInteger ? round(position) : position);
+        position = out->kind == mtwn_valueInteger ? round(position) : position;
+        // A number held within the floats as every sample is (record
+        // mtwn-0069), a fast fling stopping past them; a scale's stop past
+        // them is refused instead (record mtwn-0059).
+        to[i] = (float)(scale ? position : mtwnNumberHeld(position));
     }
 }
 

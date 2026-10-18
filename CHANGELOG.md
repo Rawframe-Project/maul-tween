@@ -20,6 +20,11 @@ API and the ABI.
 - `mtwnRubberBand` with an infinite coefficient and no distance past the
   limit returns 0 (the signed zero given) instead of NaN; found fuzzing
   1.0.0.
+- An unbounded decay transition of a number flung fast enough to stop
+  past the floats' range ends held at the nearest finite float, as its
+  samples are (record mtwn-0069), where it ended infinite; a scale's
+  such decay is refused at its start, as before (record mtwn-0059).
+  Found fuzzing 1.0.0.
 
 ## [1.0.0] - 2026-10-18
 
