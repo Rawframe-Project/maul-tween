@@ -60,6 +60,41 @@ static mtwnTransitionDef Fling(mtwnTargetId target, mtwnVec4 velocity)
     return def;
 }
 
+// Flung slowly past its upper bound, under a unit a second: the same
+// bounce as a fast fling (the channel's bound on the side it moves to).
+static void TestSlowCross(void)
+{
+    mtwnContext* context = Make();
+    mtwnTargetId t = Target(context, mtwn_valueScalar, (mtwnVec4){0.5f, 0, 0, 0});
+    mtwnTransitionDef def = Fling(t, (mtwnVec4){0.8f, 0, 0, 0});
+    def.bounded = true;
+    def.lower = (mtwnVec4){0.0f, 0, 0, 0};
+    def.upper = (mtwnVec4){0.7f, 0, 0, 0};
+    def.restOffset = 1e-4;
+    def.restSpeed = 1e-4;
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a slow fling");
+    Update(context, 0);
+    mtwnBoundedDecay alone;
+    CHECK(mtwnMakeBoundedDecay(&def.decay, &def.spring, 0.0, (double)0.7f, &alone) == mtwn_success,
+          "its decay alone");
+    CHECK(0.5 + 0.8 / def.decay.rate > (double)0.7f, "it would rest past the bound");
+    // Moving, its two seconds: each frame the decay sampled alone.
+    int differ = 0;
+    for (int k = 1; k <= 40; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 20u);
+        double p = 0.0;
+        mtwnSampleBoundedDecay(&alone, (double)0.5f, (double)0.8f, k / 20.0, &p, NULL);
+        differ += State(context, t).value.x != (float)p;
+    }
+    CHECK(differ == 0, "bounced at the bound as alone");
+    Update(context, 3 * s_second);
+    CHECK(!mtwnPlayer_IsValid(context, player) && State(context, t).base.x == 0.7f,
+          "at rest on the bound");
+    mtwnDestroyContext(context);
+}
+
 static void TestBounded(void)
 {
     mtwnContext* context = Make();
@@ -341,6 +376,7 @@ static void TestRefusals(void)
 
 int main(void)
 {
+    TestSlowCross();
     TestBounded();
     TestLanding();
     TestScaleBounded();

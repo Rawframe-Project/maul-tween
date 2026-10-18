@@ -204,10 +204,48 @@ static void TestTracks(void)
     CHECK(mtwnMakePath(colors, 2, 2, 0.5, NULL, &path) == mtwn_errorInvalid, "an unknown kind");
 }
 
+// Steffen's slopes are per channel: a path of four channels is, channel
+// by channel, the path of one through the same values, to the bit.
+static void TestFourChannels(void)
+{
+    mtwnKeyframe keys[5];
+    for (int i = 0; i < 5; ++i)
+    {
+        keys[i] = Key(0.25 * i, 0.0f, 0.0f);
+        keys[i].value = (mtwnVec4){(float)(Draw() * 4.0 - 2.0), (float)(Draw() * 4.0 - 2.0),
+                                   (float)(Draw() * 4.0 - 2.0), (float)(Draw() * 4.0 - 2.0)};
+    }
+    mtwnPath four;
+    CHECK(mtwnMakePath(keys, 5, 4, 0.5, NULL, &four) == mtwn_success, "four channels");
+    uint32_t differ = 0;
+    for (int c = 0; c < 4; ++c)
+    {
+        mtwnKeyframe one[5];
+        memcpy(one, keys, sizeof one);
+        for (int i = 0; i < 5; ++i)
+        {
+            float v = (&keys[i].value.x)[c];
+            one[i].value = (mtwnVec4){v, 0.0f, 0.0f, 0.0f};
+        }
+        mtwnPath path;
+        CHECK(mtwnMakePath(one, 5, 1, 0.5, NULL, &path) == mtwn_success, "one channel");
+        for (int k = -10; k <= 110; ++k)
+        {
+            double a[4];
+            double b[4];
+            mtwnSamplePath(&four, k / 100.0, a, NULL);
+            mtwnSamplePath(&path, k / 100.0, b, NULL);
+            differ += a[c] != b[0];
+        }
+    }
+    CHECK(differ == 0, "each channel its own path");
+}
+
 int main(void)
 {
     TestWithin();
     TestSlopes();
     TestTracks();
+    TestFourChannels();
     return s_failures == 0 ? 0 : 1;
 }

@@ -511,6 +511,24 @@ static void TestScales(void)
           "a value below 0 refused");
 }
 
+// The shortest path flips a rotation into the hemisphere of the one
+// before by their 4D dot product, every channel counted: (0, 0.8, 0, 0.6)
+// to (0, 0.8, 0, -0.6) is 0.64 - 0.36 above 0, so no flip.
+static void TestRotationHemisphere(void)
+{
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
+    mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){0, 0.8f, 0, 0.6f}, mtwn_segmentLinear),
+                            Key(1.0, (mtwnVec4){0, 0.8f, 0, -0.6f}, mtwn_segmentLinear)};
+    mtwnSegmentMix mixes[1];
+    mtwnTrack track;
+    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success, "made");
+    CHECK(keys[1].value.y == 0.8f && keys[1].value.w == -0.6f, "not flipped: its dot is above 0");
+    keys[1].value = (mtwnVec4){0, -0.8f, 0, 0.6f};
+    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success &&
+              keys[1].value.y == 0.8f && keys[1].value.w == -0.6f,
+          "flipped: its dot is below 0");
+}
+
 static void TestAnglesFarOut(void)
 {
     // From -3e38 the shorter way to 3e38 unwraps it to about -3e38: its
@@ -549,6 +567,7 @@ int main(void)
     TestSamplePastFloats();
     TestDiscrete();
     TestAngles();
+    TestRotationHemisphere();
     TestAnglesFarOut();
     TestColors();
     TestRotations();

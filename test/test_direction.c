@@ -65,6 +65,13 @@ static void TestStillDerivatives(void)
     CHECK(mtwnMakePath(keys, 2, 2, 0.5, NULL, &path) == mtwn_success, "a control on its start");
     double r = sqrt(0.5);
     CHECK(Along(&path, 0.0, r, r), "leaving toward its other control");
+    // A tenth the size, its second derivative under 1: the same way.
+    mtwnKeyframe small[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                             Key(1.0, 0.2f, 0.0f, mtwn_segmentLinear)};
+    small[0].out = small[0].value;
+    small[1].in = (mtwnVec4){0.1f, 0.1f, 0, 0};
+    CHECK(mtwnMakePath(small, 2, 2, 0.5, NULL, &path) == mtwn_success, "a tenth the size");
+    CHECK(Along(&path, 0.0, r, r), "leaving the same way, however gently it bends");
     // Both controls on the start: the third derivative's, toward the end.
     keys[1].value = (mtwnVec4){0.0f, -2.0f, 0, 0};
     keys[1].in = keys[0].value;

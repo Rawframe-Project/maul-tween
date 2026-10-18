@@ -98,6 +98,10 @@ static void TestWithin(void)
     CHECK(mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 1.0) ==
               mtwnDecayStopTime(&decay, 1500.0, 1.0),
           "and its stop");
+    CHECK(mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.0, 1.0) == HUGE_VAL &&
+              mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, -0.5, 1.0) == HUGE_VAL &&
+              mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 0.0) == HUGE_VAL,
+          "no stop for a tolerance not above 0, though this one never needs it");
     mtwnBoundedDecay open = Bounded(-HUGE_VAL, HUGE_VAL);
     double far = 0.0;
     mtwnSampleBoundedDecay(&open, 0.0, 1e6, 10.0, &far, NULL);
