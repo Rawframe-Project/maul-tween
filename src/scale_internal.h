@@ -17,6 +17,13 @@ static inline float mtwnScaleFloat(double scale)
                                    : (scale <= 0x1p-149 ? 0x1p-149f : (float)scale);
 }
 
+// A scale as the target holds it, still in double: within the floats'
+// range, its bounds past it. In range it is unchanged, bit for bit.
+static inline double mtwnScaleHeld(double scale)
+{
+    return scale >= 0x1.fffffep127 ? 0x1.fffffep127 : (scale <= 0x1p-149 ? 0x1p-149 : scale);
+}
+
 static inline float mtwnVelocityFloat(double velocity)
 {
     return velocity >= 0x1.fffffep127

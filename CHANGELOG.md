@@ -33,6 +33,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Fixed
 
+- An eased scale transition overshooting past the floats' range no
+  longer reports a NaN velocity: held at the largest float, it is still.
 - A bounded decay with a lower bound of infinity or an upper of
   -infinity is refused: it had nowhere finite to rest and turned NaN.
 

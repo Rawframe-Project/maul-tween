@@ -53,7 +53,7 @@ and destroying, and from the task system's functions, each with
 arguments that are refused otherwise as invalid or stale, so the state
 error is the busy refusal alone; `fuzz_api` samples a host easing that
 fails the run whenever its context is not busy, which found the two
-clip calls. The cost: 2.1 kB of code (155.4 to 157.5 kB for
+clip calls. The cost: 2.3 kB of code (155.4 to 157.7 kB for
 everything), a load, a store and a branch on entry and a store on leave
 for each call, 0.015% on the bench's churn frame and none measurable on
 the update's frames.

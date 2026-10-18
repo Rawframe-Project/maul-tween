@@ -123,3 +123,12 @@ becomes a float the way its value does, within the finite floats, and
 is 0 at rest however far its value lies; a clip track's velocity, a
 difference over a millisecond, which can pass the floats between two
 finite values of any kind, likewise.
+
+## Amended 2026-10-18: a transition's speed from the values held
+
+An eased scale transition's velocity is the difference of its value a
+millisecond apart. A back easing that overshoots far carries the
+logarithm past 709, where both values are infinite and their difference
+NaN (`fuzz_api`, beside a value held at the largest float). The two
+values are now taken as the target holds them, within the floats' range
+and unchanged within it, so past it the scale is held and still.

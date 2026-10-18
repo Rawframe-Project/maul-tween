@@ -362,6 +362,13 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         {
             speed[i] = (now[i] - before[i]) / (t - earlier);
         }
+        // A scale's speed is that of the value the target holds: past the
+        // floats' range both ends are held at its bound, and still (two
+        // infinite samples gave a NaN).
+        if (slot->kind == mtwn_valueScale)
+        {
+            speed[0] = (mtwnScaleHeld(now[0]) - mtwnScaleHeld(before[0])) / (t - earlier);
+        }
     }
     // An integer's value rounds to nearest, ties away from zero; its
     // velocity is the unrounded curve's.

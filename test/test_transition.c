@@ -215,6 +215,30 @@ static void TestKinds(void)
     mtwnDestroyContext(context);
 }
 
+// A scale eased past the floats' range: its logarithm overshoots so far
+// that both samples its speed is taken from are infinite (from fuzz_api,
+// a NaN velocity before). Held at the largest float, it is still.
+static void TestScaleOvershootPastFloats(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){1e-38f, 0, 0, 0});
+    mtwnTransitionDef def = Linear(z, (mtwnVec4){3e38f, 0, 0, 0}, 1.0);
+    CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &def.easing) == mtwn_success, "a back out");
+    Start(context, &def);
+    int infinite = 0;
+    int held = 0;
+    for (int k = 0; k <= 60; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 60u);
+        mtwnTargetState state = State(context, z);
+        infinite += !isfinite(state.value.x) || !isfinite(state.velocity.x);
+        held += state.value.x == 0x1.fffffep127f && state.velocity.x == 0.0f;
+    }
+    CHECK(infinite == 0, "finite throughout");
+    CHECK(held > 0, "past the range, held at the largest float and still");
+    mtwnDestroyContext(context);
+}
+
 static bool NearQuat(mtwnVec4 got, double x, double y, double z, double w)
 {
     return fabs((double)got.x - x) <= 1e-6 && fabs((double)got.y - y) <= 1e-6 &&
@@ -1221,6 +1245,7 @@ int main(void)
     TestInterruption();
     TestKinds();
     TestHalfTurns();
+    TestScaleOvershootPastFloats();
     TestExactness();
     TestSpring();
     TestHandover();
