@@ -9,6 +9,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Changed
 
+- `tools/code_size.py --budget` fails a part's budget set more than 10%
+  over its size at the last release unless a record raises it.
 - The guide's animation on twos states its grid: from the timeline's
   start, a whole number of holds.
 - A scale transition's velocity is the held value's times its rate, the
@@ -22,6 +24,12 @@ Nuij's zoom, rough easings, contexts without records, inertia that
 lands or is bounded, a path's direction, a shake's noise on its own
 clock, monotone segments, and recipes for jumps, trauma shake, keyframe
 handles and animation on twos; each part's size budget restated.
+
+Its sizes (x86-64, GCC 14, `--gc-sections`, by the parts a program
+uses): curves 24,985 bytes, values 56,281, transitions 56,601, clips
+138,762, everything 155,353. `tools/code_size.py --budget` fails a
+later budget set more than 10% over these unless a record raises it
+(record mtwn-0055).
 
 ### Added
 

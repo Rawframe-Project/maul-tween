@@ -16,6 +16,10 @@
 # read from the linker's map: what links it in. --budget fails when a
 # part is over its budget (record mtwn-0051), for a library built in
 # Release with GCC 14 by default options; growth past one is a decision.
+# It fails too when a budget is set more than GROWTH over the part's size
+# at the last release, unless RAISED names the record that allows it
+# (record mtwn-0055, amended at 0.6.0): a feature's record may raise a
+# budget within that, but a release's growth past it is decided as such.
 
 import argparse
 import os
@@ -43,6 +47,28 @@ BUDGETS = {
     "clips": 147000,
     "everything": 165000,
 }
+
+
+# Each part's size in bytes at the last release, 0.6.0, its budgets'
+# ceiling GROWTH over it, and the records raising a ceiling past it.
+RELEASED = {
+    "curves": 24985,
+    "values": 56281,
+    "transitions": 56601,
+    "clips": 138762,
+    "everything": 155353,
+}
+GROWTH = 0.10
+RAISED = {}
+
+
+def check_ceilings():
+    for name, budget in BUDGETS.items():
+        ceiling = RELEASED[name] * (1.0 + GROWTH)
+        if budget > ceiling and name not in RAISED:
+            sys.exit("code_size.py: the %s budget, %.1f kB, passes %.0f%% over its %.1f kB at the "
+                     "last release; a record raises it in RAISED" %
+                     (name, budget / 1000.0, GROWTH * 100.0, RELEASED[name] / 1000.0))
 
 
 def functions(header):
@@ -126,6 +152,8 @@ def main():
                     print("    %-18s %7d" % (member, bytes_))
     if args.budget and over:
         sys.exit("code_size.py: " + "; ".join(over))
+    if args.budget:
+        check_ceilings()
 
 
 if __name__ == "__main__":

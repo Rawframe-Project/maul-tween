@@ -19,8 +19,10 @@ of its own between the checklist's steps 4 and 5, before the commit:
    the last release and why, by object (`code_size.py --map <part>` on
    the last release's build and on this one), in mtwn-0055's amendment
    for the release, so a restatement is a reviewed decision rather than
-   a reset. A patch release keeps the budgets; a part over its budget
-   then takes a recorded decision first.
+   a reset; `RELEASED` takes the release's sizes in bytes, the ceiling
+   `--budget` holds the next budgets to (10% over, unless `RAISED`
+   names a record), and `RAISED` empties. A patch release keeps the
+   budgets; a part over its budget then takes a recorded decision first.
 3. **The ABI.** A patch release changes no public declaration or layout
    (`git diff vLAST -- include` shows only comments); otherwise the
    release is a minor one.

@@ -117,3 +117,17 @@ composed and moved on, the moving on out of line; compose +955, scales
 in their logarithm; update +877, scales and coasts in the update; coast
 +554; signal +488, the shake's noise on its own clock; target +129;
 spring +40. Every growth is a feature's or its guard's.
+
+## Amended 2026-10-18: a ceiling over the last release
+
+The budgets bound a part between records, and each feature's record
+raised its part's as it came: from 0.5.1 to 0.6.0 they rose by 12.6%
+overall and 18.5% for the values, every step reasoned, nothing bounding
+the sum. `code_size.py` now keeps each part's size at the last release
+(0.6.0: curves 24,985 bytes, values 56,281, transitions 56,601, clips
+138,762, everything 155,353) and a growth of 10%: `--budget` fails a
+budget set past its part's ceiling unless `RAISED` names the record
+that allows it, so a release cycle's growth past 10% is decided as
+such, not reached step by step. The table moves at each release with
+the budgets.
+
