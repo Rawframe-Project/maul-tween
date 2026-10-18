@@ -15,6 +15,19 @@ API and the ABI.
 
 ## [Unreleased]
 
+### Fixed
+
+- An output its header says a failure clears (the null id, 0 or zero)
+  is cleared on every failure, a missing or busy context's too, where
+  those returned with it untouched: creating a target, clip or player,
+  starting a transition, adding to a clip, and reading a target's value
+  or state.
+
+### Changed
+
+- `mtwnPlayer_GetState` clears its state on failure, as the target
+  getters do.
+
 ## [1.0.3] - 2026-10-19
 
 ### Fixed

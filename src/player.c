@@ -591,6 +591,11 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
 
 mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (playerOut != NULL)
+    {
+        *playerOut = (mtwnPlayerId){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -942,6 +947,11 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
 
 mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (stateOut != NULL)
+    {
+        *stateOut = (mtwnPlayerState){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;

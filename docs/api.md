@@ -468,7 +468,7 @@ Sets a clip's player's weight, which scales its bindings' from the next update: 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut);
 ```
-Reads a clip's player's state at the last update's time.  @param context   The context. @param player    A clip's player. @param stateOut  Receives the state. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a null stateOut. @par Thread safety Safe from any thread; the context is used by one thread at a time.
+Reads a clip's player's state at the last update's time.  @param context   The context. @param player    A clip's player. @param stateOut  Receives the state, zero on failure. @return As mtwnPlayer_Play; mtwn_errorInvalid also for a null stateOut. @par Thread safety Safe from any thread; the context is used by one thread at a time.
 
 ```c
 MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player);

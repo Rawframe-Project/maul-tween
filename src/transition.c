@@ -457,6 +457,11 @@ static mtwnResult RunStartTransition(mtwnContext* context, const mtwnTransitionD
 mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
                                mtwnPlayerId* playerOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (playerOut != NULL)
+    {
+        *playerOut = (mtwnPlayerId){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;

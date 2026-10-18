@@ -100,6 +100,11 @@ static mtwnResult RunCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwn
 mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
                             mtwnTargetId* targetOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (targetOut != NULL)
+    {
+        *targetOut = (mtwnTargetId){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -236,6 +241,11 @@ static mtwnResult RunTargetGetValue(mtwnContext* context, mtwnTargetId target, m
 
 mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (valueOut != NULL)
+    {
+        *valueOut = (mtwnVec4){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -271,6 +281,11 @@ static mtwnResult RunTargetGetState(mtwnContext* context, mtwnTargetId target,
 
 mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTargetState* stateOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (stateOut != NULL)
+    {
+        *stateOut = (mtwnTargetState){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;

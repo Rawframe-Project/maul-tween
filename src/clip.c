@@ -171,6 +171,11 @@ static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mt
 
 mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (clipOut != NULL)
+    {
+        *clipOut = (mtwnClipId){0};
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -578,6 +583,11 @@ static mtwnResult RunClipAddTrack(mtwnContext* context, mtwnClipId clip,
 mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnClipTrackDef* def,
                              mtwnNode* nodeOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (nodeOut != NULL)
+    {
+        *nodeOut = 0;
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -613,6 +623,11 @@ static mtwnResult RunClipAddTimeline(mtwnContext* context, mtwnClipId clip,
 mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
                                 const mtwnClipTimelineDef* def, mtwnNode* nodeOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (nodeOut != NULL)
+    {
+        *nodeOut = 0;
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -653,6 +668,11 @@ static mtwnResult RunClipAddLabel(mtwnContext* context, mtwnClipId clip, mtwnNod
 mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
                              mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (nodeOut != NULL)
+    {
+        *nodeOut = 0;
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;
@@ -671,6 +691,11 @@ static mtwnResult RunClipAddMark(mtwnContext* context, mtwnClipId clip, mtwnNode
 mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
                             mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
 {
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (nodeOut != NULL)
+    {
+        *nodeOut = 0;
+    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorState;

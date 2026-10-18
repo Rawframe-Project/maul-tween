@@ -30,9 +30,11 @@ typedef struct Probe
     mtwnTargetId spare;
     mtwnClipId clip;
     mtwnPlayerId player;
-    // Calls made back in, and those refused with mtwn_errorState.
+    // Calls made back in, those refused with mtwn_errorState, and those
+    // whose outputs the refusal cleared.
     uint32_t calls;
     uint32_t refused;
+    uint32_t cleared;
 } Probe;
 
 static Probe s_probe;
@@ -102,12 +104,70 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     return r;
 }
 
+// Bytes of 0xAB, then whether a busy call cleared them as its header says.
+#define BUSY_CLEARS(out, call)                                                                     \
+    do                                                                                             \
+    {                                                                                              \
+        memset(&(out), 0xAB, sizeof(out));                                                         \
+        cleared += (call) == mtwn_errorState && Zeroed(&(out), sizeof(out));                       \
+    } while (0)
+
+static bool Zeroed(const void* bytes, size_t size)
+{
+    const unsigned char* b = bytes;
+    for (size_t i = 0; i < size; ++i)
+    {
+        if (b[i] != 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The calls whose outputs a failure clears, made busy: each refused and
+// its output cleared, as a missing context's is. Counts those: 11.
+static uint32_t ClearedWhenBusy(mtwnContext* c)
+{
+    uint32_t cleared = 0;
+    const mtwnTargetId noTarget = {0, 0};
+    const mtwnPlayerId noPlayer = {0, 0};
+    const mtwnClipId noClip = {0, 0};
+    mtwnPosition at;
+    memset(&at, 0, sizeof at);
+    mtwnTargetId target;
+    BUSY_CLEARS(target, mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, &target));
+    mtwnVec4 value;
+    BUSY_CLEARS(value, mtwnTarget_GetValue(c, noTarget, &value));
+    mtwnTargetState targetState;
+    BUSY_CLEARS(targetState, mtwnTarget_GetState(c, noTarget, &targetState));
+    mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+    mtwnPlayerId player;
+    BUSY_CLEARS(player, mtwnStartTransition(c, &transition, &player));
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    BUSY_CLEARS(clip, mtwnCreateClip(c, &clipDef, &clip));
+    mtwnClipTrackDef trackDef = mtwnDefaultClipTrackDef();
+    mtwnNode node;
+    BUSY_CLEARS(node, mtwnClip_AddTrack(c, noClip, &trackDef, &node));
+    mtwnClipTimelineDef timelineDef = mtwnDefaultClipTimelineDef();
+    BUSY_CLEARS(node, mtwnClip_AddTimeline(c, noClip, &timelineDef, &node));
+    BUSY_CLEARS(node, mtwnClip_AddLabel(c, noClip, MTWN_ROOT_NODE, at, 1, &node));
+    BUSY_CLEARS(node, mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, &node));
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    BUSY_CLEARS(player, mtwnCreatePlayer(c, &playerDef, &player));
+    mtwnPlayerState playerState;
+    BUSY_CLEARS(playerState, mtwnPlayer_GetState(c, noPlayer, &playerState));
+    return cleared;
+}
+
 // A host easing, the identity, calling back in on its first call.
 static double CallingIn(void* unused, double progress)
 {
     (void)unused;
     if (s_probe.calls == 0)
     {
+        s_probe.cleared = ClearedWhenBusy(s_probe.context);
         s_probe.refused = CallEverything(s_probe.context, true);
         s_probe.calls = 1;
     }
@@ -143,7 +203,9 @@ static void TestHostEasing(void)
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
-    CHECK(mtwnGetContextMisuse(context) == before + 38, "each counted, the destroy too");
+    CHECK(s_probe.cleared == 11, "its outputs cleared, as a failure's are");
+    CHECK(mtwnGetContextMisuse(context) == before + 38 + 11,
+          "each counted, the destroy and the outputs' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, s_probe.target, &value) == mtwn_success && value.x == 0.5f,
