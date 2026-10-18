@@ -464,7 +464,12 @@ made = mtwnClip_AddTimeline(context, clip, &twos, &held);
 ```
 
 Tracks added with `held` as their parent move in steps; the clip's
-others stay smooth. To step everything a context animates, the host
+others stay smooth. The holds fall on a grid from the timeline's own
+start, a whole number of them: to hold on the clock's twelfths, as
+After Effects' Posterize Time holds on the composition's, start the
+timeline at a whole number of twelfths and make its duration a whole
+number of holds (2 s at 12 a second is 24; 1.3 s would be 15.6, which
+steps() cannot take). To step everything a context animates, the host
 rounds its clock down to the rate before each update instead.
 
 ## Staggers

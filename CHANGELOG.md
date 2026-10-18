@@ -7,6 +7,14 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Changed
+
+- The guide's animation on twos states its grid: from the timeline's
+  start, a whole number of holds.
+- A scale transition's velocity is the held value's times its rate, the
+  value at most the largest float: within a float's rounding of before,
+  with no case for a rate of 0 (record mtwn-0059).
+
 ## [0.6.0] - 2026-10-18
 
 A minor release: scales moved in their logarithm and van Wijk and
