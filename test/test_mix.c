@@ -142,6 +142,63 @@ static void TestMonotone(void)
     CHECK(backwards == 0, "a step forward in t never moves back from b");
 }
 
+// A float of either sign, a power of two from 2^-40 to 2^40.
+static float RandomPower(void)
+{
+    float v = ldexpf(1.0f, -40 + (int)(Next() % 81u));
+    return (Next() & 1u) != 0 ? -v : v;
+}
+
+static void TestWithinEnds(void)
+{
+    // Float ends held in doubles: b - a is exact within 2^29 of each
+    // other, and further apart t (b - a) stays a spacing short of the
+    // rounded difference, so for t in [0, 1] the mix never leaves its
+    // ends, as P0811 clamps for doubles in general.
+    uint32_t outside = 0;
+    for (uint32_t n = 0; n < 400000u; ++n)
+    {
+        float a = n % 7u == 0 ? RandomPower() : RandomFloat();
+        float b = RandomFloat();
+        switch (n % 4u)
+        {
+        case 0:
+            b = nextafterf(a, (Next() & 1u) != 0 ? INFINITY : -INFINITY);
+            break;
+        case 1:
+            b = fabsf(a) < 1.0f ? a * 1e30f : a * 1e-30f;
+            break;
+        case 2:
+            b = n % 3u == 0 ? RandomPower() : b;
+            break;
+        default:
+            break;
+        }
+        double t = 0.0;
+        switch (n % 5u)
+        {
+        case 0:
+            t = 1.0 - (double)(1u + Next() % 64u) * 0x1p-53;
+            break;
+        case 1:
+            t = 1.0 - (double)(1u + Next() % 4u) * 0x1p-24;
+            break;
+        case 2:
+            t = 1.0 - Unit() * 0x1p-30;
+            break;
+        default:
+            t = Unit();
+            break;
+        }
+        double m = mtwnMix((double)a, (double)b, t);
+        double low = a < b ? (double)a : (double)b;
+        double high = a < b ? (double)b : (double)a;
+        float held = (float)m;
+        outside += m < low || m > high || held < fminf(a, b) || held > fmaxf(a, b);
+    }
+    CHECK(outside == 0, "for t in [0, 1] within its ends, in double and as a float");
+}
+
 static void TestNearEndsFarOut(void)
 {
     // One ulp apart, eased 8 million times past them, where the line
@@ -162,6 +219,7 @@ int main(void)
 {
     TestBound();
     TestMonotone();
+    TestWithinEnds();
     TestNearEndsFarOut();
     return s_failures == 0 ? 0 : 1;
 }

@@ -89,3 +89,19 @@ progress, which only a host easing could give and which stays the
 host's (mtwn-0069), now makes equal ends NaN, as it already made
 distinct ones. The determinism scenario's hash moves to 0x7b710979e70fff40, its
 mixes rounding differently.
+
+## Amended 2026-10-18: within its ends for t in [0, 1]
+
+For doubles in general `a + t (b - a)` may pass b just below t = 1,
+which P0811's reference clamps. The library's ends are floats held in
+doubles, and there it does not. Ends within 2^29 of each other have an
+exact difference; `t (b - a)` for t below 1 rounds to no more than it,
+and a plus that to no more than b, rounding being monotone. Further
+apart the difference rounds, but `t (b - a)` stays a spacing of its
+binade short of it (t is at most 1 - 2^-53, and below a power of two the
+spacing halves, so it never rounds up to it), which covers that
+rounding. So for t in [0, 1] every mix lies within its ends, as a double
+and as the float it becomes, without a clamp. `test_mix` holds it on
+400,000 float ends (random, one ulp apart, thirty orders apart, powers
+of two) at t within 64 ulps below 1, at 1 - 2^-24 and below, and in
+[0, 1]; a search of 40 million such cases found none outside.
