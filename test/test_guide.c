@@ -450,7 +450,11 @@ static void TestTwos(void)
     mtwnDestroyContext(context);
 }
 
-static void TestEasedRate(void)
+// A track at 100 a second, its speed eased from 1 to 0 over the second
+// from 1 s by a quadratic out, at a frame rate: by the rate set each
+// frame, or exactly, swept to the time the eased speed travels. The
+// value it stops at, its frames' steps checked against the rate running.
+static double EasedRateStop(uint32_t fps, bool exact)
 {
     mtwnContextDef contextDef = mtwnDefaultContextDef();
     mtwnContext* context = NULL;
@@ -477,46 +481,83 @@ static void TestEasedRate(void)
     CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
               mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
           "playing");
-    // At 1 s the speed eases from 1 to 0 over a second, a quadratic out.
     mtwnTransitionDef slow = mtwnDefaultTransitionDef();
     slow.target = speed;
     slow.value = (mtwnVec4){0.0f, 0, 0, 0};
     slow.duration = 1.0;
     CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &slow.easing) == mtwn_success, "an ease out");
+    double rampStart = 1.0;
+    double rampTime = 0.0;
     double last = 0.0;
     double lastRate = 1.0;
     double running = 1.0; // the rate the player moves at, a frame behind
     int jumps = 0;
-    for (int frame = 1; frame <= 180; ++frame)
+    for (uint32_t frame = 1; frame <= 3u * fps; ++frame)
     {
-        if (frame == 60)
+        double seconds = (double)frame / (double)fps;
+        if (frame == fps && !exact)
         {
             mtwnPlayerId slowing;
             CHECK(mtwnStartTransition(context, &slow, &slowing) == mtwn_success, "slowing");
         }
-        CHECK(mtwnUpdate(context, (uint64_t)frame * 1000000000u / 60u, NULL, 0, NULL) ==
+        if (frame > fps && exact)
+        {
+            // Exact at any frame rate: paused where the ramp starts, swept
+            // each frame to the time the eased speed has travelled.
+            double u = fmin(seconds - rampStart, 1.0);
+            made = mtwnPlayer_Sweep(context, player, rampTime + (1.0 - pow(1.0 - u, 3.0)) / 3.0);
+
+            CHECK(made == mtwn_success, "swept");
+        }
+        CHECK(mtwnUpdate(context, (uint64_t)frame * 1000000000u / fps, NULL, 0, NULL) ==
                   mtwn_success,
               "a frame");
+        if (frame == fps && exact)
+        {
+            mtwnPlayerState state;
+            CHECK(mtwnPlayer_GetState(context, player, &state) == mtwn_success &&
+                      mtwnPlayer_Pause(context, player) == mtwn_success,
+                  "paused at the ramp");
+            rampTime = state.currentTime;
+        }
         mtwnVec4 v;
         CHECK(mtwnTarget_GetValue(context, x, &v) == mtwn_success, "read");
-        // Each frame moves by the rate running since the last update: no
-        // jump, no step back. A rate set takes over at the next update.
-        double step = (double)v.x - last;
-        jumps += fabs(step - 100.0 * running / 60.0) > 1e-3;
-        last = (double)v.x;
-        running = lastRate;
-        // After each update: the rate the speed transition has reached.
-        mtwnVec4 rate;
-        made = mtwnTarget_GetValue(context, speed, &rate);
-        made = mtwnPlayer_SetRate(context, player, (double)rate.x);
+        if (!exact)
+        {
+            // Each frame moves by the rate running since the last update:
+            // no jump, no step back. A rate set takes over at the next one.
+            double step = (double)v.x - last;
+            jumps += fabs(step - 100.0 * running / (double)fps) > 1e-3;
+            running = lastRate;
+            // After each update: the rate the speed transition has reached.
+            mtwnVec4 rate;
+            made = mtwnTarget_GetValue(context, speed, &rate);
+            made = mtwnPlayer_SetRate(context, player, (double)rate.x);
 
-        CHECK(made == mtwn_success, "the rate set");
-        lastRate = (double)rate.x;
+            CHECK(made == mtwn_success, "the rate set");
+            lastRate = (double)rate.x;
+        }
+        last = (double)v.x;
     }
     CHECK(jumps == 0, "each frame the distance its rate gives");
-    CHECK(lastRate == 0.0 && last > 100.0 && last < 200.0,
-          "stopped between 1 and 2 s of the track");
     mtwnDestroyContext(context);
+    return last;
+}
+
+static void TestEasedRate(void)
+{
+    // The speed (1 - p)^2 over the second travels 1/3 of it: 100 + 100/3.
+    double stop = 100.0 + 100.0 / 3.0;
+    double at60 = EasedRateStop(60, false);
+    double at144 = EasedRateStop(144, false);
+    // Past it by about a frame and a half at full speed: the rate a frame
+    // behind, and each frame's left rectangle of a falling rate.
+    CHECK(at60 > stop && at60 - stop <= 1.6 * 100.0 / 60.0 && at144 > stop &&
+              at144 - stop <= 1.6 * 100.0 / 144.0,
+          "by the rate set: past the stop by a frame and a half, 60 and 144 apart");
+    CHECK(fabs(EasedRateStop(60, true) - stop) <= 1e-4 &&
+              fabs(EasedRateStop(144, true) - stop) <= 1e-4,
+          "swept exactly: the same stop at both");
 }
 
 static void TestTrauma(void)

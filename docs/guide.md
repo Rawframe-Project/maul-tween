@@ -542,6 +542,26 @@ made = mtwnTarget_GetValue(context, speed, &rate);
 made = mtwnPlayer_SetRate(context, player, (double)rate.x);
 ```
 
+Where it stops depends on the frame rate: each frame moves by the rate
+running since the last update, so a falling rate overshoots by about a
+frame and a half at its start speed (2.5 of 133.3 at 60 frames a second
+here, 1.0 at 144). A game that replays or keeps hosts in step uses the
+exact variant: the player paused where the ramp starts and swept each
+frame to the time the eased speed has travelled, t0 + r0 t + (r1 - r0)
+d E(t / d) for a rate eased from r0 to r1 over d by an easing whose
+integral is E; for 1 to 0 over a second by a quadratic out, (1 - (1 -
+u)^3) / 3:
+
+```c
+// Exact at any frame rate: paused where the ramp starts, swept
+// each frame to the time the eased speed has travelled.
+double u = fmin(seconds - rampStart, 1.0);
+made = mtwnPlayer_Sweep(context, player, rampTime + (1.0 - pow(1.0 - u, 3.0)) / 3.0);
+```
+
+A sweep crosses everything between, so marks and starts on the way are
+told of as they would be playing.
+
 Scroll drives a clip as CSS's scroll timelines do when a paused player
 is swept to the scroll's progress before each update: `mtwnPlayer_Sweep`
 crosses everything between, so marks and starts fire as they are

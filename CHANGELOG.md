@@ -13,6 +13,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
   `mtwnPlayer_SetRate` slows a player to a stop as GSAP tweens a
   timeline's timeScale, a frame behind as Web Animations' seamless
   rate change takes it.
+- The guide's eased rate states its frame-rate dependence and gives the
+  exact variant, the player swept to the eased speed's integral.
 
 ### Changed
 
