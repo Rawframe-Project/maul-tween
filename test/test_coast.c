@@ -213,6 +213,30 @@ static void TestScaleBounded(void)
     mtwnDestroyContext(context);
 }
 
+// A zoom flung far past the floats (1e12 a second in the logarithm):
+// its value holds at the largest float and its velocity stays finite,
+// where it was the infinite value's times its rate.
+static void TestScalePastFloats(void)
+{
+    mtwnContext* context = Make();
+    mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){0.5f, 0, 0, 0});
+    mtwnTransitionDef def = Fling(z, (mtwnVec4){1e12f, 0, 0, 0});
+    def.bounded = true;
+    def.lower = (mtwnVec4){0.875f, 0, 0, 0};
+    def.upper = def.lower;
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a fling past the floats");
+    int infinite = 0;
+    for (int k = 0; k <= 30; ++k)
+    {
+        Update(context, (uint64_t)k * s_second / 10u);
+        mtwnTargetState state = State(context, z);
+        infinite += !isfinite(state.value.x) || !isfinite(state.velocity.x);
+    }
+    CHECK(infinite == 0, "finite throughout");
+    mtwnDestroyContext(context);
+}
+
 static void TestRefusals(void)
 {
     mtwnContext* context = Make();
@@ -259,6 +283,7 @@ int main(void)
     TestBounded();
     TestLanding();
     TestScaleBounded();
+    TestScalePastFloats();
     TestRefusals();
     return s_failures == 0 ? 0 : 1;
 }

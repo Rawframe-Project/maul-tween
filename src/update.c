@@ -93,7 +93,8 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
                     &position, &rate);
         value[1] = value[2] = value[3] = velocity[1] = velocity[2] = velocity[3] = 0.0;
         value[0] = mtwnExp(position);
-        velocity[0] = value[0] * rate;
+        // At rest past the floats the value is infinite and moves at 0.
+        velocity[0] = rate == 0.0 ? 0.0 : value[0] * rate;
         return true;
     }
     mtwnSpringMotion motion = {0};
@@ -379,6 +380,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     if (slot->kind == mtwn_valueScale)
     {
         value[0] = mtwnScaleFloat(now[0]);
+        velocity[0] = mtwnVelocityFloat(speed[0]);
     }
     WriteTarget(context, target, (mtwnVec4){value[0], value[1], value[2], value[3]},
                 (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]});

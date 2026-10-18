@@ -112,3 +112,14 @@ a float now holds it within the positive floats, the largest past them
 and the smallest below, so no target's scale is ever infinite or 0: a
 track's sample, a transition's value, the composition, the incremental
 repeat.
+
+## Amended 2026-10-18: a velocity within the float range too
+
+A scale's velocity is its value times its logarithm's rate, so a value
+past the floats took the velocity with it: `fuzz_api` flung a zoom at
+1e12 a second against bounds of 0.875 and read a velocity of infinity
+beside the value held at the largest float. A scale's velocity now
+becomes a float the way its value does, within the finite floats, and
+is 0 at rest however far its value lies; a clip track's velocity, a
+difference over a millisecond, which can pass the floats between two
+finite values of any kind, likewise.

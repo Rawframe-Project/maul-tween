@@ -310,7 +310,7 @@ static mtwnVec4 TrackVelocity(const mtwnClipNode* node, mtwnVec4 value, double e
         const float* b = &before.x;
         for (int i = 0; i < 4; ++i)
         {
-            velocity[i] = (float)(((double)a[i] - (double)b[i]) / s_velocitySpan);
+            velocity[i] = mtwnVelocityFloat(((double)a[i] - (double)b[i]) / s_velocitySpan);
         }
     }
     return (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]};

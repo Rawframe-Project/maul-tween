@@ -80,6 +80,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Fixed
 
+- A scale target's velocity stays finite when its value passes the
+  floats (a fling of 1e12 read infinity), and a clip track's velocity
+  within the floats too (record mtwn-0059).
 - At constant speed, a path whose end segment joins coincident
   keyframes went to enormous values just past that end; the segment
   now holds still as a segment of no length does. Keyframes whose

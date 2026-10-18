@@ -149,7 +149,7 @@ static mtwnMoving Scale(mtwnComposite composite, double weight, mtwnMoving under
     }
     double rate = add ? ra + weight * rb : ra + weight * (rb - ra);
     return (mtwnMoving){{mtwnScaleFloat(c), 0.0f, 0.0f, 0.0f},
-                        {(float)(c * rate), 0.0f, 0.0f, 0.0f}};
+                        {mtwnVelocityFloat(rate == 0.0 ? 0.0 : c * rate), 0.0f, 0.0f, 0.0f}};
 }
 
 mtwnMoving mtwnCompose(mtwnValueKind kind, mtwnComposite composite, double weight,
