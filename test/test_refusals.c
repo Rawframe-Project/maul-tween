@@ -145,6 +145,67 @@ static void TestClipsAndPlayers(void)
           "a binding count with no bindings");
     playerDef.bindingCount = 0;
     CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    mtwnDestroyContext(context);
+}
+
+// A clip of one scalar track on slot 0, finished.
+static mtwnClipId OneTrack(mtwnContext* context)
+{
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip = {0, 0};
+    mtwnNode node = 0;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
+              mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a clip of one track");
+    return clip;
+}
+
+static void TestBindings(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnClipId clip = OneTrack(context);
+    mtwnTargetId scalar = {0, 0};
+    mtwnTargetId color = {0, 0};
+    mtwnTargetId dead = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &scalar) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueColor, (mtwnVec4){0, 0, 0, 1.0f}, &color) ==
+                  mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &dead) == mtwn_success &&
+              mtwnDestroyTarget(context, dead) == mtwn_success,
+          "targets, one destroyed");
+    mtwnTargetId never = scalar;
+    never.index1 += 50;
+    mtwnBinding bindings[2] = {mtwnBind(0, scalar), mtwnBind(0, scalar)};
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = clip;
+    def.bindings = bindings;
+    def.bindingCount = 1;
+    mtwnPlayerId player;
+    bindings[0].target = dead;
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a destroyed target");
+    bindings[0].target = never;
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a target never made");
+    bindings[0].target = color;
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid,
+          "a target of another kind");
+    bindings[0] = mtwnBind(1, scalar);
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a slot the clip lacks");
+    bindings[0] = mtwnBind(0, scalar);
+    def.bindingCount = 2;
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a slot bound twice");
+    def.bindingCount = 1;
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_success, "bound once, live, its kind");
     CHECK(mtwnPlayer_GetState(context, player, NULL) == mtwn_errorInvalid,
           "its state with nowhere to give it");
     mtwnDestroyContext(context);
@@ -184,6 +245,7 @@ int main(void)
     TestMakers();
     TestContextDefs();
     TestClipsAndPlayers();
+    TestBindings();
     TestTransitions();
     return s_failures == 0 ? 0 : 1;
 }

@@ -43,10 +43,12 @@ extern "C"
     // Start from mtwnBind.
     typedef struct mtwnBinding
     {
+        // A slot of the clip, bound by one binding of the player at most.
         uint32_t slot;
         mtwnComposite composite;
         // 0: a call refuses another value (record mtwn-0071).
         uint8_t reserved[3];
+        // A live target of the value kind the slot's tracks hold.
         mtwnTargetId target;
         // In [0, 1]: how far from what lies under it toward the composited
         // value.
