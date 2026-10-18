@@ -32,26 +32,32 @@ static mtwnVec4 Pack(const double v[4])
     return mtwnNumbersHeld((mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]});
 }
 
-// Per channel: the sum for add, then the mix by the weight, in double.
-static void Sums(mtwnComposite composite, double weight, mtwnVec4 under, mtwnVec4 effect,
-                 double out[4])
+// Per channel: the sum for add, then the mix by the weight, of values and
+// velocities in double. Held past the floats, a number is still (record
+// mtwn-0069).
+static mtwnMoving Linear(mtwnComposite composite, double weight, mtwnMoving under,
+                         mtwnMoving effect)
 {
     double a[4];
     double b[4];
-    Unpack(under, a);
-    Unpack(effect, b);
+    double va[4];
+    double vb[4];
+    Unpack(under.value, a);
+    Unpack(effect.value, b);
+    Unpack(under.velocity, va);
+    Unpack(effect.velocity, vb);
+    double value[4];
+    double velocity[4];
+    bool add = composite == mtwn_compositeAdd;
     for (int i = 0; i < 4; ++i)
     {
-        double composed = composite == mtwn_compositeAdd ? a[i] + b[i] : b[i];
-        out[i] = weight == 1.0 ? composed : a[i] + weight * (composed - a[i]);
+        double composed = add ? a[i] + b[i] : b[i];
+        double moved = add ? va[i] + vb[i] : vb[i];
+        value[i] = weight == 1.0 ? composed : a[i] + weight * (composed - a[i]);
+        velocity[i] = weight == 1.0 ? moved : va[i] + weight * (moved - va[i]);
+        velocity[i] = fabs(value[i]) <= 0x1.fffffep127 ? velocity[i] : 0.0;
     }
-}
-
-static mtwnVec4 Linear(mtwnComposite composite, double weight, mtwnVec4 under, mtwnVec4 effect)
-{
-    double out[4];
-    Sums(composite, weight, under, effect, out);
-    return Pack(out);
+    return (mtwnMoving){Pack(value), Pack(velocity)};
 }
 
 static void Premultiply(mtwnVec4 v, double out[4])
@@ -165,38 +171,24 @@ mtwnMoving mtwnCompose(mtwnValueKind kind, mtwnComposite composite, double weigh
     {
         return underlying;
     }
-    mtwnMoving out = {effect.value, {0.0f, 0.0f, 0.0f, 0.0f}};
-    switch (kind)
+    if (kind == mtwn_valueDiscrete)
     {
-    case mtwn_valueDiscrete:
         // Not additive; a weight steps at half, as discrete values mix.
         return weight >= 0.5 ? (mtwnMoving){effect.value, {0.0f, 0.0f, 0.0f, 0.0f}} : underlying;
-    case mtwn_valueColor:
-        out.value = Color(composite, weight, underlying.value, effect.value);
-        break;
-    case mtwn_valueRotation:
-        out.value = Rotation(composite, weight, underlying.value, effect.value);
-        break;
-    case mtwn_valueScale:
+    }
+    if (kind == mtwn_valueScale)
+    {
         return Scale(composite, weight, underlying, effect);
-    default:
-    {
-        double sums[4];
-        Sums(composite, weight, underlying.value, effect.value, sums);
-        out.value = Pack(sums);
-        out.velocity = Linear(composite, weight, underlying.velocity, effect.velocity);
-        // Held past the floats, a number is still (record mtwn-0069).
-        float* velocity = &out.velocity.x;
-        for (int i = 0; i < 4; ++i)
-        {
-            velocity[i] = sums[i] != mtwnNumberHeld(sums[i]) ? 0.0f : velocity[i];
-        }
-        break;
     }
-    }
-    if (kind == mtwn_valueColor || kind == mtwn_valueRotation)
+    // A color's and a rotation's velocities mix as numbers' do.
+    mtwnMoving out = Linear(composite, weight, underlying, effect);
+    if (kind == mtwn_valueColor)
     {
-        out.velocity = Linear(composite, weight, underlying.velocity, effect.velocity);
+        out.value = Color(composite, weight, underlying.value, effect.value);
+    }
+    else if (kind == mtwn_valueRotation)
+    {
+        out.value = Rotation(composite, weight, underlying.value, effect.value);
     }
     if (kind == mtwn_valueInteger)
     {

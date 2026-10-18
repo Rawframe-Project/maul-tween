@@ -317,6 +317,17 @@ static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t
     return true;
 }
 
+// A curve's own speed is the value's where the value is not held; held
+// past the floats a number is still, as the speed the values held give
+// (record mtwn-0069).
+static void HoldStill(const double now[4], double speed[4])
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        speed[i] = fabs(now[i]) <= 0x1.fffffep127 ? speed[i] : 0.0;
+    }
+}
+
 static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
 {
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
@@ -378,14 +389,14 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     }
     float value[4];
     float velocity[4];
-    // A curve's own speed is the value's where the value is not held; held
-    // past the floats it is still, as the speed the values held give
-    // (record mtwn-0069).
+    if (sampledSpeed)
+    {
+        HoldStill(now, speed);
+    }
     for (int i = 0; i < 4; ++i)
     {
         value[i] = (float)now[i];
-        bool still = sampledSpeed && now[i] != mtwnNumberHeld(now[i]);
-        velocity[i] = still ? 0.0f : mtwnVelocityFloat(speed[i]);
+        velocity[i] = mtwnVelocityFloat(speed[i]);
     }
     if (slot->kind == mtwn_valueScale)
     {
