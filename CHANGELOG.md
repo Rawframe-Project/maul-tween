@@ -7,6 +7,12 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-18
+
+A patch release: no declaration changed; calls back in from the host's
+code are refused, numbers past the floats' range are held at the nearest
+finite float, and mixes of equal ends stay put at any progress.
+
 ### Added
 
 - The guide's eased rate: a transition run each frame into
