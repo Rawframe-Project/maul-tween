@@ -9,6 +9,8 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- The guide's animation on twos: a timeline eased by steps() holds its
+  children at as many poses, as After Effects' Posterize Time.
 - The guide's keyframe handles: a curve editor's segment, a Bezier in
   time and value (Blender's F-curve handles, Unity's weighted
   tangents), as a Bezier segment timed by a cubic-bezier easing.

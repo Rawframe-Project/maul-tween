@@ -450,6 +450,23 @@ mtwnBinding bindings[3] = {mtwnBind(0, x), mtwnBind(1, y), mtwnBind(2, y)};
 bindings[2].composite = mtwn_compositeAdd;
 ```
 
+A timeline's easing steps its children's time too. Eased by steps(), it
+holds them at as many poses, the stepped look of animation on twos or
+After Effects' Posterize Time:
+
+```c
+// Held 12 times a second (on twos at 24 frames): 2 s in 24 steps.
+mtwnClipTimelineDef twos = mtwnDefaultClipTimelineDef();
+twos.timing.duration = 2.0;
+made = mtwnMakeSteps(24, mtwn_jumpEnd, &twos.timing.easing);
+mtwnNode held;
+made = mtwnClip_AddTimeline(context, clip, &twos, &held);
+```
+
+Tracks added with `held` as their parent move in steps; the clip's
+others stay smooth. To step everything a context animates, the host
+rounds its clock down to the rate before each update instead.
+
 ## Staggers
 
 A stagger spreads offsets over items by their distance from an

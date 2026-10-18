@@ -393,6 +393,63 @@ static void TestJump(void)
     mtwnDestroyContext(context);
 }
 
+static void TestTwos(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    mtwnTargetId x = {0, 0};
+    mtwnClipId clip = {0, 0};
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success &&
+              mtwnCreateClip(context, &clipDef, &clip) == mtwn_success,
+          "a clip");
+    mtwnResult made = mtwn_success;
+    // Held 12 times a second (on twos at 24 frames): 2 s in 24 steps.
+    mtwnClipTimelineDef twos = mtwnDefaultClipTimelineDef();
+    twos.timing.duration = 2.0;
+    made = mtwnMakeSteps(24, mtwn_jumpEnd, &twos.timing.easing);
+    mtwnNode held;
+    made = mtwnClip_AddTimeline(context, clip, &twos, &held);
+
+    CHECK(made == mtwn_success, "a stepped timeline");
+    // 0 to 240 across it, smooth on its own.
+    mtwnKeyframe keys[2] = {0};
+    keys[1].offset = 1.0;
+    keys[1].value = (mtwnVec4){240.0f, 0, 0, 0};
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef across = mtwnDefaultClipTrackDef();
+    across.parent = held;
+    across.keyframes = keys;
+    across.keyframeCount = 2;
+    across.timing.duration = 2.0;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &across, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a track in it");
+    mtwnBinding binding = mtwnBind(0, x);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = clip;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    mtwnPlayerId player;
+    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
+          "played");
+    // At t it shows the pose of the last twelfth of a second: 10 floor(12 t).
+    int off = 0;
+    for (int k = 0; k < 28; ++k)
+    {
+        double t = 0.03 + 0.07 * k;
+        CHECK(mtwnUpdate(context, (uint64_t)llround(t * 1e9), NULL, 0, NULL) == mtwn_success, "on");
+        mtwnVec4 v;
+        CHECK(mtwnTarget_GetValue(context, x, &v) == mtwn_success, "read");
+        off += (double)v.x != 10.0 * floor(12.0 * t);
+    }
+    CHECK(off == 0, "a pose every twelfth of a second");
+    mtwnDestroyContext(context);
+}
+
 static void TestTrauma(void)
 {
     mtwnShake noise;
@@ -569,6 +626,7 @@ int main(void)
     TestFling();
     TestScroll();
     TestJump();
+    TestTwos();
     TestHandles();
     TestTrauma();
     TestValues();
