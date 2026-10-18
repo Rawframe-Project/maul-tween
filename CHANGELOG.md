@@ -11,7 +11,9 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 - A color's mix is `a + t (b - a)`, its ends returned before it: its
   sample within record mtwn-0058's targets again (Oklab 1,784 and OkLCh
-  2,017 instructions), equal ends still exact (record mtwn-0070).
+  2,017 instructions), equal ends still exact (record mtwn-0070). A
+  color between distinct ends may differ from 0.6.1's in its last bit;
+  the determinism scenario's hash is unchanged.
 
 ## [0.6.1] - 2026-10-18
 
@@ -42,6 +44,10 @@ finite float, and mixes of equal ends stay put at any progress.
 - A scale transition's velocity is the held value's times its rate, the
   value at most the largest float: within a float's rounding of before,
   with no case for a rate of 0 (record mtwn-0059).
+- Results: a channel mixed between equal ends is now that end exactly
+  where the weighted sum rounded, so the determinism scenario's hash
+  moved from 0x903662ec241ad680 to 0x79567506efccc400 (record
+  mtwn-0070). This line was added after the release.
 
 ### Fixed
 
