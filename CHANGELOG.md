@@ -15,6 +15,8 @@ API and the ABI.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-10-19
+
 ### Fixed
 
 - An output its header says a failure clears (the null id, 0 or zero)

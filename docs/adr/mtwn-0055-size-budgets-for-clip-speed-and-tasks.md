@@ -178,3 +178,11 @@ At 1.0.3 (GCC 14, x86-64) transitions are 192 bytes more than at 1.0.2
 and clips and everything 640, a number held at a bound kept still
 (`update` 192, `compose` 451); curves and values are 1.0.2's to the
 byte. Every part stays within its budget, and the budgets stand.
+
+## Amended 2026-10-19: 1.0.4
+
+At 1.0.4 (GCC 14, x86-64) values and transitions are 128 bytes more
+than at 1.0.3, clips 496 and everything 448: the outputs cleared first
+in every call on a context, and a track's rotation mixes tried before
+any is written (record mtwn-0073); curves are 1.0.3's to the byte.
+Every part stays within its budget, and the budgets stand.
