@@ -110,6 +110,38 @@ extern "C"
     MTWN_API void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4],
                                  double tangentOut[4]);
 
+    /// Gives a path's direction at a progress, as SVG 2's path
+    /// directionality and CSS's offset-rotate: auto take it (record
+    /// mtwn-0064): a unit vector in its channels, 0 past them. Within a
+    /// segment the curve's direction; where its derivative is 0 (a Bezier
+    /// control on its end, a cusp), the first non-zero of its second and
+    /// third derivatives, the outgoing direction; at a keyframe the
+    /// later segment's. A step or a segment of no length (coincident
+    /// keyframes) takes the direction of the nearest segment before it
+    /// with a length, at its end, else of the nearest after it, at its
+    /// start; a path of no length points along the first channel. A
+    /// scale's is in its logarithm; at constant speed the progress is the
+    /// share of the length.
+    ///
+    /// @param path          A path made by this library.
+    /// @param progress      The progress, finite.
+    /// @param directionOut  Receives the direction.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API void mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4]);
+
+    /// Returns the angle of a path's direction (mtwnPathDirection) in its
+    /// first two channels, atan2(y, x) by the library's own arctangent, the
+    /// same on every platform: what CSS's offset-rotate: auto turns by.
+    /// Reversed, add pi; a fixed turn, add it.
+    ///
+    /// @param path      A path made by this library.
+    /// @param progress  The progress, finite.
+    /// @return Radians, from -pi to pi; 0 or pi for one channel.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API double mtwnPathAngle(const mtwnPath* path, double progress);
+
     // A segment's mix, made when a track of colors or rotations is made.
     typedef union mtwnSegmentMix
     {

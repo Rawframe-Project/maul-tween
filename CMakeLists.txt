@@ -62,6 +62,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/scale.c
     src/zoom.c
     src/path.c
+    src/path_direction.c
     src/path_length.c
     src/player.c
     src/player_slot.c
@@ -109,6 +110,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(transition WHITEBOX)
     maul_add_test(coast)
     maul_add_test(path)
+    maul_add_test(direction)
     maul_add_test(path_counts WHITEBOX)
     maul_add_test(track)
     maul_add_test(clip WHITEBOX)

@@ -383,6 +383,17 @@ void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], d
     mtwnSamplePathCounting(path, progress, valueOut, tangentOut, NULL);
 }
 
+void mtwnLocatePath(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
+                    mtwnCubic* cubic)
+{
+    Locate(path, progress, segmentOut, uOut, cubic, NULL);
+}
+
+void mtwnPathSegmentCubic(const mtwnPath* path, uint32_t i, mtwnCubic* cubic)
+{
+    SegmentCubic(path, i, cubic);
+}
+
 static const uint8_t s_kindChannels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1, 1};
 
 // Whether a kind's track is its path's numbers: a scale's are their

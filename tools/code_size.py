@@ -36,14 +36,15 @@ PARTS = [
 
 # Each part's budget in bytes, about 6% over its size at 0.5.0 (records
 # mtwn-0051 and mtwn-0055, amended); the values' restated by mtwn-0059,
-# everything's by mtwn-0060, the curves' by mtwn-0061, the transitions'
-# and the clips' by mtwn-0063.
+# everything's by mtwn-0060 and mtwn-0064, the curves' by mtwn-0061, the
+# transitions' and the clips' by mtwn-0063, the values' again by
+# mtwn-0064.
 BUDGETS = {
     "curves": 25000,
-    "values": 54000,
+    "values": 57000,
     "transitions": 58000,
     "clips": 139000,
-    "everything": 152000,
+    "everything": 156000,
 }
 
 

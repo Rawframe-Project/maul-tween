@@ -362,6 +362,16 @@ void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], d
 Samples a path: the segment a progress falls in (the last keyframe at or below it; past the ends the first or last segment extended), its local progress eased by the segment's easing, then its kind; or at constant speed the point at that share of the length.  @param path        A path made by this library. @param progress    The progress, finite. @param valueOut    Receives the path's channels, 0 past them. @param tangentOut  Receives the segment's derivative by its own parameter there, not normalized, for orienting along the path; may be NULL. @par Thread safety Safe from any thread.
 
 ```c
+void mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4]);
+```
+Gives a path's direction at a progress, as SVG 2's path directionality and CSS's offset-rotate: auto take it (record mtwn-0064): a unit vector in its channels, 0 past them. Within a segment the curve's direction; where its derivative is 0 (a Bezier control on its end, a cusp), the first non-zero of its second and third derivatives, the outgoing direction; at a keyframe the later segment's. A step or a segment of no length (coincident keyframes) takes the direction of the nearest segment before it with a length, at its end, else of the nearest after it, at its start; a path of no length points along the first channel. A scale's is in its logarithm; at constant speed the progress is the share of the length.  @param path          A path made by this library. @param progress      The progress, finite. @param directionOut  Receives the direction. @par Thread safety Safe from any thread.
+
+```c
+double mtwnPathAngle(const mtwnPath* path, double progress);
+```
+Returns the angle of a path's direction (mtwnPathDirection) in its first two channels, atan2(y, x) by the library's own arctangent, the same on every platform: what CSS's offset-rotate: auto turns by. Reversed, add pi; a fixed turn, add it.  @param path      A path made by this library. @param progress  The progress, finite. @return Radians, from -pi to pi; 0 or pi for one channel. @par Thread safety Safe from any thread.
+
+```c
 static inline mtwnTrackDef mtwnDefaultTrackDef(mtwnValueKind kind);
 ```
 Makes a track def for a kind: centripetal Catmull-Rom, colors in Oklab with the shorter hue, angles the shorter way, rotations the shortest.  @param kind  The kind. @return The def. @par Thread safety Safe from any thread.
@@ -662,4 +672,4 @@ Measures how far a transition would move its target: from the target's current v
 
 ---
 
-121 functions across 13 headers.
+123 functions across 13 headers.

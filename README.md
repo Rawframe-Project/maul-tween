@@ -16,7 +16,8 @@ It covers:
 - **Values:** scalars, vectors, colors interpolated in Oklab or another
   named space, rotations as quaternions, angles, integers, discrete
   values, scales moved geometrically, van Wijk and Nuij's smooth zoom
-  and pan, keyframe tracks and paths at constant speed.
+  and pan, keyframe tracks and paths at constant speed, with their
+  direction for turning along them.
 - **Timelines:** Web Animations' timing on every node (delays, fill,
   direction, fractional and infinite iterations), positions and labels,
   nesting, players with play, pause, reverse, seek and rate, events as
@@ -52,7 +53,7 @@ to 9% on one worker; 0.3.0, earlier that day, had slower clip players
 and records that could miss a crossing where a frame landed on a held
 time's edge; 0.2.1, on 2026-10-15, ran them on the calling thread only
 and several times slower; 0.1.0 lacked staggers and reduced motion. The library has
-121 public functions.
+123 public functions.
 
 ## Building
 
@@ -125,10 +126,10 @@ composition, paths or crossings (record mtwn-0047).
 | The program uses | Default build | Built with `-ffunction-sections` | Clang 20, default build | Budget |
 |---|---|---|---|---|
 | curves: easings, sampling, springs, decay, rubber band | 22.9 kB | 22.3 kB | 18.9 kB | 25 kB |
-| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.5 kB | 38.1 kB | 39.9 kB | 54 kB |
-| transitions: a context, targets and transitions | 50.7 kB | 42.3 kB | 41.2 kB | 54 kB |
-| clips: clips, players, events | 127.4 kB | 104.5 kB | 104.6 kB | 135 kB |
-| everything | 138.0 kB | 137.8 kB | 114.9 kB | 152 kB |
+| values: colors, angles, rotations, punch, shake, paths, tracks, timing, staggers | 47.5 kB | 38.1 kB | 39.9 kB | 57 kB |
+| transitions: a context, targets and transitions | 50.7 kB | 42.3 kB | 41.2 kB | 58 kB |
+| clips: clips, players, events | 127.4 kB | 104.5 kB | 104.6 kB | 139 kB |
+| everything | 138.0 kB | 137.8 kB | 114.9 kB | 156 kB |
 
 Each part counts what it calls in the others; about 12 kB of each is
 the library's own elementary functions, the same under every C library. The budgets

@@ -162,7 +162,11 @@ alpha, with CSS's hue methods; angles by CSS's methods too
 (`mtwnMixAngle`); rotations along the shortest or longest arc
 (`mtwnMakeRotationMix`, `mtwnMixRotation`). Keyframes of any kind make
 paths (`mtwnMakePath`, `mtwnMakeTrack`): linear, stepped, Bezier or
-Catmull-Rom segments, at constant speed if asked.
+Catmull-Rom segments, at constant speed if asked. Something moving
+along a path turns with it by the path's direction, as CSS's
+`offset-rotate: auto` and SVG's rules take it, holds still and cusps
+included (`mtwnPathDirection`, a unit vector; `mtwnPathAngle`, its
+angle in the plane, the same bits on every platform).
 
 A scale (a zoom factor, a size from 1 to 100) mixed linearly seems to
 slow down, each step adding the same amount; a scale moves in its

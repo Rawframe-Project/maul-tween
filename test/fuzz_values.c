@@ -531,6 +531,18 @@ static void Paths(Bytes* in)
             mtwnSamplePath(&path, s_progress[i], value, tangent);
             CheckEach(in, "a path's value", value, 4);
             CheckEach(in, "a path's tangent", tangent, 4);
+            // Its direction is a unit vector wherever the path is finite.
+            double direction[4];
+            mtwnPathDirection(&path, s_progress[i], direction);
+            double norm = 0.0;
+            for (int c = 0; c < 4; ++c)
+            {
+                norm += direction[c] * direction[c];
+            }
+            if (in->ordinary && !(fabs(norm - 1.0) <= 1e-12))
+            {
+                Fail("a path's direction", norm);
+            }
         }
     }
     mtwnTrackDef def = mtwnDefaultTrackDef((mtwnValueKind)Below(in, 11));

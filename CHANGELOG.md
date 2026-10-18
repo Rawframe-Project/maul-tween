@@ -9,6 +9,11 @@ the project uses [Semantic Versioning](https://semver.org/). Before
 
 ### Added
 
+- A path's direction (`mtwnPathDirection`) and angle (`mtwnPathAngle`)
+  by SVG 2's path directionality, as CSS's `offset-rotate: auto` turns
+  along a path: derivatives of 0, steps, coincident keyframes and paths
+  of no length included (record mtwn-0064). The values part's size
+  budget is 57 kB and every function's 156 kB.
 - The guide's scroll-driven playback: a paused player swept to the
   scroll's progress before each update, smoothed by a spring the host
   retargets at each scroll event.

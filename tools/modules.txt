@@ -33,7 +33,8 @@ transition: coast context_internal easing_internal elementary fpenv pool spring_
 update: coast context_internal easing_internal elementary fpenv pool scale_internal
 path: elementary path_internal path_length scale_internal
 path_length: elementary
-path_internal:
+path_internal: path_length
+path_direction: elementary path_internal path_length
 clip: allocator context_internal fpenv pool
 runs:
 player: context_internal fpenv pool runs
