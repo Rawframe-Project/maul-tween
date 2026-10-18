@@ -25,6 +25,11 @@ API and the ABI.
   samples are (record mtwn-0069), where it ended infinite; a scale's
   such decay is refused at its start, as before (record mtwn-0059).
   Found fuzzing 1.0.0.
+- An incremental number track whose last keyframe minus its first is
+  past the floats' range (from the lowest float to 2^104, say) moves on
+  by that step taken exactly in double, where a step rounded to a float
+  was infinite and every later iteration ended at the bound; the step is
+  now exact for every number track, not rounded to a float first.
 
 ## [1.0.0] - 2026-10-18
 

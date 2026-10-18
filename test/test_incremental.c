@@ -258,12 +258,37 @@ static void TestRefused(void)
     mtwnDestroyContext(w.context);
 }
 
+static void TestStepPastFloats(void)
+{
+    // From the lowest float to 2^104: the step, 2^104 past the largest
+    // float, has no float, yet each value moved on by it is one. Iteration
+    // 1 a quarter in is 2^104 + (FLT_MAX + 2^104) / 4, not the bound.
+    World w = MakeWorld(mtwn_valueScalar, (mtwnVec4){0});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value = (mtwnVec4){-0x1.fffffep127f, 0.0f, 0.0f, 0.0f};
+    keys[1].value = (mtwnVec4){0x1p104f, 0.0f, 0.0f, 0.0f};
+    mtwnClipTrackDef track = Incremental(mtwn_valueScalar, keys, 2.0);
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    mtwnTargetState s = At(&w, 1.25);
+    double step = 0x1.fffffep127 + 0x1p104;
+    CHECK(Near((double)s.value.x, 0x1p104 + 0.25 * step, 0x1p-20 * step),
+          "moved on by a step past the floats: the value, not the bound");
+    s = At(&w, 9.0);
+    CHECK(s.value.x == 0x1.fffffep127f, "filled past the floats: held at the largest");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestNumbers();
     TestCounting();
     TestRotations();
     TestLargeCount();
+    TestStepPastFloats();
     TestRefused();
     return s_failures == 0 ? 0 : 1;
 }

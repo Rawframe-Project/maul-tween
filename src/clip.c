@@ -365,17 +365,12 @@ static uint32_t Attach(mtwnClipSlot* clip, const mtwnClipNode* node)
     return index1;
 }
 
-// An incremental track's step per iteration, from its keyframes as made
-// (angles unwrapped, rotations on their path): the last minus the first,
-// or for a rotation the turn from the first to the last.
-static mtwnVec4 Step(mtwnValueKind kind, mtwnVec4 first, mtwnVec4 last)
+// An incremental rotation's turn per iteration, from its keyframes as made
+// (on their path): the turn from the first to the last. A number's step is
+// taken in double where it moves on, past the floats' range as a float it
+// would be infinite.
+static mtwnVec4 Turn(mtwnVec4 first, mtwnVec4 last)
 {
-    if (kind != mtwn_valueRotation)
-    {
-        return (mtwnVec4){
-            (float)((double)last.x - (double)first.x), (float)((double)last.y - (double)first.y),
-            (float)((double)last.z - (double)first.z), (float)((double)last.w - (double)first.w)};
-    }
     // last times first's inverse (its conjugate, first being unit).
     double ax = (double)last.x;
     double ay = (double)last.y;
@@ -450,10 +445,9 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     node.slot = def->slot;
     node.kind = mtwn_nodeTrack;
     node.incremental = def->incremental;
-    if (def->incremental && def->keyframeCount > 0)
+    if (def->incremental && def->keyframeCount > 0 && def->track.kind == mtwn_valueRotation)
     {
-        node.step =
-            Step(def->track.kind, keyframes[0].value, keyframes[def->keyframeCount - 1].value);
+        node.step = Turn(keyframes[0].value, keyframes[def->keyframeCount - 1].value);
     }
     if (!Raise(clip, def->parent, node.end, false))
     {

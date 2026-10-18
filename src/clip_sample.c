@@ -258,10 +258,16 @@ static MTWN_NOINLINE mtwnVec4 MovedOn(const mtwnClipNode* node, mtwnVec4 value, 
         // The turn so far, then the iteration's own path in its frame.
         return mtwnCompose(mtwn_valueRotation, mtwn_compositeAdd, 1.0, under, over).value;
     }
-    return mtwnNumbersHeld((mtwnVec4){(float)((double)value.x + k * (double)node->step.x),
-                                      (float)((double)value.y + k * (double)node->step.y),
-                                      (float)((double)value.z + k * (double)node->step.z),
-                                      (float)((double)value.w + k * (double)node->step.w)});
+    // The last keyframe minus the first, exact in double: as a float a step
+    // past the floats' range would be infinite.
+    const mtwnPath* path = &node->track.path;
+    mtwnVec4 first = path->keyframes[0].value;
+    mtwnVec4 last = path->keyframes[path->count - 1].value;
+    return mtwnNumbersHeld(
+        (mtwnVec4){(float)((double)value.x + k * ((double)last.x - (double)first.x)),
+                   (float)((double)value.y + k * ((double)last.y - (double)first.y)),
+                   (float)((double)value.z + k * ((double)last.z - (double)first.z)),
+                   (float)((double)value.w + k * ((double)last.w - (double)first.w))});
 }
 
 // Kept apart from MovedOn, the frame's common case, a track that does not
