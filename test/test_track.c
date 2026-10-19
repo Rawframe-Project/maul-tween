@@ -387,6 +387,12 @@ static void TestRotationFarOut(void)
         CHECK(fabs(norm - 1.0) < 1e-6,
               far == 0 ? "unit where the squares overflow" : "unit where the components do");
     }
+    // There y's cubic reaches -infinity and w holds 1: the turn is y's
+    // alone, not the segment's start.
+    mtwnVec4 overflowed = mtwnSampleTrack(&track, -1e120);
+    CHECK(overflowed.x == 0.0f && overflowed.y == -1.0f && overflowed.z == 0.0f &&
+              overflowed.w == 0.0f,
+          "along the overflowing component");
     // The longest way, a Bezier whose w crosses 0 at half way with x, y
     // and z 0: the cubic cancels to nothing, and the segment's start
     // stands in.
