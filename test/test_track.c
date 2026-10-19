@@ -527,6 +527,10 @@ static void TestScales(void)
     bezier[1].in = Scale(0.0f);
     CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_errorInvalid,
           "a control of 0 refused");
+    bezier[1].in = Scale(8.0f);
+    bezier[0].out = Scale(0.0f);
+    CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_errorInvalid,
+          "an out control of 0 refused");
     linear[1].value = Scale(-1.0f);
     CHECK(mtwnMakeTrack(&def, linear, 3, NULL, NULL, &track) == mtwn_errorInvalid,
           "a value below 0 refused");
