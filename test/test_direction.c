@@ -52,6 +52,20 @@ static void TestLines(void)
     CHECK(mtwnMakePath(keys, 3, 2, 0.5, lengths, &path) == mtwn_success, "at constant speed");
     CHECK(Along(&path, 0.4, 0.6, 0.8) && Along(&path, 0.6, 0.0, 1.0),
           "5 of 11 along the first, then the second");
+    // Values near 2^-66 have their own way, not still for being small.
+    mtwnKeyframe tiny[2] = {Key(0.0, 0x1p-66f, 0.0f, mtwn_segmentLinear),
+                            Key(1.0, 0x1p-64f, 0x1p-64f, mtwn_segmentLinear)};
+    CHECK(mtwnMakePath(tiny, 2, 2, 0.5, NULL, &path) == mtwn_success, "a tiny line");
+    CHECK(Along(&path, 0.5, 0.6, 0.8), "its own way, (3, 4) over 5");
+    // Four channels, each its share of the way.
+    mtwnKeyframe four[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
+                            Key(1.0, 1.0f, 1.0f, mtwn_segmentLinear)};
+    four[1].value.z = 1.0f;
+    four[1].value.w = 1.0f;
+    CHECK(mtwnMakePath(four, 2, 4, 0.5, NULL, &path) == mtwn_success, "four channels");
+    double d[4];
+    mtwnPathDirection(&path, 0.5, d);
+    CHECK(d[0] == 0.5 && d[1] == 0.5 && d[2] == 0.5 && d[3] == 0.5, "a half in each");
 }
 
 static void TestStillDerivatives(void)
@@ -77,6 +91,29 @@ static void TestStillDerivatives(void)
     keys[1].in = keys[0].value;
     CHECK(mtwnMakePath(keys, 2, 2, 0.5, NULL, &path) == mtwn_success, "both on its start");
     CHECK(Along(&path, 0.0, 0.0, -1.0) && Along(&path, 0.5, 0.0, -1.0), "straight down");
+    // Its bits, which 1.x keeps on every platform: the way to (0.001,
+    // -0.003) as the library finds it, the third derivative, under 1, over
+    // its largest component, then over its norm.
+    keys[1].value = (mtwnVec4){0.001f, -0.003f, 0, 0};
+    CHECK(mtwnMakePath(keys, 2, 2, 0.5, NULL, &path) == mtwn_success, "a slanted one");
+    double d[4];
+    mtwnPathDirection(&path, 0.0, d);
+    CHECK(d[0] == 0x1.43d136e241268p-2 && d[1] == -0x1.e5b9d117276b2p-1 && d[2] == 0.0 &&
+              d[3] == 0.0,
+          "its way to the bit");
+    // A cusp inside: (0, 0) with controls (1, 1) and (0, 1) to (1, 0) stops at
+    // half way, where the second derivative turns it down.
+    mtwnKeyframe cusp[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                            Key(1.0, 1.0f, 0.0f, mtwn_segmentLinear)};
+    cusp[0].out = (mtwnVec4){1.0f, 1.0f, 0, 0};
+    cusp[1].in = (mtwnVec4){0.0f, 1.0f, 0, 0};
+    CHECK(mtwnMakePath(cusp, 2, 2, 0.5, NULL, &path) == mtwn_success, "a cusp");
+    CHECK(Along(&path, 0.5, 0.0, -1.0), "down at its cusp");
+    // Far before it the derivatives overflow: no way of its own, so a path
+    // of one segment points along its first channel.
+    double far[4];
+    mtwnPathDirection(&path, -1e300, far);
+    CHECK(far[0] == 1.0 && far[1] == 0.0, "past every double, along x");
 }
 
 static void TestNeighbours(void)
@@ -89,6 +126,15 @@ static void TestNeighbours(void)
     CHECK(mtwnMakePath(held, 4, 2, 0.5, NULL, &path) == mtwn_success, "a step between lines");
     CHECK(Along(&path, 0.45, 1.0, 0.0) && Along(&path, 0.8, 0.0, 1.0),
           "held, the line before's; then its own");
+    // A still segment after a curve: the curve's way at its end, not its
+    // start.
+    mtwnKeyframe bent[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                            Key(0.5, 1.0f, 0.0f, mtwn_segmentLinear),
+                            Key(1.0, 1.0f, 0.0f, mtwn_segmentLinear)};
+    bent[0].out = (mtwnVec4){0.0f, 1.0f, 0, 0};
+    bent[1].in = (mtwnVec4){1.0f, 1.0f, 0, 0};
+    CHECK(mtwnMakePath(bent, 3, 2, 0.5, NULL, &path) == mtwn_success, "a curve, then still");
+    CHECK(Along(&path, 0.75, 0.0, -1.0), "the curve's way at its end, down");
     // Coincident keyframes first: the line after them.
     mtwnKeyframe still[3] = {Key(0.0, 2.0f, 2.0f, mtwn_segmentLinear),
                              Key(0.4, 2.0f, 2.0f, mtwn_segmentLinear),
