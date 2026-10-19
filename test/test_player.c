@@ -391,6 +391,29 @@ static void TestRunsSkipped(void)
     CHECK(!mtwnTakeRun(&runs, 1, &d), "and then none");
 }
 
+// A context of no bindings has no free run; grown to four, it holds four
+// one-slot players and refuses a fifth.
+static void TestGrowFromNoBindings(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.bindingCapacity = 0;
+    Fixture f = MakeFrom(&def, false);
+    def.bindingCapacity = 4;
+    CHECK(mtwnGrowContext(&f.context, &def) == mtwn_success, "grown to four bindings");
+    for (int k = 0; k < 4; ++k)
+    {
+        (void)Player(&f, true, 1.0);
+    }
+    mtwnBinding binding = mtwnBind(0, f.target);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = f.clip;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    mtwnPlayerId refused = {0, 0};
+    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorLimit, "a fifth refused");
+    mtwnDestroyContext(f.context);
+}
+
 // A player refused for want of a player's slot gives back the bindings
 // it took first: grown to two players, the context makes two.
 static void TestFullPoolKeepsBindings(void)
@@ -749,6 +772,7 @@ int main(void)
     TestBindings();
     TestRuns();
     TestRunsSkipped();
+    TestGrowFromNoBindings();
     TestFullPoolKeepsBindings();
     TestNoBindingsDestroyed();
     TestOrder();
