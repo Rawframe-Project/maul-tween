@@ -8,6 +8,7 @@
 
 #include "test_harness.h"
 
+#include "maul-tween/easing.h"
 #include "maul-tween/event.h"
 #include "maul-tween/player.h"
 #include "maul-tween/transition.h"
@@ -1055,8 +1056,59 @@ static void TestPaths(void)
     CHECK(near, "a record's time within 1e-9 s whatever the path");
 }
 
+// A timeline eased by steps that jump at their start: from its first
+// instant its child time is a quarter in, so a mark before it is never
+// crossed, and one at 0.3 is when the second step lands on a half (a
+// timeline's iteration starts in its active phase, not its before one).
+static void TestJumpStartMarks(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &group.timing.easing) == mtwn_success, "steps");
+    group.timing.duration = 1.0;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &timeline) == mtwn_success, "a timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    track.parent = timeline;
+    mtwnNode node = 0;
+    mtwnNode before = 0;
+    mtwnNode after = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, timeline, At(0.1), 1, &before) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, timeline, At(0.3), 2, &after) == mtwn_success &&
+              mtwnClip_Finish(w.context, w.clip) == mtwn_success,
+          "two marks");
+    (void)Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    Update(&w, 0.7);
+    mtwnEvent events[16];
+    uint32_t n = Read(&w, events, 16);
+    int marks = 0;
+    bool early = false;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        marks += events[i].kind == mtwn_eventMark;
+        early = early || (events[i].kind == mtwn_eventMark && events[i].node == before);
+        if (events[i].kind == mtwn_eventMark && events[i].node == after)
+        {
+            CHECK(fabs(events[i].clipTime - 0.25) <= 1e-9, "the mark at 0.3 as the step lands");
+        }
+    }
+    CHECK(marks == 1 && !early, "the mark before the first step never crossed");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
+    TestJumpStartMarks();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
