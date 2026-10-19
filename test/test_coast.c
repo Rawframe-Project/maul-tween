@@ -205,6 +205,12 @@ static void TestLanding(void)
     state = State(context, t);
     CHECK(!mtwnPlayer_IsValid(context, player) && state.base.x == 640.0f && state.base.y == 0.0f,
           "ending on the value exactly");
+    // A slow landing, 10 away at 5 a second: a rate of 0.5, as good as any.
+    mtwnTargetId slow = Target(context, mtwn_valueScalar, (mtwnVec4){0.0f, 0, 0, 0});
+    def = Fling(slow, (mtwnVec4){5.0f, 0, 0, 0});
+    def.lands = true;
+    def.value = (mtwnVec4){10.0f, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a slow landing");
     // A scale lands in its logarithm: 1 to 4 at 3 a second is a rate of
     // 3 / ln 4.
     mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){1.0f, 0, 0, 0});
@@ -400,6 +406,22 @@ static void TestStartOnBound(void)
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung in from the bound");
     CHECK(Settled(context, t, player) == 0.0f, "ends on the lower bound");
     mtwnDestroyContext(context);
+    // And on the lower bound moving in: caught at the upper.
+    context = Make();
+    mtwnTargetId u = Target(context, mtwn_valueScalar, (mtwnVec4){0.0f, 0, 0, 0});
+    def = Fling(u, (mtwnVec4){30.0f, 0, 0, 0});
+    def.bounded = true;
+    def.lower = (mtwnVec4){0.0f, 0, 0, 0};
+    def.upper = (mtwnVec4){10.0f, 0, 0, 0};
+    Update(context, 0);
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung in from below");
+    Update(context, s_second / 20u);
+    Update(context, s_second / 10u);
+    double decayed = 0.0;
+    mtwnSampleDecay(&def.decay, 0.0, 30.0, 0.05, &decayed, NULL);
+    CHECK(State(context, u).value.x == (float)decayed, "the decay's way, not a bounce's");
+    CHECK(Settled(context, u, player) == 10.0f, "ends on the upper bound");
+    mtwnDestroyContext(context);
 }
 
 // A rest past the upper bound by rounding alone (2^-46): the crossing
@@ -416,6 +438,17 @@ static void TestRestUlpPast(void)
     Update(context, 0);
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung");
     CHECK(Settled(context, t, player) < 0x1.8b0108p+6f, "it stops short of the bound");
+    mtwnDestroyContext(context);
+    // A rest exactly on the bound, its crossing finite by rounding: within
+    // the bounds, so it too ends where the decay stops.
+    context = Make();
+    mtwnTargetId on = Target(context, mtwn_valueScalar, (mtwnVec4){0x1.cp+3f, 0, 0, 0});
+    def = Fling(on, (mtwnVec4){0x1.641eb8p+9f, 0, 0, 0});
+    CHECK(mtwnMakeDecay(0x1.2f8023ed664fp+5, &def.decay) == mtwn_success, "a decay");
+    def.bounded = true;
+    def.upper = (mtwnVec4){0x1.063128p+5f, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung");
+    CHECK(Settled(context, on, player) < 0x1.063128p+5f, "it stops short of the bound too");
     mtwnDestroyContext(context);
 }
 
