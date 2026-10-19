@@ -26,11 +26,19 @@ static void TestEvenTables(void)
 {
     mtwnEasing quad;
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success, "quad");
-    float values[5];
+    float values[6];
+    values[5] = -7.0f;
     CHECK(mtwnSampleEasing(&quad, 5, values) == mtwn_success, "sampled");
     CHECK(values[0] == 0.0f && values[1] == 0.0625f && values[2] == 0.25f && values[3] == 0.5625f &&
               values[4] == 1.0f,
           "p^2 at quarters");
+    CHECK(values[5] == -7.0f, "nothing written past the count");
+    // Outside the before phase: a jump at the start is taken at 0.
+    mtwnEasing steps;
+    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &steps) == mtwn_success, "steps");
+    CHECK(mtwnSampleEasing(&steps, 5, values) == mtwn_success && values[0] == 0.25f &&
+              values[1] == 0.5f && values[2] == 0.75f && values[3] == 1.0f && values[4] == 1.0f,
+          "jump-start steps from their first step");
     mtwnEasing elastic;
     CHECK(mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &elastic) == mtwn_success, "elastic");
     float table[257];
@@ -107,6 +115,31 @@ static void TestFitsWithinTolerance(void)
             CHECK(error <= tolerances[t], "a fit within its tolerance between its probes too");
         }
     }
+}
+
+// The method's own counts (record mtwn-0022: 32 probes inside each
+// segment, a split at the worst held to the middle 3/4), pinned so the
+// method changes by a decision and not unseen.
+static void TestFitMethod(void)
+{
+    mtwnEasing ease;
+    mtwnEasing quad;
+    mtwnEasing elastic;
+    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &ease) == mtwn_success &&
+              mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success &&
+              mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &elastic) == mtwn_success,
+          "the easings");
+    uint32_t counts[3] = {0, 0, 0};
+    CHECK(mtwnFitLinearEasing(&ease, 1e-3, s_points, s_capacity, &counts[0]) == mtwn_success &&
+              mtwnFitLinearEasing(&quad, 1e-3, s_points, s_capacity, &counts[1]) == mtwn_success &&
+              mtwnFitLinearEasing(&elastic, 1e-3, s_points, s_capacity, &counts[2]) == mtwn_success,
+          "fitted");
+    if (!(counts[0] == 28 && counts[1] == 22 && counts[2] == 73))
+    {
+        printf("  counts %u %u %u\n", counts[0], counts[1], counts[2]);
+    }
+    CHECK(counts[0] == 28 && counts[1] == 22 && counts[2] == 73,
+          "ease, p^2 and elastic out at 1e-3 in 28, 22 and 73 points");
 }
 
 static void TestFitCounts(void)
@@ -269,6 +302,7 @@ int main(void)
 {
     TestEvenTables();
     TestFitsWithinTolerance();
+    TestFitMethod();
     TestFitCounts();
     TestToleranceMetExactly();
     TestJumpsEnd();
