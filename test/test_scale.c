@@ -188,7 +188,11 @@ static void TestZoomShape(void)
     refused += mtwnMakeZoomMix(a, b, 1.0, NULL) == mtwn_errorInvalid;
     mtwnZoomView huge = {1e200, 0.0, 1.0};
     refused += mtwnMakeZoomMix(a, huge, 1.0, &mix) == mtwn_errorInvalid;
-    CHECK(refused == 6, "no width, NaN, rho 0 or infinite, NULL and a path past the range refused");
+    // A negative far width with a pan, which the path would read only squared.
+    mtwnZoomView inverted = {a.x + 5.0, a.y, -a.width};
+    refused += mtwnMakeZoomMix(a, inverted, 1.0, &mix) == mtwn_errorInvalid;
+    CHECK(refused == 7, "no width, NaN, rho 0 or infinite, NULL, a path past the range and a "
+                        "negative far width refused");
 }
 
 // Views and paths a zoom cannot take: a NaN or infinite coordinate; a
