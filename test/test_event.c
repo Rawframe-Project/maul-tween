@@ -1266,6 +1266,42 @@ static void TestUnderZeroTimelines(void)
     mtwnDestroyContext(w.context);
 }
 
+// A mark in a zero timeline of two iterations, crossed going forwards:
+// all its iterations pass at once, so the mark is in the last.
+static void TestZeroTimelineIteration(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef zero = mtwnDefaultClipTimelineDef();
+    zero.parent = MTWN_ROOT_NODE;
+    zero.position = At(0.1);
+    zero.autoDuration = false;
+    zero.timing.duration = 0.0;
+    zero.timing.iterations = 2.0;
+    mtwnNode timeline = 0;
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &zero, &timeline) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, timeline, At(0.0), 4, &mark) == mtwn_success,
+          "a zero timeline of two iterations, a mark in it");
+    (void)AddTrack(&w, 0.0, 1.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    (void)Play(&w, false, 1.0);
+    Update(&w, 0.0);
+    mtwnEvent e[16];
+    (void)Read(&w, e, 16);
+    Update(&w, 0.5);
+    uint32_t n = Read(&w, e, 16);
+    uint32_t found = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        found += Is(&e[i], mtwn_eventMark, mark, 0.1, false) && e[i].firstIteration == 1.0 &&
+                         e[i].lastIteration == 1.0
+                     ? 1u
+                     : 0u;
+    }
+    CHECK(found == 1, "the mark at 0.1, in the last iteration");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1273,6 +1309,7 @@ int main(void)
     TestUnderAZeroTimeline();
     TestEndlessTimelineStart();
     TestUnderZeroTimelines();
+    TestZeroTimelineIteration();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
