@@ -513,6 +513,15 @@ static void TestNumberLength(void)
     CHECK(mtwnMakePath(keys, 4, 1, 0.0, lengths, &path) == mtwn_success &&
               lengths[2] - lengths[1] == 0.3125,
           "a turn where the derivative's slope is 1");
+    // A cubic with no square term, -0.7u + 0.37u^3: its turn at
+    // sqrt(0.7 / 1.11) from the stable root pair, its length to the bit.
+    mtwnKeyframe odd[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
+                           Key(1.0, -0.7f + 0.37f, 0.0f, mtwn_segmentLinear)};
+    odd[0].out = (mtwnVec4){-0.7f / 3.0f, 0, 0, 0};
+    odd[1].in = (mtwnVec4){2.0f * -0.7f / 3.0f, 0, 0, 0};
+    CHECK(mtwnMakePath(odd, 2, 1, 0.5, lengths, &path) == mtwn_success &&
+              lengths[1] == 0x1.a50ca54cf7f1ep-2,
+          "a cubic without its square, its length to the bit");
 }
 
 // Turns back along a line in two to four channels (record mtwn-0031).
