@@ -374,9 +374,56 @@ static void TestRefusals(void)
     mtwnDestroyContext(context);
 }
 
+// Runs a coast to its end and returns the base it leaves.
+static float Settled(mtwnContext* context, mtwnTargetId t, mtwnPlayerId player)
+{
+    for (uint64_t k = 1; k <= 1000 && mtwnPlayer_IsValid(context, player); ++k)
+    {
+        Update(context, k * s_second / 10);
+    }
+    CHECK(!mtwnPlayer_IsValid(context, player), "ended");
+    return State(context, t).base.x;
+}
+
+// A start on the upper bound moving in is inside, not past it: it coasts
+// in and is caught at the lower bound it would pass.
+static void TestStartOnBound(void)
+{
+    mtwnContext* context = Make();
+    mtwnTargetId t = Target(context, mtwn_valueScalar, (mtwnVec4){10.0f, 0, 0, 0});
+    mtwnTransitionDef def = Fling(t, (mtwnVec4){-30.0f, 0, 0, 0});
+    def.bounded = true;
+    def.lower = (mtwnVec4){0.0f, 0, 0, 0};
+    def.upper = (mtwnVec4){10.0f, 0, 0, 0};
+    mtwnPlayerId player = {0, 0};
+    Update(context, 0);
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung in from the bound");
+    CHECK(Settled(context, t, player) == 0.0f, "ends on the lower bound");
+    mtwnDestroyContext(context);
+}
+
+// A rest past the upper bound by rounding alone (2^-46): the crossing
+// never comes, so it ends where the decay stops, short of the bound.
+static void TestRestUlpPast(void)
+{
+    mtwnContext* context = Make();
+    mtwnTargetId t = Target(context, mtwn_valueScalar, (mtwnVec4){0x1.7f1aap+1f, 0, 0, 0});
+    mtwnTransitionDef def = Fling(t, (mtwnVec4){0x1.0cccccp+6f, 0, 0, 0});
+    CHECK(mtwnMakeDecay(0x1.674e42d2c33e1p-1, &def.decay) == mtwn_success, "a decay");
+    def.bounded = true;
+    def.upper = (mtwnVec4){0x1.8b0108p+6f, 0, 0, 0};
+    mtwnPlayerId player = {0, 0};
+    Update(context, 0);
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung");
+    CHECK(Settled(context, t, player) < 0x1.8b0108p+6f, "it stops short of the bound");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestSlowCross();
+    TestStartOnBound();
+    TestRestUlpPast();
     TestBounded();
     TestLanding();
     TestScaleBounded();

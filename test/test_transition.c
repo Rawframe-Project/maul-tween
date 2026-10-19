@@ -12,6 +12,7 @@
 #include "test_harness.h"
 
 #include "maul-tween/context.h"
+#include "maul-tween/event.h"
 #include "maul-tween/transition.h"
 
 #include <math.h>
@@ -1156,6 +1157,17 @@ static void TestPathVelocity(void)
     const mtwnPlayerSlot* slot = mtwnPlayerAt(context, player.index1);
     CHECK(slot->velocity[0] == along / length && slot->velocity[1] == 0.0,
           "the fling projected on the way, about 11/6 a second");
+    // To its own value (no update has moved it): no way to project on, so
+    // at rest in progress. The first, replaced before it began, ran 0 s.
+    def.value = (mtwnVec4){from[0], from[1], from[2], from[3]};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung to itself");
+    slot = mtwnPlayerAt(context, player.index1);
+    CHECK(slot->velocity[0] == 0.0, "no velocity in progress");
+    mtwnEvent events[4];
+    uint32_t count = 0;
+    CHECK(mtwnReadEvents(context, events, 4, &count, NULL) == mtwn_success && count == 1 &&
+              events[0].kind == mtwn_eventCancel && events[0].clipTime == 0.0,
+          "the first cancelled at 0 s in");
     mtwnDestroyContext(context);
 }
 
