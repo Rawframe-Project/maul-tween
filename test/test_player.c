@@ -371,6 +371,26 @@ static void TestRuns(void)
     CHECK(mtwnTakeRun(&runs, 4, &d) && d == 6, "then the tail");
 }
 
+// A run taken from past a free run too small for it leaves that run as it
+// was: still there for a take that fits.
+static void TestRunsSkipped(void)
+{
+    mtwnBound entries[10];
+    memset(entries, 0, sizeof entries);
+    mtwnRuns runs = mtwnMakeRuns(entries, 10);
+    uint32_t a = 0;
+    uint32_t b = 0;
+    uint32_t c = 0;
+    uint32_t d = 0;
+    CHECK(mtwnTakeRun(&runs, 3, &a) && mtwnTakeRun(&runs, 3, &b) && mtwnTakeRun(&runs, 4, &c),
+          "three runs");
+    mtwnGiveRun(&runs, a, 3);
+    mtwnGiveRun(&runs, c, 4);
+    CHECK(mtwnTakeRun(&runs, 4, &d) && d == c, "four from the second hole");
+    CHECK(mtwnTakeRun(&runs, 3, &d) && d == a, "the first hole still holds three");
+    CHECK(!mtwnTakeRun(&runs, 1, &d), "and then none");
+}
+
 // A player refused for want of a player's slot gives back the bindings
 // it took first: grown to two players, the context makes two.
 static void TestFullPoolKeepsBindings(void)
@@ -728,6 +748,7 @@ int main(void)
     TestSeekCancel();
     TestBindings();
     TestRuns();
+    TestRunsSkipped();
     TestFullPoolKeepsBindings();
     TestNoBindingsDestroyed();
     TestOrder();
