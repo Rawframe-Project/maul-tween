@@ -899,6 +899,16 @@ static void TestCoincidentStart(void)
     double v[4];
     mtwnSamplePath(&path, 0.0, v, NULL);
     CHECK(v[0] == 0.0, "a jump at its start, to its end");
+    // At the bound itself: 0 to 1 before 1 to 2^52, a total of 2^52 of
+    // which the first is exactly 2^-52, jumps too.
+    mtwnKeyframe bound[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
+                             Key(0.5, 1.0f, 0.0f, mtwn_segmentLinear),
+                             Key(1.0, 0x1p52f, 0.0f, mtwn_segmentLinear)};
+    CHECK(mtwnMakePath(bound, 3, 1, 0.5, lengths, &path) == mtwn_success && lengths[1] == 1.0 &&
+              lengths[2] == 0x1p52,
+          "a segment 2^-52 of the total");
+    mtwnSamplePath(&path, 0.0, v, NULL);
+    CHECK(v[0] == 1.0, "a jump at the bound, to its end");
 }
 
 static void TestEdges(void)
