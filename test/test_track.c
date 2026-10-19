@@ -192,6 +192,11 @@ static void TestColors(void)
     keys[0].kind = mtwn_segmentCatmullRom;
     CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_errorInvalid,
           "no color splines");
+    // The last keyframe starts no segment: its kind is not read.
+    keys[0].kind = mtwn_segmentLinear;
+    keys[2].kind = mtwn_segmentCatmullRom;
+    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success,
+          "a last keyframe's kind not read");
     // Keyframes 1e-300 apart jump, as at one offset: extended before them
     // by their width, the mix's progress was -1.5e300, a NaN color (from
     // fuzz_values).
@@ -323,6 +328,10 @@ static void TestRotationZero(void)
                             Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
     CHECK(mtwnMakeTrack(&def, zero, 2, NULL, mixes, &track) == mtwn_errorInvalid,
           "an all-zero rotation refused");
+    // Starting a curve too, which makes no mix to refuse it.
+    zero[0].kind = mtwn_segmentCatmullRom;
+    CHECK(mtwnMakeTrack(&def, zero, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+          "an all-zero rotation on a curve refused");
     mtwnKeyframe full[2] = {Key(0.0, (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f}, mtwn_segmentLinear),
                             Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
     CHECK(mtwnMakeTrack(&def, full, 2, NULL, mixes, &track) == mtwn_success,
