@@ -155,6 +155,9 @@ static void TestSlopes(void)
     mtwnSamplePath(&path, 0.45, value, NULL);
     CHECK(SlopeAt(&path, 0.3, 0.3) == 0.0 && SlopeAt(&path, 0.6, 0.4) == 0.0 && value[0] == 1.0,
           "flat at the turns, held between them");
+    // A flat secant counts as rising, so where it meets a fall the slope
+    // is +0, not -0.
+    CHECK(!signbit(SlopeAt(&path, 0.6, 0.4)), "the plateau's end slope +0");
     // A width within rounding of none is a jump, not a secant: after
     // keyframes 1e-17 apart the next segment starts as an end, here as
     // its line (a secant of 1e17 would start it at 2).
