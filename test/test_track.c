@@ -313,7 +313,7 @@ static void TestRotations(void)
 }
 
 // A rotation track refuses an all-zero keyframe and takes others, one of
-// four nonzero channels and a half turn of one (found by mutants).
+// four nonzero channels and a half turn about each axis (found by mutants).
 static void TestRotationZero(void)
 {
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
@@ -335,6 +335,15 @@ static void TestRotationZero(void)
     CHECK(fabs((double)quarter.x - sqrt(0.5)) <= 1e-6 && quarter.y == 0.0f && quarter.z == 0.0f &&
               fabs((double)quarter.w - sqrt(0.5)) <= 1e-6,
           "from it, a quarter turn about x half way, no snap");
+    // Each channel alone is a rotation: a half turn about y, then about z.
+    const mtwnVec4 alone[2] = {{0, 1, 0, 0}, {0, 0, 1, 0}};
+    for (int i = 0; i < 2; ++i)
+    {
+        mtwnKeyframe one[2] = {Key(0.0, alone[i], mtwn_segmentLinear),
+                               Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
+        CHECK(mtwnMakeTrack(&def, one, 2, NULL, mixes, &track) == mtwn_success,
+              "a half turn about y or z taken");
+    }
 }
 
 // A curved rotation extrapolated so far its cubic overflows: still a unit
