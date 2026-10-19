@@ -12,6 +12,7 @@
 
 #include "maul-tween/event.h"
 #include "maul-tween/player.h"
+#include "maul-tween/spring.h"
 #include "maul-tween/transition.h"
 
 #include <math.h>
@@ -149,6 +150,34 @@ static void TestSpringAndDecay(void)
     CHECK(Read(&w).value.x == 3.0f + rest && Read(&w).base.x == 3.0f + rest,
           "a reduced decay lands at its rest at once");
     mtwnDestroyContext(u.context);
+    mtwnDestroyContext(w.context);
+}
+
+// A spring whose settling bound overflows (a stiffness of 1e300 times an
+// offset of 3e38) has no end time and never ends by itself. Ended by
+// reduced motion, its end record gives the time it had run.
+static void TestEndless(void)
+{
+    World w = MakeWorld();
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){-3e38f, 0, 0, 0}, &w.target) ==
+              mtwn_success,
+          "a target far below its end");
+    Update(&w, 1.0);
+    mtwnTransitionDef spring = Eased(1.0f, 0.0, 0.0);
+    spring.spec = mtwn_transitionSpring;
+    CHECK(mtwnMakeSpring(1e300, 1e150, 1.0, &spring.spring) == mtwn_success, "a stiff spring");
+    mtwnPlayerId id = Transition(&w, spring);
+    Update(&w, 1.5);
+    CHECK(mtwnPlayer_IsValid(w.context, id), "running");
+    mtwnEvent events[16];
+    CHECK(Events(&w, events) == 1 && events[0].kind == mtwn_eventStart, "begun at 1.5");
+    CHECK(mtwnContext_SetReducedMotion(w.context, true) == mtwn_success, "reduced");
+    Update(&w, 1.6);
+    CHECK(!mtwnPlayer_IsValid(w.context, id), "ended");
+    uint32_t count = Events(&w, events);
+    CHECK(count == 1 && events[0].kind == mtwn_eventEnd && events[0].hostTime == 1.6 &&
+              fabs(events[0].clipTime - 0.1) <= 1e-12,
+          "its end record 0.1 s in, as far as it ran");
     mtwnDestroyContext(w.context);
 }
 
@@ -325,6 +354,7 @@ int main(void)
     TestSetting();
     TestEasedTransition();
     TestSpringAndDecay();
+    TestEndless();
     TestTurnedOff();
     TestPlayers();
     TestPlayingOn();

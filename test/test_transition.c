@@ -1122,6 +1122,43 @@ static void TestPowerModes(void)
     mtwnDestroyContext(context);
 }
 
+// A path kind's start velocity is the given one projected on the end
+// minus the start, in progress, over its four channels and no more.
+static void TestPathVelocity(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    const float from[4] = {0.2f, 0.3f, 0.4f, 1.0f};
+    const float to[4] = {0.8f, 0.3f, 0.1f, 1.0f};
+    const float v[4] = {1.5f, -0.5f, 0.25f, 0.125f};
+    mtwnTargetId color;
+    CHECK(mtwnCreateTarget(context, mtwn_valueColor, (mtwnVec4){from[0], from[1], from[2], from[3]},
+                           &color) == mtwn_success,
+          "a color");
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = color;
+    def.value = (mtwnVec4){to[0], to[1], to[2], to[3]};
+    def.spec = mtwn_transitionSpring;
+    def.velocity = (mtwnVec4){v[0], v[1], v[2], v[3]};
+    def.velocitySource = mtwn_velocityGiven;
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
+    mtwnPlayerId player;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung");
+    double along = 0.0;
+    double length = 0.0;
+    for (int i = 0; i < 4; ++i)
+    {
+        double d = (double)to[i] - (double)from[i];
+        along += (double)v[i] * d;
+        length += d * d;
+    }
+    const mtwnPlayerSlot* slot = mtwnPlayerAt(context, player.index1);
+    CHECK(slot->velocity[0] == along / length && slot->velocity[1] == 0.0,
+          "the fling projected on the way, about 11/6 a second");
+    mtwnDestroyContext(context);
+}
+
 static void TestStartVelocity(void)
 {
     // A spring started with a velocity reports it at its first update,
@@ -1391,6 +1428,7 @@ int main(void)
     TestReversalOvershoot();
     TestReversalSignedZero();
     TestStartVelocity();
+    TestPathVelocity();
     TestReplacedVelocity();
     TestScalar();
     TestDelayAndEasing();
