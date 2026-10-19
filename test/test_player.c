@@ -685,6 +685,35 @@ static void TestRateLimit(void)
     mtwnDestroyContext(f.context);
 }
 
+// A player of a clip with no tracks has no bindings: destroying it gives
+// back nothing, and the bindings of the player before it stay.
+static void TestNoBindingsDestroyed(void)
+{
+    Fixture f = Make(false, 16);
+    mtwnPlayerId first = Player(&f, true, 1.0);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId marks;
+    mtwnNode node;
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success &&
+              mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
+              mtwnClip_Finish(f.context, marks) == mtwn_success,
+          "a clip of a mark only");
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = marks;
+    mtwnPlayerId bare = {0, 0};
+    CHECK(mtwnCreatePlayer(f.context, &def, &bare) == mtwn_success &&
+              mtwnDestroyPlayer(f.context, bare) == mtwn_success,
+          "a player of no bindings made and destroyed");
+    Update(&f, 0.0);
+    Update(&f, 0.5);
+    mtwnVec4 value;
+    CHECK(mtwnPlayer_IsValid(f.context, first) &&
+              mtwnTarget_GetValue(f.context, f.target, &value) == mtwn_success && value.x == 0.25f,
+          "the first player still writes its target");
+    mtwnDestroyContext(f.context);
+}
+
 int main(void)
 {
     TestRateLimit();
@@ -700,6 +729,7 @@ int main(void)
     TestBindings();
     TestRuns();
     TestFullPoolKeepsBindings();
+    TestNoBindingsDestroyed();
     TestOrder();
     TestClipChain();
     return s_failures == 0 ? 0 : 1;
