@@ -888,6 +888,17 @@ static void TestCoincidentStart(void)
         moved += v[0] != (double)keys[0].value.x || v[1] != (double)keys[0].value.y;
     }
     CHECK(moved == 0, "before it, held at the start");
+    // A segment within the total's rounding of none jumps as equal offsets
+    // do, its later keyframe ruling: from 1 to 0 and then to 3e38, at 0
+    // the 0 (the coincident start above reads the same at either end).
+    mtwnKeyframe tiny[3] = {Key(0.0, 1.0f, 0.0f, mtwn_segmentLinear),
+                            Key(0.5, 0.0f, 0.0f, mtwn_segmentLinear),
+                            Key(1.0, 3e38f, 0.0f, mtwn_segmentLinear)};
+    CHECK(mtwnMakePath(tiny, 3, 1, 0.5, lengths, &path) == mtwn_success && lengths[1] == 1.0,
+          "a segment of 1 before one of 3e38");
+    double v[4];
+    mtwnSamplePath(&path, 0.0, v, NULL);
+    CHECK(v[0] == 0.0, "a jump at its start, to its end");
 }
 
 static void TestEdges(void)
