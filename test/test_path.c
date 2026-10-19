@@ -60,6 +60,8 @@ static void TestLinearAndStep(void)
     CHECK(v[0] == 4.0 && t[0] == 0.0, "a step holds");
     mtwnSamplePath(&path, 1.0, v, NULL);
     CHECK(v[0] == 8.0 && v[1] == -2.0, "and gives the last keyframe at 1");
+    mtwnSamplePath(&path, 1.5, v, NULL);
+    CHECK(v[0] == 8.0 && v[1] == -2.0, "past 1 a last step holds its end");
     mtwnSamplePath(&path, -0.125, v, NULL);
     CHECK(v[0] == -2.0 && v[1] == 12.0, "before 0 the first segment extends");
     // Equal offsets jump: the later keyframe wins at the offset.
@@ -73,6 +75,16 @@ static void TestLinearAndStep(void)
     CHECK(v[0] == 5.0 && fabs(below[0] - 1.0) < 1e-9, "the jump at its offset");
     mtwnSamplePath(&path, 1.5, v, NULL);
     CHECK(v[0] == 7.0, "past 1 the last segment extends");
+    // Offsets exactly 2^-52 apart jump too: between them the later
+    // keyframe's value, not the segment's line across 2^-52 (found by
+    // mutants).
+    jump[1].offset = 0.5 - 0x1p-53;
+    jump[2].offset = 0.5 + 0x1p-53;
+    CHECK(mtwnMakePath(jump, 4, 1, 0.5, NULL, &path) == mtwn_success &&
+              jump[2].offset - jump[1].offset == 0x1p-52,
+          "a jump 2^-52 wide");
+    mtwnSamplePath(&path, 0.5, v, NULL);
+    CHECK(v[0] == 5.0, "its width's middle at the later keyframe");
     // A segment's easing times it.
     mtwnKeyframe eased[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
                              Key(1.0, 1.0f, 0.0f, mtwn_segmentLinear)};

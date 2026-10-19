@@ -131,6 +131,16 @@ static void TestSlopes(void)
     mtwnPath nearPath;
     CHECK(mtwnMakePath(near, 3, 1, 0.5, NULL, &nearPath) == mtwn_success, "near secants");
     CHECK(fabs(SlopeAt(&nearPath, 0.4, 0.6) - 13.0 / 6.0) < 1e-12, "the parabola's slope");
+    // Past the second keyframe, offsets and values away from 0, the
+    // widths and secants are differences too: 0, 1, 1.25, 3 at 0, 0.5,
+    // 0.75 and 1, secants 1 and 7 about 0.75, its slope 2, twice the
+    // lesser, the earlier.
+    mtwnKeyframe later[4] = {Key(0.0, 0.0f, 0.0f), Key(0.5, 1.0f, 0.0f), Key(0.75, 1.25f, 0.0f),
+                             Key(1.0, 3.0f, 0.0f)};
+    mtwnPath laterPath;
+    CHECK(mtwnMakePath(later, 4, 1, 0.5, NULL, &laterPath) == mtwn_success &&
+              fabs(SlopeAt(&laterPath, 0.75, 0.25) - 2.0) < 1e-12,
+          "Steffen's slope at a third keyframe");
     // The ends' slope (3 s - t) / 2: curvature 0 there.
     double start = SlopeAt(&path, 0.0, 0.1);
     double end = SlopeAt(&path, 1.0, 0.9);
