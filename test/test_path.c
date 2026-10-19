@@ -747,6 +747,17 @@ static void TestPointBits(void)
     CHECK(mtwnMakePath(still, 2, 2, 0.5, lengths, &path) == mtwn_success &&
               lengths[1] == 0x1.836bdef2d08d4p+3,
           "leaving at rest, its length to the bit");
+    // A curve whose speed falls below 1 where the search takes Taylor steps:
+    // the speed's second derivative counts there too (read as 0 below a
+    // speed of 1, the point moved 3.3e-11 of the length).
+    mtwnKeyframe slow[2] = {Key(0.0, 0x1.8b852p-1f, -0x1.89a028p-3f, mtwn_segmentBezier),
+                            Key(1.0, -0x1.ebb99p-3f, -0x1.8fc508p-3f, mtwn_segmentLinear)};
+    slow[0].out = (mtwnVec4){0x1.01d15p+0f, 0x1.5edc5cp+1f, 0, 0};
+    slow[1].in = (mtwnVec4){0x1.0e7d58p-1f, -0x1.5460aap-1f, 0, 0};
+    CHECK(mtwnMakePath(slow, 2, 2, 0.5, lengths, &path) == mtwn_success, "a curve slowing below 1");
+    mtwnSamplePath(&path, 0.41, v, NULL);
+    CHECK(v[0] == 0x1.98bae15872f6bp-1 && v[1] == 0x1.033510db4bfa4p+0,
+          "41 hundredths of its length, to the bit");
 }
 
 // Every point of 50 fixed random curves at 101 shares of their length,
