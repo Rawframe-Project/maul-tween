@@ -497,6 +497,11 @@ static void TestNumberLength(void)
     // No cubic term: the derivative is linear, its one root a turn.
     static const float once[4] = {0.0f, 1.0f, 1.0f, 0.0f};
     CheckLineLength(once, 1, "a number turning once, a quadratic");
+    // Leaving at rest: (3u^2 - 3u^3) / 8, its derivative's constant term 0
+    // and its linear one 0.75, so the stable pair's sum must not be the one
+    // that cancels, which drops the turn at 2/3 and measures 0 for 1/9.
+    static const float rest[4] = {0.0f, 0.0f, 0.125f, 0.0f};
+    CheckLineLength(rest, 1, "a number leaving at rest, turning once");
     // A quadratic whose derivative's slope is exactly 1: a uniform
     // Catmull-Rom through 0.75, 0, 0.25, 1.5 has -u/4 + u^2/2 between 0 and
     // 0.25, down 1/32 and up 9/32, 0.3125 in all.
@@ -711,6 +716,27 @@ static void TestPointBits(void)
     CHECK(mtwnMakePath(crossed, 2, 2, 0.5, lengths, &path) == mtwn_success &&
               lengths[1] == 0x1.4e080f26d5a16p+0,
           "a crossed curve's length, to the bit");
+    // A curve whose speed's v.a falls to 0.47 between its turns without
+    // reaching 0: one minimum, where it rises through 0 before them. A
+    // piece taken as rising through 0 from below 1 split the length at two
+    // more.
+    mtwnKeyframe dip[2] = {Key(0.0, 0x1.b367ap-3f, -0x1.876c8cp-1f, mtwn_segmentBezier),
+                           Key(1.0, -0x1.dbf48p-4f, 0x1.c4f764p-1f, mtwn_segmentLinear)};
+    dip[0].out = (mtwnVec4){-0x1.4a8c1p-3f, -0x1.e24dc8p-3f, 0, 0};
+    dip[1].in = (mtwnVec4){0x1.8c2268p-1f, -0x1.3b7e9p+0f, 0, 0};
+    CHECK(mtwnMakePath(dip, 2, 2, 0.5, lengths, &path) == mtwn_success &&
+              lengths[1] == 0x1.d4f4bf637598bp+0,
+          "a speed nearly falling twice, its length to the bit");
+    // One whose v.a turns only past 1, at 1.30 and 2.58: its minimum is
+    // searched for over (0, 1), and a search over (0, 1.30) found it ulps
+    // away.
+    mtwnKeyframe past[2] = {Key(0.0, 0x1.deab38p-1f, -0x1.97e91p-1f, mtwn_segmentBezier),
+                            Key(1.0, 0x1.902dep-1f, 0x1.4adab8p-1f, mtwn_segmentLinear)};
+    past[0].out = (mtwnVec4){0x1.670a3cp+0f, 0x1.2e3f14p+1f, 0, 0};
+    past[1].in = (mtwnVec4){0x1.6db8bap+0f, 0x1.284188p+1f, 0, 0};
+    CHECK(mtwnMakePath(past, 2, 2, 0.5, lengths, &path) == mtwn_success &&
+              lengths[1] == 0x1.ea33dc8e2730fp+1,
+          "turns past the segment's end, its length to the bit");
 }
 
 // Every point of 50 fixed random curves at 101 shares of their length,

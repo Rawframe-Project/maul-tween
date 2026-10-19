@@ -122,6 +122,27 @@ static void TestLengthsASample(void)
     CHECK(perSample > 2.0 && perSample <= 2.32, "lengths a sample at the method's floor");
 }
 
+// A sample at either end lies on a keyframe: the first's at 0 and the last
+// segment's whole length at 1, measuring nothing (an end taken as inside
+// measured the empty arc from it to the segment's end).
+static void TestEndsMeasureNothing(void)
+{
+    s_state = 0x2545F4914F6CDD1Du;
+    uint32_t lengths = 0;
+    for (int n = 0; n < 20; ++n)
+    {
+        RandomPath p = MakeRandom();
+        double cumulative[8];
+        mtwnPath path;
+        CHECK(mtwnMakePath(p.keys, p.count, p.channels, p.alpha, cumulative, &path) == mtwn_success,
+              "a path");
+        double v[4];
+        mtwnSamplePathCounting(&path, 0.0, v, NULL, &lengths);
+        mtwnSamplePathCounting(&path, 1.0, v, NULL, &lengths);
+    }
+    CHECK(lengths == 0, "the ends measure nothing");
+}
+
 // The 8-point Gauss-Legendre rule on [-1, 1].
 static const Wide s_nodes[4] = {
     0.1834346424956498049394761423601840L, 0.5255324099163289858177390491891843L,
@@ -198,6 +219,7 @@ static void TestLengthError(void)
 int main(void)
 {
     TestLengthsASample();
+    TestEndsMeasureNothing();
     TestLengthError();
     return s_failures == 0 ? 0 : 1;
 }
