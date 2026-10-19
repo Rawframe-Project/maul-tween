@@ -1129,6 +1129,38 @@ static void TestPowerModes(void)
     mtwnDestroyContext(context);
 }
 
+// In its first millisecond an eased color's velocity is its change since
+// its start, not toward a later time.
+static void TestFirstMillisecond(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId color;
+    CHECK(mtwnCreateTarget(context, mtwn_valueColor, (mtwnVec4){0.0f, 0.0f, 0.0f, 1.0f}, &color) ==
+              mtwn_success,
+          "black");
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = color;
+    def.value = (mtwnVec4){1.0f, 0.0f, 0.0f, 1.0f};
+    def.duration = 2.0;
+    def.easing = mtwnLinearEasing();
+    mtwnPlayerId player;
+    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success &&
+              mtwnStartTransition(context, &def, &player) == mtwn_success &&
+              mtwnUpdate(context, 2 * s_second, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, 2 * s_second + s_second / 2000, NULL, 0, NULL) == mtwn_success,
+          "to red over 2 s, half a millisecond in");
+    mtwnTargetState state;
+    // Near black OkLab's mix reddens slowly at first: half a millisecond in,
+    // its speed since the start is under 1e-6 a second, where the slope to
+    // 1 s is 0.39.
+    CHECK(mtwnTarget_GetState(context, color, &state) == mtwn_success && state.velocity.x > 0.0f &&
+              state.velocity.x < 1e-3f,
+          "reddening slowly from its start");
+    mtwnDestroyContext(context);
+}
+
 // A path kind's start velocity is the given one projected on the end
 // minus the start, in progress, over its four channels and no more.
 static void TestPathVelocity(void)
@@ -1447,6 +1479,7 @@ int main(void)
     TestReversalSignedZero();
     TestStartVelocity();
     TestPathVelocity();
+    TestFirstMillisecond();
     TestReplacedVelocity();
     TestScalar();
     TestDelayAndEasing();
