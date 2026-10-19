@@ -179,6 +179,22 @@ static void TestEndless(void)
               fabs(events[0].clipTime - 0.1) <= 1e-12,
           "its end record 0.1 s in, as far as it ran");
     mtwnDestroyContext(w.context);
+    // Ended in its delay, it ran none.
+    World d = MakeWorld();
+    CHECK(mtwnCreateTarget(d.context, mtwn_valueScalar, (mtwnVec4){-3e38f, 0, 0, 0}, &d.target) ==
+              mtwn_success,
+          "a target far below its end");
+    Update(&d, 1.0);
+    spring.delay = 1.0;
+    id = Transition(&d, spring);
+    Update(&d, 1.5);
+    CHECK(mtwnContext_SetReducedMotion(d.context, true) == mtwn_success, "reduced");
+    Update(&d, 1.6);
+    count = Events(&d, events);
+    CHECK(!mtwnPlayer_IsValid(d.context, id) && count == 2 && events[1].kind == mtwn_eventEnd &&
+              events[1].clipTime == 0.0,
+          "ended in its delay: its end record 0 s in");
+    mtwnDestroyContext(d.context);
 }
 
 static void TestTurnedOff(void)
