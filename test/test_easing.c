@@ -485,9 +485,24 @@ static void TestElasticZero(void)
           "amplitude or period 0 refused");
 }
 
+// Values the 1.x promise keeps to the bit (record mtwn-0072): the bounce's
+// landings, where the parabolas meet, and an elastic away from its ends.
+static void TestPinnedBits(void)
+{
+    mtwnEasing easing;
+    CHECK(mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeOut, &easing) == mtwn_success, "bounce");
+    CHECK(mtwnEase(&easing, 1.0 / 2.75, false) == 0x1.fffffffffffffp-1 &&
+              mtwnEase(&easing, 2.0 / 2.75, false) == 1.0 &&
+              mtwnEase(&easing, 2.5 / 2.75, false) == 1.0,
+          "the bounce's landings, bit for bit");
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 2.5, 0.2, &easing) == mtwn_success, "elastic");
+    CHECK(mtwnEase(&easing, 0.5, false) == -0x1.08421084210ap-5, "an elastic, bit for bit");
+}
+
 int main(void)
 {
     TestElasticZero();
+    TestPinnedBits();
     TestEndsAreExact();
     TestEndsAreExactForEveryParameter();
     TestAgainstTheFormulas();
