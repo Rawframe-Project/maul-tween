@@ -682,6 +682,16 @@ static void TestPointBits(void)
     mtwnSamplePath(&path, 0.67, v, NULL);
     CHECK(v[0] == -0x1.79e6b9feb79cp-1 && v[1] == 0x1.115e1a98f1002p+1,
           "67 hundredths of its length, to the bit");
+    // And one the speed minima found where the slope rises through 0, and
+    // the speed's own second derivative, keep.
+    mtwnKeyframe third[2] = {Key(0.0, -0x1.2ab02p+2f, 0x1.2f3b68p+1f, mtwn_segmentBezier),
+                             Key(1.0, 0x1.a65608p+2f, -0x1.c5604p+1f, mtwn_segmentLinear)};
+    third[0].out = (mtwnVec4){0x1.926e8p-2f, -0x1.3f7cfp+0f, 0, 0};
+    third[1].in = (mtwnVec4){-0x1.3c8312p+3f, 0x1.9c28f8p+1f, 0, 0};
+    CHECK(mtwnMakePath(third, 2, 2, 0.5, lengths, &path) == mtwn_success, "a third curve");
+    mtwnSamplePath(&path, 0.56, v, NULL);
+    CHECK(v[0] == 0x1.28853c8fc0848p+0 && v[1] == -0x1.51ebd77eb25ep+0,
+          "56 hundredths of its length, to the bit");
 }
 
 // A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
