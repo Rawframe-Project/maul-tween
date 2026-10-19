@@ -98,11 +98,18 @@ static void TestBounds(void)
                 double offset = fabs(points[k].output - mtwnEase(&def.shape, x, false));
                 outside += offset > 0.3 * Share(taper, x) * (1.0 + 1e-15) + 1e-16;
             }
+            // Clamped: the same draws, each output held to [0, 1].
+            double loose[count];
+            for (uint32_t k = 0; k < count; ++k)
+            {
+                loose[k] = points[k].output;
+            }
             def.flags = mtwn_roughClamp;
             CHECK(mtwnMakeRoughEasing(&def, points, count, &easing) == mtwn_success, "clamped");
             for (uint32_t k = 0; k < count; ++k)
             {
-                clamped += points[k].output < 0.0 || points[k].output > 1.0;
+                double held = loose[k] < 0.0 ? 0.0 : (loose[k] > 1.0 ? 1.0 : loose[k]);
+                clamped += points[k].output != held;
             }
             def.flags = mtwn_roughRising;
             CHECK(mtwnMakeRoughEasing(&def, points, count, &easing) == mtwn_success, "rising");
@@ -115,7 +122,7 @@ static void TestBounds(void)
     }
     CHECK(outside == 0, "every offset within the strength by the taper");
     CHECK(unordered == 0, "each inner point inside its own range");
-    CHECK(clamped == 0, "clamped outputs in [0, 1]");
+    CHECK(clamped == 0, "clamped outputs the loose ones held to [0, 1]");
     CHECK(falling == 0, "rising outputs never fall, and the easing is monotonic");
 }
 
@@ -142,6 +149,13 @@ static void TestZigZag(void)
     CHECK(mtwnMakeRoughEasing(&def, points, 2, &easing) == mtwn_success &&
               mtwnEase(&easing, 0.25, false) == 0.25,
           "two points, a straight line");
+    // A shape sampled outside its before phase, at a strength of 0: a
+    // zig-zag of three points puts its middle at 0.5, steps(2)'s jump.
+    mtwnRoughDef plain = Def(0.0, 0, mtwn_roughTaperNone, mtwn_roughZigZag);
+    CHECK(mtwnMakeSteps(2, mtwn_jumpEnd, &plain.shape) == mtwn_success, "steps");
+    CHECK(mtwnMakeRoughEasing(&plain, points, 3, &easing) == mtwn_success &&
+              points[1].input == 0.5 && points[1].output == 0.5,
+          "steps(2) at its jump, no offset");
 }
 
 static double NotANumber(void* context, double progress)
