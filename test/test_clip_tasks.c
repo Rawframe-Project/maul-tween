@@ -1433,6 +1433,74 @@ static void TestOneChannel(void)
 // needs no room for alone changes: two players binding the same two
 // targets, each two bindings against a group's room for three changes,
 // run by their groups (asked to fit four changes, they went serial).
+// A task system that counts the work it is handed and runs it at once.
+static uint32_t s_handed;
+
+static void* CountAndRun(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+                         void* userContext)
+{
+    ++s_handed;
+    return RunAtOnce(task, itemCount, minRange, taskContext, userContext);
+}
+
+// One clip's player runs on the calling thread; a second makes groups,
+// which go to the task system.
+static void TestGroupsFromTwo(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = CountAndRun;
+    def.finishTask = WaitForNothing;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnTargetId t[2];
+    for (int k = 0; k < 2; ++k)
+    {
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &t[k]) == mtwn_success,
+              "a target");
+    }
+    mtwnClipId clip = TwoTracks(context);
+    (void)PlayTwo(context, clip, t[0], (mtwnTargetId){0, 0});
+    s_handed = 0;
+    Step(context, 0.0);
+    Step(context, 0.1);
+    CHECK(s_handed == 0, "one player, nothing handed to the task system");
+    (void)PlayTwo(context, clip, t[1], (mtwnTargetId){0, 0});
+    Step(context, 0.2);
+    CHECK(s_handed > 0, "two players, their groups handed to it");
+    mtwnDestroyContext(context);
+
+    // A lone player at half weight mixes from the base every update, with a
+    // task system as without one.
+    mtwnVec4 values[2][4];
+    for (int k = 0; k < 2; ++k)
+    {
+        mtwnContextDef own = mtwnDefaultContextDef();
+        own.enqueueTask = k == 1 ? CountAndRun : NULL;
+        own.finishTask = k == 1 ? WaitForNothing : NULL;
+        CHECK(mtwnCreateContext(&own, &context) == mtwn_success, "a context");
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding half = mtwnBind(0, target);
+        half.weight = 0.5f;
+        mtwnPlayerDef play = mtwnDefaultPlayerDef();
+        play.clip = TwoTracks(context);
+        play.bindings = &half;
+        play.bindingCount = 1;
+        mtwnPlayerId player;
+        CHECK(mtwnCreatePlayer(context, &play, &player) == mtwn_success, "a player");
+        for (int step = 0; step < 4; ++step)
+        {
+            Step(context, 0.1 * step);
+            CHECK(mtwnTarget_GetValue(context, target, &values[k][step]) == mtwn_success,
+                  "a value");
+        }
+        mtwnDestroyContext(context);
+    }
+    CHECK(memcmp(values[0], values[1], sizeof values[0]) == 0 && values[1][3].x > 0.0f,
+          "a lone player's half weight from the base, the serial bits");
+}
+
 static void TestLayeredFit(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -1462,6 +1530,7 @@ int main(void)
 {
     TestWriters();
     TestLayeredFit();
+    TestGroupsFromTwo();
     TestOneChannel();
     TestStaleAlone();
     TestStaleAloneAfterWriter();
