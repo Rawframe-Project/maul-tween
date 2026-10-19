@@ -737,6 +737,16 @@ static void TestPointBits(void)
     CHECK(mtwnMakePath(past, 2, 2, 0.5, lengths, &path) == mtwn_success &&
               lengths[1] == 0x1.ea33dc8e2730fp+1,
           "turns past the segment's end, its length to the bit");
+    // One leaving at rest, its out handle on its keyframe: v.a is exactly 0
+    // at 0, its minimum the start itself; one taken as rising through 0
+    // from there was found just inside and moved the length's last bit.
+    mtwnKeyframe still[2] = {Key(0.0, -0x1.e53f7cp+2f, 0x1.5a1ccp-2f, mtwn_segmentBezier),
+                             Key(1.0, -0x1.f1aap-2f, -0x1.247aep+1f, mtwn_segmentLinear)};
+    still[0].out = still[0].value;
+    still[1].in = (mtwnVec4){0x1.18624cp+2f, 0x1.32d0e4p+2f, 0, 0};
+    CHECK(mtwnMakePath(still, 2, 2, 0.5, lengths, &path) == mtwn_success &&
+              lengths[1] == 0x1.836bdef2d08d4p+3,
+          "leaving at rest, its length to the bit");
 }
 
 // Every point of 50 fixed random curves at 101 shares of their length,
