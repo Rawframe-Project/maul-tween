@@ -641,6 +641,24 @@ static void TestBisected(void)
     CHECK(worst <= 1e-10, "every share at its place where the search bisects");
 }
 
+// A constant-speed point's bits, which 1.x keeps on every platform: the
+// search's Halley steps taken wherever their denominator is above 0 (a
+// sampled mutant bisecting below 1 moved this one in its last bits).
+static void TestPointBits(void)
+{
+    mtwnKeyframe keys[2] = {Key(0.0, -0x1.15c29p+1f, 0x1.7eb85p+2f, mtwn_segmentBezier),
+                            Key(1.0, -0x1p+3f, 0x1.c8b44p+0f, mtwn_segmentLinear)};
+    keys[0].out = (mtwnVec4){-0x1.510624p+2f, -0x1.275c28p+3f, 0, 0};
+    keys[1].in = (mtwnVec4){-0x1.a3d7p-3f, 0x1.2ab85p+3f, 0, 0};
+    double lengths[2];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 2, 2, 0.5, lengths, &path) == mtwn_success, "a curve");
+    double v[4];
+    mtwnSamplePath(&path, 0.43, v, NULL);
+    CHECK(v[0] == -0x1.a9773f4ceb1ccp+1 && v[1] == -0x1.b277f33a74f6p-3,
+          "43 hundredths of its length, to the bit");
+}
+
 // A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
 // the speed falls to 0 there as (1 - u)^2, and its rounding keeps the
 // length's two orders apart at any width; at constant speed a share 2^-40
@@ -905,6 +923,7 @@ int main(void)
     TestLength();
     TestNumberLength();
     TestSpeedDrift();
+    TestPointBits();
     TestBisected();
     TestTurnBack();
     TestNearTurn();
