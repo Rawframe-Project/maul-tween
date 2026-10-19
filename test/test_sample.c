@@ -49,6 +49,9 @@ static void TestEvenTables(void)
         wrong += table[i] != (float)mtwnEase(&elastic, (double)i / 256.0, false);
     }
     CHECK(wrong == 0 && table[0] == 0.0f && table[256] == 1.0f, "the easing, rounded to float");
+    CHECK(mtwnSampleEasing(&quad, 2, values) == mtwn_success && values[0] == 0.0f &&
+              values[1] == 1.0f,
+          "two samples, the ends");
     CHECK(mtwnSampleEasing(&quad, 1, values) == mtwn_errorInvalid, "one sample");
     CHECK(mtwnSampleEasing(NULL, 5, values) == mtwn_errorInvalid, "no easing");
     CHECK(mtwnSampleEasing(&quad, 5, NULL) == mtwn_errorInvalid, "no buffer");
@@ -140,6 +143,22 @@ static void TestFitMethod(void)
     }
     CHECK(counts[0] == 28 && counts[1] == 22 && counts[2] == 73,
           "ease, p^2 and elastic out at 1e-3 in 28, 22 and 73 points");
+}
+
+// A bump only the last probe of the first segment sees: on the chord
+// everywhere but from 0.96 to 0.98, where 32/33 = 0.9697 lies.
+static void TestFitLastProbe(void)
+{
+    static mtwnLinearPoint bump[5] = {
+        {0.0, 0.0}, {0.96, 0.96}, {0.97, 1.5}, {0.98, 0.98}, {1.0, 1.0}};
+    mtwnEasing easing;
+    CHECK(mtwnMakeLinearEasing(bump, 5, &easing) == mtwn_success, "a bump");
+    uint32_t count = 0;
+    CHECK(mtwnFitLinearEasing(&easing, 1e-3, s_points, s_capacity, &count) == mtwn_success,
+          "fitted");
+    bool shape = false;
+    double error = FitError(&easing, count, &shape);
+    CHECK(count > 2 && shape && error <= 1e-3, "the bump kept, within the tolerance");
 }
 
 static void TestFitCounts(void)
@@ -303,6 +322,7 @@ int main(void)
     TestEvenTables();
     TestFitsWithinTolerance();
     TestFitMethod();
+    TestFitLastProbe();
     TestFitCounts();
     TestToleranceMetExactly();
     TestJumpsEnd();
