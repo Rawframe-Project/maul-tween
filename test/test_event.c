@@ -1354,6 +1354,64 @@ static void TestHeldReversedTimeline(void)
     mtwnDestroyContext(w.context);
 }
 
+// A reversed timeline whose iterations repeat the shape of a step that
+// jumps at its start, its progress eased inside an iteration as the
+// timing model eases it: the track at its start records its end at each
+// of the timeline's iteration starts and nothing else.
+static void TestReflectedJumpStart(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef stepped = mtwnDefaultClipTimelineDef();
+    stepped.parent = MTWN_ROOT_NODE;
+    stepped.position = At(0.25);
+    stepped.autoDuration = false;
+    stepped.timing.duration = 0.25;
+    stepped.timing.iterations = 3.0;
+    stepped.timing.direction = mtwn_directionReverse;
+    stepped.timing.fill = mtwn_fillBackwards;
+    stepped.timing.alternateEasing = mtwn_alternateRepeatsShape;
+    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &stepped.timing.easing) == mtwn_success, "a step");
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &stepped, &timeline) == mtwn_success,
+          "a reversed stepped timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = timeline;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.25;
+    mtwnNode inner = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &inner) == mtwn_success &&
+              mtwnClip_Finish(w.context, w.clip) == mtwn_success,
+          "a track at its start");
+    (void)Play(&w, true, 1.0);
+    uint32_t ends = 0;
+    uint32_t others = 0;
+    for (int k = 0; k <= 12; ++k)
+    {
+        Update(&w, 0.125 * k);
+        mtwnEvent e[16];
+        uint32_t n = Read(&w, e, 16);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            if (e[i].node != inner)
+            {
+                continue;
+            }
+            bool end = e[i].kind == mtwn_eventEnd && e[i].hostTime == e[i].clipTime &&
+                       (e[i].hostTime == 0.25 || e[i].hostTime == 0.5 || e[i].hostTime == 0.75);
+            ends += end ? 1u : 0u;
+            others += end ? 0u : 1u;
+        }
+    }
+    CHECK(ends == 3 && others == 0, "the track's ends at 0.25, 0.5 and 0.75, nothing else");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1363,6 +1421,7 @@ int main(void)
     TestUnderZeroTimelines();
     TestZeroTimelineIteration();
     TestHeldReversedTimeline();
+    TestReflectedJumpStart();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
