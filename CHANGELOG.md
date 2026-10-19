@@ -20,6 +20,17 @@ API and the ABI.
 - `mtwnClip_AddTrack` and `mtwnClip_AddTimeline` document that their
   node output is set to 0 before the def is read, so pointing it at the
   def's own parent is refused, as it has been since 0.1.0.
+- `mtwnComputeTiming` takes positive infinity as a local time, the limit
+  of the finite ones (record mtwn-0074); results at finite times are the
+  same bits.
+
+### Fixed
+
+- Under a reversed endless timeline, whose children sit at infinity, an
+  endless child's tracks fill as past their end where they showed
+  nothing, and its end is never recorded, where a record of it carried a
+  NaN iteration; under an endless timeline of no iterations a mark at
+  its start is recorded, where it was missed (record mtwn-0074).
 
 ## [1.0.4] - 2026-10-19
 

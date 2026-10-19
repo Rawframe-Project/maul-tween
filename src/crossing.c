@@ -578,9 +578,12 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
     double next = NextStart(levels, count, i);
     if (shape.point)
     {
-        double at = timing->duration == 0.0
-                        ? 0.0
-                        : ChildAt(timing, Forwards(timing, shape.first), shape.firstProgress);
+        // An endless one of no iterations gives its children what the
+        // values do: its active time, 0, going forwards, infinity reversed.
+        bool forwards = Forwards(timing, shape.first);
+        double at = timing->duration == 0.0   ? 0.0
+                    : isinf(timing->duration) ? (forwards ? 0.0 : HUGE_VAL)
+                                              : ChildAt(timing, forwards, shape.firstProgress);
         level->pointBelow = Below(levels, count, leaf, i + 1, at - next, false);
         Add(&level->pointBelow, -1.0, false, Below(levels, count, leaf, i + 1, at - next, true));
         return;

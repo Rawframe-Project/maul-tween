@@ -436,7 +436,9 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         Record(sweep, count, count + 1, &iterations,
                (Kinds){mtwn_eventIteration, mtwn_eventIteration}, node, 0, (double)NAN);
     }
-    if (!Missed(parent, activeEnd, activeEnd))
+    // An endless node's end lies at no time: not even a reversed endless
+    // timeline's children, at infinity, reach it.
+    if (isfinite(activeEnd) && !Missed(parent, activeEnd, activeEnd))
     {
         mtwnLeaf end = InstantAt(activeEnd);
         GuessAt(sweep, parent, activeEnd);

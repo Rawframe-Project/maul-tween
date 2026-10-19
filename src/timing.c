@@ -84,7 +84,10 @@ static mtwnPhase Phase(double localTime, double beforeActive, double activeAfter
     {
         return mtwn_phaseBefore;
     }
-    if (localTime > activeAfter || (!backwards && localTime == activeAfter))
+    // An endless active interval is never left, not even at an infinite
+    // local time, its limit.
+    if (localTime > activeAfter ||
+        (!backwards && localTime == activeAfter && isfinite(activeAfter)))
     {
         return mtwn_phaseAfter;
     }
@@ -136,6 +139,12 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
         // A negative rate begins the iterations at their end (Level 2).
         mtwnPhase first = timing->playbackRate > 0.0 ? mtwn_phaseBefore : mtwn_phaseAfter;
         return (result->phase == first ? 0.0 : n) + start;
+    }
+    // An endless iteration's progress is 0 at every finite active time,
+    // and so at an infinite one, the limit.
+    if (isinf(d))
+    {
+        return start;
     }
     // Never before the first iteration: an active time an ulp past the
     // active duration (local - delay rounding up) would put it there.
@@ -224,8 +233,9 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     bool forwardRate = timing->playbackRate > 0.0;
     bool endPhase =
         forwardRate ? result->phase != mtwn_phaseBefore : result->phase != mtwn_phaseAfter;
-    bool atEnd = endPhase && (forwardRate ? result->activeTime == result->activeDuration
-                                          : result->activeTime == 0.0);
+    bool atEnd =
+        endPhase && isfinite(result->activeDuration) &&
+        (forwardRate ? result->activeTime == result->activeDuration : result->activeTime == 0.0);
     atEnd = atEnd || (endPhase && overall == ends && ends > start);
     if (result->inRepeatDelay || (simple == 0.0 && atEnd && timing->iterations != 0.0))
     {

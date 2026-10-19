@@ -644,7 +644,7 @@ Checks a timing: delays finite, iteration start finite and from 0, iterations an
 ```c
 void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards, mtwnTimingResult* resultOut);
 ```
-Computes a node's timing at a local time, by Web Animations' steps.  @param timing     A timing mtwnValidateTiming accepts. @param localTime  The node's local time, seconds, finite. @param backwards  Whether the time is running backwards (the playing animation's rate is negative), which moves the active interval's boundaries. @param resultOut  Receives the result. @par Thread safety Safe from any thread.
+Computes a node's timing at a local time, by Web Animations' steps.  @param timing     A timing mtwnValidateTiming accepts. @param localTime  The node's local time, seconds, finite or positive infinity: the limit, where a finite active interval lies behind and an endless one is still active, an infinite duration's progress at its iteration start (a child of a reversed endless timeline is there). @param backwards  Whether the time is running backwards (the playing animation's rate is negative), which moves the active interval's boundaries. @param resultOut  Receives the result. @par Thread safety Safe from any thread.
 
 ```c
 mtwnStagger mtwnDefaultStagger(void);

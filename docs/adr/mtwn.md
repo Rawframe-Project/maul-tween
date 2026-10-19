@@ -78,3 +78,4 @@ are listed in [README.md](README.md).
 | [mtwn-0071](mtwn-0071-reserved-bytes.md) | Reserved bytes are zero | Accepted |
 | [mtwn-0072](mtwn-0072-what-1-x-promises.md) | What 1.x promises | Accepted |
 | [mtwn-0073](mtwn-0073-outputs-on-failure.md) | Outputs on failure | Accepted |
+| [mtwn-0074](mtwn-0074-infinite-child-times.md) | Infinite child times | Accepted |

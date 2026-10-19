@@ -1412,6 +1412,102 @@ static void TestReflectedJumpStart(void)
     mtwnDestroyContext(w.context);
 }
 
+// An endless timeline of no iterations holds its children at 0, as the
+// values do: a mark at its start is crossed once, when it is reached.
+static void TestEndlessNoIterations(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef endless = mtwnDefaultClipTimelineDef();
+    endless.parent = MTWN_ROOT_NODE;
+    endless.position = At(0.25);
+    endless.autoDuration = false;
+    endless.timing.duration = HUGE_VAL;
+    endless.timing.iterations = 0.0;
+    endless.timing.fill = mtwn_fillForwards;
+    mtwnNode timeline = 0;
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &endless, &timeline) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, timeline, At(0.0), 3, &mark) == mtwn_success,
+          "an endless timeline of no iterations, a mark at its start");
+    (void)AddTrack(&w, 0.0, 1.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    (void)Play(&w, false, 1.0);
+    uint32_t found = 0;
+    for (int k = 0; k <= 4; ++k)
+    {
+        Update(&w, 0.125 * k);
+        mtwnEvent e[16];
+        uint32_t n = Read(&w, e, 16);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            found += e[i].node == mark && e[i].hostTime == 0.25 ? 1u : 0u;
+        }
+    }
+    CHECK(found == 1, "the mark once, at 0.25");
+    mtwnDestroyContext(w.context);
+}
+
+// A reversed endless timeline holds its children at infinity, of one
+// iteration or none: an endless child there is active, its end at no
+// time, and a track in it lies past its end, filling it. Nothing in them
+// is crossed, at infinity from the start.
+static void TestUnderReversedEndless(void)
+{
+    for (int none = 0; none < 2; ++none)
+    {
+        World w = MakeWorld(64);
+        mtwnClipTimelineDef outer = mtwnDefaultClipTimelineDef();
+        outer.parent = MTWN_ROOT_NODE;
+        outer.autoDuration = false;
+        outer.timing.duration = HUGE_VAL;
+        outer.timing.iterations = none ? 0.0 : 1.0;
+        outer.timing.direction = none ? mtwn_directionAlternateReverse : mtwn_directionReverse;
+        outer.timing.fill = mtwn_fillBoth;
+        mtwnClipTimelineDef inner = outer;
+        inner.timing.iterations = 2.0;
+        inner.timing.iterationStart = 0.25;
+        inner.timing.direction = mtwn_directionAlternate;
+        mtwnNode a = 0;
+        mtwnNode b = 0;
+        CHECK(mtwnClip_AddTimeline(w.context, w.clip, &outer, &a) == mtwn_success,
+              "a reversed one");
+        inner.parent = a;
+        CHECK(mtwnClip_AddTimeline(w.context, w.clip, &inner, &b) == mtwn_success,
+              "an endless one in it");
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        keys[1].value.x = 1.0f;
+        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.parent = b;
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 0.5;
+        track.timing.fill = mtwn_fillForwards;
+        mtwnNode t = 0;
+        CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &t) == mtwn_success, "a track");
+        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        (void)Play(&w, false, 1.0);
+        uint32_t inside = 0;
+        for (int k = 0; k <= 4; ++k)
+        {
+            Update(&w, 0.125 * k);
+            mtwnEvent e[16];
+            uint32_t n = Read(&w, e, 16);
+            for (uint32_t i = 0; i < n; ++i)
+            {
+                inside += e[i].node == b || e[i].node == t ? 1u : 0u;
+            }
+        }
+        mtwnVec4 value = {0};
+        CHECK(mtwnTarget_GetValue(w.context, w.target, &value) == mtwn_success, "a value");
+        CHECK(inside == 0, "nothing at infinity crossed");
+        CHECK(value.x == 1.0f, "the track filled at its end");
+        mtwnDestroyContext(w.context);
+    }
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1445,5 +1541,7 @@ int main(void)
     TestSharedRecords();
     TestOrder();
     TestPaths();
+    TestEndlessNoIterations();
+    TestUnderReversedEndless();
     return s_failures == 0 ? 0 : 1;
 }

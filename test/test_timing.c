@@ -260,10 +260,39 @@ static void TestValidation(void)
     CHECK(mtwnValidateTiming(&timing) == mtwn_errorInvalid, "an alternate easing");
 }
 
+// At an infinite local time, the limit: a finite active interval lies
+// behind, an endless one is still active, an infinite duration's progress
+// at its iteration start.
+static void TestInfiniteLocalTime(void)
+{
+    mtwnTimingResult r;
+    mtwnTiming endless = mtwnDefaultTiming();
+    endless.duration = HUGE_VAL;
+    endless.iterations = 2.0;
+    endless.iterationStart = 0.25;
+    mtwnComputeTiming(&endless, HUGE_VAL, false, &r);
+    CHECK(r.phase == mtwn_phaseActive && r.iteration == 0.0 && r.simpleProgress == 0.25 &&
+              r.transformedProgress == 0.25,
+          "an endless iteration at its start's progress");
+    mtwnTiming repeating = mtwnDefaultTiming();
+    repeating.duration = 1.0;
+    repeating.iterations = HUGE_VAL;
+    mtwnComputeTiming(&repeating, HUGE_VAL, false, &r);
+    CHECK(r.phase == mtwn_phaseActive && isinf(r.iteration) && !isnan(r.transformedProgress),
+          "endless iterations at the last");
+    mtwnTiming finite = mtwnDefaultTiming();
+    finite.duration = 1.0;
+    finite.fill = mtwn_fillForwards;
+    mtwnComputeTiming(&finite, HUGE_VAL, false, &r);
+    CHECK(r.phase == mtwn_phaseAfter && r.iteration == 0.0 && r.transformedProgress == 1.0,
+          "a finite one past its end");
+}
+
 int main(void)
 {
     TestOracleCases();
     TestExamples();
     TestValidation();
+    TestInfiniteLocalTime();
     return s_failures == 0 ? 0 : 1;
 }
