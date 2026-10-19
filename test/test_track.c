@@ -495,6 +495,12 @@ static void TestScales(void)
     CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_success &&
               fabsf(mtwnSampleTrack(&track, 0.5).x - 4.0f) <= 1e-5f,
           "1, 2, 8, 16 are 2^0, 2^1, 2^3, 2^4: halfway is 2^2");
+    // The last keyframe starts no segment: a Bezier kind there, its out
+    // handle left 0, is not read as a control.
+    mtwnKeyframe last[2] = {Key(0.0, Scale(1.0f), mtwn_segmentLinear),
+                            Key(1.0, Scale(16.0f), mtwn_segmentBezier)};
+    CHECK(mtwnMakeTrack(&def, last, 2, NULL, NULL, &track) == mtwn_success,
+          "a last keyframe's out handle not read");
     // Extended far past its ends, a scale stays a positive float where
     // its logarithm's line leaves a float's range (from fuzz_values).
     def.alpha = 0.0;
