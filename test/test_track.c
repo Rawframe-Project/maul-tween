@@ -558,16 +558,23 @@ static void TestScales(void)
 static void TestRotationHemisphere(void)
 {
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
-    mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){0, 0.8f, 0, 0.6f}, mtwn_segmentLinear),
-                            Key(1.0, (mtwnVec4){0, 0.8f, 0, -0.6f}, mtwn_segmentLinear)};
     mtwnSegmentMix mixes[1];
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success, "made");
-    CHECK(keys[1].value.y == 0.8f && keys[1].value.w == -0.6f, "not flipped: its dot is above 0");
-    keys[1].value = (mtwnVec4){0, -0.8f, 0, 0.6f};
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success &&
-              keys[1].value.y == 0.8f && keys[1].value.w == -0.6f,
-          "flipped: its dot is below 0");
+    // About each axis in turn, its channel 0.8 and w 0.6.
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        float c[3] = {0, 0, 0};
+        c[axis] = 0.8f;
+        mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){c[0], c[1], c[2], 0.6f}, mtwn_segmentLinear),
+                                Key(1.0, (mtwnVec4){c[0], c[1], c[2], -0.6f}, mtwn_segmentLinear)};
+        CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success &&
+                  Same(keys[1].value, (mtwnVec4){c[0], c[1], c[2], -0.6f}),
+              "not flipped: its dot is above 0");
+        keys[1].value = (mtwnVec4){-c[0], -c[1], -c[2], 0.6f};
+        CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success &&
+                  Same(keys[1].value, (mtwnVec4){c[0], c[1], c[2], -0.6f}),
+              "flipped: its dot is below 0");
+    }
 }
 
 static void TestAnglesFarOut(void)
