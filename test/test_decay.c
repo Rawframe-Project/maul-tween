@@ -244,6 +244,8 @@ static void TestRubberBand(void)
               mtwnRubberBand((double)NAN, 600.0, 0.55) == 0.0 &&
               mtwnRubberBand(30.0, -1.0, 0.55) == 0.0,
           "no band without a dimension and a coefficient");
+    CHECK(!signbit(mtwnRubberBand(-30.0, 0.0, 0.55)) && !signbit(mtwnRubberBand(-30.0, 600.0, 0.0)),
+          "its 0 unsigned, a negative drag too");
     CHECK(mtwnRubberBandInverse(-30.0, 600.0, 0.55) == -mtwnRubberBandInverse(30.0, 600.0, 0.55) &&
               mtwnRubberBandInverse(-30.0, 600.0, 0.55) < 0.0,
           "the inverse is signed");
