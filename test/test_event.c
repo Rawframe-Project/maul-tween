@@ -1182,11 +1182,58 @@ static void TestUnderAZeroTimeline(void)
     mtwnDestroyContext(w.context);
 }
 
+// An endless timeline from 0.25, a track and a mark at its start: all
+// three are crossed there.
+static void TestEndlessTimelineStart(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef endless = mtwnDefaultClipTimelineDef();
+    endless.parent = MTWN_ROOT_NODE;
+    endless.position = At(0.25);
+    endless.autoDuration = false;
+    endless.timing.duration = HUGE_VAL;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &endless, &timeline) == mtwn_success,
+          "an endless timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = timeline;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.5;
+    mtwnNode inner = 0;
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &inner) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, timeline, At(0.0), 3, &mark) == mtwn_success &&
+              mtwnClip_Finish(w.context, w.clip) == mtwn_success,
+          "a track and a mark at its start");
+    (void)Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    mtwnEvent e[16];
+    (void)Read(&w, e, 16);
+    Update(&w, 0.5);
+    uint32_t n = Read(&w, e, 16);
+    uint32_t found = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        found += Is(&e[i], mtwn_eventStart, timeline, 0.25, false) ? 1u : 0u;
+        found += Is(&e[i], mtwn_eventStart, inner, 0.25, false) ? 1u : 0u;
+        found += Is(&e[i], mtwn_eventMark, mark, 0.25, false) && e[i].key == 3 ? 1u : 0u;
+    }
+    CHECK(found == 3, "the timeline's start, the track's and the mark, at 0.25");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
     TestReverseAfterReducedFinish();
     TestUnderAZeroTimeline();
+    TestEndlessTimelineStart();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
