@@ -391,6 +391,26 @@ static void TestRunsSkipped(void)
     CHECK(!mtwnTakeRun(&runs, 1, &d), "and then none");
 }
 
+// Holes of one and two entries given back next to each other join into
+// one run, however close their starts.
+static void TestRunsNarrowHoles(void)
+{
+    mtwnBound entries[10];
+    memset(entries, 0, sizeof entries);
+    mtwnRuns runs = mtwnMakeRuns(entries, 10);
+    uint32_t a = 0;
+    uint32_t b = 0;
+    uint32_t c = 0;
+    uint32_t d = 0;
+    CHECK(mtwnTakeRun(&runs, 1, &a) && mtwnTakeRun(&runs, 1, &b) && mtwnTakeRun(&runs, 2, &c) &&
+              mtwnTakeRun(&runs, 6, &d),
+          "runs of 1, 1, 2 and 6");
+    mtwnGiveRun(&runs, a, 1);
+    mtwnGiveRun(&runs, c, 2);
+    mtwnGiveRun(&runs, b, 1);
+    CHECK(mtwnTakeRun(&runs, 4, &d) && d == 0, "joined into one run of four");
+}
+
 // A context of no bindings has no free run; grown to four, it holds four
 // one-slot players and refuses a fifth.
 static void TestGrowFromNoBindings(void)
@@ -772,6 +792,7 @@ int main(void)
     TestBindings();
     TestRuns();
     TestRunsSkipped();
+    TestRunsNarrowHoles();
     TestGrowFromNoBindings();
     TestFullPoolKeepsBindings();
     TestNoBindingsDestroyed();

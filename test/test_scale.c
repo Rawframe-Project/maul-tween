@@ -80,6 +80,11 @@ static void TestScaleShape(void)
     double v = mtwnMixScale(&mix, 0.9);
     CHECK(isfinite(v) && fabs(v / 1e240 - 1.0) <= 1e-12, "1e-300 to 1e300 at 0.9 is 1e240");
     CHECK(mtwnMixScale(&mix, 2.0) == HUGE_VAL, "past the range it overflows");
+    // An exponent of exactly 700, where the form changes to the sum of
+    // logarithms: the same bits (record mtwn-0072).
+    CHECK(mtwnMakeScaleMix(0x1.56e1fc2f8f359p-997, 0x1.7e43c8800759cp+996, &mix) == mtwn_success &&
+              mtwnMixScale(&mix, 0x1.036b277015af3p-1) == 0x1.3cf2907b21126p+13,
+          "at the form's switch, bit for bit");
     const double bad[] = {0.0, -1.0, HUGE_VAL, (double)NAN};
     int refused = 0;
     for (int i = 0; i < 4; ++i)
