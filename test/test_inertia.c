@@ -95,6 +95,38 @@ static void TestWithin(void)
         }
     }
     CHECK(differ == 0, "within the bounds, the decay bit for bit");
+    // A rest on the bound where the crossing's share rounds below 1, so its
+    // time is finite: still the decay, with no hand-off at the bound.
+    mtwnDecay near;
+    CHECK(mtwnMakeDecay(0x1.d51e3f4p+2, &near) == mtwn_success, "a decay");
+    const double from = 0x1.1376edp+2;
+    const double flung = 0x1.e444263333333p+3;
+    mtwnBoundedDecay onRest;
+    mtwnSpring bounce = Bounce();
+    CHECK(mtwnMakeBoundedDecay(&near, &bounce, -1e9, from + flung / near.rate, &onRest) ==
+              mtwn_success,
+          "its rest the upper bound");
+    for (int k = 0; k <= 40; ++k)
+    {
+        double a = 0.0;
+        double b = 0.0;
+        double va = 0.0;
+        double vb = 0.0;
+        mtwnSampleBoundedDecay(&onRest, from, flung, k * 0.25, &a, &va);
+        mtwnSampleDecay(&near, from, flung, k * 0.25, &b, &vb);
+        differ += a != b || va != vb;
+    }
+    CHECK(differ == 0, "a rest on the bound, the decay bit for bit");
+    // A rest past the bound by rounding alone, an ulp: the crossing never
+    // comes, so it stops as the decay does.
+    mtwnDecay ulp;
+    CHECK(mtwnMakeDecay(0x1.2f2497p+3, &ulp) == mtwn_success, "a decay");
+    mtwnBoundedDecay past;
+    CHECK(mtwnMakeBoundedDecay(&ulp, &bounce, -1e9, -0x1.a2c5572e58c5dp-2, &past) == mtwn_success,
+          "its rest an ulp past the upper bound");
+    CHECK(mtwnBoundedDecayStopTime(&past, -0x1.1e67f6p+1, 0x1.15298e199999ap+4, 0.5, 1.0) ==
+              mtwnDecayStopTime(&ulp, 0x1.15298e199999ap+4, 1.0),
+          "the decay's stop");
     CHECK(mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 1.0) ==
               mtwnDecayStopTime(&decay, 1500.0, 1.0),
           "and its stop");

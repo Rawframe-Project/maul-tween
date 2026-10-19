@@ -179,6 +179,12 @@ static void TestDecayCrossings(void)
     Wide tinyShare = (Wide)1e-12 * 3 / 7;
     CHECK(Relative(tiny, -WIDE_LOG1P(-tinyShare) / 3) <= 2e-15 + s_slack,
           "a target next to the start");
+    // Half the travel is the series' last share: its bits, the same on
+    // every platform (1 ulp below ln 2 correctly rounded, within the bound).
+    mtwnDecay unit;
+    CHECK(mtwnMakeDecay(1.0, &unit) == mtwn_success &&
+              mtwnDecayCrossingTime(&unit, 0.0, 2.0, 1.0) == 0x1.62e42fefa39eep-1,
+          "half the travel by the series");
     CHECK(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 2.0) == 0.0, "at the start");
     CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 1.0)), "behind it");
     CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 4.0)), "exactly at rest");
