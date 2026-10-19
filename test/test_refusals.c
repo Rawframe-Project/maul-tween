@@ -137,6 +137,27 @@ static void TestClipsAndPlayers(void)
           "a label and a mark with nowhere to give their nodes");
     mtwnClipTimelineDef timeline = mtwnDefaultClipTimelineDef();
     CHECK(mtwnClip_AddTimeline(context, clip, &timeline, &node) == mtwn_success, "a timeline");
+    // The output is cleared before the def is read: given the def's own
+    // parent, that parent is 0 when read.
+    timeline.parent = node;
+    CHECK(mtwnClip_AddTimeline(context, clip, &timeline, &timeline.parent) == mtwn_errorInvalid &&
+              timeline.parent == 0,
+          "a timeline's node given into its def's parent");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.parent = node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &track.parent) == mtwn_errorInvalid &&
+              track.parent == 0,
+          "a track's too");
+    track.parent = node;
+    mtwnNode added = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &added) == mtwn_success,
+          "the same track given a node of its own");
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
     mtwnClipTrack read;
     CHECK(mtwnClip_GetTrack(context, clip, node, &read) == mtwn_errorInvalid &&

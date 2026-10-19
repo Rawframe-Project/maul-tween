@@ -15,6 +15,12 @@ API and the ABI.
 
 ## [Unreleased]
 
+### Changed
+
+- `mtwnClip_AddTrack` and `mtwnClip_AddTimeline` document that their
+  node output is set to 0 before the def is read, so pointing it at the
+  def's own parent is refused, as it has been since 0.1.0.
+
 ## [1.0.4] - 2026-10-19
 
 ### Fixed

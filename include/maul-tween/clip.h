@@ -322,7 +322,9 @@ extern "C"
     ///                 slot capacity and of the same kind as its other
     ///                 tracks, a timing mtwnValidateTiming accepts, and a
     ///                 track and keyframes mtwnMakeTrack accepts.
-    /// @param nodeOut  Receives the node, or 0 on failure.
+    /// @param nodeOut  Receives the node, or 0 on failure. Set to 0 before
+    ///                 the def is read, so given the def's own parent it
+    ///                 makes that parent 0, which is refused.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie or outside the above; mtwn_errorVersion
     ///         for a def of another version; mtwn_errorStale for a clip that
@@ -349,7 +351,9 @@ extern "C"
     /// @param def      The def: a timeline of the clip as parent, a position
     ///                 as for tracks, a timing mtwnValidateTiming accepts
     ///                 with a monotonic easing (mtwnIsEasingMonotonic).
-    /// @param nodeOut  Receives the node, or 0 on failure.
+    /// @param nodeOut  Receives the node, or 0 on failure. Set to 0 before
+    ///                 the def is read, so given the def's own parent it
+    ///                 makes that parent 0, which is refused.
     /// @return As mtwnClip_AddTrack; mtwn_errorLimit also for a timeline
     ///         past MTWN_MAX_CLIP_DEPTH.
     /// @par Thread safety
