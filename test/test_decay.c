@@ -138,6 +138,7 @@ static void TestDecayRestAndStop(void)
     CHECK(fabs(fabs(velocity) - 0.5) <= 1e-14, "at its stop time it has the stop speed");
     CHECK(mtwnDecayStopTime(&decay, 0.3, 0.5) == 0.0, "a start already slow");
     CHECK(mtwnDecayStopTime(&decay, -0.5, 0.5) == 0.0, "a start at the stop speed");
+    CHECK(mtwnDecayStopTime(&decay, -HUGE_VAL, HUGE_VAL) == 0.0, "an endless one too");
     CHECK(isinf(mtwnDecayStopTime(&decay, 3.0, 0.0)), "a stop speed of 0 is never reached");
     CHECK(isinf(mtwnDecayStopTime(&decay, 3.0, (double)NAN)), "nor a NaN one");
     mtwnSampleDecay(&decay, 1.0, 1.0, 1.0, NULL, NULL);
@@ -246,6 +247,10 @@ static void TestRubberBand(void)
           "no band without a dimension and a coefficient");
     CHECK(!signbit(mtwnRubberBand(-30.0, 0.0, 0.55)) && !signbit(mtwnRubberBand(-30.0, 600.0, 0.0)),
           "its 0 unsigned, a negative drag too");
+    double small = mtwnRubberBand(1.0, 0.5, 0.55);
+    CHECK(fabs(small - 0.5 * 0.55 / 1.05) <= 1e-15 &&
+              fabs(mtwnRubberBandInverse(small, 0.5, 0.55) - 1.0) <= 1e-12,
+          "a band under a unit wide");
     CHECK(mtwnRubberBandInverse(-30.0, 600.0, 0.55) == -mtwnRubberBandInverse(30.0, 600.0, 0.55) &&
               mtwnRubberBandInverse(-30.0, 600.0, 0.55) < 0.0,
           "the inverse is signed");
