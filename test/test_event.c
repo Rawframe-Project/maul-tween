@@ -1132,10 +1132,61 @@ static void TestReverseAfterReducedFinish(void)
     mtwnDestroyContext(w.context);
 }
 
+// A timeline of duration 0 holds its children's time at 0: a timeline
+// placed later in it never starts, nor does a track in that one.
+static void TestUnderAZeroTimeline(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef outer = mtwnDefaultClipTimelineDef();
+    outer.parent = MTWN_ROOT_NODE;
+    outer.position = At(0.1);
+    outer.autoDuration = false;
+    outer.timing.duration = 0.0;
+    mtwnNode zero = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &outer, &zero) == mtwn_success, "a timeline");
+    mtwnClipTimelineDef inner = mtwnDefaultClipTimelineDef();
+    inner.parent = zero;
+    inner.position = At(0.2);
+    inner.autoDuration = false;
+    inner.timing.duration = 1.0;
+    mtwnNode later = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &inner, &later) == mtwn_success, "another");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = later;
+    track.position = At(0.1);
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.5;
+    mtwnNode held = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &held) == mtwn_success, "a track in it");
+    (void)AddTrack(&w, 0.0, 2.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    (void)Play(&w, false, 1.0);
+    uint32_t found = 0;
+    for (int k = 0; k <= 6; ++k)
+    {
+        Update(&w, 0.5 * k);
+        mtwnEvent e[16];
+        uint32_t n = Read(&w, e, 16);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            found += e[i].node == later || e[i].node == held ? 1u : 0u;
+        }
+    }
+    CHECK(found == 0, "no record of what lies past a zero timeline's time");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
     TestReverseAfterReducedFinish();
+    TestUnderAZeroTimeline();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
