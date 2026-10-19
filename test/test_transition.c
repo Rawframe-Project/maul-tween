@@ -760,6 +760,12 @@ static void TestMeasure(void)
     def.rotationPath = mtwn_rotationLongest;
     CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 270 * deg) <= 1e-6,
           "the longest way: 270");
+    // The longest way to itself turns about no axis: refused, its distance
+    // cleared (record mtwn-0073).
+    def.value = (mtwnVec4){0, 0, 0, 1.0f};
+    d = 7.0;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
+          "the longest way round no axis refused, 0");
     def = Linear(Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0}),
                  (mtwnVec4){8.0f, 0, 0, 0}, 1.0);
     CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - log(4.0)) <= 1e-15,
