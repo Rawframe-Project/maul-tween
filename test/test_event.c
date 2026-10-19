@@ -1302,6 +1302,58 @@ static void TestZeroTimelineIteration(void)
     mtwnDestroyContext(w.context);
 }
 
+// A timeline of no iterations, running reversed, holds its child time at
+// its duration: a mark there is crossed with it, a track that ended
+// earlier is not.
+static void TestHeldReversedTimeline(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef held = mtwnDefaultClipTimelineDef();
+    held.parent = MTWN_ROOT_NODE;
+    held.position = At(0.125);
+    held.autoDuration = false;
+    held.timing.duration = 0.25;
+    held.timing.iterations = 0.0;
+    held.timing.direction = mtwn_directionAlternateReverse;
+    held.timing.fill = mtwn_fillBackwards;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &held, &timeline) == mtwn_success,
+          "a reversed timeline of no iterations");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = timeline;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.0;
+    track.timing.delay = 0.125;
+    track.timing.fill = mtwn_fillBoth;
+    mtwnNode ended = 0;
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &ended) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, timeline, At(0.25), 4, &mark) == mtwn_success &&
+              mtwnClip_Finish(w.context, w.clip) == mtwn_success,
+          "a track ended before its time, a mark at it");
+    (void)Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    mtwnEvent e[16];
+    (void)Read(&w, e, 16);
+    Update(&w, 0.5);
+    uint32_t n = Read(&w, e, 16);
+    uint32_t marks = 0;
+    uint32_t tracks = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        marks += Is(&e[i], mtwn_eventMark, mark, 0.125, false) ? 1u : 0u;
+        tracks += e[i].node == ended ? 1u : 0u;
+    }
+    CHECK(marks == 1 && tracks == 0, "the mark crossed at 0.125, the track not at all");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1310,6 +1362,7 @@ int main(void)
     TestEndlessTimelineStart();
     TestUnderZeroTimelines();
     TestZeroTimelineIteration();
+    TestHeldReversedTimeline();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
