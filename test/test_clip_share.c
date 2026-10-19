@@ -12,6 +12,7 @@
 #include "test_harness.h"
 
 #include "maul-tween/clip.h"
+#include "maul-tween/event.h"
 #include "maul-tween/player.h"
 #include "maul-tween/target.h"
 #include "maul-tween/timing.h"
@@ -363,11 +364,133 @@ static void TestInStep(void)
     CHECK(four > 0 && InStepCalls(8) == four, "eight players in step sample as four do");
 }
 
+// Four players of a clip held at rate 0 start in step, the later ones
+// taking the records the earlier made; set going, each records its
+// start once.
+static void TestHeldInStep(void)
+{
+    mtwnContext* context = NULL;
+    mtwnContextDef def = mtwnDefaultContextDef();
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 0);
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnPlayerId players[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnBind(0, target);
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = &binding;
+        playerDef.bindingCount = 1;
+        playerDef.keep = true;
+        playerDef.rate = 0.0;
+        CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
+    }
+    uint32_t starts[4] = {0, 0, 0, 0};
+    for (int k = 0; k < 4; ++k)
+    {
+        if (k == 1)
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                CHECK(mtwnPlayer_SetRate(context, players[i], 1.0) == mtwn_success, "going");
+            }
+        }
+        CHECK(mtwnUpdate(context, (uint64_t)k * 250000000u, NULL, 0, NULL) == mtwn_success,
+              "an update");
+        mtwnEvent events[64];
+        uint32_t n = 0;
+        CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+        for (uint32_t e = 0; e < n; ++e)
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                starts[i] += events[e].kind == mtwn_eventStart &&
+                                     events[e].node == MTWN_ROOT_NODE &&
+                                     events[e].player.index1 == players[i].index1
+                                 ? 1u
+                                 : 0u;
+            }
+        }
+    }
+    CHECK(starts[0] == 1 && starts[1] == 1 && starts[2] == 1 && starts[3] == 1,
+          "each player's start once");
+    mtwnDestroyContext(context);
+}
+
+// Players at their end turn back only when they came there moving: one that
+// seeked there sweeps on from its point, so it is not in step with those
+// turning, which enter their clip again. The first of players in step makes
+// no key, so the seeked one is the third, between two turning.
+static void TestTurnAfterSeek(void)
+{
+    mtwnContext* context = NULL;
+    mtwnContextDef def = mtwnDefaultContextDef();
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 0);
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnPlayerId players[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnBind(0, target);
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = &binding;
+        playerDef.bindingCount = 1;
+        playerDef.keep = true;
+        CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
+    }
+    uint32_t starts[4] = {0, 0, 0, 0};
+    for (int k = 0; k < 4; ++k)
+    {
+        if (k == 3)
+        {
+            CHECK(mtwnPlayer_Seek(context, players[2], 1.0) == mtwn_success, "a seek");
+            for (int i = 0; i < 4; ++i)
+            {
+                CHECK(mtwnPlayer_SetRate(context, players[i], -1.0) == mtwn_success, "back");
+            }
+        }
+        CHECK(mtwnUpdate(context, (uint64_t)k * 500000000u, NULL, 0, NULL) == mtwn_success,
+              "an update");
+        mtwnEvent events[64];
+        uint32_t n = 0;
+        CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+        for (uint32_t e = 0; e < n; ++e)
+        {
+            for (int i = 0; i < 4 && k == 3; ++i)
+            {
+                starts[i] += events[e].kind == mtwn_eventStart &&
+                                     events[e].player.index1 == players[i].index1
+                                 ? 1u
+                                 : 0u;
+            }
+        }
+    }
+    CHECK(starts[0] == 2 && starts[1] == 2 && starts[2] == 0 && starts[3] == 2,
+          "the turning players enter again");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestInStep();
     TestDiffering();
     TestHostEasing();
     TestSignedZero();
+    TestHeldInStep();
+    TestTurnAfterSeek();
     return s_failures == 0 ? 0 : 1;
 }
