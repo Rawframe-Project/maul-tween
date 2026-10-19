@@ -1228,12 +1228,51 @@ static void TestEndlessTimelineStart(void)
     mtwnDestroyContext(w.context);
 }
 
+// Zero timelines nested three deep, the innermost placed past its
+// parent's time: a mark at its start is never crossed.
+static void TestUnderZeroTimelines(void)
+{
+    World w = MakeWorld(64);
+    const double at[3] = {0.1, 0.02, 0.25};
+    mtwnNode parent = MTWN_ROOT_NODE;
+    for (int depth = 0; depth < 3; ++depth)
+    {
+        mtwnClipTimelineDef zero = mtwnDefaultClipTimelineDef();
+        zero.parent = parent;
+        zero.position = At(at[depth]);
+        zero.autoDuration = false;
+        zero.timing.duration = 0.0;
+        CHECK(mtwnClip_AddTimeline(w.context, w.clip, &zero, &parent) == mtwn_success,
+              "a zero timeline");
+    }
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddMark(w.context, w.clip, parent, At(0.0), 5, &mark) == mtwn_success,
+          "a mark at the innermost's start");
+    (void)AddTrack(&w, 0.0, 2.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    (void)Play(&w, false, 1.0);
+    uint32_t found = 0;
+    for (int k = 0; k <= 6; ++k)
+    {
+        Update(&w, 0.5 * k);
+        mtwnEvent e[16];
+        uint32_t n = Read(&w, e, 16);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            found += e[i].node == mark ? 1u : 0u;
+        }
+    }
+    CHECK(found == 0, "no record of a mark past the zero timelines' time");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
     TestReverseAfterReducedFinish();
     TestUnderAZeroTimeline();
     TestEndlessTimelineStart();
+    TestUnderZeroTimelines();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
