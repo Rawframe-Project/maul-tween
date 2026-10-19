@@ -288,6 +288,9 @@ static void TestRotations(void)
     mtwnKeyframe equal[2] = {Key(0.0, a, mtwn_segmentCatmullRom), Key(1.0, a, mtwn_segmentLinear)};
     CHECK(mtwnMakeTrack(&def, equal, 2, NULL, curvedMixes, &track) == mtwn_success,
           "equal rotations the long way on a spline, which turns no slerp");
+    mtwnKeyframe longLine[2] = {Key(0.0, a, mtwn_segmentLinear), Key(1.0, b, mtwn_segmentLinear)};
+    CHECK(mtwnMakeTrack(&def, longLine, 2, NULL, curvedMixes, &track) == mtwn_success,
+          "distinct rotations the long way on a line, its slerp made");
     // An easing at 1 inside a spline segment: the end keyframe, normalized.
     mtwnVec4 odd = {0.1f, -0.7f, 0.3f, 0.6f};
     mtwnKeyframe early[3] = {Key(0.0, a, mtwn_segmentCatmullRom), Key(0.5, odd, mtwn_segmentLinear),
@@ -510,6 +513,10 @@ static void TestScales(void)
     CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_success &&
               fabsf(mtwnSampleTrack(&track, 0.5).x - 4.0f) <= 1e-5f,
           "1, 2, 8, 16 are 2^0, 2^1, 2^3, 2^4: halfway is 2^2");
+    // A quarter of the way the cubic in the logarithm, 0, 1, 3, 4, is
+    // 0.90625: not the line's 2^1.
+    CHECK(fabs((double)mtwnSampleTrack(&track, 0.25).x - pow(2.0, 0.90625)) <= 1e-5,
+          "a quarter of the way along its curve, not its line");
     // The last keyframe starts no segment: a Bezier kind there, its out
     // handle left 0, is not read as a control.
     mtwnKeyframe last[2] = {Key(0.0, Scale(1.0f), mtwn_segmentLinear),
