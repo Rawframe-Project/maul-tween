@@ -148,6 +148,11 @@ static void TestZoomShape(void)
     CHECK(at0.x == a.x && at0.y == a.y && at0.width == a.width && at1.x == b.x && at1.y == b.y &&
               at1.width == b.width,
           "its ends exact");
+    // A point on the way, the same bits (record mtwn-0072).
+    mtwnZoomView at9 = mtwnMixZoom(&mix, 9.0 / 64.0);
+    CHECK(at9.x == 0x1.e5d7058f4208cp-2 && at9.y == -0x1.5166c1fdb387dp+1 &&
+              at9.width == 0x1.3773370801a64p+2,
+          "a point on the way, bit for bit");
     // A pan of 7 widths' worth zooms out on the way.
     double widest = 0.0;
     for (int k = 1; k < 64; ++k)
