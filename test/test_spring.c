@@ -234,6 +234,9 @@ static void TestEndsOfTime(void)
     CHECK(fabs(endless.offsetFromOffset) <= 1.0 && isfinite(endless.offsetFromVelocity) &&
               isfinite(endless.velocityFromOffset) && fabs(endless.velocityFromVelocity) <= 1.0,
           "an infinite phase bounded");
+    // An infinite phase holds no angle: it is taken as none.
+    CHECK(endless.offsetFromOffset == 1.0 && endless.velocityFromVelocity == 1.0,
+          "an infinite phase taken as none");
     // Both bounds fall from the start here, the speed's from just under
     // its tolerance: settled at once, not at a time before the start.
     mtwnSpring firm;

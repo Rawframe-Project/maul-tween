@@ -116,6 +116,17 @@ static void TestShakeShape(void)
     CHECK(mtwnSampleShake(&shake, 0, 0.0) == 0.0 && mtwnSampleShake(&shake, 0, 3.0) == 0.0 &&
               mtwnSampleShake(&shake, 0, -1.0) == 0.0 && mtwnSampleShake(&shake, 0, 9.0) == 0.0,
           "0 at its ends and outside");
+    int negative = 0;
+    for (uint64_t seed = 0; seed < 8; ++seed)
+    {
+        CHECK(mtwnMakeShake(7.0, 1.0, 2.0, seed, &shake) == mtwn_success, "made");
+        for (uint32_t channel = 0; channel < 4; ++channel)
+        {
+            negative += signbit(mtwnSampleShake(&shake, channel, 0.0)) ? 1 : 0;
+        }
+    }
+    CHECK(negative == 0, "its start an unsigned 0 on every channel");
+    CHECK(mtwnMakeShake(4.0, 3.0, 1.0, 42, &shake) == mtwn_success, "made again");
     int lattice = 0;
     for (int k = 1; k < 12; ++k)
     {
