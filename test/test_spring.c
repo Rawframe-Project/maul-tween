@@ -282,6 +282,8 @@ static void TestRefusals(void)
           "a squared frequency that underflows");
     CHECK(mtwnMakeSpringFromFrequency(1.0, 1e308, &spring) == mtwn_errorInvalid,
           "a decay rate that overflows");
+    CHECK(mtwnMakeSpringFromFrequency(1.5e153, 1e154, &spring) == mtwn_errorInvalid,
+          "decay and damped rates each finite, their sum not");
     CHECK(mtwnMakeSpringFromDuration(0.0, 0.0, &spring) == mtwn_errorInvalid, "no duration");
     CHECK(mtwnMakeSpringFromDuration(1.0, -1.0, &spring) == mtwn_errorInvalid, "bounce -1");
     CHECK(mtwnMakeSpringFromDuration(1.0, 1.01, &spring) == mtwn_errorInvalid, "bounce above 1");
@@ -292,6 +294,9 @@ static void TestRefusals(void)
     CHECK(mtwnMakeSpringFromDuration(1.0, 1.0, &spring) == mtwn_success &&
               isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 1e-3, 1e-3)),
           "bounce 1 never settles");
+    CHECK(mtwnMakeSpring(100.0, 0.0, 1.0, &spring) == mtwn_success &&
+              mtwnMakeSpring(100.0, 0.5, 1.0, &spring) == mtwn_success,
+          "no damping and damping under 1 made");
 }
 
 typedef struct SettleCase
