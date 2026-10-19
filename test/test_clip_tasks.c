@@ -1429,9 +1429,39 @@ static void TestOneChannel(void)
     mtwnDestroyContext(context);
 }
 
+// A player whose every binding is layered marks nothing alone, so it
+// needs no room for alone changes: two players binding the same two
+// targets, each two bindings against a group's room for three changes,
+// run by their groups (asked to fit four changes, they went serial).
+static void TestLayeredFit(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.bindingCapacity = 24;
+    def.enqueueTask = RunAtOnce;
+    def.finishTask = WaitForNothing;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    CHECK(context->works[0].trackCapacity == 3 && context->works[0].changeCapacity == 3,
+          "room for three results and three changes a group");
+    mtwnTargetId a = {0, 0};
+    mtwnTargetId b = {0, 0};
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &a) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &b) == mtwn_success,
+          "two targets");
+    mtwnClipId clip = TwoTracks(context);
+    (void)PlayTwo(context, clip, a, b);
+    (void)PlayTwo(context, clip, a, b);
+    Step(context, 0.0);
+    Step(context, 0.25);
+    Step(context, 0.5);
+    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "both layered players run by their groups");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestWriters();
+    TestLayeredFit();
     TestOneChannel();
     TestStaleAlone();
     TestStaleAloneAfterWriter();

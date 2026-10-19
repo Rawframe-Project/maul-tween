@@ -170,6 +170,13 @@ static void TestKnownValues(void)
                   mtwn_success &&
               linear[1] == -linear[0] && linear[2] == (double)0.02f / 12.92,
           "sRGB's transfer, reflected for negative values, linear near 0");
+    // Back from linear, CSS Color 4's gam_sRGB takes the power only above
+    // 0.0031308: at it, the line, 12.92 times it.
+    const double threshold[4] = {0.0031308, -0.0031308, 0.0, 1.0};
+    mtwnColor gamma;
+    CHECK(mtwnColorFromSpace(threshold, mtwn_colorLinearSrgb, &gamma) == mtwn_success &&
+              gamma.red == (float)(12.92 * 0.0031308) && gamma.green == -gamma.red,
+          "the transfer's threshold on its line");
 }
 
 static void TestRoundTrips(void)
@@ -371,6 +378,15 @@ static void TestEqualHues(void)
           "a powerless end at 1 takes the hue at 0");
     CHECK(fabs(MiddleHue(blue, blue, mtwn_hueLonger) - turned) <= 2e-5,
           "the same color the long way turns too");
+    // Upwards, CSS adding the turn to the second hue: a quarter of the way
+    // a quarter turn on (the middle alone reads the same either way).
+    mtwnColorMix mix;
+    double quarter[4] = {0.0, 0.0, (double)NAN, 0.0};
+    CHECK(mtwnMakeColorMix(blue, blue, mtwn_colorOklch, mtwn_hueLonger, &mix) == mtwn_success &&
+              mtwnColorToSpace(mtwnMixColor(&mix, 0.25), mtwn_colorOklch, quarter) ==
+                  mtwn_success &&
+              fabs(quarter[2] - fmod(h + 0.5 * s_pi, 2.0 * s_pi)) <= 2e-5,
+          "the long way round turning up");
 }
 
 static void TestBelowZeroAlpha(void)
