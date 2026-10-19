@@ -692,6 +692,16 @@ static void TestPointBits(void)
     mtwnSamplePath(&path, 0.56, v, NULL);
     CHECK(v[0] == 0x1.28853c8fc0848p+0 && v[1] == -0x1.51ebd77eb25ep+0,
           "56 hundredths of its length, to the bit");
+    // A curve whose handles sit on each other's ends: its length to the
+    // bit. Its speed minimum's search runs all 64 of its steps here; a
+    // 65th moved the length's last bits.
+    mtwnKeyframe crossed[2] = {Key(0.0, -0x1.e2f838p-1f, 0x1.02dep-3f, mtwn_segmentBezier),
+                               Key(1.0, 0x1.1eb84p-5f, 0x1.fac71p-1f, mtwn_segmentLinear)};
+    crossed[0].out = crossed[1].value;
+    crossed[1].in = crossed[0].value;
+    CHECK(mtwnMakePath(crossed, 2, 2, 0.5, lengths, &path) == mtwn_success &&
+              lengths[1] == 0x1.4e080f26d5a16p+0,
+          "a crossed curve's length, to the bit");
 }
 
 // Every point of 50 fixed random curves at 101 shares of their length,
