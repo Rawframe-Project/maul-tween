@@ -497,6 +497,22 @@ static void TestNumberLength(void)
     // No cubic term: the derivative is linear, its one root a turn.
     static const float once[4] = {0.0f, 1.0f, 1.0f, 0.0f};
     CheckLineLength(once, 1, "a number turning once, a quadratic");
+    // A quadratic whose derivative's slope is exactly 1: a uniform
+    // Catmull-Rom through 0.75, 0, 0.25, 1.5 has -u/4 + u^2/2 between 0 and
+    // 0.25, down 1/32 and up 9/32, 0.3125 in all.
+    mtwnKeyframe keys[4];
+    memset(keys, 0, sizeof keys);
+    static const float values[4] = {0.75f, 0.0f, 0.25f, 1.5f};
+    for (int i = 0; i < 4; ++i)
+    {
+        keys[i] = Key(i / 3.0, values[i], 0.0f, mtwn_segmentCatmullRom);
+    }
+    keys[3].offset = 1.0;
+    double lengths[4];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 4, 1, 0.0, lengths, &path) == mtwn_success &&
+              lengths[2] - lengths[1] == 0.3125,
+          "a turn where the derivative's slope is 1");
 }
 
 // Turns back along a line in two to four channels (record mtwn-0031).
@@ -657,6 +673,15 @@ static void TestPointBits(void)
     mtwnSamplePath(&path, 0.43, v, NULL);
     CHECK(v[0] == -0x1.a9773f4ceb1ccp+1 && v[1] == -0x1.b277f33a74f6p-3,
           "43 hundredths of its length, to the bit");
+    // And one the search's stop at a step of 2^-52 (not under it) keeps.
+    mtwnKeyframe other[2] = {Key(0.0, -0x1.35fbe8p+3f, 0x1.eb85p-3f, mtwn_segmentBezier),
+                             Key(1.0, 0x1.db646p+0f, -0x1.4p+0f, mtwn_segmentLinear)};
+    other[0].out = (mtwnVec4){0x1.72d0e4p+2f, 0x1.2bc6a8p+1f, 0, 0};
+    other[1].in = (mtwnVec4){-0x1.48a3d8p+2f, 0x1.d851e8p+1f, 0, 0};
+    CHECK(mtwnMakePath(other, 2, 2, 0.5, lengths, &path) == mtwn_success, "another curve");
+    mtwnSamplePath(&path, 0.67, v, NULL);
+    CHECK(v[0] == -0x1.79e6b9feb79cp-1 && v[1] == 0x1.115e1a98f1002p+1,
+          "67 hundredths of its length, to the bit");
 }
 
 // A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
