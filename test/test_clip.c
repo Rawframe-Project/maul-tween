@@ -666,6 +666,32 @@ static void TestTimelineRefusals(void)
     mtwnDestroyContext(context);
 }
 
+// Only a timeline played backwards needs its children to end: one played
+// forwards slower than real time takes an endless child.
+static void TestSlowEndless(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = 2;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.timing.playbackRate = 0.5;
+    mtwnNode slow;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &slow) == mtwn_success, "a slow timeline");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.parent = slow;
+    track.timing.iterations = HUGE_VAL;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "an endless child of a timeline played forwards at half speed");
+    mtwnDestroyContext(context);
+}
+
 #if defined(__x86_64__) || defined(_M_X64)
 static const uint64_t s_hostSetting = 0x1f80u | (1u << 15) | (1u << 6) | (3u << 13);
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -820,6 +846,7 @@ int main(void)
     TestEndless();
     TestDepth();
     TestTimelineRefusals();
+    TestSlowEndless();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;
 }

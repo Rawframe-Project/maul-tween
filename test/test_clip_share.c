@@ -308,8 +308,64 @@ static void TestHostEasing(void)
           "a host easing called for every track, sharing none of them");
 }
 
+// Players in step share their samples (record mtwn-0057): one host-eased
+// track played by four and by eight players in step, the eight call the
+// host function no more than the four, 4 times (a check that took every
+// track as unknown sampled each of them: 6 calls and 14).
+static int InStepCalls(int players)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip = {0, 0};
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnEasing host;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Counted, NULL, &host) == mtwn_success, "a host easing");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    track.timing.easing = host;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a host-eased track");
+    for (int p = 0; p < players; ++p)
+    {
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnBind(0, target);
+        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        player.clip = clip;
+        player.bindings = &binding;
+        player.bindingCount = 1;
+        mtwnPlayerId id = {0, 0};
+        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    }
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
+    s_calls = 0;
+    CHECK(mtwnUpdate(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
+    int calls = s_calls;
+    mtwnDestroyContext(context);
+    return calls;
+}
+
+static void TestInStep(void)
+{
+    int four = InStepCalls(4);
+    CHECK(four > 0 && InStepCalls(8) == four, "eight players in step sample as four do");
+}
+
 int main(void)
 {
+    TestInStep();
     TestDiffering();
     TestHostEasing();
     TestSignedZero();

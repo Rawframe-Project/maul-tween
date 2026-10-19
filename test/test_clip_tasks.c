@@ -1383,9 +1383,56 @@ static void TestStaleAloneAfterWriter(void)
     mtwnDestroyContext(context);
 }
 
+// A group writes a value that changed in any channel: here z alone, x, y
+// and w held (a check of whole values let pass by its last two
+// channels missed it).
+static void TestOneChannel(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = RunAtOnce;
+    def.finishTask = WaitForNothing;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnTargetId a = {0, 0};
+    mtwnTargetId b = {0, 0};
+    const mtwnVec4 still = {0, 0, 0, 1.0f};
+    CHECK(mtwnCreateTarget(context, mtwn_valueVec4, still, &a) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueVec4, still, &b) == mtwn_success,
+          "two targets");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value = still;
+    keys[1].value = (mtwnVec4){0, 0, 1.0f, 1.0f};
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.track.kind = mtwn_valueVec4;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1.0;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a track moving z");
+    (void)PlayTwo(context, clip, a, (mtwnTargetId){0, 0});
+    (void)PlayTwo(context, clip, b, (mtwnTargetId){0, 0});
+    Step(context, 0.0);
+    Step(context, 0.5);
+    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "both players run by their groups");
+    mtwnVec4 value = {0};
+    CHECK(mtwnTarget_GetValue(context, a, &value) == mtwn_success && value.x == 0.0f &&
+              value.y == 0.0f && fabsf(value.z - 0.5f) <= 1e-6f && value.w == 1.0f,
+          "z half way, written by its group");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestWriters();
+    TestOneChannel();
     TestStaleAlone();
     TestStaleAloneAfterWriter();
     TestExactFit();
