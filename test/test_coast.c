@@ -452,6 +452,25 @@ static void TestRestUlpPast(void)
     mtwnDestroyContext(context);
 }
 
+// A scale's decay holds one channel: the rest read 0, value and velocity.
+static void TestScaleChannels(void)
+{
+    mtwnContext* context = Make();
+    mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){1.0f, 0, 0, 0});
+    mtwnTransitionDef def = Fling(z, (mtwnVec4){3.0f, 0, 0, 0});
+    mtwnPlayerId player = {0, 0};
+    Update(context, 0);
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a scale flung");
+    Update(context, s_second / 10u);
+    Update(context, s_second / 5u);
+    mtwnTargetState state = State(context, z);
+    CHECK(state.value.x > 1.0f && state.value.y == 0.0f && state.value.z == 0.0f &&
+              state.value.w == 0.0f && state.velocity.y == 0.0f && state.velocity.z == 0.0f &&
+              state.velocity.w == 0.0f,
+          "growing in its one channel, 0 past it");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestSlowCross();
@@ -460,6 +479,7 @@ int main(void)
     TestBounded();
     TestLanding();
     TestScaleBounded();
+    TestScaleChannels();
     TestScalePastFloats();
     TestStopsPastFloats();
     TestRefusals();
