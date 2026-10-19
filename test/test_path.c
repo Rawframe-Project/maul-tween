@@ -758,6 +758,16 @@ static void TestPointBits(void)
     mtwnSamplePath(&path, 0.41, v, NULL);
     CHECK(v[0] == 0x1.98bae15872f6bp-1 && v[1] == 0x1.033510db4bfa4p+0,
           "41 hundredths of its length, to the bit");
+    // One whose minimum's Newton step falls under an ulp of the bracket's
+    // low end: the search halves there rather than stopping on it (a stop
+    // moved the length's last bit).
+    mtwnKeyframe under[2] = {Key(0.0, 0x1.53f7cp-2f, -0x1.bf2b02p+2f, mtwn_segmentBezier),
+                             Key(1.0, -0x1.011688p+2f, 0x1.7efap-3f, mtwn_segmentLinear)};
+    under[0].out = (mtwnVec4){-0x1.9db22cp+1f, -0x1.3ae148p+1f, 0, 0};
+    under[1].in = (mtwnVec4){0x1.034bc8p+3f, 0x1.09eb84p+3f, 0, 0};
+    CHECK(mtwnMakePath(under, 2, 2, 0.5, lengths, &path) == mtwn_success &&
+              lengths[1] == 0x1.108a767b1ce38p+4,
+          "a step under an ulp halved, its length to the bit");
 }
 
 // Every point of 50 fixed random curves at 101 shares of their length,
