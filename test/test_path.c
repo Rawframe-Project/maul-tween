@@ -694,6 +694,54 @@ static void TestPointBits(void)
           "56 hundredths of its length, to the bit");
 }
 
+// Every point of 50 fixed random curves at 101 shares of their length,
+// hashed (FNV-1a over the doubles' bits): 1.x keeps them on every platform,
+// so any change to the search's steps, minima or rules shows here.
+static uint64_t s_curveState = 21u;
+
+static float CurveCoordinate(void)
+{
+    s_curveState = (s_curveState * 1103515245u + 12345u) & 0xFFFFFFFFu;
+    return (float)((s_curveState >> 8) % 20001u) / 1000.0f - 10.0f;
+}
+
+static void TestPointsHash(void)
+{
+    uint64_t hash = 0xCBF29CE484222325u;
+    for (int n = 0; n < 50; ++n)
+    {
+        float c[4][2];
+        for (int k = 0; k < 4; ++k)
+        {
+            c[k][0] = CurveCoordinate();
+            c[k][1] = CurveCoordinate();
+        }
+        mtwnKeyframe keys[2] = {Key(0.0, c[0][0], c[0][1], mtwn_segmentBezier),
+                                Key(1.0, c[3][0], c[3][1], mtwn_segmentLinear)};
+        keys[0].out = (mtwnVec4){c[1][0], c[1][1], 0, 0};
+        keys[1].in = (mtwnVec4){c[2][0], c[2][1], 0, 0};
+        double lengths[2];
+        mtwnPath path;
+        CHECK(mtwnMakePath(keys, 2, 2, 0.5, lengths, &path) == mtwn_success, "a curve");
+        for (int j = 0; j <= 100; ++j)
+        {
+            double v[4];
+            mtwnSamplePath(&path, j / 100.0, v, NULL);
+            uint64_t bits[2];
+            memcpy(bits, v, sizeof bits);
+            for (int b = 0; b < 16; ++b)
+            {
+                hash = (hash ^ ((bits[b / 8] >> (8 * (b % 8))) & 0xFFu)) * 0x100000001B3u;
+            }
+        }
+    }
+    if (hash != 0x55837EDE9ED4B30Du)
+    {
+        printf("  points hash %016llx\n", (unsigned long long)hash);
+    }
+    CHECK(hash == 0x55837EDE9ED4B30Du, "50 curves' points at 101 shares, to the bit");
+}
+
 // A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
 // the speed falls to 0 there as (1 - u)^2, and its rounding keeps the
 // length's two orders apart at any width; at constant speed a share 2^-40
@@ -959,6 +1007,7 @@ int main(void)
     TestNumberLength();
     TestSpeedDrift();
     TestPointBits();
+    TestPointsHash();
     TestBisected();
     TestTurnBack();
     TestNearTurn();
