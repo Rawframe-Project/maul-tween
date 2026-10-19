@@ -1161,6 +1161,39 @@ static void TestFirstMillisecond(void)
     mtwnDestroyContext(context);
 }
 
+// The start record's time is its start plus its delay, even when an
+// update lands exactly where the delay ends and the clock reads a hair
+// apart.
+static void TestStartRecordTime(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId x;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    const uint64_t start = 3000000001u;
+    mtwnTransitionDef def = mtwnDefaultTransitionDef();
+    def.target = x;
+    def.value = (mtwnVec4){1.0f, 0, 0, 0};
+    def.delay = 0.7;
+    mtwnPlayerId player;
+    CHECK(mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success &&
+              mtwnStartTransition(context, &def, &player) == mtwn_success &&
+              mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success,
+          "started, 0.7 s of delay");
+    for (uint64_t ns = start + 700000000u - 2u; ns <= start + 700000000u + 2u; ++ns)
+    {
+        CHECK(mtwnUpdate(context, ns, NULL, 0, NULL) == mtwn_success, "about its end");
+    }
+    mtwnEvent events[8];
+    uint32_t count = 0;
+    CHECK(mtwnReadEvents(context, events, 8, &count, NULL) == mtwn_success && count == 1 &&
+              events[0].kind == mtwn_eventStart && events[0].hostTime == (double)start / 1e9 + 0.7,
+          "begun at its start plus its delay");
+    mtwnDestroyContext(context);
+}
+
 // A path kind's start velocity is the given one projected on the end
 // minus the start, in progress, over its four channels and no more.
 static void TestPathVelocity(void)
@@ -1488,6 +1521,7 @@ int main(void)
     TestStartVelocity();
     TestPathVelocity();
     TestFirstMillisecond();
+    TestStartRecordTime();
     TestReplacedVelocity();
     TestScalar();
     TestDelayAndEasing();
