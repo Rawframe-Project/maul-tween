@@ -310,6 +310,23 @@ static void TestStill(void)
     }
     CHECK(held > 0, "some held at a bound");
     CHECK(moving == 0, "held at a bound: still");
+    // Exactly the largest float is inside the floats, not held past them: a
+    // decay from there moves at its velocity.
+    World top = MakeWorld(0x1.fffffep127f);
+    mtwnTransitionDef fling = mtwnDefaultTransitionDef();
+    fling.target = top.target;
+    fling.spec = mtwn_transitionDecay;
+    fling.velocitySource = mtwn_velocityGiven;
+    fling.velocity = (mtwnVec4){-100.0f, 0, 0, 0};
+    mtwnPlayerId flung;
+    mtwnTargetState start;
+    CHECK(mtwnStartTransition(top.context, &fling, &flung) == mtwn_success &&
+              mtwnUpdate(top.context, 25000000u, NULL, 0, NULL) == mtwn_success &&
+              mtwnTarget_GetState(top.context, top.target, &start) == mtwn_success,
+          "flung down from the largest float");
+    CHECK(start.value.x == 0x1.fffffep127f && start.velocity.x == -100.0f,
+          "there, at its velocity");
+    mtwnDestroyContext(top.context);
     // A clip track eased past the bound, by one player replacing and by
     // two adding.
     for (int players = 1; players <= 2; ++players)

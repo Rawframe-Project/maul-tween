@@ -1355,6 +1355,14 @@ static void TestReversalSignedZero(void)
     back = Toward(context, x, 0.0f, 1.0, &steps, true);
     CHECK(back->duration == 0.25, "back over the step already taken");
     mtwnDestroyContext(context);
+    // Before its first update it has not begun, no step taken: back at once.
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
+          "a target");
+    (void)Toward(context, x, 1.0f, 1.0, &steps, true);
+    back = Toward(context, x, 0.0f, 1.0, &steps, true);
+    CHECK(back->duration == 0.0, "not begun: no way back to take");
+    mtwnDestroyContext(context);
 
     // Every channel compares: an end differing in any one alone is not the
     // way back.
