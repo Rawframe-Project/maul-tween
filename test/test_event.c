@@ -1106,9 +1106,36 @@ static void TestJumpStartMarks(void)
     mtwnDestroyContext(w.context);
 }
 
+// A player finished by reduced motion with a rate change pending, then
+// reversed: no time ran for it since, so its run starts at the update
+// after the reversal, not at the one it finished in.
+static void TestReverseAfterReducedFinish(void)
+{
+    World w = MakeWorld(64);
+    (void)AddTrack(&w, 0.0, 1.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId p = Play(&w, true, 1.0);
+    mtwnEvent e[16];
+    Update(&w, 0.0);
+    Update(&w, 0.1);
+    CHECK(mtwnPlayer_SetRate(w.context, p, 1.5) == mtwn_success &&
+              mtwnContext_SetReducedMotion(w.context, true) == mtwn_success,
+          "a rate pending, reduced motion");
+    Update(&w, 0.25);
+    (void)Read(&w, e, 16);
+    CHECK(mtwnContext_SetReducedMotion(w.context, false) == mtwn_success &&
+              mtwnPlayer_Reverse(w.context, p) == mtwn_success,
+          "reversed");
+    Update(&w, 0.5);
+    CHECK(Read(&w, e, 16) == 2 && Is(&e[0], mtwn_eventStart, MTWN_ROOT_NODE, 0.5, true),
+          "the reversed run starts at the update after it");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
+    TestReverseAfterReducedFinish();
     TestHoldEdges();
     TestOneCrossingIterations();
     TestEdgeIterations();
