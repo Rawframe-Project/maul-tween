@@ -567,14 +567,10 @@ static Wide Simpson(const Wide p[2][4], Wide u, int panels)
 }
 
 // Two channels: each share's point against the parameter at that length
-// found again in Wide. The share near 0.6 here once came 1.6e-7 off, the
-// length found by summing each Newton step's length drifting from the
-// length measured afresh (found comparing builds over random paths).
-static void TestSpeedDrift(void)
+// found again in Wide (Newton's steps on Simpson's rule), the worst error
+// relative to the length; the extra share after the hundredths.
+static double WorstShare(const float controls[2][4], double extra)
 {
-    static const float controls[2][4] = {
-        {0x1.b921eap+1f, 0x1.7ad7cap+1f, -0x1.649f38p+2f, -0x1.bafc4p+1f},
-        {-0x1.231bc6p+3f, -0x1.e97f98p+2f, -0x1.d32788p+2f, -0x1.19e712p+3f}};
     mtwnKeyframe keys[2] = {Key(0.0, controls[0][0], controls[1][0], mtwn_segmentBezier),
                             Key(1.0, controls[0][3], controls[1][3], mtwn_segmentLinear)};
     keys[0].out = (mtwnVec4){controls[0][1], controls[1][1], 0, 0};
@@ -595,24 +591,54 @@ static void TestSpeedDrift(void)
     double worst = 0.0;
     for (int k = 0; k <= 101; ++k)
     {
-        double share = k <= 100 ? k / 100.0 : 0x1.3255b88bb5ef2p-1;
+        double share = k <= 100 ? k / 100.0 : extra;
         Wide target = total * (Wide)share;
         Wide u = (Wide)share;
         for (int step = 0; step < 8; ++step)
         {
             u -= (Simpson(p, u, 2048) - target) / BezierSpeed(p, u);
         }
+        CHECK(fabs((double)((Simpson(p, u, 2048) - target) / total)) <= 1e-13,
+              "the reference's parameter found");
         double v[4];
         mtwnSamplePath(&path, share, v, NULL);
         double error = fabs((double)((Wide)v[0] - BezierAt(p[0], u))) +
                        fabs((double)((Wide)v[1] - BezierAt(p[1], u)));
         worst = error > worst ? error : worst;
     }
-    if (!(worst <= 1e-10 * (double)total))
+    return worst / (double)total;
+}
+
+// The share near 0.6 here once came 1.6e-7 off, the length found by
+// summing each Newton step's length drifting from the length measured
+// afresh (found comparing builds over random paths).
+static void TestSpeedDrift(void)
+{
+    static const float controls[2][4] = {
+        {0x1.b921eap+1f, 0x1.7ad7cap+1f, -0x1.649f38p+2f, -0x1.bafc4p+1f},
+        {-0x1.231bc6p+3f, -0x1.e97f98p+2f, -0x1.d32788p+2f, -0x1.19e712p+3f}};
+    double worst = WorstShare(controls, 0x1.3255b88bb5ef2p-1);
+    if (!(worst <= 1e-10))
     {
         printf("  constant speed %.3g\n", worst);
     }
-    CHECK(worst <= 1e-10 * (double)total, "every share at its place, no drift");
+    CHECK(worst <= 1e-10, "every share at its place, no drift");
+}
+
+// Handles crossed far past each other: near 0.1 Halley's step lands
+// outside the bracket and the search bisects it; a wrong midpoint there
+// once went unseen (a sampled mutant).
+static void TestBisected(void)
+{
+    static const float controls[2][4] = {
+        {-0x1.cbfb1p-4f, 0x1.2dfa4p-2f, -0x1.31a028p+1f, 0x1.f645ap-1f},
+        {0x1.5844dp-3f, 0x1.67453ap+0f, -0x1.3559b4p+1f, -0x1.786c2p-3f}};
+    double worst = WorstShare(controls, 0.12);
+    if (!(worst <= 1e-10))
+    {
+        printf("  bisected %.3g\n", worst);
+    }
+    CHECK(worst <= 1e-10, "every share at its place where the search bisects");
 }
 
 // A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
@@ -879,6 +905,7 @@ int main(void)
     TestLength();
     TestNumberLength();
     TestSpeedDrift();
+    TestBisected();
     TestTurnBack();
     TestNearTurn();
     TestStillEnds();
