@@ -293,6 +293,12 @@ static void TestLinearCanonicalization(void)
     CHECK(mtwnMakeLinearEasing(run, 4, &easing) == mtwn_success, "a run without inputs");
     CHECK(fabs(run[1].input - 0.3) <= 1e-16 && fabs(run[2].input - 0.6) <= 1e-16,
           "spread evenly between its neighbors");
+    // A run after a point past 0: spread over the span from it, a third
+    // and two thirds of the way from 0.5 to 1.
+    mtwnLinearPoint later[] = {{0.0, 0.0}, {0.5, 0.5}, {NONE, 0.6}, {NONE, 0.7}, {1.0, 1.0}};
+    CHECK(mtwnMakeLinearEasing(later, 5, &easing) == mtwn_success, "a run after 0.5");
+    CHECK(fabs(later[2].input - 2.0 / 3.0) <= 1e-15 && fabs(later[3].input - 5.0 / 6.0) <= 1e-15,
+          "spread from its neighbor past 0");
     mtwnLinearPoint late[] = {{NONE, 0.0}, {1.5, 1.0}, {NONE, 0.5}};
     CHECK(mtwnMakeLinearEasing(late, 3, &easing) == mtwn_success, "an input past 1");
     CHECK(SameInputs(late, (const double[]){0.0, 1.5, 1.5}, 3), "the last is at least it");
