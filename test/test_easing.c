@@ -513,6 +513,15 @@ static void TestPinnedBits(void)
     // The largest integer power, 8, still by multiplication.
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 8.0, &easing) == mtwn_success, "power 8");
     CHECK(mtwnEase(&easing, 0.1, false) == 0x1.5798ee2308c3fp-27, "0.1 to the 8th, bit for bit");
+    // A bezier whose x has no slope at 0, where Newton steps leave the
+    // bracket and are bisected instead.
+    CHECK(mtwnMakeCubicBezier(0.0, -2.0, 0.0, -2.0, &easing) == mtwn_success, "flat bezier");
+    CHECK(mtwnEase(&easing, 1.0 / 400.0, false) == -0x1.67115cc9d9e69p-1,
+          "a flat bezier, bit for bit");
+    // Spreading a run of missing inputs leaves the run's end as given.
+    mtwnLinearPoint points[4] = {{0.0, 0.0}, {0.03, 0.2}, {(double)NAN, 0.5}, {0.3, 0.8}};
+    CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success && points[3].input == 0.3,
+          "the run's end input kept");
 }
 
 int main(void)
