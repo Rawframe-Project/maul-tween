@@ -484,6 +484,109 @@ static void TestTurnAfterSeek(void)
     mtwnDestroyContext(context);
 }
 
+// A clip of exactly the shared node capacity: the players in step keep
+// its tracks' results in all of it and no further, so the records kept
+// for the fourth (the third's) are the first's to the bit.
+static void TestFullSharedNodes(void)
+{
+    mtwnContext* context = NULL;
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.sharedNodeCapacity = 3;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.05, 1.0, 2.0, 0);
+    (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.07, 1.0, 2.0, 1);
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnPlayerId players[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnBind(0, target);
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = &binding;
+        playerDef.bindingCount = 1;
+        playerDef.keep = true;
+        CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
+    }
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    mtwnEvent events[64];
+    uint32_t n = 0;
+    CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+    CHECK(mtwnUpdate(context, 100000000u, NULL, 0, NULL) == mtwn_success, "a tenth of a second");
+    CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+    double first[8];
+    double fourth[8];
+    uint32_t firstCount = 0;
+    uint32_t fourthCount = 0;
+    for (uint32_t e = 0; e < n; ++e)
+    {
+        if (events[e].player.index1 == players[0].index1 && firstCount < 8)
+        {
+            first[firstCount++] = events[e].hostTime;
+        }
+        if (events[e].player.index1 == players[3].index1 && fourthCount < 8)
+        {
+            fourth[fourthCount++] = events[e].hostTime;
+        }
+    }
+    bool same = firstCount == 2 && fourthCount == 2;
+    for (uint32_t e = 0; same && e < firstCount; ++e)
+    {
+        same = memcmp(&first[e], &fourth[e], sizeof first[e]) == 0;
+    }
+    CHECK(same, "the fourth's two starts at the first's host times, to the bit");
+    mtwnDestroyContext(context);
+}
+
+// Players in step that bind different slots: the third keeps only the
+// tracks it binds, so the fourth, binding one more, samples its clip
+// itself and its second target shows that track's value.
+static void TestInStepMoreSlots(void)
+{
+    mtwnContext* context = NULL;
+    mtwnContextDef def = mtwnDefaultContextDef();
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 0);
+    mtwnNode second = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 1);
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    mtwnTargetId last = {0, 0};
+    for (int i = 0; i < 4; ++i)
+    {
+        mtwnBinding bindings[2];
+        for (uint32_t b = 0; b < 2; ++b)
+        {
+            mtwnTargetId target;
+            CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) ==
+                      mtwn_success,
+                  "a target");
+            bindings[b] = mtwnBind(b, target);
+            last = target;
+        }
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = bindings;
+        playerDef.bindingCount = i == 3 ? 2 : 1;
+        playerDef.keep = true;
+        mtwnPlayerId player;
+        CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    }
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnUpdate(context, 500000000u, NULL, 0, NULL) == mtwn_success, "half way");
+    mtwnVec4 value;
+    CHECK(mtwnTarget_GetValue(context, last, &value) == mtwn_success, "read");
+    CHECK(value.x == Expected(context, clip, second, 0.5) && value.x > 0.0f,
+          "the fourth's second target at its track's value");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestInStep();
@@ -492,5 +595,7 @@ int main(void)
     TestSignedZero();
     TestHeldInStep();
     TestTurnAfterSeek();
+    TestFullSharedNodes();
+    TestInStepMoreSlots();
     return s_failures == 0 ? 0 : 1;
 }
