@@ -684,6 +684,59 @@ static void TestRangeEnds(void)
     }
 }
 
+// Slow and small springs, where the rates fall under 1: a stiffness
+// under 1 is a spring; a decay under 1 is at rest at infinity; a critical
+// spring decaying under 1 per second settles at a finite time, and from
+// rest at once; a tolerance of 0 is never met, from rest too; and a
+// settling time that takes every Newton step, to the bit.
+static void TestSlowSprings(void)
+{
+    mtwnSpring soft;
+    CHECK(mtwnMakeSpring(0.5, 0.1, 1.0, &soft) == mtwn_success, "a stiffness of 0.5");
+    mtwnSpring slow;
+    CHECK(mtwnMakeSpringFromFrequency(0.1, 0.5, &slow) == mtwn_success, "a slow spring");
+    mtwnSpringMotion rest = mtwnSpringMotionAt(&slow, HUGE_VAL);
+    CHECK(rest.offsetFromOffset == 0.0 && rest.offsetFromVelocity == 0.0 &&
+              rest.velocityFromOffset == 0.0 && rest.velocityFromVelocity == 0.0,
+          "a decay of 0.31 at rest at infinity");
+    mtwnSpring critical;
+    CHECK(mtwnMakeSpringFromFrequency(0.1, 1.0, &critical) == mtwn_success,
+          "a slow critical spring");
+    double settle = mtwnSpringSettlingTime(&critical, 1.0, 0.0, 1e-3, 1e-3);
+    CHECK(isfinite(settle) && settle > 0.0, "settles at a finite time");
+    CHECK(mtwnSpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 1e-3) == 0.0, "from rest at once");
+    int never = 0;
+    never += mtwnSpringSettlingTime(&slow, 0.0, 0.0, 0.0, 1e-3) == HUGE_VAL;
+    never += mtwnSpringSettlingTime(&slow, 0.0, 0.0, 1e-3, 0.0) == HUGE_VAL;
+    never += mtwnSpringSettlingTime(&critical, 0.0, 0.0, 0.0, 1e-3) == HUGE_VAL;
+    never += mtwnSpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 0.0) == HUGE_VAL;
+    CHECK(never == 4, "a tolerance of 0 never met, from rest too");
+    mtwnSpring stiff;
+    CHECK(mtwnMakeSpringFromFrequency(7.75, 1.0, &stiff) == mtwn_success, "a critical spring");
+    CHECK(mtwnSpringSettlingTime(&stiff, -1e-7, -1e-4, 1e-7, 0.5) == 0x1.838eecff3de01p-4,
+          "its settling time to the bit");
+}
+
+// Motion and settling on their edges, to the bit: a phase of exactly
+// 2^52, the first reduced; an overdamped phase of exactly 0.5, the first
+// past the series; and an offset whose bound has no velocity term (v =
+// -decay x), e^-t from 1 to 0.5 in ln 2.
+static void TestSpringEdgeBits(void)
+{
+    mtwnSpring undamped;
+    CHECK(mtwnMakeSpring(1.0, 0.0, 1.0, &undamped) == mtwn_success, "undamped, 1 rad/s");
+    CHECK(mtwnSpringMotionAt(&undamped, 0x1p52).offsetFromOffset == -0x1.42f30bfeab95fp-1,
+          "cos(2^52), reduced");
+    mtwnSpring over;
+    CHECK(mtwnMakeSpring(1.0, 2.5, 1.0, &over) == mtwn_success, "overdamped, w = 0.75");
+    CHECK(mtwnSpringMotionAt(&over, 0x1.5555555555555p-1).offsetFromOffset == 0x1.bc2a301994bdfp-1,
+          "w t of 0.5 exactly, past the series");
+    mtwnSpring spring;
+    CHECK(mtwnMakeSpring(4.0, 2.0, 1.0, &spring) == mtwn_success, "a decay of 1");
+    CHECK(mtwnSpringSettlingTime(&spring, 1.0, -1.0, 0.5, 10.0) == 0x1.62e42fefa39efp-1,
+          "ln 2, the bound with no velocity term");
+}
+
 int main(void)
 {
     TestRangeEnds();
@@ -698,5 +751,7 @@ int main(void)
     TestSpringEasings();
     TestSpringEasingFitsLinear();
     TestSpringEasingRefusals();
+    TestSlowSprings();
+    TestSpringEdgeBits();
     return s_failures == 0 ? 0 : 1;
 }

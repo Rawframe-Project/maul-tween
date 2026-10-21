@@ -224,6 +224,22 @@ static void TestIntegerFarProgress(void)
           "equal ends, far out: the end");
 }
 
+// The edges to the bit (the same bits on every platform): at 0 the noise
+// is the lattice's own zero, signed by its gradient (-0 for seed 0's
+// channel 2); from 2^53 points on it is +0; and an integer mix that
+// rounds to 2^63 exactly is the type's largest, not past it.
+static void TestEdgeBits(void)
+{
+    mtwnShake shake;
+    CHECK(mtwnMakeShake(1.0, 1.0, 1.0, 0, &shake) == mtwn_success, "a shake");
+    double atZero = mtwnShakeNoise(&shake, 2, 0.0);
+    double atEnd = mtwnShakeNoise(&shake, 3, 0x1p53);
+    CHECK(atZero == 0.0 && signbit(atZero) && atEnd == 0.0 && !signbit(atEnd),
+          "-0 at 0 from the lattice, +0 at 2^53 points");
+    CHECK(mtwnMixInteger(INT64_MAX, INT64_MAX, 0.5) == INT64_MAX,
+          "a mix of 2^63 exactly: the largest");
+}
+
 int main(void)
 {
     TestIntegerFarProgress();
@@ -233,5 +249,6 @@ int main(void)
     TestShakeShape();
     TestShakeRepeats();
     TestShakeNoise();
+    TestEdgeBits();
     return s_failures == 0 ? 0 : 1;
 }

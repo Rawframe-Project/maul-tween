@@ -1086,6 +1086,20 @@ static void TestReplacedVelocity(void)
     mtwnDestroyContext(context);
 }
 
+// A slow spring, its angular frequency under 1 (0.1 Hz), is a spring a
+// transition takes.
+static void TestSlowSpring(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    mtwnTransitionDef def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
+    def.spec = mtwn_transitionSpring;
+    CHECK(mtwnMakeSpringFromFrequency(0.1, 0.5, &def.spring) == mtwn_success, "a slow spring");
+    mtwnPlayerId id;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "taken");
+    mtwnDestroyContext(context);
+}
+
 // The update's integer powers, by every mode, give the easing's values: a
 // transition of a number from 0 to 1 over a second, at sixteenths.
 static void TestPowerModes(void)
@@ -1515,6 +1529,7 @@ int main(void)
 {
     TestReversal();
     TestPowerModes();
+    TestSlowSpring();
     TestReversalEdges();
     TestReversalOvershoot();
     TestReversalSignedZero();
