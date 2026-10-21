@@ -717,6 +717,70 @@ static void TestFinishExact(void)
     CHECK(wrong == 0, "finished at once, exactly at the end");
 }
 
+// A clip filled to its node capacity samples as one with room, to the bit:
+// nothing reads past its nodes into its keyframes (here a Bezier segment's
+// control and a sine easing out where a node after the last would lie).
+static float FullOrRoomy(uint32_t capacity, double seconds)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnClipDef def = mtwnDefaultClipDef();
+    def.nodeCapacity = capacity;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &def, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[3];
+    memset(keys, 0, sizeof keys);
+    keys[0].kind = mtwn_segmentBezier;
+    keys[0].out.x = 8.0f;
+    keys[1].in.x = 2.0f;
+    keys[1].offset = 0.5;
+    keys[1].value.x = 10.0f;
+    keys[2].offset = 1.0;
+    keys[2].value.x = 20.0f;
+    keys[0].easing = keys[2].easing = mtwnLinearEasing();
+    CHECK(mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeOut, &keys[1].easing) == mtwn_success,
+          "a sine easing");
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 3;
+    track.timing.duration = 1.0;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "a track");
+    mtwnTargetId target;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+          "a target");
+    mtwnBinding binding = mtwnBind(0, target);
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = clip;
+    playerDef.bindings = &binding;
+    playerDef.bindingCount = 1;
+    playerDef.keep = true;
+    mtwnPlayerId player;
+    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnUpdate(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+          "updated");
+    mtwnVec4 value;
+    CHECK(mtwnTarget_GetValue(context, target, &value) == mtwn_success, "read");
+    mtwnDestroyContext(context);
+    return value.x;
+}
+
+static void TestFullClip(void)
+{
+    int same = 0;
+    for (int k = 1; k <= 10; ++k)
+    {
+        float full = FullOrRoomy(1, k / 10.0);
+        float roomy = FullOrRoomy(2, k / 10.0);
+        same += memcmp(&full, &roomy, sizeof full) == 0;
+    }
+    CHECK(same == 10, "a full clip samples as one with room");
+}
+
 int main(void)
 {
     TestFinishExact();
@@ -733,6 +797,7 @@ int main(void)
     TestCommitReported();
     TestCommitLastComponent();
     TestZeroWeight();
+    TestFullClip();
     TestAddsOverBase();
     TestRateZeroAtStart();
     return s_failures == 0 ? 0 : 1;

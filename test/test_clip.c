@@ -134,7 +134,7 @@ static void TestStorage(void)
 static void TestPositions(void)
 {
     Counter counter = {0};
-    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnContext* context = Make(&counter, 5, 1 << 20);
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
@@ -209,6 +209,19 @@ static void TestPositions(void)
                      track.start == 0.25;
     }
     CHECK(fromStart == 2, "with or after no previous child: from 0");
+    // After the end with an offset: a gap past the children's end.
+    mtwnClipId gapped;
+    CHECK(mtwnCreateClip(context, &clipDef, &gapped) == mtwn_success, "a clip");
+    def = mtwnDefaultClipTrackDef();
+    def.keyframes = keys;
+    def.keyframeCount = 2;
+    CHECK(mtwnClip_AddTrack(context, gapped, &def, &nodes[0]) == mtwn_success, "0 to 1");
+    def.position = At(mtwn_positionAfterEnd, 0.5);
+    CHECK(mtwnClip_AddTrack(context, gapped, &def, &nodes[1]) == mtwn_success &&
+              mtwnClip_Finish(context, gapped) == mtwn_success &&
+              mtwnClip_GetTrack(context, gapped, nodes[1], &track) == mtwn_success &&
+              track.start == 1.5,
+          "half a second after the end: 1.5");
     mtwnDestroyContext(context);
 }
 
