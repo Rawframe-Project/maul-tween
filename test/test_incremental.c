@@ -276,6 +276,25 @@ static void TestRefused(void)
     mtwnDestroyContext(w.context);
 }
 
+// A scale moves on by the ratio of its last keyframe to its first, each
+// iteration: from 2 to 4, three iterations, it ends at 4 * 2 * 2.
+static void TestScales(void)
+{
+    World w = MakeWorld(mtwn_valueScale, (mtwnVec4){1.0f, 0.0f, 0.0f, 0.0f});
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[0].value.x = 2.0f;
+    keys[1].value.x = 4.0f;
+    mtwnClipTrackDef track = Incremental(mtwn_valueScale, keys, 3.0);
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    CHECK(Near((double)At(&w, 1.0).value.x, 4.0, 1e-5), "the second starts at 2 times 2");
+    CHECK(Near((double)At(&w, 9.0).value.x, 16.0, 1e-4), "filled at the third's end: 16");
+    mtwnDestroyContext(w.context);
+}
+
 static void TestStepPastFloats(void)
 {
     // From the lowest float to 2^104: the step, 2^104 past the largest
@@ -307,6 +326,7 @@ int main(void)
     TestRotations();
     TestLargeCount();
     TestStepPastFloats();
+    TestScales();
     TestRefused();
     return s_failures == 0 ? 0 : 1;
 }

@@ -598,6 +598,31 @@ static void TestAddsOverBase(void)
     mtwnDestroyContext(w.context);
 }
 
+// A binding at weight 0 shows what lies under it, the base, and leaves
+// no velocity: the track's own value is not left to be read.
+static void TestZeroWeight(void)
+{
+    World w = MakeWorld();
+    AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 4.0f, 4.0, mtwn_fillForwards, 0.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){10.0f, 0, 0, 0}) == mtwn_success,
+          "a base of 10");
+    mtwnBinding binding = mtwnBind(0, w.target);
+    binding.weight = 0.0f;
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = w.clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    def.keep = true;
+    mtwnPlayerId player;
+    CHECK(mtwnCreatePlayer(w.context, &def, &player) == mtwn_success, "a player at weight 0");
+    Update(&w, 0.0);
+    Update(&w, 2.0);
+    mtwnTargetState s = Read(&w, w.target);
+    CHECK(s.value.x == 10.0f && s.velocity.x == 0.0f, "the base, still");
+    mtwnDestroyContext(w.context);
+}
+
 // A player at rate 0 runs forwards (Web Animations: backwards only for a
 // negative rate): at a track's start exactly it shows the track's first
 // value, not what lies before it.
@@ -623,36 +648,46 @@ static void TestRateZeroAtStart(void)
     mtwnDestroyContext(w.context);
 }
 
-// A commit that changes only a vector's last component still rebases the
-// target: its base is the end, so the value stays once the player goes.
+static float* Component(mtwnVec4* v, int c)
+{
+    return c == 0 ? &v->x : c == 1 ? &v->y : c == 2 ? &v->z : &v->w;
+}
+
+// A commit that changes only one component of a vector, each in turn,
+// still rebases the target: its base is the end, so the value stays once
+// the player goes.
 static void TestCommitLastComponent(void)
 {
-    World w = MakeWorld();
-    mtwnTargetId vector;
-    CHECK(mtwnCreateTarget(w.context, mtwn_valueVec4, (mtwnVec4){0}, &vector) == mtwn_success,
-          "a vector");
-    mtwnKeyframe keys[2];
-    memset(keys, 0, sizeof keys);
-    keys[1].offset = 1.0;
-    keys[1].value.w = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
-    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
-    track.track.kind = mtwn_valueVec4;
-    track.keyframes = keys;
-    track.keyframeCount = 2;
-    track.timing.duration = 1.0;
-    track.timing.fill = mtwn_fillForwards;
-    mtwnNode node = 0;
-    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
-    mtwnPlayerId p = Play(&w, vector, false, 1.0);
-    Update(&w, 0.0);
-    Update(&w, 2.0);
-    CHECK(!mtwnPlayer_IsValid(w.context, p), "finished and freed");
-    Update(&w, 3.0);
-    mtwnTargetState s = Read(&w, vector);
-    CHECK(s.base.w == 1.0f && s.value.w == 1.0f, "w alone committed as the base");
-    mtwnDestroyContext(w.context);
+    for (int c = 0; c < 4; ++c)
+    {
+        World w = MakeWorld();
+        mtwnTargetId vector;
+        CHECK(mtwnCreateTarget(w.context, mtwn_valueVec4, (mtwnVec4){0}, &vector) == mtwn_success,
+              "a vector");
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        *Component(&keys[1].value, c) = 1.0f;
+        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.track.kind = mtwn_valueVec4;
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 1.0;
+        track.timing.fill = mtwn_fillForwards;
+        mtwnNode node = 0;
+        CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        mtwnPlayerId p = Play(&w, vector, false, 1.0);
+        Update(&w, 0.0);
+        Update(&w, 2.0);
+        CHECK(!mtwnPlayer_IsValid(w.context, p), "finished and freed");
+        Update(&w, 3.0);
+        mtwnTargetState s = Read(&w, vector);
+        CHECK(*Component(&s.base, c) == 1.0f && *Component(&s.value, c) == 1.0f,
+              "one component alone committed as the base");
+        mtwnDestroyContext(w.context);
+    }
 }
 
 // A finish holds the player at its end exactly, whatever the rate and the
@@ -697,6 +732,7 @@ int main(void)
     TestStaleTarget();
     TestCommitReported();
     TestCommitLastComponent();
+    TestZeroWeight();
     TestAddsOverBase();
     TestRateZeroAtStart();
     return s_failures == 0 ? 0 : 1;
