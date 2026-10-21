@@ -442,6 +442,8 @@ static void TestRefusals(void)
           "NaN overshoot");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 0.0, 0.3, &easing) == mtwn_errorInvalid, "amplitude");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, 0.0, &easing) == mtwn_errorInvalid, "period");
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, -0.3, &easing) == mtwn_errorInvalid,
+          "a negative period");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, HUGE_VAL, &easing) == mtwn_errorInvalid,
           "infinite period");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1e-300, 1e10, &easing) == mtwn_errorInvalid,
@@ -501,6 +503,11 @@ static void TestPinnedBits(void)
     CHECK(mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeOut, &easing) == mtwn_success, "circ");
     double atZero = mtwnEase(&easing, -0.0, false);
     CHECK(atZero == 0.0 && signbit(atZero), "the circ out at -0, -0");
+    CHECK(mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeIn, &easing) == mtwn_success, "sine");
+    CHECK(mtwnEase(&easing, 0.1, false) == 0x1.936daf406e901p-7, "a sine in, bit for bit");
+    CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1.70158, &easing) == mtwn_success, "back");
+    atZero = mtwnEase(&easing, 0.0, false);
+    CHECK(atZero == 0.0 && signbit(atZero), "the back in at 0, its raw -0");
 }
 
 int main(void)
