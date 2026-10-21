@@ -524,6 +524,10 @@ static void TestPinnedBits(void)
     double negativeZero = mtwnEase(&easing, -0.0, false);
     CHECK(zero == 0.0 && !signbit(zero) && negativeZero == 0.0 && signbit(negativeZero),
           "a bezier's zero kept with its sign");
+    // A Newton step on the bracket's bottom, taken.
+    CHECK(mtwnMakeCubicBezier(1.0, -2.0, 0.0, -2.0, &easing) == mtwn_success, "an S bezier");
+    CHECK(mtwnEase(&easing, 0.25, false) == -0x1.1ba0dea0dd292p-1,
+          "a Newton step on the bracket's bottom taken");
     CHECK(mtwnMakeSteps(3, mtwn_jumpEnd, &easing) == mtwn_success, "steps");
     negativeZero = mtwnEase(&easing, -0.0, false);
     CHECK(negativeZero == 0.0 && signbit(negativeZero), "steps at -0, -0");
