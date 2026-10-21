@@ -520,6 +520,13 @@ static void TestPinnedBits(void)
           "a flat bezier, bit for bit");
     CHECK(mtwnEase(&easing, 0.5, false) == -0x1.ee04c0c3fcc5p-2,
           "a Newton step on the bracket's top taken");
+    double zero = mtwnEase(&easing, 0.0, false);
+    double negativeZero = mtwnEase(&easing, -0.0, false);
+    CHECK(zero == 0.0 && !signbit(zero) && negativeZero == 0.0 && signbit(negativeZero),
+          "a bezier's zero kept with its sign");
+    CHECK(mtwnMakeSteps(3, mtwn_jumpEnd, &easing) == mtwn_success, "steps");
+    negativeZero = mtwnEase(&easing, -0.0, false);
+    CHECK(negativeZero == 0.0 && signbit(negativeZero), "steps at -0, -0");
     // Spreading a run of missing inputs leaves the run's end as given.
     mtwnLinearPoint points[4] = {{0.0, 0.0}, {0.03, 0.2}, {(double)NAN, 0.5}, {0.3, 0.8}};
     CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success && points[3].input == 0.3,
