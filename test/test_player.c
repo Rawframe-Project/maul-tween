@@ -467,6 +467,9 @@ static void TestSeekCancel(void)
     CHECK(mtwnPlayer_Sweep(f.context, p, (double)NAN) == mtwn_errorInvalid &&
               mtwnPlayer_Sweep(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
           "a sweep to NaN or infinity");
+    CHECK(mtwnPlayer_SeekProgress(f.context, p, (double)NAN) == mtwn_errorInvalid &&
+              mtwnPlayer_SeekProgress(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
+          "a seek to a progress of NaN or infinity");
     CHECK(mtwnPlayer_Cancel(f.context, p) == mtwn_success && State(&f, p).state == mtwn_playIdle &&
               isnan(State(&f, p).currentTime),
           "canceled: idle");

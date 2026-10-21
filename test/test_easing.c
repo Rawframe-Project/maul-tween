@@ -497,6 +497,10 @@ static void TestPinnedBits(void)
           "the bounce's landings, bit for bit");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 2.5, 0.2, &easing) == mtwn_success, "elastic");
     CHECK(mtwnEase(&easing, 0.5, false) == -0x1.08421084210ap-5, "an elastic, bit for bit");
+    // A progress of -0 is inside, not clamped: the circ out keeps its sign.
+    CHECK(mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeOut, &easing) == mtwn_success, "circ");
+    double atZero = mtwnEase(&easing, -0.0, false);
+    CHECK(atZero == 0.0 && signbit(atZero), "the circ out at -0, -0");
 }
 
 int main(void)
