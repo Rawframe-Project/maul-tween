@@ -311,6 +311,61 @@ static void TestPastTheEnd(void)
     Update(&f, 5.5);
     CHECK(at == 1.0 && State(&f, slowed).currentTime == at, "paused where it stopped, at 1");
     mtwnDestroyContext(f.context);
+    // A rate change of a player sought past its end before it began keeps
+    // the time it holds: backwards at half speed for a sixteenth of a
+    // second from 3.
+    f = Make(false, 64);
+    mtwnPlayerId sought = Player(&f, true, 1.0);
+    CHECK(mtwnPlayer_Seek(f.context, sought, 3.0) == mtwn_success, "sought past the end first");
+    Update(&f, 0.125);
+    CHECK(mtwnPlayer_SetRate(f.context, sought, -0.5) == mtwn_success, "backwards at half");
+    Update(&f, 0.1875);
+    CHECK(Near(State(&f, sought).currentTime, 2.96875), "from the time it held");
+    mtwnDestroyContext(f.context);
+}
+
+// Bindings are a player's own: a clip with no slots needs none, so its
+// player is made with every binding taken; and destroying a player shows
+// only its own targets' bases, not those of the player after it.
+static void TestOwnBindings(void)
+{
+    Fixture f = Make(false, 1);
+    mtwnPlayerId first = Player(&f, true, 1.0);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId marks;
+    CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success, "a clip");
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    mtwnNode node;
+    CHECK(mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
+              mtwnClip_Finish(f.context, marks) == mtwn_success,
+          "a clip of a mark alone");
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = marks;
+    mtwnPlayerId alone;
+    CHECK(mtwnCreatePlayer(f.context, &def, &alone) == mtwn_success,
+          "its player made, the one binding taken");
+    (void)first;
+    mtwnDestroyContext(f.context);
+    f = Make(false, 64);
+    first = Player(&f, true, 1.0);
+    mtwnTargetId other;
+    CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
+          "another target");
+    mtwnBinding binding = mtwnBind(0, other);
+    def = mtwnDefaultPlayerDef();
+    def.clip = f.clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    def.keep = true;
+    mtwnPlayerId second;
+    CHECK(mtwnCreatePlayer(f.context, &def, &second) == mtwn_success, "a second player");
+    Update(&f, 1.0);
+    Update(&f, 2.0);
+    CHECK(mtwnDestroyPlayer(f.context, first) == mtwn_success, "the first destroyed");
+    mtwnVec4 value;
+    CHECK(mtwnTarget_GetValue(f.context, other, &value) == mtwn_success && value.x == 0.5f,
+          "the second's target as it was");
+    mtwnDestroyContext(f.context);
 }
 
 static void TestSeekCancel(void)
@@ -843,6 +898,7 @@ int main(void)
     TestSeeks();
     TestFinishReverse();
     TestPastTheEnd();
+    TestOwnBindings();
     TestSeekCancel();
     TestBindings();
     TestRuns();
