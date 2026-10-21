@@ -1609,6 +1609,30 @@ static void TestHeldAfterSeek(void)
     mtwnDestroyContext(w.context);
 }
 
+// A play at 0 is no rewind: a player paused at its start and played again
+// records its start once.
+static void TestPlayAtStart(void)
+{
+    World w = MakeWorld(64);
+    (void)AddTrack(&w, 0.0, 1.0, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId player = Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    CHECK(mtwnPlayer_Pause(w.context, player) == mtwn_success, "paused at 0");
+    Update(&w, 0.25);
+    CHECK(mtwnPlayer_Play(w.context, player) == mtwn_success, "played at 0");
+    Update(&w, 0.5);
+    mtwnEvent e[16];
+    uint32_t n = Read(&w, e, 16);
+    uint32_t starts = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        starts += e[i].node == MTWN_ROOT_NODE && e[i].kind == mtwn_eventStart ? 1u : 0u;
+    }
+    CHECK(starts == 1, "the start once");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1646,5 +1670,6 @@ int main(void)
     TestUnderReversedEndless();
     TestPointPassedBack();
     TestHeldAfterSeek();
+    TestPlayAtStart();
     return s_failures == 0 ? 0 : 1;
 }

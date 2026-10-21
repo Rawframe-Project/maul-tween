@@ -398,6 +398,56 @@ static void TestOwnBindings(void)
     mtwnDestroyContext(f.context);
 }
 
+// A slot past a full clip's last is refused whatever lies after the slots:
+// a clip of 16 slots, its root's time from the last sample ending in the
+// byte a scalar's kind would have.
+static void TestSlotPastFull(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.slotCapacity = 16;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip of 16 slots");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    int added = 0;
+    for (uint32_t slot = 0; slot < 16; ++slot)
+    {
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.slot = slot;
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 1.0;
+        mtwnNode node;
+        added += mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success;
+    }
+    CHECK(added == 16 && mtwnClip_Finish(context, clip) == mtwn_success, "every slot used");
+    mtwnTargetId target;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+          "a target");
+    mtwnBinding binding = mtwnBind(0, target);
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    def.keep = true;
+    def.play = false;
+    mtwnPlayerId player;
+    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_success &&
+              mtwnPlayer_Seek(context, player, 0x1.0000000000001p-1) == mtwn_success &&
+              mtwnUpdate(context, 1000000u, NULL, 0, NULL) == mtwn_success,
+          "sampled at a time ending in the byte 1");
+    binding = mtwnBind(16, target);
+    mtwnPlayerId past;
+    CHECK(mtwnCreatePlayer(context, &def, &past) == mtwn_errorInvalid, "slot 16 refused");
+    mtwnDestroyContext(context);
+}
+
 static void TestSeekCancel(void)
 {
     Fixture f = Make(false, 64);
@@ -929,6 +979,7 @@ int main(void)
     TestFinishReverse();
     TestPastTheEnd();
     TestOwnBindings();
+    TestSlotPastFull();
     TestSeekCancel();
     TestBindings();
     TestRuns();
