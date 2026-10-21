@@ -225,6 +225,30 @@ static void TestZoomRefusals(void)
           "into 1e-300 still taken");
 }
 
+// The bits a zoom gives and its bounds, to the last bit (the same bits on
+// every platform): a point near the end, whose pan's sinh the series
+// gives; and a path parameter of exactly 700 at the start (zooming out
+// to a width of 1.007e152) or at the end (into 1.97e-304), on the
+// range's bound and refused. A negative rho with equal views, whose
+// length would be -0, is refused as every rho not above 0.
+static void TestZoomBits(void)
+{
+    mtwnZoomMix mix;
+    mtwnZoomView a = {0.0, 0.0, 1.0};
+    CHECK(mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 2.0}, 1.0, &mix) == mtwn_success,
+          "a zoom out with a pan");
+    mtwnZoomView v = mtwnMixZoom(&mix, 63.0 / 64.0);
+    CHECK(v.x == 0x1.f251e7f022ee7p-1 && v.y == 0.0 && v.width == 0x1.fc85c1b95ee79p+0,
+          "its point at 63/64, to the bit");
+    int refused = 0;
+    refused += mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 0x1.ec417a3e63b75p+504}, 1.0, &mix) ==
+               mtwn_errorInvalid;
+    refused += mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 0x1.14f2b0fb93194p-1009}, 1.0, &mix) ==
+               mtwn_errorInvalid;
+    refused += mtwnMakeZoomMix(a, a, -1.0, &mix) == mtwn_errorInvalid;
+    CHECK(refused == 3, "a parameter of 700 at either end and a negative rho refused");
+}
+
 int main(void)
 {
     TestScaleCases();
@@ -232,5 +256,6 @@ int main(void)
     TestZoomCases();
     TestZoomShape();
     TestZoomRefusals();
+    TestZoomBits();
     return s_failures == 0 ? 0 : 1;
 }
