@@ -321,6 +321,17 @@ static void TestPastTheEnd(void)
     CHECK(mtwnPlayer_SetRate(f.context, sought, -0.5) == mtwn_success, "backwards at half");
     Update(&f, 0.1875);
     CHECK(Near(State(&f, sought).currentTime, 2.96875), "from the time it held");
+    // A paused player finished stays at its end through the next update.
+    mtwnPlayerId paused = Player(&f, true, 1.5);
+    Update(&f, 0.25);
+    Update(&f, 0.75);
+    CHECK(mtwnPlayer_Pause(f.context, paused) == mtwn_success &&
+              mtwnPlayer_Finish(f.context, paused) == mtwn_success,
+          "paused, then finished");
+    Update(&f, 1.0);
+    mtwnPlayerState finished = State(&f, paused);
+    CHECK(finished.currentTime == 2.0 && finished.state == mtwn_playFinished,
+          "at its end, finished");
     mtwnDestroyContext(f.context);
 }
 
@@ -365,6 +376,25 @@ static void TestOwnBindings(void)
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(f.context, other, &value) == mtwn_success && value.x == 0.5f,
           "the second's target as it was");
+    mtwnDestroyContext(f.context);
+    // A player refused for the full pool gives back no bindings it never
+    // took: the one player's binding still writes its target.
+    mtwnContextDef small = mtwnDefaultContextDef();
+    small.playerCapacity = 1;
+    f = MakeFrom(&small, false);
+    first = Player(&f, true, 1.0);
+    clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success &&
+              mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
+              mtwnClip_Finish(f.context, marks) == mtwn_success,
+          "a clip of a mark alone");
+    def = mtwnDefaultPlayerDef();
+    def.clip = marks;
+    CHECK(mtwnCreatePlayer(f.context, &def, &alone) == mtwn_errorLimit, "the pool full");
+    Update(&f, 1.0);
+    Update(&f, 2.0);
+    CHECK(mtwnTarget_GetValue(f.context, f.target, &value) == mtwn_success && value.x == 0.5f,
+          "the one player's target written");
     mtwnDestroyContext(f.context);
 }
 
