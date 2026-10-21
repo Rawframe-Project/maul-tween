@@ -518,6 +518,8 @@ static void TestPinnedBits(void)
     CHECK(mtwnMakeCubicBezier(0.0, -2.0, 0.0, -2.0, &easing) == mtwn_success, "flat bezier");
     CHECK(mtwnEase(&easing, 1.0 / 400.0, false) == -0x1.67115cc9d9e69p-1,
           "a flat bezier, bit for bit");
+    CHECK(mtwnEase(&easing, 0.5, false) == -0x1.ee04c0c3fcc5p-2,
+          "a Newton step on the bracket's top taken");
     // Spreading a run of missing inputs leaves the run's end as given.
     mtwnLinearPoint points[4] = {{0.0, 0.0}, {0.03, 0.2}, {(double)NAN, 0.5}, {0.3, 0.8}};
     CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success && points[3].input == 0.3,
