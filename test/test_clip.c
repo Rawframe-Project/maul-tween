@@ -109,6 +109,13 @@ static void TestStorage(void)
           "a second would pass the clip storage, nothing allocated");
     CHECK(mtwnGetContextMisuse(context) == 0, "a limit is not misuse");
     mtwnDestroyContext(context);
+    // Two that fill it to the byte both fit.
+    context = Make(&counter, 4, 2 * one);
+    CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success &&
+              mtwnCreateClip(context, &def, &b) == mtwn_success &&
+              context->clipStorageUsed == 2 * one,
+          "the storage filled exactly");
+    mtwnDestroyContext(context);
     // A failed allocation gives its slot back; a used clip is busy.
     counter = (Counter){0};
     context = Make(&counter, 1, 1 << 20);
@@ -684,6 +691,33 @@ static void TestTimelineRefusals(void)
     CHECK(mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 0.0), 1,
                            &node) == mtwn_errorState,
           "nothing added once finished");
+    // An endless repeat of a timeline played backwards and lasting as its
+    // children do: empty it lasts 0, an end to start from, and it is
+    // taken; a child giving it a duration leaves it endless, refused.
+    mtwnClipId repeated;
+    clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateClip(context, &clipDef, &repeated) == mtwn_success, "a clip");
+    group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = true;
+    group.timing.playbackRate = -1.0;
+    group.timing.iterations = HUGE_VAL;
+    CHECK(mtwnClip_AddTimeline(context, repeated, &group, &backward) == mtwn_success,
+          "an endless repeat of nothing, backwards");
+    track.parent = backward;
+    track.timing.iterations = 1.0;
+    CHECK(mtwnClip_AddTrack(context, repeated, &track, &node) == mtwn_errorInvalid,
+          "a child would make it endless");
+    mtwnClipTimelineDef inner = mtwnDefaultClipTimelineDef();
+    inner.parent = backward;
+    inner.autoDuration = false;
+    inner.timing.duration = 1.0;
+    CHECK(mtwnClip_AddTimeline(context, repeated, &inner, &node) == mtwn_errorInvalid,
+          "a timeline child too");
+    mtwnClipNodeInfo info;
+    CHECK(mtwnClip_Finish(context, repeated) == mtwn_success &&
+              mtwnClip_GetNode(context, repeated, backward, &info) == mtwn_success &&
+              info.timing.duration == 0.0,
+          "the refused children left it lasting 0");
     mtwnDestroyContext(context);
 }
 
