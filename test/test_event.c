@@ -1508,6 +1508,70 @@ static void TestUnderReversedEndless(void)
     }
 }
 
+// A reversed timeline of no iterations, played back over its point from
+// past it: its children hold their time either side, but the point lies
+// inside the sweep, not at an end, so the timeline is crossed.
+static void TestPointPassedBack(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef point = mtwnDefaultClipTimelineDef();
+    point.parent = MTWN_ROOT_NODE;
+    point.autoDuration = false;
+    point.timing.duration = 0.375;
+    point.timing.iterations = 0.0;
+    point.timing.direction = mtwn_directionReverse;
+    point.timing.fill = mtwn_fillForwards;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &point, &timeline) == mtwn_success,
+          "a timeline of no iterations");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef inner = mtwnDefaultClipTrackDef();
+    inner.parent = timeline;
+    inner.keyframes = keys;
+    inner.keyframeCount = 2;
+    inner.timing.duration = 0.5;
+    inner.timing.iterations = 0.0;
+    inner.timing.fill = mtwn_fillForwards;
+    mtwnNode track = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &inner, &track) == mtwn_success,
+          "a track of no iterations");
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddMark(w.context, w.clip, timeline, At(0.125), 7, &mark) == mtwn_success,
+          "a mark");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId player = Play(&w, true, 1.0);
+    Update(&w, 0.125);
+    CHECK(mtwnPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
+    Update(&w, 0.1875);
+    CHECK(mtwnPlayer_SetRate(w.context, player, 1.0) == mtwn_success, "forwards");
+    Update(&w, 0.5);
+    CHECK(mtwnPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
+    Update(&w, 0.875);
+    CHECK(mtwnPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
+    Update(&w, 1.125);
+    CHECK(mtwnPlayer_SetRate(w.context, player, -0.5) == mtwn_success, "going back");
+    Update(&w, 1.375);
+    CHECK(mtwnPlayer_Seek(w.context, player, 0.125) == mtwn_success, "past the point");
+    Update(&w, 1.4375);
+    mtwnEvent e[32];
+    (void)Read(&w, e, 32);
+    // Going back from past the point, over it, inside one update.
+    CHECK(mtwnPlayer_SetRate(w.context, player, 0.0) == mtwn_success, "held");
+    Update(&w, 1.6875);
+    uint32_t n = Read(&w, e, 32);
+    uint32_t crossed = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        crossed += e[i].node == timeline && e[i].backwards ? 1u : 0u;
+    }
+    CHECK(crossed == 2, "the timeline's end and start, crossed back");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1543,5 +1607,6 @@ int main(void)
     TestPaths();
     TestEndlessNoIterations();
     TestUnderReversedEndless();
+    TestPointPassedBack();
     return s_failures == 0 ? 0 : 1;
 }

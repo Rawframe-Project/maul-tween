@@ -296,6 +296,13 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
                             result.activeTime < result.activeDuration && !result.inRepeatDelay;
         }
     }
+    // A point interval passed within the sweep holds its time either side
+    // but is crossed: its boundary lies between the ends, not near them.
+    double low = ends[0] < ends[1] ? ends[0] : ends[1];
+    double high = ends[0] < ends[1] ? ends[1] : ends[0];
+    double activeEnd = activeStart + n->activeDuration;
+    atEdge = atEdge || (low < activeStart && activeStart < high) ||
+             (low < activeEnd && activeEnd < high);
     out->now = children[0];
     out->before = children[1];
     out->steady = parent->steady && iterations[0] == iterations[1];

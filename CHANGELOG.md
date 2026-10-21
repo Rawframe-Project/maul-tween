@@ -31,6 +31,10 @@ API and the ABI.
   nothing, and its end is never recorded, where a record of it carried a
   NaN iteration; under an endless timeline of no iterations a mark at
   its start is recorded, where it was missed (record mtwn-0074).
+- A node whose start or end lies inside one update's sweep, while its
+  children hold their time on both sides of it (a timeline of no
+  iterations or zero duration passed going backwards), records its start
+  and end and its marks, where they were lost.
 
 ## [1.0.4] - 2026-10-19
 
