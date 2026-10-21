@@ -283,6 +283,33 @@ static void TestPastTheEnd(void)
     Update(&f, 2.5);
     mtwnPlayerState s = State(&f, held);
     CHECK(s.currentTime == 5.0 && s.state != mtwn_playFinished, "held there, not finished");
+    // At rate 0 a play at 0 rewinds nowhere: 0 is inside, not before it.
+    mtwnPlayerId still = Player(&f, false, 0.0);
+    CHECK(mtwnPlayer_Seek(f.context, still, 0.0) == mtwn_success &&
+              mtwnPlayer_Play(f.context, still) == mtwn_success &&
+              State(&f, still).currentTime == 0.0,
+          "played at 0 at rate 0: still 0");
+    // A seek holds an idle player, and one playing at rate 0, at its time
+    // (Level 1 sets the hold time with no start time or no rate).
+    mtwnPlayerId idle = Player(&f, false, 1.0);
+    mtwnPlayerId zero = Player(&f, true, 0.0);
+    Update(&f, 3.0);
+    CHECK(mtwnPlayer_Seek(f.context, idle, 1.0) == mtwn_success &&
+              mtwnPlayer_Seek(f.context, zero, 1.0) == mtwn_success,
+          "both sought to 1");
+    Update(&f, 3.5);
+    CHECK(State(&f, idle).currentTime == 1.0 && State(&f, zero).currentTime == 1.0,
+          "both still at 1");
+    // A pause at rate 0 keeps the time it holds.
+    mtwnPlayerId slowed = Player(&f, true, 1.0);
+    Update(&f, 4.0);
+    Update(&f, 4.5);
+    CHECK(mtwnPlayer_SetRate(f.context, slowed, 0.0) == mtwn_success, "stopped at the update");
+    Update(&f, 5.0);
+    double at = State(&f, slowed).currentTime;
+    CHECK(mtwnPlayer_Pause(f.context, slowed) == mtwn_success, "paused");
+    Update(&f, 5.5);
+    CHECK(at == 1.0 && State(&f, slowed).currentTime == at, "paused where it stopped, at 1");
     mtwnDestroyContext(f.context);
 }
 
