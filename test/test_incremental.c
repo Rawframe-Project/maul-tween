@@ -203,6 +203,24 @@ static void TestRotations(void)
               Near(sign * (double)state.value.w, 0.5, 1e-6),
           "the step from a first turned about z");
     mtwnDestroyContext(w.context);
+    // From a quarter turn about y to the same rotation: the step is a
+    // quarter about x, the end (-0.5, 0.5, -0.5, 0.5) (the product's terms
+    // mixing y and z count here).
+    w = MakeWorld(mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});
+    keys[0].value = (mtwnVec4){0, s, 0, c};
+    keys[1].value = (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f};
+    track = Incremental(mtwn_valueRotation, keys, 3.0);
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    Play(&w);
+    state = At(&w, 9.0);
+    sign = state.value.w < 0.0f ? -1.0 : 1.0;
+    CHECK(Near(sign * (double)state.value.x, -0.5, 1e-6) &&
+              Near(sign * (double)state.value.y, 0.5, 1e-6) &&
+              Near(sign * (double)state.value.z, -0.5, 1e-6) &&
+              Near(sign * (double)state.value.w, 0.5, 1e-6),
+          "the step from a first turned about y");
+    mtwnDestroyContext(w.context);
     // A path that ends where it starts: no turn to repeat, the start held,
     // half way through the second iteration too.
     w = MakeWorld(mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f});

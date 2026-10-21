@@ -181,6 +181,27 @@ static void TestPositions(void)
     CHECK(mtwnClip_GetTrack(context, clip, nodes[4], &track) == mtwn_success &&
               track.timing.iterations == 3.0 && track.slot == 1,
           "its timing and slot");
+    mtwnClipNodeInfo info;
+    CHECK(mtwnClip_GetNode(context, clip, nodes[4], &info) == mtwn_success && info.slot == 1 &&
+              info.kind == mtwn_nodeTrack,
+          "its node: a track in slot 1");
+    // A first child with or after a previous one that is not there counts
+    // from the timeline's start.
+    static const mtwnPositionKind firsts[2] = {mtwn_positionWithPrevious,
+                                               mtwn_positionAfterPrevious};
+    int fromStart = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        mtwnClipId alone;
+        CHECK(mtwnCreateClip(context, &clipDef, &alone) == mtwn_success, "a clip");
+        def.position = At(firsts[i], 0.25);
+        CHECK(mtwnClip_AddTrack(context, alone, &def, &nodes[0]) == mtwn_success &&
+                  mtwnClip_Finish(context, alone) == mtwn_success,
+              "a first child");
+        fromStart += mtwnClip_GetTrack(context, alone, nodes[0], &track) == mtwn_success &&
+                     track.start == 0.25;
+    }
+    CHECK(fromStart == 2, "with or after no previous child: from 0");
     mtwnDestroyContext(context);
 }
 
