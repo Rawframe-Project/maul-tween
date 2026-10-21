@@ -262,6 +262,30 @@ static void TestFinishReverse(void)
     mtwnDestroyContext(f.context);
 }
 
+// Past the end: a finish holds the player at its end, not at the time a
+// seek left it past it (Level 1 sets the current time to the end); and a
+// player at rate 0 there is not finished (Level 1 finishes only a moving
+// one).
+static void TestPastTheEnd(void)
+{
+    Fixture f = Make(false, 64);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    Update(&f, 1.0);
+    CHECK(mtwnPlayer_Seek(f.context, p, 5.0) == mtwn_success, "sought past the end");
+    Update(&f, 1.5);
+    CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_success && State(&f, p).currentTime == 2.0,
+          "finished at the end, 2");
+    mtwnPlayerId held = Player(&f, true, 1.0);
+    Update(&f, 2.0);
+    CHECK(mtwnPlayer_SetRate(f.context, held, 0.0) == mtwn_success &&
+              mtwnPlayer_Seek(f.context, held, 5.0) == mtwn_success,
+          "at rate 0, past the end");
+    Update(&f, 2.5);
+    mtwnPlayerState s = State(&f, held);
+    CHECK(s.currentTime == 5.0 && s.state != mtwn_playFinished, "held there, not finished");
+    mtwnDestroyContext(f.context);
+}
+
 static void TestSeekCancel(void)
 {
     Fixture f = Make(false, 64);
@@ -278,6 +302,9 @@ static void TestSeekCancel(void)
           "at a label");
     CHECK(mtwnPlayer_SeekLabel(f.context, p, 4) == mtwn_errorInvalid, "no such label");
     CHECK(mtwnPlayer_Seek(f.context, p, (double)NAN) == mtwn_errorInvalid, "a NaN time");
+    CHECK(mtwnPlayer_Sweep(f.context, p, (double)NAN) == mtwn_errorInvalid &&
+              mtwnPlayer_Sweep(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
+          "a sweep to NaN or infinity");
     CHECK(mtwnPlayer_Cancel(f.context, p) == mtwn_success && State(&f, p).state == mtwn_playIdle &&
               isnan(State(&f, p).currentTime),
           "canceled: idle");
@@ -788,6 +815,7 @@ int main(void)
     TestPauseAtRate();
     TestSeeks();
     TestFinishReverse();
+    TestPastTheEnd();
     TestSeekCancel();
     TestBindings();
     TestRuns();

@@ -1572,6 +1572,43 @@ static void TestPointPassedBack(void)
     mtwnDestroyContext(w.context);
 }
 
+// A player sought past its end is held there, so the time it ran at since
+// is 0: the records of its way back after a rate change carry the update's
+// host time, not one between the updates.
+static void TestHeldAfterSeek(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef thrice = mtwnDefaultClipTimelineDef();
+    thrice.parent = MTWN_ROOT_NODE;
+    thrice.autoDuration = false;
+    thrice.timing.duration = 0.25;
+    thrice.timing.iterations = 3.0;
+    thrice.timing.iterationStart = 0.75;
+    thrice.timing.direction = mtwn_directionAlternateReverse;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &thrice, &timeline) == mtwn_success,
+          "a timeline");
+    (void)AddTrack(&w, 0.0, 0.25, 1.0);
+    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    mtwnPlayerId player = Play(&w, true, 1.0);
+    Update(&w, 0.125);
+    Update(&w, 0.1875);
+    CHECK(mtwnPlayer_Seek(w.context, player, 1.125) == mtwn_success, "past the end");
+    Update(&w, 0.25);
+    mtwnEvent e[16];
+    (void)Read(&w, e, 16);
+    CHECK(mtwnPlayer_SetRate(w.context, player, 0.5) == mtwn_success, "half the rate");
+    Update(&w, 0.5);
+    uint32_t n = Read(&w, e, 16);
+    uint32_t atUpdate = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        atUpdate += e[i].hostTime == 0.5 ? 1u : 0u;
+    }
+    CHECK(n == 2 && atUpdate == n, "the root's and the timeline's at the update's host time");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
     TestJumpStartMarks();
@@ -1608,5 +1645,6 @@ int main(void)
     TestEndlessNoIterations();
     TestUnderReversedEndless();
     TestPointPassedBack();
+    TestHeldAfterSeek();
     return s_failures == 0 ? 0 : 1;
 }
