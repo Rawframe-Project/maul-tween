@@ -441,6 +441,8 @@ static void TestRefusals(void)
     CHECK(mtwnMakeBackEasing(mtwn_easeIn, (double)NAN, &easing) == mtwn_errorInvalid,
           "NaN overshoot");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 0.0, 0.3, &easing) == mtwn_errorInvalid, "amplitude");
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, -0.5, 0.3, &easing) == mtwn_errorInvalid,
+          "a negative amplitude");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, 0.0, &easing) == mtwn_errorInvalid, "period");
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, -0.3, &easing) == mtwn_errorInvalid,
           "a negative period");
@@ -508,6 +510,9 @@ static void TestPinnedBits(void)
     CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1.70158, &easing) == mtwn_success, "back");
     atZero = mtwnEase(&easing, 0.0, false);
     CHECK(atZero == 0.0 && signbit(atZero), "the back in at 0, its raw -0");
+    // The largest integer power, 8, still by multiplication.
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 8.0, &easing) == mtwn_success, "power 8");
+    CHECK(mtwnEase(&easing, 0.1, false) == 0x1.5798ee2308c3fp-27, "0.1 to the 8th, bit for bit");
 }
 
 int main(void)
