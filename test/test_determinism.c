@@ -10,7 +10,8 @@
 // segment kind and channel count, at constant speed and not, with their
 // directions and angles, a scale track, scale mixes, the zoom, punch and
 // shake, springs' motion and settling, easings, their tables and fitted
-// linear() points, rough easings, decays and the rubber band. The bits
+// linear() points, rough easings, decays and the rubber band, with
+// inputs on either side of each switch between two forms. The bits
 // of every target's value, velocity and base after each update, of every
 // event record and of every sample are hashed (FNV-1a, 64 bits): the
 // same constant from every compiler and platform the library is built
@@ -36,7 +37,7 @@
 #include <string.h>
 
 // The scenario's hash, the same everywhere.
-static const uint64_t s_expected = 0x1da378bb6c26fca0u;
+static const uint64_t s_expected = 0x88e8a56ff5b825d7u;
 
 enum
 {
@@ -429,19 +430,33 @@ static void HashDoubles(const double* values, uint32_t count)
     }
 }
 
+// Progresses at the ends that Progress never gives: both zeros, the
+// smallest step past 0 either way, and the doubles beside 1.
+static const double s_ends[6] = {
+    -0.0, 0.0, 0x1p-1074, -0x1p-1074, 0x1.fffffffffffffp-1, 0x1.0000000000001p0};
+
+static void HashPathAt(const mtwnPath* path, double progress)
+{
+    double value[4];
+    double tangent[4];
+    double direction[4];
+    mtwnSamplePath(path, progress, value, tangent);
+    mtwnPathDirection(path, progress, direction);
+    HashDoubles(value, 4);
+    HashDoubles(tangent, 4);
+    HashDoubles(direction, 4);
+    HashDouble(mtwnPathAngle(path, progress));
+}
+
 static void HashPath(const mtwnPath* path)
 {
     for (uint32_t k = 0; k < SAMPLES; ++k)
     {
-        double value[4];
-        double tangent[4];
-        double direction[4];
-        mtwnSamplePath(path, Progress(k), value, tangent);
-        mtwnPathDirection(path, Progress(k), direction);
-        HashDoubles(value, 4);
-        HashDoubles(tangent, 4);
-        HashDoubles(direction, 4);
-        HashDouble(mtwnPathAngle(path, Progress(k)));
+        HashPathAt(path, Progress(k));
+    }
+    for (uint32_t e = 0; e < 6; ++e)
+    {
+        HashPathAt(path, s_ends[e]);
     }
 }
 
@@ -590,6 +605,11 @@ static void HashEasing(const mtwnEasing* easing)
         HashDouble(mtwnEase(easing, Progress(k), false));
         HashDouble(mtwnEase(easing, Progress(k), true));
     }
+    for (uint32_t e = 0; e < 6; ++e)
+    {
+        HashDouble(mtwnEase(easing, s_ends[e], false));
+        HashDouble(mtwnEase(easing, s_ends[e], true));
+    }
 }
 
 static void HashPoints(const mtwnLinearPoint* points, uint32_t count)
@@ -675,6 +695,97 @@ static void HashDecays(void)
     HashDouble(mtwnBoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
 }
 
+// Inputs just below and just above each switch between two forms, which
+// samples across the range miss.
+static void HashEdges(void)
+{
+    // Sine and circ in every mode, and Beziers whose extensions take each
+    // tangent: through P1 or P2 past each end, or flat at 0 and at 1.
+    for (uint32_t mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
+    {
+        mtwnEasing sine;
+        mtwnEasing circ;
+        CHECK(mtwnMakePennerEasing(mtwn_easingSine, (mtwnEaseMode)mode, &sine) == mtwn_success &&
+                  mtwnMakePennerEasing(mtwn_easingCirc, (mtwnEaseMode)mode, &circ) == mtwn_success,
+              "sine and circ");
+        HashEasing(&sine);
+        HashEasing(&circ);
+    }
+    static const double beziers[5][4] = {{0.25, 0.1, 0.25, 1.0},
+                                         {0.0, 0.0, 0.5, 2.0},
+                                         {0.5, 0.0, 1.0, 1.0},
+                                         {0.0, 0.5, 0.0, 0.5},
+                                         {1.0, 0.5, 1.0, 0.5}};
+    for (uint32_t b = 0; b < 5; ++b)
+    {
+        mtwnEasing bezier;
+        CHECK(mtwnMakeCubicBezier(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
+                                  &bezier) == mtwn_success,
+              "a Bezier");
+        HashEasing(&bezier);
+    }
+    // A scale mix's product switches to the sum of logarithms at an
+    // exponent of 700: from 1e-300 to 1e300 the ratio's logarithm is about
+    // 1381.55, so 0.5066 and 0.5068 sit either side, and past both ends.
+    mtwnScaleMix wide;
+    CHECK(mtwnMakeScaleMix(1e-300, 1e300, &wide) == mtwn_success, "a wide scale mix");
+    static const double across[6] = {0.5066, 0.5068, -0.5066, -0.5068, 1.5, -0.0};
+    for (uint32_t a = 0; a < 6; ++a)
+    {
+        HashDouble(mtwnMixScale(&wide, across[a]));
+    }
+    // An undamped spring of 2 Hz turns 4 pi a second, so its phase passes
+    // 2^52, where it is reduced by whole turns, between 3.58e14 and
+    // 3.59e14 seconds; and infinity.
+    mtwnSpring undamped;
+    mtwnSpring nearCritical;
+    mtwnSpring over;
+    CHECK(mtwnMakeSpringFromFrequency(2.0, 0.0, &undamped) == mtwn_success &&
+              mtwnMakeSpring(100.0, 20.02, 1.0, &nearCritical) == mtwn_success &&
+              mtwnMakeSpring(100.0, 40.0, 1.0, &over) == mtwn_success,
+          "edge springs");
+    static const double far[3] = {3.58e14, 3.59e14, HUGE_VAL};
+    // Overdamped springs switch from the series at a damped rate times the
+    // time of 1/2: about 0.4473 a second for the nearly critical one, so
+    // 1.1 and 1.13 seconds, and 17.32 for the other, so 0.0288 and 0.0289.
+    static const double series[2][2] = {{1.1, 1.13}, {0.0288, 0.0289}};
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        mtwnSpringMotion motion = mtwnSpringMotionAt(&undamped, far[i]);
+        HashDouble(motion.offsetFromOffset);
+        HashDouble(motion.offsetFromVelocity);
+        HashDouble(motion.velocityFromOffset);
+        HashDouble(motion.velocityFromVelocity);
+    }
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        for (uint32_t s = 0; s < 2; ++s)
+        {
+            double offset = 0.0;
+            double velocity = 0.0;
+            mtwnSampleSpring(s == 0 ? &nearCritical : &over, -1.0, 2.5, series[s][i], &offset,
+                             &velocity);
+            HashDouble(offset);
+            HashDouble(velocity);
+        }
+    }
+    // A shake's noise holds lattice coordinates below 2^53: at 12 points a
+    // second, 7.5e14 seconds is inside and 7.51e14 past it; a shake's
+    // points over its duration must stay below 2^53 too.
+    mtwnShake shake;
+    mtwnShake refused;
+    CHECK(mtwnMakeShake(12.0, 0.9, 1.5, 0x5EEDu, &shake) == mtwn_success, "a shake");
+    static const double noiseAt[4] = {7.5e14, 7.51e14, -0.0, -1e-300};
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        HashDouble(mtwnShakeNoise(&shake, 1, noiseAt[i]));
+    }
+    mtwnResult inside = mtwnMakeShake(1.0, 0x1.fffffffffffffp52, 1.0, 1, &refused);
+    mtwnResult past = mtwnMakeShake(1.0, 0x1p53, 1.0, 1, &refused);
+    Hash(&inside, sizeof inside);
+    Hash(&past, sizeof past);
+}
+
 int main(int argc, char** argv)
 {
     (void)argv;
@@ -684,6 +795,7 @@ int main(int argc, char** argv)
     HashSprings();
     HashEasings();
     HashDecays();
+    HashEdges();
     World w = MakeWorld();
     uint64_t now = 0;
     for (uint32_t frame = 0; frame < FRAMES; ++frame)
