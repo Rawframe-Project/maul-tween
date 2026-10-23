@@ -32,4 +32,4 @@ Every interpolation of two numbers goes through one helper, `(1 - t) a + t b`, a
 
 - Never call a `<math.h>` function outside `tools/libm-allowed.txt`; use the library's own. A new use of one that rounds exactly needs a line there.
 - A public function that computes must run inside the environment switch, or a host's flush-to-zero changes its bits. The `transition` and `clip` suites run under a host environment of flush-to-zero and rounding toward zero.
-- The determinism suite's hash covers every part; a change that moves any bit changes it, and must say why in its pull request.
+- The determinism suite's hash, checked on every CI cell, covers every part: every value kind and transition spec, clips with their events and players, staggers, paths of every segment kind and channel count at constant speed and not with their directions, scale tracks and mixes, the zoom, punch, shake, springs' motion and settling, easings with their tables and fitted `linear()` points, rough easings, decays and the rubber band. A change that moves any bit of them changes it, and must say why in its pull request.

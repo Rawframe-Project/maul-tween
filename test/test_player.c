@@ -11,6 +11,7 @@
 
 #include "maul-tween/event.h"
 #include "maul-tween/player.h"
+#include "maul-tween/target.h"
 #include "maul-tween/transition.h"
 
 #include <math.h>
@@ -585,23 +586,39 @@ static void TestFullPoolKeepsBindings(void)
     mtwnDestroyContext(f.context);
 }
 
+// Players compose in the order they were made, not by their slots: of two
+// replacing players on one target, the later made writes it, even in the
+// slot of a player freed before the other was made.
 static void TestOrder(void)
 {
     Fixture f = Make(false, 64);
+    mtwnPlayerId first = Player(&f, true, 0.0);
+    mtwnPlayerId earlier = Player(&f, true, 0.0);
+    CHECK(mtwnDestroyPlayer(f.context, first) == mtwn_success, "the first freed");
+    mtwnPlayerId later = Player(&f, true, 0.0);
+    CHECK(later.index1 == first.index1 && later.index1 < earlier.index1,
+          "the later made in the earlier slot");
+    CHECK(mtwnPlayer_Seek(f.context, earlier, 0.5) == mtwn_success &&
+              mtwnPlayer_Seek(f.context, later, 1.5) == mtwn_success,
+          "held at a quarter and three quarters of the track");
+    Update(&f, 1.0);
+    mtwnTargetState target;
+    CHECK(mtwnTarget_GetState(f.context, f.target, &target) == mtwn_success &&
+              target.value.x == 0.75f,
+          "the later made writes last");
+    CHECK(mtwnDestroyPlayer(f.context, later) == mtwn_success, "the later freed");
+    Update(&f, 1.5);
+    CHECK(mtwnTarget_GetState(f.context, f.target, &target) == mtwn_success &&
+              target.value.x == 0.25f,
+          "then the earlier writes it");
     mtwnTargetId other;
     CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
-    mtwnPlayerId first = Player(&f, true, 1.0);
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = other;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
-    mtwnPlayerId last = Player(&f, true, 1.0);
-    CHECK(mtwnDestroyPlayer(f.context, first) == mtwn_success, "the first freed");
-    mtwnPlayerId again = Player(&f, true, 1.0);
-    CHECK(again.index1 == first.index1, "its slot reused");
-    (void)last;
     CHECK(mtwnPlayer_Pause(f.context, transition) == mtwn_errorState,
           "transitions take no controls");
     mtwnPlayerState s;

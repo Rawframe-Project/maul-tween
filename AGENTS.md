@@ -32,7 +32,7 @@ The server's default `gcc` is 13, which the family refuses; use `gcc-14` or `cla
 ## Invariants
 
 - **Floating-point environment:** every public function that computes runs inside the switch to the library's environment (`src/fpenv.c`). Only the `<math.h>` functions in `tools/libm-allowed.txt` may be called; use the library's own elementary functions for the rest.
-- **Determinism:** `test/test_determinism.c` holds one hash of a scenario of every part. A change that moves any bit of a result changes it, and the pull request says why.
+- **Determinism:** `test/test_determinism.c` holds one hash of a scenario of every part: every value kind, clips and events, and samples of paths, scales, the zoom, punch, shake, springs, easings, fits, rough easings and decays. A change that moves any bit of a result changes it, and the pull request says why.
 - **Generated sources:** `src/generated/` (math constants, color matrices) and `test/generated/` (oracle tables, fuzz seeds), each with its generator in `tools/`. CI checks the Python generators' output with `--check`.
 - **Modules:** `tools/modules.txt` lists which module may include which. The clips' players reach the update only through the function table their first player installs, so `context`, `target`, `transition` and `update` never include clip code.
 - **Defs:** every def comes from its inline default, which stamps `MTWN_ABI_VERSION`. Reserved fields are 0 in and out. A new field changes the def's layout and so the ABI.
