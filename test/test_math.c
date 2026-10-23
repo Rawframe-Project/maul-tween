@@ -14,7 +14,9 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 // Each sweep holds a bound a little above the worst error measured on
 // it, under the 1 ulp the functions promise, so that a change which
@@ -243,6 +245,14 @@ static void TestLogSpecialValues(void)
     CHECK(mtwnLog(0.0) == -HUGE_VAL, "ln 0 is -inf");
     CHECK(mtwnLog(-0.0) == -HUGE_VAL, "ln -0 is -inf");
     CHECK(isnan(mtwnLog(-1.0)), "ln of a negative is NaN");
+    // Past -1 the guard alone keeps a negative from the series.
+    static const double negatives[] = {-0.5, -3.7, -1e-300, -DBL_MAX, -0x1.0p-1074};
+    bool allNan = true;
+    for (size_t i = 0; i < sizeof negatives / sizeof negatives[0]; ++i)
+    {
+        allNan = allNan && isnan(mtwnLog(negatives[i]));
+    }
+    CHECK(allNan, "ln of every negative is NaN");
     CHECK(isnan(mtwnLog((double)NAN)), "ln NaN is NaN");
     CHECK(mtwnLog(HUGE_VAL) == HUGE_VAL, "ln inf is inf");
     CHECK(UlpError(mtwnLog(0x1.0p-1074), ReferenceLog(0x1.0p-1074)) <= Bound(1.0),
@@ -375,6 +385,73 @@ static void TestSinCosNearQuadrantBoundaries(void)
         worst = error > worst ? error : worst;
     }
     CHECK(worst <= Bound(0.85), "sine and cosine within 0.85 ulp next to k pi / 2");
+}
+
+// The quiet NaN with its sign clear, by its bits.
+static bool IsCanonicalNan(double x)
+{
+    uint64_t bits = 0;
+    memcpy(&bits, &x, sizeof bits);
+    return bits == 0x7FF8000000000000u;
+}
+
+static void TestSinCosNonFinite(void)
+{
+    static const double inputs[] = {HUGE_VAL, -HUGE_VAL, (double)NAN, -(double)NAN};
+    bool canonical = true;
+    for (size_t i = 0; i < sizeof inputs / sizeof inputs[0]; ++i)
+    {
+        double sine = 0.0;
+        double cosine = 0.0;
+        mtwnSinCos(inputs[i], &sine, &cosine);
+        canonical = canonical && IsCanonicalNan(sine) && IsCanonicalNan(cosine);
+    }
+    CHECK(canonical, "a non-finite x gives the same quiet NaN on every target");
+}
+
+static void TestSinCosFarOut(void)
+{
+    // Every binade from the far reduction's start to the largest double,
+    // both signs; the result odd in x.
+    uint64_t state = 30;
+    double worst = 0.0;
+    bool odd = true;
+    for (int e = 20; e <= 1023; ++e)
+    {
+        for (int i = 0; i < 40; ++i)
+        {
+            double x = ldexp(Uniform(&state, 1.0, 2.0), e);
+            if (!isfinite(x))
+            {
+                continue;
+            }
+            double error = SinCosError(x);
+            worst = error > worst ? error : worst;
+            double sine = 0.0;
+            double cosine = 0.0;
+            double negativeSine = 0.0;
+            double negativeCosine = 0.0;
+            mtwnSinCos(x, &sine, &cosine);
+            mtwnSinCos(-x, &negativeSine, &negativeCosine);
+            odd = odd && negativeSine == -sine && negativeCosine == cosine;
+        }
+    }
+    CHECK(worst <= Bound(0.85), "sine and cosine within 0.85 ulp out to the largest double");
+    CHECK(odd, "sine odd and cosine even out there");
+    // Doubles near multiples of pi / 2, the first the closest of all
+    // (6381956970095103 2^797, within 2^-61 of one), the largest double
+    // and both sides of the far reduction's start.
+    static const double hard[] = {0x1.6ac5b262ca1ffp+849,  0x1.8a9b8ed3ab3f0p+8,
+                                  0x1.e0c6f3ceb7e3ep+101,  0x1.921fb54442d18p+1023,
+                                  0x1.fffffffffffffp+1023, 0x1.8p+20,
+                                  0x1.7ffffffffffffp+20,   1e22};
+    double hardWorst = 0.0;
+    for (size_t i = 0; i < sizeof hard / sizeof hard[0]; ++i)
+    {
+        double error = SinCosError(hard[i]);
+        hardWorst = error > hardWorst ? error : hardWorst;
+    }
+    CHECK(hardWorst <= Bound(0.85), "sine and cosine within 0.85 ulp next to multiples of pi / 2");
 }
 
 static void TestSinCosOnMaulUiInputs(void)
@@ -573,6 +650,8 @@ int main(void)
     TestSinCosSpecialValues();
     TestSinCosWithinOneUlp();
     TestSinCosNearQuadrantBoundaries();
+    TestSinCosNonFinite();
+    TestSinCosFarOut();
     TestSinCosOnMaulUiInputs();
     TestAtan2SpecialValues();
     TestAtan2WithinOneUlp();

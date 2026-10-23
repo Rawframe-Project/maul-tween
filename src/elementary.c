@@ -23,6 +23,8 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 // The largest x whose exponential is finite, the double just below
 // ln(DBL_MAX), and the smallest whose exponential rounds above 0.
@@ -322,12 +324,138 @@ static void SinCosKernel(double r, double rLow, double* sineOut, double* cosineO
     *cosineOut = head + (headLow - halfLow + (cosineTail - r * rLow));
 }
 
+// From here k reaches 2^20 and the reduction by three parts of pi / 2
+// stops being exact; past it ReduceFar takes over.
+static const double s_farAngle = 0x1.8p+20;
+
+// A quiet NaN with its sign clear, the same bits on every target (an
+// arithmetic NaN's sign differs between x86 and ARM).
+static double QuietNan(void)
+{
+    const uint64_t bits = 0x7FF8000000000000u;
+    double out = 0.0;
+    memcpy(&out, &bits, sizeof out);
+    return out;
+}
+
+// 2^e for a normal result.
+static double PowerOfTwo(int e)
+{
+    uint64_t bits = (uint64_t)(e + 1023) << 52;
+    double out = 0.0;
+    memcpy(&out, &bits, sizeof out);
+    return out;
+}
+
+// a b as a 128-bit product: its low word, the high in *highOut.
+static uint64_t Multiply64(uint64_t a, uint64_t b, uint64_t* highOut)
+{
+    uint64_t aLow = a & 0xFFFFFFFFu;
+    uint64_t aHigh = a >> 32;
+    uint64_t bLow = b & 0xFFFFFFFFu;
+    uint64_t bHigh = b >> 32;
+    uint64_t lowLow = aLow * bLow;
+    uint64_t lowHigh = aLow * bHigh;
+    uint64_t highLow = aHigh * bLow;
+    uint64_t middle = (lowLow >> 32) + (lowHigh & 0xFFFFFFFFu) + (highLow & 0xFFFFFFFFu);
+    *highOut = aHigh * bHigh + (lowHigh >> 32) + (highLow >> 32) + (middle >> 32);
+    return middle << 32 | (lowLow & 0xFFFFFFFFu);
+}
+
+// The 64 bits of 2 / pi from bit `from` on (bit 1 the first after the
+// point), the first of them the most significant.
+static uint64_t TwoOverPiBits(int from)
+{
+    int word = (from - 1) / 64;
+    int offset = (from - 1) % 64;
+    uint64_t out = s_twoOverPi[word] << offset;
+    return offset == 0 ? out : out | s_twoOverPi[word + 1] >> (64 - offset);
+}
+
+// The 64 bits of p (five words, least significant first, the last 0)
+// from bit `from` up, for -64 < from < 256; bits below
+// 0 read as 0.
+static uint64_t ProductBits(const uint64_t* p, int from)
+{
+    if (from < 0)
+    {
+        return p[0] << -from;
+    }
+    int word = from / 64;
+    int offset = from % 64;
+    return offset == 0 ? p[word] : p[word] >> offset | p[word + 1] << (64 - offset);
+}
+
+// Payne and Hanek's reduction for x >= s_farAngle, exact for every
+// finite double: x 2 / pi = n + f with |f| <= 1/2, from the window of
+// 192 bits of 2 / pi that the bits of x reach (those before it make
+// multiples of 4, those after it change f by under 2^-137). Returns n
+// modulo 4; r + rLow is f pi / 2.
+static uint32_t ReduceFar(double x, double* rOut, double* rLowOut)
+{
+    uint64_t bits = 0;
+    memcpy(&bits, &x, sizeof bits);
+    uint64_t mantissa = (bits & 0xFFFFFFFFFFFFFu) | 0x10000000000000u;
+    int e = (int)(bits >> 52) - 1075; // x = mantissa 2^e
+    int start = e > 2 ? e - 1 : 1;
+    // x (2 / pi) = mantissa C 2^-point, C the window from bit start.
+    int point = start + 191 - e;
+    uint64_t c2 = TwoOverPiBits(start);
+    uint64_t c1 = TwoOverPiBits(start + 64);
+    uint64_t c0 = TwoOverPiBits(start + 128);
+    uint64_t h0 = 0;
+    uint64_t h1 = 0;
+    uint64_t h2 = 0;
+    uint64_t l0 = Multiply64(mantissa, c0, &h0);
+    uint64_t l1 = Multiply64(mantissa, c1, &h1);
+    uint64_t l2 = Multiply64(mantissa, c2, &h2);
+    uint64_t p[5];
+    p[0] = l0;
+    p[1] = h0 + l1;
+    uint64_t carry = p[1] < h0;
+    uint64_t sum = h1 + carry;
+    carry = sum < h1;
+    p[2] = sum + l2;
+    carry += p[2] < l2;
+    p[3] = h2 + carry;
+    p[4] = 0;
+    uint32_t n = (uint32_t)(ProductBits(p, point) & 3u);
+    uint64_t high = ProductBits(p, point - 64);
+    uint64_t low = ProductBits(p, point - 128);
+    // f at or past 1/2 rounds n up and is taken as f - 1.
+    bool negative = (high >> 63) != 0;
+    if (negative)
+    {
+        n = (n + 1) & 3u;
+        low = ~low + 1;
+        high = ~high + (low == 0 ? 1u : 0u);
+    }
+    // Normalized, the fraction's top 53 bits and the rest.
+    int shift = 0;
+    while (shift < 128 && (high >> 63) == 0)
+    {
+        high = high << 1 | low >> 63;
+        low <<= 1;
+        shift++;
+    }
+    double fraction = (double)(high >> 11) * PowerOfTwo(-53 - shift);
+    double fractionLow =
+        (double)(high & 0x7FFu) * PowerOfTwo(-64 - shift) + (double)low * PowerOfTwo(-128 - shift);
+    double productLow = 0.0;
+    double product = TwoProduct(fraction, MTWN_PIO2_HI, &productLow);
+    productLow += fraction * MTWN_PIO2_LO + fractionLow * MTWN_PIO2_HI;
+    double r = FastTwoSum(product, productLow, rLowOut);
+    *rOut = negative ? -r : r;
+    *rLowOut = negative ? -*rLowOut : *rLowOut;
+    return n;
+}
+
 void mtwnSinCos(double x, double* sineOut, double* cosineOut)
 {
     if (!isfinite(x))
     {
-        *sineOut = (double)NAN;
-        *cosineOut = (double)NAN;
+        *sineOut = QuietNan();
+        *cosineOut = QuietNan();
         return;
     }
     if (fabs(x) < s_tinyAngle)
@@ -336,24 +464,37 @@ void mtwnSinCos(double x, double* sineOut, double* cosineOut)
         *cosineOut = 1.0;
         return;
     }
-    double k = floor(x * MTWN_INV_PIO2 + 0.5);
-    // x - k p1 is exact (Sterbenz), k p2 and k p3 are exact products for
-    // |k| < 2^20, and the sums carry their errors.
-    double first = x - k * MTWN_PIO2_1;
-    double secondLow = 0.0;
-    double second = TwoSum(first, -k * MTWN_PIO2_2, &secondLow);
+    double r = 0.0;
     double rLow = 0.0;
-    double r = FastTwoSum(second, secondLow - k * MTWN_PIO2_3, &rLow);
+    uint32_t quadrant = 0;
+    if (fabs(x) < s_farAngle)
+    {
+        double k = floor(x * MTWN_INV_PIO2 + 0.5);
+        // x - k p1 is exact (Sterbenz), k p2 and k p3 are exact products
+        // for |k| < 2^20, and the sums carry their errors.
+        double first = x - k * MTWN_PIO2_1;
+        double secondLow = 0.0;
+        double second = TwoSum(first, -k * MTWN_PIO2_2, &secondLow);
+        r = FastTwoSum(second, secondLow - k * MTWN_PIO2_3, &rLow);
+        // The quadrant, from k modulo 4 computed exactly for any k.
+        double kModulo4 = fmod(k, 4.0);
+        quadrant = (uint32_t)(kModulo4 < 0.0 ? kModulo4 + 4.0 : kModulo4);
+    }
+    else
+    {
+        // -x reduces to -n and -f.
+        quadrant = ReduceFar(fabs(x), &r, &rLow);
+        if (x < 0.0)
+        {
+            quadrant = (4u - quadrant) & 3u;
+            r = -r;
+            rLow = -rLow;
+        }
+    }
     double sine = 0.0;
     double cosine = 0.0;
     SinCosKernel(r, rLow, &sine, &cosine);
-    // The quadrant, from k modulo 4 computed exactly for any k.
-    double quadrant = fmod(k, 4.0);
-    if (quadrant < 0.0)
-    {
-        quadrant += 4.0;
-    }
-    switch ((int)quadrant)
+    switch (quadrant)
     {
     case 0:
         *sineOut = sine;
