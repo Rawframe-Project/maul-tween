@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // What other modules may ask of a spring's layout, which lives in
-// src/spring.c (record mtwn-0030).
+// src/spring.c.
 
 #ifndef MAUL_TWEEN_SRC_SPRING_INTERNAL_H
 #define MAUL_TWEEN_SRC_SPRING_INTERNAL_H

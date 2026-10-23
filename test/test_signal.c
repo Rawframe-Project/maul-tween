@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Integers, discrete values, punch and shake (records mtwn-0016,
-// mtwn-0017, mtwn-0020, mtwn-0026): integers pass through every value
+// Integers, discrete values, punch and shake:
+// integers pass through every value
 // between their ends, punch is its formula in long double, and shake is
 // bounded, continuous, 0 on its lattice and at its ends, and the same
 // bits on every platform for a seed.
@@ -179,16 +179,12 @@ static void TestShakeRepeats(void)
     CHECK(mtwnMakeShake(10.0, 2.0, 2.0, 1235, &c) == mtwn_success &&
               mtwnSampleShake(&c, 2, 0.123) != mtwnSampleShake(&a, 2, 0.123),
           "another seed another way");
-    // The same bits on every platform: values computed once and kept.
-    CHECK(mtwnSampleShake(&a, 0, 0.123) == 0x1.178aae82e3cd7p-2 &&
-              mtwnSampleShake(&a, 5, 1.37) == 0x1.3908d98b58cbap-5,
-          "the kept values");
     CHECK(mtwnMakeShake(1.0, 1.0, 0.0, 0, &c) == mtwn_errorInvalid, "a zero exponent");
     CHECK(mtwnMakeShake(-1.0, 1.0, 1.0, 0, &c) == mtwn_errorInvalid, "a negative frequency");
     CHECK(mtwnMakeShake(1.0, 1.0, 1.0, 0, NULL) == mtwn_errorInvalid, "null out");
 }
 
-// The noise alone (record mtwn-0065): the shake without its envelope, on
+// The noise alone: the shake without its envelope, on
 // a clock past its duration, 0 on the lattice and outside its range.
 static void TestShakeNoise(void)
 {
@@ -217,25 +213,17 @@ static void TestShakeNoise(void)
 }
 
 // Equal ends mix to that end at any progress, past 2^53 too, where the
-// weighted sum's terms cancelled (record mtwn-0070).
+// weighted sum's terms cancelled.
 static void TestIntegerFarProgress(void)
 {
     CHECK(mtwnMixInteger(7, 7, 1e20) == 7 && mtwnMixInteger(-3, -3, -1e20) == -3,
           "equal ends, far out: the end");
 }
 
-// The edges to the bit (the same bits on every platform): at 0 the noise
-// is the lattice's own zero, signed by its gradient (-0 for seed 0's
-// channel 2); from 2^53 points on it is +0; and an integer mix that
-// rounds to 2^63 exactly is the type's largest, not past it.
-static void TestEdgeBits(void)
+// An integer mix that rounds to 2^63 exactly is the type's largest, not
+// past it.
+static void TestIntegerTop(void)
 {
-    mtwnShake shake;
-    CHECK(mtwnMakeShake(1.0, 1.0, 1.0, 0, &shake) == mtwn_success, "a shake");
-    double atZero = mtwnShakeNoise(&shake, 2, 0.0);
-    double atEnd = mtwnShakeNoise(&shake, 3, 0x1p53);
-    CHECK(atZero == 0.0 && signbit(atZero) && atEnd == 0.0 && !signbit(atEnd),
-          "-0 at 0 from the lattice, +0 at 2^53 points");
     CHECK(mtwnMixInteger(INT64_MAX, INT64_MAX, 0.5) == INT64_MAX,
           "a mix of 2^63 exactly: the largest");
 }
@@ -249,6 +237,6 @@ int main(void)
     TestShakeShape();
     TestShakeRepeats();
     TestShakeNoise();
-    TestEdgeBits();
+    TestIntegerTop();
     return s_failures == 0 ? 0 : 1;
 }

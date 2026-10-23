@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The context and its targets (records mtwn-0004, mtwn-0006, mtwn-0028):
+// The context and its targets:
 // the def's checks, one block through the host's allocator, the
 // sharing's capacities in its bytes, ids that go
 // stale and are reused last in first out, misuse counted, and values
@@ -350,7 +350,7 @@ static void TestReadMany(void)
 }
 
 // Reading targets with what it needs missing is misuse, counted; with no
-// context, refused (found by mutants).
+// context, refused.
 static void TestReadRefusals(void)
 {
     mtwnContext* context = Make(2);

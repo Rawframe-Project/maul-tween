@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Reduced motion (record mtwn-0049): transitions of every spec and running
+// Reduced motion: transitions of every spec and running
 // clips' players with a finite end finish at the next update, their
 // delays skipped and their records at that update's time, landing where
 // they would have; essential ones play on, a player with an infinite end

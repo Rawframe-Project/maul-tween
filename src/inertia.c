@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Inertia (record mtwn-0063): a decay landing on a chosen end, and a
+// Inertia: a decay landing on a chosen end, and a
 // decay held between bounds that hands over to a spring at the bound it
 // crosses, at that crossing time and with the velocity it has there. Kept
 // apart from the decay, whose sampling it calls rather than copies.

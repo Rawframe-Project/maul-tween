@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Clips played into targets (records mtwn-0012, mtwn-0013, mtwn-0036):
+// Clips played into targets:
 // values and velocities by the tree's times, fills, a finished player
 // committing what it fills forward and freed, later players over earlier
 // ones, targets no player writes showing their bases.
@@ -332,7 +332,7 @@ static float ShownAt(World* w, double seconds, double rate)
 // A clip's numbers past the floats' range, by each path that sums or eases
 // past it: a segment's back out of 100, an endless incremental repeat, two
 // players adding (infinite values and velocities before). Each frame
-// finite, the value held at the largest float (record mtwn-0069).
+// finite, the value held at the largest float.
 static void TestNumbersPastFloats(void)
 {
     for (int path = 0; path < 3; ++path)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Composition (record mtwn-0039): an effect value onto the underlying
+// Composition: an effect value onto the underlying
 // value by an operation and a weight, per value kind.
 
 #ifndef MAUL_TWEEN_SRC_COMPOSE_H

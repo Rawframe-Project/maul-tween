@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Sirac Ozmen
 #
-# The code a program links, by the parts of the library it uses (records
-# mtwn-0043 and mtwn-0047): for each part, a program that takes the
+# The code a program links, by the parts of the library it uses:
+# for each part, a program that takes the
 # address of every public function its headers declare is linked against
 # a built static library with unused sections dropped, and its .text,
 # less an empty program's, is the part's size. The parts are the public
@@ -14,12 +14,11 @@
 #
 # --map PART also prints that part's code by the library's object files,
 # read from the linker's map: what links it in. --budget fails when a
-# part is over its budget (record mtwn-0051), for a library built in
-# Release with GCC 14 by default options; growth past one is a decision.
-# It fails too when a budget is set more than GROWTH over the part's size
-# at the last release, unless RAISED names the record that allows it
-# (record mtwn-0055, amended at 0.6.0): a feature's record may raise a
-# budget within that, but a release's growth past it is decided as such.
+# part is over its budget, for a library built in Release with GCC 14 by
+# default options; growth past one is a decision, stated in its pull
+# request. It fails too when a budget is set more than GROWTH over the
+# part's size when the budgets were set, unless RAISED names the part with
+# the reason.
 
 import argparse
 import os
@@ -38,8 +37,7 @@ PARTS = [
     ("clips", ["clip.h", "player.h", "event.h"]),
 ]
 
-# Each part's budget in bytes, about 6% over its size at 0.7.0 (records
-# mtwn-0051 and mtwn-0055, amended).
+# Each part's budget in bytes, about 6% over its size when it was set.
 BUDGETS = {
     "curves": 27000,
     "values": 60000,
@@ -49,8 +47,9 @@ BUDGETS = {
 }
 
 
-# Each part's size in bytes at the last release, 1.0.4, its budgets'
-# ceiling GROWTH over it, and the records raising a ceiling past it.
+# Each part's size in bytes when the budgets were last set, the ceiling
+# GROWTH over it a budget may not pass, and the parts whose ceiling a
+# pull request raised past it, with the reason.
 RELEASED = {
     "curves": 25049,
     "values": 56665,
@@ -66,8 +65,8 @@ def check_ceilings():
     for name, budget in BUDGETS.items():
         ceiling = RELEASED[name] * (1.0 + GROWTH)
         if budget > ceiling and name not in RAISED:
-            sys.exit("code_size.py: the %s budget, %.1f kB, passes %.0f%% over its %.1f kB at the "
-                     "last release; a record raises it in RAISED" %
+            sys.exit("code_size.py: the %s budget, %.1f kB, passes %.0f%% over its %.1f kB when "
+                     "the budgets were set; RAISED names a part raised past it, with the reason" %
                      (name, budget / 1000.0, GROWTH * 100.0, RELEASED[name] / 1000.0))
 
 

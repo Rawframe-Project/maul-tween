@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Zooms (record mtwn-0059): van Wijk and Nuij's optimal path between
+// Zooms: van Wijk and Nuij's optimal path between
 // views (u, w), a centre and a width, with rho trading zoom against pan.
 // With d the pan's distance, b0 = (w1^2 - w0^2 + rho^4 d^2) / (2 w0
 // rho^2 d) and b1 likewise with w1 and -rho^4 d^2, r = -asinh(b), the

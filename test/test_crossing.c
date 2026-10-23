@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Crossings (record mtwn-0037): exact counts at the sweep's ends, through
+// Crossings: exact counts at the sweep's ends, through
 // repeats, reversed and alternate iterations, negative rates and repeat
 // delays, a stall over an endless fast repeat counted, not walked; and
 // random nested levels against an oracle that samples the timing itself,

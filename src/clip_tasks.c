@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The clips' players on the host's task system (record mtwn-0056). Before
+// The clips' players on the host's task system. Before
 // an update's serial pass, the clips' players in creation order are split
 // into up to MTWN_GROUPS groups, which the host runs on any thread. Each
 // group advances its players in its own scratch, staging their records and

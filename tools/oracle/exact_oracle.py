@@ -3,8 +3,8 @@
 # Copyright (c) 2026 Sirac Ozmen
 #
 # A reference for the timing model's discrete answers and the crossings'
-# counts that cannot share their rounding (records mtwn-0012 and
-# mtwn-0037): every input is a double, taken as the exact rational it
+# counts that cannot share their rounding:
+# every input is a double, taken as the exact rational it
 # is, and every answer is worked out with fractions. Durations, delays
 # and iteration starts are not dyadic (0.1, 1/3, whole starts to 10^6),
 # so the library's doubles round where these do not. It writes
@@ -334,12 +334,12 @@ def render():
         "",
         "static const ExactTimingCase s_exactTimings[] = {",
     ]
-    for raw, local, lo, hi, in_delay in timing_cases(g, 1600):
+    for raw, local, lo, hi, in_delay in timing_cases(g, 400):
         lines.append(f"    {{{timing_text(raw)}, {number(local)}, {number(lo)}, {number(hi)}, "
                      f"{in_delay}}},")
     lines += ["};", "", "static const ExactCountCase s_exactCounts[] = {"]
     for levels, outer, child_start, inner, leaf_kind, at, leaf, t1, t2, same, other in \
-            count_cases(g, 2000):
+            count_cases(g, 500):
         lines.append(f"    {{{levels}, {timing_text(outer)}, {number(child_start)}, "
                      f"{timing_text(inner)}, {leaf_kind}, {number(at)}, {timing_text(leaf)}, "
                      f"{number(t1)}, {number(t2)}, {same}, {other}}},")

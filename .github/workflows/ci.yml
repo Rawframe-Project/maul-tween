@@ -1,36 +1,73 @@
-# Continuous integration for Maul Tween.
+# Continuous integration: the pull request check, and the full check on
+# main and every night, which fuzzes longer and runs the large random
+# scenes labeled nightly. Each build cell is a CMake preset built by the
+# organization's shared workflow; the other jobs run in the same CI image.
+# docs/operations/checks.md explains each job, and tools/check.sh runs the
+# same presets locally.
 name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "23 2 * * *"
   workflow_dispatch:
 
+# A new push to a pull request cancels its running CI; runs on main get a
+# group of their own, so they are never cancelled.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
 env:
-  # apt retries a stalled download and gives up on a dead one.
-  APT_OPTIONS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30
   PREFIX: MAUL_TWEEN
 
 jobs:
-  # The rules no compiler checks: formatting, static analysis and the
-  # family's source, module, documentation and length checks.
+  # Whether anything beyond documentation changed; the builds skip when not.
+  changes:
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@b1220ae4523884c7baee93dfb2d9dd1fb1ec960b # v0.0.9
+    permissions:
+      pull-requests: read
+
+  docs:
+    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@b1220ae4523884c7baee93dfb2d9dd1fb1ec960b # v0.0.9
+    permissions:
+      contents: read
+
+  zizmor:
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@b1220ae4523884c7baee93dfb2d9dd1fb1ec960b # v0.0.9
+    permissions:
+      contents: read
+
+  # The rules no compiler checks: formatting, the family's source, module,
+  # length, API documentation and snippet checks, the documentation site,
+  # the generated sources and oracle tables against their generators,
+  # clang-tidy, and the code size of each part against its budget. It runs
+  # on documentation changes too, since the snippet check and the site
+  # read docs/.
   checks:
-    name: checks
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.5@sha256:bc8ecad77f13664efd2c5961f3c82751d45b3c0b05fb3ccaaea9d0bdd0966f60
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - name: Install tools
-        timeout-minutes: 15
-        run: |
-          sudo apt-get $APT_OPTIONS update -q
-          sudo apt-get $APT_OPTIONS install -y -q --no-install-recommends clang-20 clang-tidy-20
-          sudo apt-get $APT_OPTIONS install -y -q ninja-build
-          pip install clang-format==22.1.5 >/dev/null
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: clang-format
         run: |
           clang-format --version
-          clang-format --dry-run -Werror $(find include src test tools bench samples -name '*.[ch]' 2>/dev/null)
+          files=$(git ls-files '*.c' '*.h')
+          [ -n "$files" ] || { echo "::error::git listed no sources"; exit 1; }
+          echo "$files" | xargs clang-format --dry-run -Werror
       - name: Family checks
         run: |
           python3 tools/check_source.py
@@ -38,6 +75,10 @@ jobs:
           python3 tools/check_docs.py
           python3 tools/check_lengths.py
           python3 tools/check_guide.py
+      - name: The documentation site builds
+        run: python3 tools/build_docs.py
+      - name: Generated sources and oracle tables match their generators
+        run: |
           python3 tools/gen_math_constants.py --check
           python3 tools/gen_color_matrices.py --check
           python3 tools/oracle/timing_oracle.py --check
@@ -45,121 +86,213 @@ jobs:
           python3 tools/oracle/zoom_oracle.py --check
       - name: clang-tidy
         run: |
-          cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          for f in src/*.c; do
-            clang-tidy-20 -p build --quiet --warnings-as-errors='*' "$f" || exit 1
-          done
+          cmake --preset linux-clang-20 -B out/tidy -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_BUILD_BENCH=OFF -D${PREFIX}_BUILD_SAMPLES=OFF >/dev/null
+          files=$(git ls-files 'src/*.c')
+          [ -n "$files" ] || { echo "::error::git listed no sources"; exit 1; }
+          echo "$files" | xargs -P 4 -n 1 clang-tidy-20 -p out/tidy --quiet --warnings-as-errors='*'
+      - name: Code size within the budgets
+        # GCC 14 Release on x86-64, each part's code against its budget in
+        # tools/code_size.py.
+        run: |
+          cmake --preset linux-gcc-14 -B out/size -D${PREFIX}_BUILD_TESTS=OFF \
+            -D${PREFIX}_BUILD_BENCH=OFF -D${PREFIX}_BUILD_SAMPLES=OFF >/dev/null
+          cmake --build out/size
+          python3 tools/code_size.py out/size/libmaul-tween.a --budget
 
-  # Every cell builds with warnings as errors and runs the whole suite,
-  # the header tests included.
-  build-test:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+  # Every cell builds with warnings as errors and runs the suite but the
+  # nightly scenes, the header tests included; the shared cell also
+  # installs the library and builds samples/minimal against it. The
+  # nightly cell runs every test, the large random scenes too.
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: linux-gcc-14,        os: ubuntu-24.04,     cc: gcc-14,   cxx: g++-14,     config: Release, extra: "" }
-          - { name: linux-clang-20,      os: ubuntu-24.04,     cc: clang-20, cxx: clang++-20, config: Release, extra: "" }
-          - { name: linux-clang-20-asan, os: ubuntu-24.04,     cc: clang-20, cxx: clang++-20, config: Debug,   extra: "-DMAUL_TWEEN_SANITIZE=ON" }
-          - { name: linux-clang-20-tsan, os: ubuntu-24.04,     cc: clang-20, cxx: clang++-20, config: Debug,   extra: "-DMAUL_TWEEN_TSAN=ON" }
-          - { name: linux-shared,        os: ubuntu-24.04,     cc: clang-20, cxx: clang++-20, config: Release, extra: "-DMAUL_TWEEN_BUILD_SHARED=ON" }
-          - { name: linux-arm64-gcc-14,  os: ubuntu-24.04-arm, cc: gcc-14,   cxx: g++-14,     config: Release, extra: "" }
-          # 32-bit x86 with SSE2 arithmetic, which src/fpenv.c accepts (x87's
-          # excess precision it refuses at build time).
-          - { name: linux-i686-gcc-14,   os: ubuntu-24.04,     cc: gcc-14,   cxx: g++-14,     config: Release, extra: "-DCMAKE_C_FLAGS='-m32 -msse2 -mfpmath=sse' -DCMAKE_CXX_FLAGS='-m32 -msse2 -mfpmath=sse'" }
-          - { name: macos-clang,         os: macos-15,         cc: clang,    cxx: clang++,    config: Release, extra: "" }
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install compilers
-        timeout-minutes: 15
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get $APT_OPTIONS update -q
-          # clang without its recommends, with the sanitizers' runtime.
-          sudo apt-get $APT_OPTIONS install -y -q --no-install-recommends clang-20 libclang-rt-20-dev
-          sudo apt-get $APT_OPTIONS install -y -q gcc-14 g++-14 ninja-build
-          if [ "${{ matrix.name }}" = linux-i686-gcc-14 ]; then
-            sudo apt-get $APT_OPTIONS install -y -q gcc-14-multilib g++-14-multilib
-          fi
-      - name: Configure
-        run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -D${PREFIX}_WERROR=ON \
-            -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} ${{ matrix.extra }}
-      - name: Build
-        run: cmake --build build -j 4
-      - name: Test
-        # A skipped test fails the step, as it would hide a broken job.
-        run: |
-          set -o pipefail
-          ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
-      - name: Package
-        if: matrix.name == 'linux-shared'
-        run: |
-          cmake --install build --prefix "$PWD/package"
-          cmake -S samples/minimal -B build-minimal -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_PREFIX_PATH="$PWD/package"
-          cmake --build build-minimal
-          LD_LIBRARY_PATH="$PWD/package/lib" ./build-minimal/minimal
-      - name: Size
-        # The library's code size, reported, not gated (family record
-        # 0013).
-        if: matrix.name == 'linux-gcc-14'
-        run: size -t build/libmaul-tween.a | tail -1
+          - { preset: linux-gcc-14 }
+          - { preset: linux-clang-20 }
+          - { preset: linux-clang-20-asan, repeat: 3 }
+          - { preset: linux-clang-20-tsan }
+          - { preset: linux-shared }
+          - { preset: linux-i686-gcc-14 }
+          - { preset: linux-arm64-gcc-14, runner: ubuntu-24.04-arm }
+          - { preset: macos-clang, runner: macos-15 }
+          - { preset: windows-clang-cl, runner: windows-2025 }
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@b1220ae4523884c7baee93dfb2d9dd1fb1ec960b # v0.0.9
+    permissions:
+      contents: read
+    with:
+      preset: ${{ matrix.preset }}
+      runner: ${{ matrix.runner || 'ubuntu-24.04' }}
+      repeat: ${{ matrix.repeat || 1 }}
 
-  # The documentation site, with the API reference generated from the
-  # headers, must build.
-  docs:
-    name: generated docs
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - name: The documentation site builds
-        run: |
-          pip install markdown==3.6 >/dev/null
-          python3 tools/build_docs.py
+  # The large random scenes (twin contexts, the crossing oracle's every
+  # trial, the in-step crowd) and the rest of the suite, on main and at
+  # night only.
+  nightly:
+    needs: changes
+    if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@b1220ae4523884c7baee93dfb2d9dd1fb1ec960b # v0.0.9
+    permissions:
+      contents: read
+    with:
+      preset: linux-clang-20-nightly
+      timeout: 30
 
-  windows-clang-cl:
-    name: windows-clang-cl
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
+  # The public headers alone under MSVC's cl, as C17 and C++17 with /W4 /WX:
+  # consumers may compile them with it, though it cannot build the library.
+  msvc-headers:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - name: Configure
-        run: cmake -B build -T ClangCL -D${PREFIX}_WERROR=ON
-      - name: Build
-        run: cmake --build build --config Release -j 4
-      - name: Test
-        # A skipped test fails the step, as it would hide a broken job.
-        run: |
-          set -o pipefail
-          ctest --test-dir build -C Release --output-on-failure --timeout 300 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
-      # The public headers alone under MSVC's cl, as C17 and C++17 with
-      # /W4 /WX, which cannot build the library itself (family record 0008).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Headers under MSVC
         run: |
-          cmake -S cmake/HeaderCheck -B build-headers
-          cmake --build build-headers --config Release
+          cmake -S cmake/HeaderCheck -B out/headers
+          cmake --build out/headers --config Release
 
-  web:
-    name: web-emscripten
+  # Each fuzz target looks for crashes, broken assertions, values that are
+  # not finite and implementations that disagree: briefly on a pull
+  # request, longer on main and at night. The corpus carries from run to
+  # run in an Actions cache per target, the committed seeds its floor; main
+  # and the nightly run minimize it with the fuzzer's merge and save it.
+  fuzz:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.5@sha256:bc8ecad77f13664efd2c5961f3c82751d45b3c0b05fb3ccaaea9d0bdd0966f60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, values, fit]
+    env:
+      TARGET: ${{ matrix.target }}
+      FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && 30 || (github.event_name == 'schedule' && 600 || 120) }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: emscripten-core/setup-emsdk@v16
-      - name: Configure
-        run: emcmake cmake -B build -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build
-        run: cmake --build build -j 4
-      - name: Test
         run: |
-          for t in build/test_*.js; do node "$t" || exit 1; done
+          cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \
+            -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_BUILD_BENCH=OFF -D${PREFIX}_BUILD_SAMPLES=OFF \
+            -D${PREFIX}_WERROR=ON
+          cmake --build out/fuzz --target "fuzz_$TARGET"
+      - name: Restore the corpus
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/corpus
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+      - name: Run
+        # The committed seeds join whatever the cache brought. The output
+        # goes to a log, printed when the target finds something.
+        run: |
+          mkdir -p out/corpus out/fuzz-logs out/fuzz-crashes
+          python3 tools/fuzz_seeds.py extract "$TARGET" out/corpus
+          [ -n "$(ls out/corpus)" ] || { echo "::error::no seeds for fuzz_$TARGET"; exit 1; }
+          if ./out/fuzz/fuzz_"$TARGET" -max_total_time="$FUZZ_SECONDS" -max_len=1024 \
+            -artifact_prefix=out/fuzz-crashes/ out/corpus >out/fuzz-logs/"$TARGET".log 2>&1; then
+            echo "fuzz_$TARGET: no finding"
+          else
+            tail -n 60 out/fuzz-logs/"$TARGET".log
+            echo "::error::fuzz_$TARGET found something"
+            exit 1
+          fi
+      - name: Minimize the corpus
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p out/merged
+          ./out/fuzz/fuzz_"$TARGET" -merge=1 -max_len=1024 out/merged out/corpus >/dev/null 2>&1
+          rm -rf out/corpus && mv out/merged out/corpus
+          echo "$(ls out/corpus | wc -l) inputs kept"
+      - name: Save the corpus
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/corpus
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+      - name: Fuzz logs and crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: |
+            out/fuzz-logs/
+            out/fuzz-crashes/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The library and its tests under Emscripten and Node, and the size of
+  # the static library. The CI image has no Emscripten, so this job uses
+  # the runner and the emsdk action.
+  web:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+      - name: Configure
+        run: emcmake cmake -B out/web -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
+      - name: Build
+        run: cmake --build out/web -j 4
+      - name: Test
+        # Every suite but the nightly scenes' runs, the same as the CTest
+        # list less the label; a suite that fails stops the job.
+        run: |
+          mkdir -p out/web-logs
+          tests=$(ctest --test-dir out/web -N -LE nightly | sed -n 's/^ *Test *#[0-9]*: //p')
+          [ -n "$tests" ] || { echo "::error::CTest listed no tests"; exit 1; }
+          ctest --test-dir out/web -LE nightly --no-tests=error -j 4 --output-on-failure \
+            | tee out/web-logs/ctest.log
+          if grep -E '\*\*\*(Skipped|Not Run)' out/web-logs/ctest.log; then
+            echo "::error::a test did not run"; exit 1
+          fi
       - name: Size
-        # The static library's size, reported, not gated (family record
-        # 0013).
-        run: stat -c '%s bytes' build/libmaul-tween.a
+        run: stat -c '%s bytes' out/web/libmaul-tween.a
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-web
+          path: |
+            out/web-logs/
+            out/web/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The one check the ruleset requires: it passes when every job above
+  # passed or was skipped for a documentation-only change, so adding or
+  # renaming a job never touches the ruleset.
+  required:
+    if: always()
+    needs: [changes, docs, zizmor, checks, build, nightly, msvc-headers, fuzz, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Every job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success | skipped) ;; *) exit 1 ;; esac
+          done

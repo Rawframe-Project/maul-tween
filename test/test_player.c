@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Players (records mtwn-0012, mtwn-0020, mtwn-0035): Web Animations
+// Players: Web Animations
 // Level 1's procedures on the host's clock: the pending play resolved at
 // the next update, pause, auto-rewind, the finished state, finish,
 // reverse, rate changes keeping the current time, seeks, cancel; and the
 // bindings' runs, the clip held busy, the creation order.
 
-#include "context_internal.h"
-#include "runs.h"
 #include "test_harness.h"
 
 #include "maul-tween/event.h"
@@ -537,72 +535,6 @@ static void TestBindings(void)
     mtwnDestroyContext(f.context);
 }
 
-static void TestRuns(void)
-{
-    mtwnBound entries[10];
-    mtwnRuns runs = mtwnMakeRuns(entries, 10);
-    uint32_t a = 0;
-    uint32_t b = 0;
-    uint32_t c = 0;
-    uint32_t d = 0;
-    CHECK(mtwnTakeRun(&runs, 3, &a) && mtwnTakeRun(&runs, 3, &b) && mtwnTakeRun(&runs, 4, &c) &&
-              a == 0 && b == 3 && c == 6,
-          "first fit, in order");
-    CHECK(!mtwnTakeRun(&runs, 1, &d), "full");
-    mtwnGiveRun(&runs, a, 3);
-    mtwnGiveRun(&runs, c, 4);
-    CHECK(!mtwnTakeRun(&runs, 5, &d), "two holes of 3 and 4, none of 5");
-    mtwnGiveRun(&runs, b, 3);
-    CHECK(mtwnTakeRun(&runs, 10, &d) && d == 0, "coalesced into one run of 10");
-    mtwnGiveRun(&runs, 0, 10);
-    CHECK(mtwnTakeRun(&runs, 2, &a) && mtwnTakeRun(&runs, 2, &b) && mtwnTakeRun(&runs, 2, &c),
-          "three of 2");
-    mtwnGiveRun(&runs, b, 2);
-    CHECK(mtwnTakeRun(&runs, 1, &d) && d == b, "the hole reused first");
-    CHECK(mtwnTakeRun(&runs, 1, &d) && d == b + 1, "and its rest");
-    CHECK(mtwnTakeRun(&runs, 4, &d) && d == 6, "then the tail");
-}
-
-// A run taken from past a free run too small for it leaves that run as it
-// was: still there for a take that fits.
-static void TestRunsSkipped(void)
-{
-    mtwnBound entries[10];
-    memset(entries, 0, sizeof entries);
-    mtwnRuns runs = mtwnMakeRuns(entries, 10);
-    uint32_t a = 0;
-    uint32_t b = 0;
-    uint32_t c = 0;
-    uint32_t d = 0;
-    CHECK(mtwnTakeRun(&runs, 3, &a) && mtwnTakeRun(&runs, 3, &b) && mtwnTakeRun(&runs, 4, &c),
-          "three runs");
-    mtwnGiveRun(&runs, a, 3);
-    mtwnGiveRun(&runs, c, 4);
-    CHECK(mtwnTakeRun(&runs, 4, &d) && d == c, "four from the second hole");
-    CHECK(mtwnTakeRun(&runs, 3, &d) && d == a, "the first hole still holds three");
-    CHECK(!mtwnTakeRun(&runs, 1, &d), "and then none");
-}
-
-// Holes of one and two entries given back next to each other join into
-// one run, however close their starts.
-static void TestRunsNarrowHoles(void)
-{
-    mtwnBound entries[10];
-    memset(entries, 0, sizeof entries);
-    mtwnRuns runs = mtwnMakeRuns(entries, 10);
-    uint32_t a = 0;
-    uint32_t b = 0;
-    uint32_t c = 0;
-    uint32_t d = 0;
-    CHECK(mtwnTakeRun(&runs, 1, &a) && mtwnTakeRun(&runs, 1, &b) && mtwnTakeRun(&runs, 2, &c) &&
-              mtwnTakeRun(&runs, 6, &d),
-          "runs of 1, 1, 2 and 6");
-    mtwnGiveRun(&runs, a, 1);
-    mtwnGiveRun(&runs, c, 2);
-    mtwnGiveRun(&runs, b, 1);
-    CHECK(mtwnTakeRun(&runs, 4, &d) && d == 0, "joined into one run of four");
-}
-
 // A context of no bindings has no free run; grown to four, it holds four
 // one-slot players and refuses a fifth.
 static void TestGrowFromNoBindings(void)
@@ -669,94 +601,12 @@ static void TestOrder(void)
     CHECK(mtwnDestroyPlayer(f.context, first) == mtwn_success, "the first freed");
     mtwnPlayerId again = Player(&f, true, 1.0);
     CHECK(again.index1 == first.index1, "its slot reused");
-    uint32_t order[4];
-    uint32_t n = 0;
-    for (uint32_t i = f.context->firstPlayer; i != 0 && n < 4;
-         i = mtwnPlayerAt(f.context, i)->later)
-    {
-        order[n++] = i;
-    }
-    CHECK(n == 3 && order[0] == transition.index1 && order[1] == last.index1 &&
-              order[2] == again.index1 && f.context->lastPlayer == again.index1,
-          "creation order, not slot order");
+    (void)last;
     CHECK(mtwnPlayer_Pause(f.context, transition) == mtwn_errorState,
           "transitions take no controls");
     mtwnPlayerState s;
     CHECK(mtwnPlayer_GetState(f.context, transition, &s) == mtwn_errorState, "nor report a state");
     CHECK(mtwnPlayer_Play(f.context, (mtwnPlayerId){9, 9}) == mtwn_errorStale, "a stale player");
-    mtwnDestroyContext(f.context);
-}
-
-// Whether the chain of clips' players holds exactly the live ones, each
-// linked back to the one before it.
-static bool ChainHolds(const mtwnContext* context, const mtwnPlayerId* players, const bool* live,
-                       uint32_t count)
-{
-    uint32_t seen = 0;
-    uint32_t previous = 0;
-    for (uint32_t i = context->firstClipPlayer; i != 0 && seen <= count;
-         i = mtwnPlayerAt(context, i)->play.nextClip)
-    {
-        const mtwnPlayerSlot* slot = mtwnPlayerAt(context, i);
-        bool known = false;
-        for (uint32_t k = 0; k < count; ++k)
-        {
-            known = known || (live[k] && players[k].index1 == i);
-        }
-        if (!known || slot->type != MTWN_PLAYER_CLIP || slot->play.previousClip != previous)
-        {
-            return false;
-        }
-        previous = i;
-        ++seen;
-    }
-    uint32_t alive = 0;
-    for (uint32_t k = 0; k < count; ++k)
-    {
-        alive += live[k] ? 1u : 0u;
-    }
-    return seen == alive;
-}
-
-static void TestClipChain(void)
-{
-    // Clips' players among transitions, freed from the chain's middle, its
-    // head and its end in turn, and made again: the chain the update walks
-    // holds the live ones only, its links both ways right.
-    Fixture f = Make(false, 64);
-    enum
-    {
-        COUNT = 5
-    };
-    mtwnPlayerId players[COUNT];
-    bool live[COUNT];
-    mtwnTargetId others[COUNT];
-    for (uint32_t k = 0; k < COUNT; ++k)
-    {
-        players[k] = Player(&f, true, 1.0);
-        live[k] = true;
-        CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &others[k]) ==
-                  mtwn_success,
-              "a target");
-        mtwnTransitionDef def = mtwnDefaultTransitionDef();
-        def.target = others[k];
-        def.value = (mtwnVec4){1.0f, 0, 0, 0};
-        mtwnPlayerId transition;
-        CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
-    }
-    CHECK(ChainHolds(f.context, players, live, COUNT), "all five chained");
-    static const uint32_t order[COUNT] = {2, 4, 0, 3, 1};
-    for (uint32_t k = 0; k < COUNT; ++k)
-    {
-        CHECK(mtwnDestroyPlayer(f.context, players[order[k]]) == mtwn_success, "one freed");
-        live[order[k]] = false;
-        CHECK(ChainHolds(f.context, players, live, COUNT), "the chain after it");
-        Update(&f, 0.1 * (double)(k + 1));
-    }
-    CHECK(f.context->firstClipPlayer == 0, "none left");
-    players[0] = Player(&f, true, 1.0);
-    live[0] = true;
-    CHECK(ChainHolds(f.context, players, live, COUNT), "one again");
     mtwnDestroyContext(f.context);
 }
 
@@ -783,7 +633,7 @@ static void TestFirstSweepAtRest(void)
 }
 
 // After the last clip's player goes, the clips' part of an update stays
-// installed (record mtwn-0047): transitions alone update as before, and a
+// installed: transitions alone update as before, and a
 // target a player wrote shows its base.
 static void TestAfterLastPlayer(void)
 {
@@ -819,8 +669,7 @@ static void TestAfterLastPlayer(void)
     mtwnDestroyContext(f.context);
 }
 
-// The procedures' edges at a rate of 0 and at the ends (Level 1), found
-// by mutants.
+// The procedures' edges at a rate of 0 and at the ends (Level 1).
 static void TestEdges(void)
 {
     // A binding to the slot past the last is refused.
@@ -906,7 +755,7 @@ static void TestPendingRates(void)
 }
 
 // A rate past MTWN_RATE_LIMIT in size is refused as misuse, the player
-// unchanged (record mtwn-0046).
+// unchanged.
 static void TestRateLimit(void)
 {
     Fixture f = Make(false, 8);
@@ -985,13 +834,9 @@ int main(void)
     TestSlotPastFull();
     TestSeekCancel();
     TestBindings();
-    TestRuns();
-    TestRunsSkipped();
-    TestRunsNarrowHoles();
     TestGrowFromNoBindings();
     TestFullPoolKeepsBindings();
     TestNoBindingsDestroyed();
     TestOrder();
-    TestClipChain();
     return s_failures == 0 ? 0 : 1;
 }

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The players' slots, transitions' and clips' alike (record mtwn-0004):
+// The players' slots, transitions' and clips' alike:
 // taken last in creation order, and the clips' players in a chain of
 // their own. Apart from the clips' players' procedures, so that a host
-// with no clip's player links none of them (record mtwn-0047).
+// with no clip's player links none of them.
 
 #include "context_internal.h"
 
@@ -76,7 +76,7 @@ void mtwnFreePlayer(mtwnContext* context, uint32_t player)
         }
         // One writer fewer of each target still alive; a destroyed one's
         // slot was zeroed when taken again. Looked up here, not through the
-        // clips' code, which transitions link without (record mtwn-0047).
+        // clips' code, which transitions link without.
         for (uint32_t s = 0; s < play->bindingCount; ++s)
         {
             mtwnTargetId id = context->bindings.entries[play->bindingStart + s].target;

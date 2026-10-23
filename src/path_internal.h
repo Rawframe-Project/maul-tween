@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // A path's sample with its work counted, for its tests; its segments as
-// cubics, for its direction (record mtwn-0064).
+// cubics, for its direction.
 
 #ifndef MAUL_TWEEN_SRC_PATH_INTERNAL_H
 #define MAUL_TWEEN_SRC_PATH_INTERNAL_H

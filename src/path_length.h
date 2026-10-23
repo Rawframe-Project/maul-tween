@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A path segment's arc length and its inverse (record mtwn-0031), apart
+// A path segment's arc length and its inverse, apart
 // from the segments themselves (path.c).
 
 #ifndef MAUL_TWEEN_SRC_PATH_LENGTH_H

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The clips' players on the host's task system (record mtwn-0056): twin
+// The clips' players on the host's task system: twin
 // contexts run one random script, one serially and one through a task
 // system that splits the groups into random ranges and runs them in a
 // random order, now or at the wait. After every update the twins hold
@@ -1526,8 +1526,22 @@ static void TestLayeredFit(void)
     mtwnDestroyContext(context);
 }
 
-int main(void)
+// With no argument, the fixed cases; with "twins", the random scripts on
+// twin contexts, the nightly run's.
+int main(int argc, char** argv)
 {
+    bool twins = argc == 2 && strcmp(argv[1], "twins") == 0;
+    if (argc > 2 || (argc == 2 && !twins))
+    {
+        printf("usage: test_clip_tasks [twins]\n");
+        return 2;
+    }
+    if (twins)
+    {
+        TestTwins();
+        TestReplayOff();
+        return s_failures == 0 ? 0 : 1;
+    }
     TestWriters();
     TestLayeredFit();
     TestGroupsFromTwo();
@@ -1537,9 +1551,7 @@ int main(void)
     TestExactFit();
     TestStagingBounds();
     TestOneTimeOrder();
-    TestReplayOff();
     TestThreads();
     TestDeepThreads();
-    TestTwins();
     return s_failures == 0 ? 0 : 1;
 }

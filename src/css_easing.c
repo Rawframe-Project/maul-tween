@@ -4,7 +4,7 @@
 // CSS Easing Level 2's curves, following the specification's algorithms
 // step by step. The cubic bezier solves x(t) = x by Newton's method
 // inside a bracket every step narrows, bisecting whenever a step would
-// leave it or the slope is not positive (record mtwn-0009); the stop
+// leave it or the slope is not positive; the stop
 // on a tolerance is a comparison, so results are the same everywhere.
 
 #include "css_easing.h"

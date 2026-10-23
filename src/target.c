@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Targets in the context's pool (records mtwn-0004, mtwn-0028 and
-// mtwn-0029). Values are stored as given and
+// Targets in the context's pool.
+// Values are stored as given and
 // checked by their bits, so these calls do no floating-point arithmetic
 // and give the same result in any floating-point environment.
 

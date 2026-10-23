@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// What the timing shares with the crossings (record mtwn-0037).
+// What the timing shares with the crossings.
 
 #ifndef MAUL_TWEEN_SRC_TIMING_INTERNAL_H
 #define MAUL_TWEEN_SRC_TIMING_INTERNAL_H

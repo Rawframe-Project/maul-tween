@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Sampling easings (record mtwn-0022). The fit is Ramer, Douglas and
+// Sampling easings. The fit is Ramer, Douglas and
 // Peucker's simplification on the continuous curve: a segment whose
 // chord misses the curve by more than the tolerance at one of its
 // probes splits there, depth first, so points come out in order. The

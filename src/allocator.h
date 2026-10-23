@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Allocation through the host's allocator, the C library's when it is
-// zeroed (record mtwn-0006).
+// zeroed.
 
 #ifndef MAUL_TWEEN_SRC_ALLOCATOR_H
 #define MAUL_TWEEN_SRC_ALLOCATOR_H

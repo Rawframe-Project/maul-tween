@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Numbers near the floats' bounds against an oracle (record mtwn-0069):
+// Numbers near the floats' bounds against an oracle:
 // each place a number is held, a transition's eased value, a clip track's
 // segment, an incremental repeat and two players adding, gives the same
 // arithmetic done in double from the inputs and held once where a target
@@ -246,8 +246,8 @@ static mtwnClipTrackDef Constant(mtwnKeyframe keys[2], float v)
 static void TestAdding(void)
 {
     // A base and two players adding: each layer's sum in double, held
-    // where the target takes it, the next layer composing onto that
-    // (record mtwn-0069). From 3e38, adding 3e38 holds at the bound, and
+    // where the target takes it, the next layer composing onto that.
+    // From 3e38, adding 3e38 holds at the bound, and
     // -3e38 then leaves the bound less 3e38.
     uint32_t wrong = 0;
     for (uint32_t trial = 0; trial < 300u; ++trial)
@@ -278,7 +278,7 @@ static void TestAdding(void)
 static void TestStill(void)
 {
     // Springs between ends near the bounds, some overshooting past them:
-    // a number held at a bound is still (record mtwn-0069), its velocity
+    // a number held at a bound is still, its velocity
     // that of the value held, not the curve's.
     uint32_t moving = 0;
     uint32_t held = 0;

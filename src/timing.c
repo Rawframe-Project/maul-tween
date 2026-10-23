@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Web Animations Level 1's timing steps, in the order its sections give
-// them (records mtwn-0012 and mtwn-0027), with Level 2's effect playback
+// them, with Level 2's effect playback
 // rate in the active duration, the overall progress and the before
 // flag. A repeat delay above 0, with a finite duration above 0, puts
 // d + r of active time into each iteration but the last; without, the
@@ -227,9 +227,8 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     // begins there, Level 2) the active start; or, in the phases the end
     // lies in, an overall progress rounded to the end from a time beside
     // it, where an iteration past the last showed its start for that one
-    // time (Blink holds the end within a microsecond of it; record
-    // mtwn-0012). Not where the iterations add nothing to a start too
-    // large to keep them.
+    // time (Blink holds the end within a microsecond of it). Not where the iterations add nothing
+    // to a start too large to keep them.
     bool forwardRate = timing->playbackRate > 0.0;
     bool endPhase =
         forwardRate ? result->phase != mtwn_phaseBefore : result->phase != mtwn_phaseAfter;

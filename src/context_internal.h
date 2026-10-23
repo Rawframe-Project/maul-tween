@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The context's layout, shared by the modules that work in it (records
-// mtwn-0028 and mtwn-0029). The context, its pools and its list of
+// The context's layout, shared by the modules that work in it.
+// The context, its pools and its list of
 // changed targets live in one block.
 
 #ifndef MAUL_TWEEN_SRC_CONTEXT_INTERNAL_H
@@ -32,7 +32,7 @@ typedef struct mtwnTargetSlot
     mtwnValueKind kind;
     uint8_t reserved;
     // The clips' players' bindings naming it, kept as they are made and
-    // freed; at 65,535 it stays (record mtwn-0056).
+    // freed; at 65,535 it stays.
     uint16_t clipWriters;
     mtwnVec4 base;
     mtwnVec4 value;
@@ -45,7 +45,7 @@ typedef struct mtwnTargetSlot
 // yet: if none does, it shows its base.
 #define MTWN_TARGET_UNWRITTEN 4u
 // The target's velocity is its eased transition's at the last update's
-// time, computed when read (record mtwn-0042); its velocity field is
+// time, computed when read; its velocity field is
 // stale.
 #define MTWN_TARGET_LAZY 8u
 // The target's velocity is a clip track's, computed when read: its
@@ -109,7 +109,7 @@ typedef struct mtwnPlayerSlot
     {
         mtwnClipPlay play;
         // A transition: what every update reads first, in the slot's first
-        // three cache lines with the header (record mtwn-0042), then what it
+        // three cache lines with the header, then what it
         // reads when it starts, ends or is replaced. One curve, by its spec.
         struct
         {
@@ -123,8 +123,7 @@ typedef struct mtwnPlayerSlot
             bool essential;
             // A decay's channels (bit i for channel i) that hand over to the
             // bounce at their bound, their end value, and those starting past
-            // it; whether it lands, by its channels' own rates (record
-            // mtwn-0063).
+            // it; whether it lands, by its channels' own rates.
             uint8_t crosses;
             uint8_t past;
             bool lands;
@@ -160,7 +159,7 @@ typedef struct mtwnPlayerSlot
                 // for a color or rotation, in progress in the first.
                 double velocity[4];
                 // For an easing: CSS Transitions' reversing-adjusted start
-                // value and reversing shortening factor (record mtwn-0045).
+                // value and reversing shortening factor.
                 struct
                 {
                     mtwnVec4 reversingStart;
@@ -198,7 +197,7 @@ typedef struct mtwnClipNode
     double childrenEnd;
     // Its active duration, from its timing as finished, for its events,
     // and its iterations at its active start and end, each the same at
-    // every crossing there (record mtwn-0038).
+    // every crossing there.
     double activeDuration;
     double startIteration;
     double endIteration;
@@ -216,7 +215,7 @@ typedef struct mtwnClipNode
     bool autoDuration;
     // Timelines above it below the root; the root's is 0.
     uint8_t depth;
-    // A track's iterations move on each (record mtwn-0040), a rotation's
+    // A track's iterations move on each, a rotation's
     // by step: the rotation from its first keyframe to its last.
     bool incremental;
     // For a track: the node before it is a track of the same parent,
@@ -239,7 +238,7 @@ typedef struct mtwnNodeTime
     bool steady;
     // For events: whether, besides, every one's child time at both ends lay
     // clearly inside an iteration, off its boundaries, where a crossing's
-    // position is one child time (record mtwn-0042).
+    // position is one child time.
     bool sure;
     // For events: whether the sweep's start is open (the sweep before ended
     // there) and every one's time there lay inside its active interval,
@@ -297,7 +296,7 @@ struct mtwnContext
     uint64_t lastTimeNs;
     // Set while one of the context's own functions runs (mtwnEnter), so the
     // host's code it runs (a host easing, the allocator, the task system)
-    // calling back in is refused (record mtwn-0068).
+    // calling back in is refused.
     bool busy;
     mtwnPool targets;
     mtwnPool players;
@@ -308,7 +307,7 @@ struct mtwnContext
     // The first of the clips' players, 0 for none.
     uint32_t firstClipPlayer;
     // The clips' players' part of an update, set by the first clip's
-    // player made, NULL before (record mtwn-0047). Never cleared: once a
+    // player made, NULL before. Never cleared: once a
     // clip's player was made its part runs, over an empty chain when the
     // last is gone.
     const struct mtwnClipUpdate* clipUpdate;
@@ -330,7 +329,7 @@ struct mtwnContext
     mtwnLevel* levels;
     // The serial work: those levels, each clip's own node times, no staging.
     mtwnWork* serial;
-    // With the host's task system (record mtwn-0056): each group's scratch
+    // With the host's task system: each group's scratch
     // and staging, and the clips' players in creation order as the last
     // update's parallel phase left them, the serial phase at 'next'; NULL
     // without, or 0 players when the phase did not run.
@@ -343,7 +342,7 @@ struct mtwnContext
     // The index1 of each target changed since the last report, in order.
     uint32_t* changed;
     uint32_t changedCount;
-    // Whether motion is reduced (record mtwn-0049), and the clips' players
+    // Whether motion is reduced, and the clips' players
     // the last update left running under it though not essential.
     bool reducedMotion;
     // The live targets whose writers need an order (mtwnLayered): none, and
@@ -380,7 +379,7 @@ static inline void mtwnCountMisuse(mtwnContext* context)
 
 // Marks a context busy for one of its functions: false, with one misuse
 // counted, when one is running already, the host's code it runs calling
-// back in (record mtwn-0068). A NULL context passes, for the call to refuse.
+// back in. A NULL context passes, for the call to refuse.
 static inline bool mtwnEnter(mtwnContext* context)
 {
     if (context == NULL)
@@ -461,8 +460,7 @@ void mtwnEndTransition(mtwnContext* context, uint32_t player);
 
 // The clips' players' part of an update (src/player.c), reached only
 // through the context, so that a host that makes no clip's player links
-// none of the players, clip sampling, composition, paths or crossings
-// (record mtwn-0047).
+// none of the players, clip sampling, composition, paths or crossings.
 typedef struct mtwnClipUpdate
 {
     // Before the players: their targets marked unwritten, and with the
@@ -520,8 +518,7 @@ void mtwnSortEvents(mtwnContext* context, uint32_t count);
 void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, double to, double rate,
                      double hostFrom, double hostTo);
 // The same for a player near the last the work advanced: one in step with
-// the last noted takes its records, the second in step keeps its own
-// (record mtwn-0057).
+// the last noted takes its records, the second in step keeps its own.
 void mtwnSweepEventsNear(mtwnContext* context, mtwnWork* work, uint32_t player, double to,
                          double rate, double hostFrom, double hostTo);
 
@@ -567,7 +564,7 @@ typedef struct mtwnTrackOut
 } mtwnTrackOut;
 
 // A clip track's result as the last player of its clip in a work made it,
-// for the next player in step (record mtwn-0057): its own value and
+// for the next player in step: its own value and
 // timing results, its parent's time a moment ago and way, and its
 // velocity once worked out.
 typedef struct mtwnSharedTrack
@@ -708,7 +705,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
 // a clip's own when the clip has one player, which no other group can
 // then touch; they lie beside its nodes, which the serial update walks
 // one after the other, and a group's apart from them took twice the
-// cache misses on one worker (record mtwn-0056).
+// cache misses on one worker.
 static inline mtwnNodeTime* mtwnTimesFor(const mtwnWork* work, mtwnClipSlot* clip)
 {
     return work->times != NULL && clip->users != 1u ? work->times : clip->times;
@@ -716,7 +713,7 @@ static inline mtwnNodeTime* mtwnTimesFor(const mtwnWork* work, mtwnClipSlot* cli
 
 // Whether a target's writers need an order among them: two clips'
 // players' bindings or more, or one beside a transition. One binding alone
-// is composed in its player's group (record mtwn-0056).
+// is composed in its player's group.
 static inline bool mtwnLayered(const mtwnTargetSlot* slot)
 {
     return slot->clipWriters >= 2u || (slot->clipWriters == 1u && slot->header.link != 0);

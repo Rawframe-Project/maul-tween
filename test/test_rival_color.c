@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Colors against CSS Color 4's conversions.js, run under Node by
-// tools/oracle/rivals.mjs (record mtwn-0050): 729 gamma sRGB colors,
+// tools/oracle/rivals.mjs: 729 gamma sRGB colors,
 // extended ones among them, to linear sRGB, Oklab and OkLCh agree to
 // rounding; the hue to rounding over the chroma, and powerless where
 // conversions.js says it is.

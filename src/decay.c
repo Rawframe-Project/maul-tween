@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Decay and the rubber band (records mtwn-0010 and mtwn-0023). A decay
+// Decay and the rubber band. A decay
 // moves velocity (1 - e^(-y)) / k from its start at y = k t, computed as
 // velocity t times (1 - e^(-y)) / y, by its series below y = 1/2, where
 // 1 - e^(-y) would lose the digits of a small y. Its crossing time

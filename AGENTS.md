@@ -13,14 +13,14 @@ It never compromises on:
 ## Commands
 
 ```sh
-cmake -B out/asan -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_BUILD_TYPE=Debug -DMAUL_TWEEN_SANITIZE=ON -DMAUL_TWEEN_WERROR=ON
-cmake --build out/asan && ctest --test-dir out/asan -j 8   # the whole suite, assertions on
-ctest --test-dir out/asan -L player                        # one suite, by label
-python3 tools/check_source.py && python3 tools/check_modules.py && python3 tools/check_lengths.py && python3 tools/check_docs.py && python3 tools/check_guide.py
-python3 tools/code_size.py out/release/libmaul-tween.a --budget   # on a GCC 14 Release build
+tools/check.sh changed                           # before every push: rules, formatting, the tests the changes reach (under 2 min)
+tools/check.sh pr                                # what the pull request check runs (under 10 min)
+tools/check.sh full                              # every Linux preset, the nightly scenes, longer fuzzing (under 20 min)
+cmake --preset linux-clang-20-asan && cmake --build --preset linux-clang-20-asan
+ctest --preset linux-clang-20-asan -L player     # one suite, by label, assertions on
 ```
 
-The server's default `gcc` is 13, which the family refuses; use `gcc-14` or `clang-20`. Run full builds and fuzzing through the workspace's heavy-job wrapper on the shared machine. Each suite is `test/test_<label>.c`, labeled with its name.
+The server's default `gcc` is 13, which the family refuses; use `gcc-14` or `clang-20`. Run the `pr` and `full` tiers, full builds and fuzzing through the workspace's heavy-job wrapper on the shared machine. Each suite is `test/test_<label>.c`, labeled with its name; the large random scenes also carry `nightly` and run only in the `linux-clang-20-nightly` preset ([checks.md](docs/operations/checks.md)).
 
 ## Ways to hurt yourself
 

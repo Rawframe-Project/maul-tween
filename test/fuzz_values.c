@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The values layer driven by bytes (record mtwn-0046): easings of every
+// The values layer driven by bytes: easings of every
 // kind, springs, spring easings, decay, the rubber band, colors,
 // rotations, paths, tracks, punch, shake and staggers, made from
 // parameters ordinary or wild (zero, negative, tiny, huge, infinite,
@@ -375,7 +375,7 @@ static void Decays(Bytes* in)
     {
         Fail("the rubber band's inverse", back);
     }
-    // Inertia (record mtwn-0063): a landing's rate, and a bounded decay
+    // Inertia: a landing's rate, and a bounded decay
     // with its bounce.
     in->ordinary = true;
     in->finite = true;
@@ -503,7 +503,7 @@ static void Values(Bytes* in)
 }
 
 // A monotone segment's value lies between its keyframes' in every
-// channel (record mtwn-0067).
+// channel.
 static void CheckMonotone(const Bytes* in, const mtwnKeyframe* keys, uint32_t count,
                           uint8_t channels, double progress, const double value[4])
 {

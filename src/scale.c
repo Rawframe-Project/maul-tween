@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Scales (record mtwn-0059). A scale mix moves in the logarithm: from
+// Scales. A scale mix moves in the logarithm: from
 // exp(p log(to / from)), the ratio taken as a difference of logarithms so
 // it cannot overflow, and the whole as exp(log from + p r) where the
 // product would leave the doubles' range on the way. Apart from the zoom

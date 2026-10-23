@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Determinism (record mtwn-0020): a fixed scenario of every value kind,
+// Determinism: a fixed scenario of every value kind,
 // every transition spec and clips of nested repeating timelines, marks,
 // incremental and added tracks under seeks, reverses, rate changes and
 // pauses, with a spell of reduced motion, updated over 600 irregular

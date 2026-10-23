@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Monotone segments (record mtwn-0067): every channel within its two
+// Monotone segments: every channel within its two
 // keyframes' values on every segment, at any spacing and through jumps;
 // flat where a channel turns; the slope in time continuous across a
 // keyframe and Steffen's there; the ends' slope of curvature 0; a line

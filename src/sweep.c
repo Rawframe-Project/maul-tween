@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The records a sweep of a clip's player makes (records mtwn-0013 and
-// mtwn-0038). Every node's active start and end, iteration starts and
-// marks are counted by the crossing engine (record mtwn-0037) along the
+// The records a sweep of a clip's player makes.
+// Every node's active start and end, iteration starts and
+// marks are counted by the crossing engine along the
 // chain of timelines above it; a subtree whose timelines all stayed in one
 // iteration without their time moving cannot have been crossed and is
 // passed over, unless the sweep ends where that time's hold meets its
 // motion (an active start or end). Records are pushed in the order they are made (clip order,
 // then start, iteration, end); src/event.c sorts them once the update is
 // done. Apart from the queue, so that a host with no clip's player links
-// none of it (record mtwn-0047).
+// none of it.
 
 #include "context_internal.h"
 #include "crossing.h"
@@ -70,7 +70,7 @@ static void Capture(Sweep* sweep, const mtwnEvent* event, double along)
 // at the rate that ran since (which the sweep runs with), within the
 // sweep; the sweep's end when no time passed or none ran. Within it even
 // when the player's time moved otherwise: a rate change keeps the time
-// only to the host time's resolution times the rate (record mtwn-0046).
+// only to the host time's resolution times the rate.
 static double HostAt(const Sweep* sweep, double t)
 {
     if (sweep->fromNone || sweep->hostTo == sweep->hostFrom || sweep->rate == 0.0)
@@ -206,7 +206,7 @@ static mtwnLeaf InstantAt(double at)
 // the operations the exact count uses on the same operands (the parent's
 // time less the node's start, scaled / d + s and its integer part, the
 // easing times the duration), so they are its values bit for bit, and the
-// rounding of large operands is common to both (record mtwn-0042: the
+// rounding of large operands is common to both (the
 // differential agrees at times to 10^15 s). The margin, relative, keeps
 // Missed off the exact count's special cases at an iteration's ends.
 static const double s_missedMargin = 1e-6;
@@ -215,8 +215,8 @@ static const double s_missedMargin = 1e-6;
 // span [from, to] in it: the parent moved one way in one iteration of each
 // timeline above (its child time monotonic, timelines' easings being so),
 // both ends clearly inside those iterations, so it covered the span
-// between its two ends, and a point well outside was not crossed (record
-// mtwn-0042). And a point the parent's time stood on at an open start of
+// between its two ends, and a point well outside was not crossed.
+// And a point the parent's time stood on at an open start of
 // the sweep, moving from there: the sweep before crossed it. False when
 // unsure, NaN included.
 static bool Missed(const mtwnNodeTime* parent, double from, double to)
@@ -319,8 +319,8 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
 
 // Whether no iteration of a node started over the sweep: its parent sure,
 // its own time stayed in one iteration, clearly inside it, so it moved
-// one way between two points of that iteration (record mtwn-0042's
-// argument one level down). A timeline's times are worked out already; a
+// one way between two points of that iteration (the shortcut's own
+// argument, one level down). A timeline's times are worked out already; a
 // track's are worked out here.
 static bool Settled(const mtwnClipSlot* clip, const mtwnNodeTime* times, uint32_t node,
                     const mtwnNodeTime* parent)
@@ -507,8 +507,7 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     if (context->def.eventCapacity == 0)
     {
         // No records to make: nothing to sweep, the time kept so that a
-        // context grown to hold records sweeps on from here (record
-        // mtwn-0062).
+        // context grown to hold records sweeps on from here.
         play->sweptWay = 0;
         return;
     }

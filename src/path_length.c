@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A path segment's arc length (record mtwn-0031): adaptive Gauss-Kronrod,
+// A path segment's arc length: adaptive Gauss-Kronrod,
 // 15 points against 7, split at the speed's minima; one channel's exact by
 // its total variation; and the parameter at a length by safeguarded
 // Halley's steps.
@@ -32,7 +32,7 @@ enum
     // tests' lengths take at most 17. The intervals the cap accepts lie
     // where the speed is its own rounding, so a capped length is off by
     // that rounding over a span this narrow: 4.7e-19 of the segment's
-    // length at worst, measured (record mtwn-0031).
+    // length at worst, measured.
     s_mostRules = 1024
 };
 static const double s_narrowest = 0x1p-30;

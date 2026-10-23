@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Colors (records mtwn-0014, mtwn-0020, mtwn-0024): the conversions
+// Colors: the conversions
 // against conversions.js written again in long double, with its matrices
 // applied one after another rather than combined; the hue methods on CSS
 // Color 4's own worked examples; premultiplication, powerless hues and
@@ -455,7 +455,7 @@ static void TestRefusals(void)
 // Far past its ends a mix is the line: equal coordinates stay what they
 // are (an alpha of 1 mixed to 1 was 0 at 1e20, the weighted sum's terms
 // cancelling), and the channels are held within the floats, as a target's
-// are (records mtwn-0069 and mtwn-0070).
+// are.
 static void TestFarProgress(void)
 {
     mtwnColorMix mix;

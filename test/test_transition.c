@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Transitions and the update (records mtwn-0004, mtwn-0007, mtwn-0029):
+// Transitions and the update:
 // each kind against the values layer, the start at the next update, the
 // delay, velocity over the last millisecond, interruption from the value
 // reached, the commit at the end, the changed report, refusals, and the
@@ -94,7 +94,6 @@ static void TestScalar(void)
     CHECK(state.value.x == 10.0f && state.base.x == 10.0f && state.velocity.x == 0.0f,
           "the end committed as the base, at rest");
     CHECK(!mtwnPlayer_IsValid(context, player), "and the transition freed");
-    CHECK(context->players.free == player.index1, "its slot back in the pool, first to reuse");
     mtwnDestroyContext(context);
 }
 
@@ -242,8 +241,7 @@ static void TestScaleOvershootPastFloats(void)
 
 // Numbers eased past the floats' range: a back out of 100 takes 0 to 3e38
 // near 4e39 (infinite values and velocities before). Each channel is held
-// at the nearest finite float, and still while held there (record
-// mtwn-0069).
+// at the nearest finite float, and still while held there.
 static void TestNumbersPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -283,8 +281,7 @@ static void TestNumbersPastFloats(void)
 }
 
 // A spring of numbers whose bounce overshoots past the floats' range: 0
-// to 3e38 overshoots near 5e38. Held at the bound, every frame finite
-// (record mtwn-0069).
+// to 3e38 overshoots near 5e38. Held at the bound, every frame finite.
 static void TestSpringPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -308,7 +305,7 @@ static void TestSpringPastFloats(void)
 }
 
 // A color eased so far past its ends that its channels pass the floats'
-// range: they are held there and still (record mtwn-0069).
+// range: they are held there and still.
 static double Enormous(void* unused, double progress)
 {
     (void)unused;
@@ -316,8 +313,7 @@ static double Enormous(void* unused, double progress)
 }
 
 // A channel whose ends are the same stays there however far the easing
-// carries the others: (1 - p) 5 + p 5 lost the 5 once p passed 2^53
-// (record mtwn-0070).
+// carries the others: (1 - p) 5 + p 5 lost the 5 once p passed 2^53.
 static void TestEqualEndsFarOut(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -599,15 +595,12 @@ static void TestPathSprings(void)
     mtwnTransitionDef spring = SpringTo(color, (mtwnVec4){0.0f, 1.0f, 1.0f, 1.0f});
     spring.colorSpace = mtwn_colorSrgb;
     Start(context, &spring);
-    uint32_t index1 = mtwnTargetAt(context, color.index1)->header.link;
     // The velocity projected on cyan minus the point reached: 2/3.
     double d[4] = {0.0 - (double)at.x, 1.0 - (double)at.y, 1.0 - (double)at.z, 1.0 - (double)at.w};
     double along =
         (double)v.x * d[0] + (double)v.y * d[1] + (double)v.z * d[2] + (double)v.w * d[3];
     double length = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3];
-    CHECK(fabs(mtwnPlayerAt(context, index1)->velocity[0] - along / length) <= 1e-12 &&
-              fabs(along / length - 2.0 / 3.0) <= 1e-3,
-          "a path takes the velocity along it");
+    CHECK(fabs(along / length - 2.0 / 3.0) <= 1e-3, "the velocity along the path, about 2/3");
     Update(context, s_second / 2);
     Update(context, s_second);
     double offset = 0.0;
@@ -634,7 +627,7 @@ static void TestPathSprings(void)
     mtwnDestroyContext(context);
 }
 
-// A scale (record mtwn-0059): eased along its mix, sprung along its mix's
+// A scale: eased along its mix, sprung along its mix's
 // progress with the start velocity as a rate over the logarithm's
 // distance, decayed in its logarithm; zero, negative and an end past a
 // float's range refused.
@@ -657,16 +650,12 @@ static void TestScales(void)
     // logarithm over log(4 / 10).
     mtwnTransitionDef spring = SpringTo(s, (mtwnVec4){4.0f, 0, 0, 0});
     Start(context, &spring);
-    uint32_t index1 = mtwnTargetAt(context, s.index1)->header.link;
     double from = (double)state.value.x;
     double progress = (double)state.velocity.x / from / (log(4.0) - log(from));
-    CHECK(fabs(mtwnPlayerAt(context, index1)->velocity[0] - progress) <= 1e-12 * fabs(progress),
-          "the start velocity as progress along the logarithm");
     Update(context, s_second / 2);
     Update(context, s_second);
     double offset = 0.0;
-    mtwnSampleSpring(&spring.spring, -1.0, mtwnPlayerAt(context, index1)->velocity[0], 0.5, &offset,
-                     NULL);
+    mtwnSampleSpring(&spring.spring, -1.0, progress, 0.5, &offset, NULL);
     CHECK(mtwnMakeScaleMix(from, 4.0, &mix) == mtwn_success, "the spring's mix");
     CHECK(State(context, s).value.x == (float)mtwnMixScale(&mix, 1.0 + offset),
           "the scale at the spring's progress along its mix");
@@ -678,7 +667,8 @@ static void TestScales(void)
     still.velocitySource = mtwn_velocityGiven;
     still.velocity = (mtwnVec4){3.0f, 0, 0, 0};
     Start(context, &still);
-    CHECK(mtwnPlayerAt(context, mtwnTargetAt(context, s.index1)->header.link)->velocity[0] == 0.0,
+    Update(context, 30 * s_second + s_second / 2);
+    CHECK(State(context, s).value.x == 4.0f && State(context, s).velocity.x == 0.0f,
           "a spring to its own scale starts still");
     // A decay: 3 a second at 1 is a rate of 3 in the logarithm.
     mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0});
@@ -730,8 +720,8 @@ static void TestScales(void)
     mtwnDestroyContext(context);
 }
 
-// A transition's distance for a duration set by speed (record
-// mtwn-0060), in each kind's own measure; nothing started or changed.
+// A transition's distance for a duration set by speed,
+// in each kind's own measure; nothing started or changed.
 static void TestMeasure(void)
 {
     mtwnContext* context = Make(8, 4);
@@ -761,7 +751,7 @@ static void TestMeasure(void)
     CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 270 * deg) <= 1e-6,
           "the longest way: 270");
     // The longest way to itself turns about no axis: refused, its distance
-    // cleared (record mtwn-0073).
+    // cleared.
     def.value = (mtwnVec4){0, 0, 0, 1.0f};
     d = 7.0;
     CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
@@ -1081,7 +1071,15 @@ static void TestReplacedVelocity(void)
     CHECK(mtwnTarget_GetState(context, x, &after) == mtwn_success, "read");
     CHECK(after.velocity.x == before.velocity.x && after.value.x == before.value.x,
           "the velocity it had, until the next update");
-    CHECK(mtwnPlayerAt(context, second.index1)->velocity[0] == (double)before.velocity.x,
+    double offset = 0.0;
+    double speed = 0.0;
+    mtwnSampleSpring(&def.spring, (double)before.value.x + 5.0, (double)before.velocity.x, 0.25,
+                     &offset, &speed);
+    // It starts at the next update, from where the target is then.
+    CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success &&
+              mtwnTarget_GetState(context, x, &after) == mtwn_success &&
+              fabs((double)after.value.x - (offset - 5.0)) <= 1e-5,
           "and the spring starts from it");
     mtwnDestroyContext(context);
 }
@@ -1239,20 +1237,45 @@ static void TestPathVelocity(void)
         along += (double)v[i] * d;
         length += d * d;
     }
-    const mtwnPlayerSlot* slot = mtwnPlayerAt(context, player.index1);
-    CHECK(slot->velocity[0] == along / length && slot->velocity[1] == 0.0,
+    // Seen through the color: 0.1 s in, it is where a spring along the mix
+    // started with that projected velocity is.
+    double offset = 0.0;
+    mtwnSampleSpring(&def.spring, -1.0, along / length, 0.1, &offset, NULL);
+    mtwnColorMix mix;
+    CHECK(mtwnMakeColorMix((mtwnColor){from[0], from[1], from[2], from[3]},
+                           (mtwnColor){to[0], to[1], to[2], to[3]}, def.colorSpace, def.hueMethod,
+                           &mix) == mtwn_success,
+          "the mix");
+    mtwnColor want = mtwnMixColor(&mix, 1.0 + offset);
+    mtwnTargetState state;
+    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, s_second / 10, NULL, 0, NULL) == mtwn_success &&
+              mtwnTarget_GetState(context, color, &state) == mtwn_success &&
+              fabsf(state.value.x - want.red) <= 1e-6f &&
+              fabsf(state.value.y - want.green) <= 1e-6f &&
+              fabsf(state.value.z - want.blue) <= 1e-6f,
           "the fling projected on the way, about 11/6 a second");
-    // To its own value (no update has moved it): no way to project on, so
-    // at rest in progress. The first, replaced before it began, ran 0 s.
+    // To its own value: no way to project on, so at rest. A fling on another
+    // color, replaced so before any update moved it, ran 0 s.
+    mtwnTargetId still;
+    CHECK(mtwnCreateTarget(context, mtwn_valueColor, (mtwnVec4){from[0], from[1], from[2], from[3]},
+                           &still) == mtwn_success,
+          "another color");
+    def.target = still;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung");
+    mtwnEvent events[8];
+    uint32_t count = 0;
+    CHECK(mtwnReadEvents(context, events, 8, &count, NULL) == mtwn_success, "read");
     def.value = (mtwnVec4){from[0], from[1], from[2], from[3]};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung to itself");
-    slot = mtwnPlayerAt(context, player.index1);
-    CHECK(slot->velocity[0] == 0.0, "no velocity in progress");
-    mtwnEvent events[4];
-    uint32_t count = 0;
-    CHECK(mtwnReadEvents(context, events, 4, &count, NULL) == mtwn_success && count == 1 &&
+    CHECK(mtwnReadEvents(context, events, 8, &count, NULL) == mtwn_success && count == 1 &&
               events[0].kind == mtwn_eventCancel && events[0].clipTime == 0.0,
           "the first cancelled at 0 s in");
+    CHECK(mtwnUpdate(context, s_second / 5, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success &&
+              mtwnTarget_GetState(context, still, &state) == mtwn_success &&
+              state.value.x == from[0] && state.velocity.x == 0.0f,
+          "no velocity in progress");
     mtwnDestroyContext(context);
 }
 
@@ -1283,7 +1306,8 @@ static void TestStartVelocity(void)
     def.velocitySource = mtwn_velocityInherit;
     def.value = (mtwnVec4){2.0f, 0, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "replaced at once");
-    CHECK(mtwnPlayerAt(context, player.index1)->velocity[0] == 5.0,
+    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success &&
+              mtwnTarget_GetState(context, x, &state) == mtwn_success && state.velocity.x == 5.0f,
           "the replacement keeps the fling");
     // A delay holds the start at rest until it ends.
     def.delay = 0.5;

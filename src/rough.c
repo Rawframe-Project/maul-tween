@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Rough easings (record mtwn-0061): linear() points wandering from a
-// shape by SplitMix64 of a seed, as shake draws its gradients (record
-// mtwn-0026). The inner points are stratified, one to each of m equal
+// Rough easings: linear() points wandering from a
+// shape by SplitMix64 of a seed, as shake draws its gradients.
+// The inner points are stratified, one to each of m equal
 // ranges of input, so they come in order without a sort and never meet
 // in a jump; the offsets follow GSAP's tapers.
 

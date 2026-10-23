@@ -1,6 +1,6 @@
 # Development
 
-How to build, test and change Maul Tween as a maintainer. Building and installing as a user is in [getting-started.md](../user/getting-started.md).
+How to build, test and change Maul Tween as a maintainer. Building and installing as a user is in [getting-started.md](../user/getting-started.md); what the checks run and their time budgets is in [checks.md](checks.md), and how a release is made in [release.md](release.md).
 
 ## Toolchain
 
@@ -28,13 +28,13 @@ How to build, test and change Maul Tween as a maintainer. Building and installin
 Every suite is `test/test_<name>.c`, one executable and one CTest test named and labeled `<name>`:
 
 ```sh
-cmake -B out/asan -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_BUILD_TYPE=Debug -DMAUL_TWEEN_SANITIZE=ON
-cmake --build out/asan
-ctest --test-dir out/asan -L player
-./out/asan/test_player
+cmake --preset linux-clang-20-asan
+cmake --build --preset linux-clang-20-asan
+ctest --preset linux-clang-20-asan -L player
+./out/linux-clang-20-asan/test_player
 ```
 
-A suite prints one line per failed check, with what broke and its file and line. White-box suites include `src/` and are not built in shared builds. The fuzz targets' seeds and a fixed set of random inputs run in CTest as `fuzz_api`, `fuzz_values` and `fuzz_fit`.
+The presets in `CMakePresets.json` are the CI cells, each built in `out/<preset>`; the test presets leave out the tests labeled `nightly`, except `linux-clang-20-nightly`, which runs them all. A suite with nightly scenes takes their name as its argument (`./out/linux-clang-20-asan/test_sweep twins`). A suite prints one line per failed check, with what broke and its file and line. White-box suites include `src/` and are not built in shared builds. The fuzz targets' seeds and a fixed set of random inputs run in CTest as `fuzz_api`, `fuzz_values` and `fuzz_fit`.
 
 ## Generated files
 
@@ -57,17 +57,16 @@ Never edit these by hand; change the generator and run it.
 `tools/code_size.py` measures the code a program links, by the parts it uses: a program taking the address of every public function of a part's headers, linked against a Release static library with unused sections dropped, its `.text` less an empty program's.
 
 ```sh
-cmake -B out/release -G Ninja -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_BUILD_TYPE=Release
-cmake --build out/release
-python3 tools/code_size.py out/release/libmaul-tween.a --budget
-python3 tools/code_size.py out/release/libmaul-tween.a --map clips   # what links a part in
+cmake --preset linux-gcc-14 && cmake --build --preset linux-gcc-14
+python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --budget
+python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --map clips   # what links a part in
 ```
 
 The parts are the curves (easing, sampling, springs), the values (interpolation, paths, timing), the transitions (a context, targets, transitions) and the clips (clips, players, events). Each has a budget in the script, about 6% over its size when the budget was set, for GCC 14 on x86-64; about 12 kB of each is the library's own elementary functions. `--budget` fails past one. A budget is raised only with a reason given in the pull request.
 
 ## Benchmarks
 
-`out/<build>/maul-tween_bench` measures, on fixed inputs: 64,000 eased number transitions created and updated (with and without the changed-target report), one sample of a cubic bezier, a spring and Penner's easings, 1,000 clip players of four tracks in a repeating timeline, and one sample of each values case. It prints the best of five runs, and with a saved output such as `bench/baseline.txt` as its argument each result's ratio to it. Timings are never a CI gate. To measure a change, build the base and the change in Release with the same compiler, run each pinned to one core (`taskset -c 2`) on a quiet machine several times, and give both numbers in the pull request. `--count` runs one case for an instruction counter (`perf stat -e instructions`), which is steadier than time on a shared machine.
+`out/<build>/maul-tween_bench` measures, on fixed inputs: 64,000 eased number transitions created and updated (with and without the changed-target report), one sample of a cubic bezier, a spring and Penner's easings, 1,000 clip players of four tracks in a repeating timeline, and one sample of each values case. It prints the best of five runs, and with an earlier run's output saved to a file as its argument, each result's ratio to it. Timings are never a CI gate. To measure a change, build the base and the change in Release with the same compiler, run each pinned to one core (`taskset -c 2`) on a quiet machine several times, and give both numbers in the pull request. `--count` runs one case for an instruction counter (`perf stat -e instructions`), which is steadier than time on a shared machine.
 
 ## Fuzzing
 

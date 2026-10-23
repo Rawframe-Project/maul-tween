@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Angles and rotations (records mtwn-0015 and mtwn-0025). An angle's far
+// Angles and rotations. An angle's far
 // end moves by whole turns as CSS's hue methods move a hue. A rotation
 // mix holds its ends normalized in double and Kahan's angle between
 // them, 2 atan2(|q0 - q1|, |q0 + q1|), accurate at every angle where acos

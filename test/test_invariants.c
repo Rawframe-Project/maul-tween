@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Randomized invariants (records mtwn-0020, mtwn-0046), from fixed seeds, run under
+// Randomized invariants, from fixed seeds, run under
 // the sanitizers in CI: the timing model over random timings and times,
 // valid or not; the clip builder over random calls, valid or not; and
 // random clips played under random controls, and random transitions on

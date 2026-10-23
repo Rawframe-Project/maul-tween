@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Incremental tracks (record mtwn-0040): each iteration moves on by the
+// Incremental tracks: each iteration moves on by the
 // last keyframe minus the first, continuous at the boundaries, counted
 // from the iteration start as Web Animations Level 2 counts; integers;
 // rotations turning on; colors and discrete values refused.
@@ -290,7 +290,7 @@ static void TestRefused(void)
     track = Incremental(mtwn_valueScalar, keys, 3.0);
     track.timing.duration = 0.0;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
-          "and finitely many of no duration (a mutant found it untested)");
+          "and finitely many of no duration");
     mtwnDestroyContext(w.context);
 }
 

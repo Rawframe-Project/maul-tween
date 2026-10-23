@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Clips (records mtwn-0004, mtwn-0013, mtwn-0033 and mtwn-0034): a block
+// Clips: a block
 // of storage per clip, sized by its def and counted against the context's
 // clip storage; nodes added under the library's floating-point
 // environment, their positions resolved to start times and their ends
@@ -404,8 +404,7 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
         slot = kind == 0 || kind == def->track.kind + 1;
     }
     // Endless iterations of no duration all pass at once: the iteration
-    // past them is infinite, and no value moves on by it (record
-    // mtwn-0040).
+    // past them is infinite, and no value moves on by it.
     bool endlessAtOnce = isinf(def->timing.iterations) && def->timing.duration == 0.0;
     bool incremental =
         !def->incremental || (def->track.kind != mtwn_valueColor &&

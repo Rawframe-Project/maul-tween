@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// What a sweep leaves out changes nothing (records mtwn-0042, mtwn-0053):
+// What a sweep leaves out changes nothing:
 // twin contexts play one random clip, one counting every record and one
 // leaving out what its parent certainly did not cross or where no
 // iteration started, and hold the same records, bit for bit. The clips
@@ -12,8 +12,8 @@
 // or slowing on the way. A second pass widens the clips: times also on
 // tenths and anywhere, rates of 0.5, 3 and -1, eased timelines, and
 // frames of a tenth for odd seeds, where two defects hid off the binary
-// grid. And counts add up over any cut of the time (records mtwn-0037,
-// mtwn-0038): each clip in both kinds of frame, to the same time, crosses
+// grid. And counts add up over any cut of the time:
+// each clip in both kinds of frame, to the same time, crosses
 // the same points as many times each way.
 
 #include "context_internal.h"
@@ -303,7 +303,7 @@ static void TestLeftOutChangesNothing(bool wide)
     CHECK(records > 10000 && differ == 0, "the same records, bit for bit");
 }
 
-// Counts add up over any cut of the time into frames (record mtwn-0037):
+// Counts add up over any cut of the time into frames:
 // each clip played in frames of 1/64 s, which land on its boundaries and
 // on its holds' edges, and in irregular ones, to the same time, crosses
 // the same points as many times each way. A frame landing exactly where
@@ -338,8 +338,8 @@ static void TestCountsAcrossCuts(bool wide)
 
 // A crossing at a frame's end, off the 1/64 s grid: the exact count puts
 // it an ulp into the next frame, so that frame records it, whose start
-// the shortcuts must not take for one the frame before crossed (record
-// mtwn-0042). The count's iteration progress past a repeat delay is now
+// the shortcuts must not take for one the frame before crossed.
+// The count's iteration progress past a repeat delay is now
 // formed as the timing model's, so the two agree on the child time there.
 static void TestOffGridFrameEnd(void)
 {
@@ -357,12 +357,26 @@ static void TestOffGridFrameEnd(void)
           "a crossing at a frame's end off the grid recorded once either way");
 }
 
-int main(void)
+// With no argument, the fixed cases; with "twins", the random clips on
+// twin contexts, the nightly run's.
+int main(int argc, char** argv)
 {
-    TestLeftOutChangesNothing(false);
-    TestLeftOutChangesNothing(true);
-    TestCountsAcrossCuts(false);
-    TestCountsAcrossCuts(true);
-    TestOffGridFrameEnd();
+    bool twins = argc == 2 && strcmp(argv[1], "twins") == 0;
+    if (argc > 2 || (argc == 2 && !twins))
+    {
+        printf("usage: test_sweep [twins]\n");
+        return 2;
+    }
+    if (twins)
+    {
+        TestLeftOutChangesNothing(false);
+        TestLeftOutChangesNothing(true);
+        TestCountsAcrossCuts(false);
+        TestCountsAcrossCuts(true);
+    }
+    else
+    {
+        TestOffGridFrameEnd();
+    }
     return s_failures == 0 ? 0 : 1;
 }

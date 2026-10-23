@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Paths (records mtwn-0016 and mtwn-0031). A Catmull-Rom segment is the
+// Paths. A Catmull-Rom segment is the
 // cubic Hermite whose end tangents Yuksel, Schaefer and Keyser give for
 // knots spaced by the chord's length to the power alpha:
 //   m1 = d12 ((P1 - P0) / d01 - (P2 - P0) / (d01 + d12) + (P2 - P1) / d12)
@@ -194,7 +194,7 @@ static MTWN_NOINLINE void MonotoneChannel(const double* const points[4], const d
     out->d[c] = 2.0 * (p[1] - p[2]) + m1 + m2;
 }
 
-// A monotone segment (record mtwn-0067): channel by channel, the Hermite
+// A monotone segment: channel by channel, the Hermite
 // cubic of Steffen's slopes in time, the offsets the time; at an end, or
 // beside a jump, d3's one-sided slope (3 s - t) / 2, of curvature 0;
 // with neither side measured, the line. p1 and p2 are keyframes i and
@@ -555,8 +555,7 @@ static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, u
 
 // A control moved by its keyframe's whole turns, in double: the shift can
 // pass the floats' range (from -3e38 to 3e38 is 6e38), and a control far
-// from its keyframe can land past it, held as every number is (record
-// mtwn-0069).
+// from its keyframe can land past it, held as every number is.
 static void Shift(mtwnVec4* v, double by)
 {
     v->x = (float)mtwnNumberHeld((double)v->x + by);
@@ -609,7 +608,7 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     }
     // Only the longest way between equal rotations refuses a mix: each is
     // tried before anything is written, so a refusal leaves the keyframes
-    // and the mixes as they were (record mtwn-0073).
+    // and the mixes as they were.
     for (uint32_t i = 0; def->kind == mtwn_valueRotation &&
                          def->rotationPath == mtwn_rotationLongest && i + 1 < count;
          ++i)
@@ -662,8 +661,8 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     return mtwn_success;
 }
 
-// A number track's sample as floats, held within the finite floats
-// (record mtwn-0069): converted together, then held together.
+// A number track's sample as floats, held within the finite floats:
+// converted together, then held together.
 static mtwnVec4 ToVec4(const double v[4])
 {
     return mtwnNumbersHeld((mtwnVec4){(float)v[0], (float)v[1], (float)v[2], (float)v[3]});

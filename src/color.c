@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Colors as CSS Color 4 converts and interpolates them (records
-// mtwn-0014 and mtwn-0024), in double: sRGB's transfer extended to
+// Colors as CSS Color 4 converts and interpolates them,
+// in double: sRGB's transfer extended to
 // negative values by reflection, linear sRGB to LMS and back by one
 // matrix each (src/generated/color_matrices.h), the signed cube root to
 // Oklab, OkLCh with its hue in radians. A mix holds both ends converted and
@@ -130,7 +130,7 @@ static mtwnColor FromSpace(const double in[4], mtwnColorSpace space)
         gamma[2] = ToGamma(linear[2]);
     }
     double alpha = in[3] < 0.0 ? 0.0 : (in[3] > 1.0 ? 1.0 : in[3]);
-    // Held within the floats as a target holds a color (record mtwn-0069).
+    // Held within the floats as a target holds a color.
     mtwnVec4 held = mtwnNumbersHeld(
         (mtwnVec4){(float)gamma[0], (float)gamma[1], (float)gamma[2], (float)alpha});
     return (mtwnColor){held.x, held.y, held.z, held.w};

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Integers, discrete values, punch and shake (records mtwn-0016,
-// mtwn-0017 and mtwn-0026). Shake is Perlin's improved noise in one
+// Integers, discrete values, punch and shake.
+// Shake is Perlin's improved noise in one
 // dimension: at a lattice point it is 0, between two it blends their
 // gradients' lines by the quintic fade 6u^5 - 15u^4 + 10u^3, whose first
 // two derivatives vanish at the lattice; the gradients come from

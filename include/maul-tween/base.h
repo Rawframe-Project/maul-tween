@@ -96,8 +96,7 @@ extern "C"
     // The allocator a context takes in its def and keeps for its lifetime.
     // Alignment is a power of two. A zeroed allocator means the C library's
     // functions, which serve alignments up to that of max_align_t. Its
-    // functions call no function of the context they serve (record
-    // mtwn-0068).
+    // functions call no function of the context they serve.
     typedef struct mtwnAllocator
     {
         void* (*alloc)(size_t size, size_t alignment, void* context);
@@ -140,7 +139,7 @@ extern "C"
         // A discrete value the host indexes, in x: it steps at progress 1/2.
         mtwn_valueDiscrete = 8,
         // A scale, in x, above 0: moved in its logarithm, so equal steps
-        // multiply it by equal ratios (record mtwn-0059).
+        // multiply it by equal ratios.
         mtwn_valueScale = 9,
     };
 

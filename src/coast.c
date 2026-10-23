@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A transition's decay on one channel (record mtwn-0063), out of line:
+// A transition's decay on one channel, out of line:
 // the update's loop calls it rather than copying it for each kind.
 
 #include "coast.h"

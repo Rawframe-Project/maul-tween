@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Players (records mtwn-0004, mtwn-0012, mtwn-0029 and mtwn-0035): what
+// Players: what
 // writes targets. A player plays a finished clip on targets bound to its
 // slots, by Web Animations' procedures on the host's clock; a transition
 // is a player too. A player not kept ends by committing its last value
@@ -46,7 +46,7 @@ extern "C"
         // A slot of the clip, bound by one binding of the player at most.
         uint32_t slot;
         mtwnComposite composite;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[3];
         // A live target of the value kind the slot's tracks hold.
         mtwnTargetId target;
@@ -95,11 +95,11 @@ extern "C"
         // Whether it is kept when it finishes; otherwise it commits what it
         // fills forward as its targets' bases and is freed.
         bool keep;
-        // Whether it plays on under reduced motion (record mtwn-0049): a
+        // Whether it plays on under reduced motion: a
         // fade, a color, or motion essential to what it shows; the others
         // finish at once if their end is finite.
         bool essential;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved;
         // The playback rate, at most MTWN_RATE_LIMIT in size; negative
         // plays backwards, 0 holds.
@@ -166,10 +166,10 @@ extern "C"
         // Whether it waits for the next update to start.
         bool pending;
         // Whether it runs under reduced motion though not essential: its
-        // end is infinite or its rate 0, so it could not finish (record
-        // mtwn-0049). The host's to keep, seek or stop.
+        // end is infinite or its rate 0, so it could not finish.
+        // The host's to keep, seek or stop.
         bool playsOnReduced;
-        // Written 0 (record mtwn-0071).
+        // Written 0.
         uint8_t reserved[5];
     } mtwnPlayerState;
 
@@ -308,7 +308,7 @@ extern "C"
     /// say: given a lower rate, the next update finds it short of its end
     /// and it plays again from there, as Firefox does (Chrome keeps a
     /// player that played to its end finished). To stay finished at a new
-    /// rate, set the rate before the end (record mtwn-0052).
+    /// rate, set the rate before the end.
     ///
     /// @param context  The context.
     /// @param player   A clip's player.

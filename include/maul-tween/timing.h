@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Timing (records mtwn-0012 and mtwn-0027): Web Animations Level 1's
+// Timing: Web Animations Level 1's
 // calculation of a node's phase, iteration and progress from its local
 // time, with Level 2's effect playback rate, a repeat delay between
 // iterations and a choice of how reverse iterations ease.
-// Staggers (record mtwn-0048): offsets for items in a grid by their
+// Staggers: offsets for items in a grid by their
 // distance from an origin.
 
 #ifndef MAUL_TWEEN_TIMING_H
@@ -87,7 +87,7 @@ extern "C"
         mtwnFill fill;
         mtwnDirection direction;
         mtwnAlternateEasing alternateEasing;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[5];
     } mtwnTiming;
 
@@ -118,7 +118,7 @@ extern "C"
         bool inRepeatDelay;
         // Whether the current iteration runs forwards, by the direction.
         bool forwards;
-        // Written 0 (record mtwn-0071).
+        // Written 0.
         uint8_t reserved[4];
     } mtwnTimingResult;
 
@@ -234,7 +234,7 @@ extern "C"
         mtwnStaggerOrigin origin;
         mtwnStaggerAxis axis;
         mtwnStaggerSpacing spacingKind;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[5];
     } mtwnStagger;
 
@@ -246,7 +246,7 @@ extern "C"
     /// Safe from any thread.
     MTWN_API mtwnStagger mtwnDefaultStagger(void);
 
-    /// Computes a stagger's offsets (record mtwn-0048). Item i sits in
+    /// Computes a stagger's offsets. Item i sits in
     /// column i mod columns and row i / columns; its distance d from the
     /// origin is Euclidean, or along one axis, or to the nearest edge;
     /// t = (d - min) / (max - min), 0 when all are equal, and the offset

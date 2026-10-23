@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Reserved bytes (record mtwn-0071): an input a call takes is refused when
+// Reserved bytes: an input a call takes is refused when
 // any reserved byte of it, or of a part of it, is not 0, one misuse
 // counted where a context takes it; with them 0 it is taken. What the
 // library writes, outputs and made values alike, has them 0 though the

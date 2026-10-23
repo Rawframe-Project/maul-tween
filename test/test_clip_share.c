@@ -309,7 +309,7 @@ static void TestHostEasing(void)
           "a host easing called for every track, sharing none of them");
 }
 
-// Players in step share their samples (record mtwn-0057): one host-eased
+// Players in step share their samples: one host-eased
 // track played by four and by eight players in step, the eight call the
 // host function no more than the four, 4 times (a check that took every
 // track as unknown sampled each of them: 6 calls and 14).

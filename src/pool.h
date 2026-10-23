@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The pools of a context's objects (records mtwn-0028 and mtwn-0029):
+// The pools of a context's objects:
 // fixed slots of one stride, each opening with a header, handed out by
 // generation-checked ids. Free slots are reused last in, first out; a
 // slot at the last generation is retired.

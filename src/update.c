@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The update (records mtwn-0004, mtwn-0007 and mtwn-0029): every player
+// The update: every player
 // advanced to the host's time in the library's floating-point
 // environment, then the changed targets reported. A transition samples
 // its easing, spring or decay, with the spring's or decay's own velocity
 // or else its curve's over the last millisecond, and at its end commits
-// its end value as the target's base (records mtwn-0029 and mtwn-0030).
+// its end value as the target's base.
 
 #include "bounds_internal.h"
 #include "coast.h"
@@ -287,7 +287,7 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
 
 // Records a transition's start once its delay ends, and ends it at its end:
 // true when it ended. Under reduced motion one not essential ends now, its
-// delay skipped, its records at this time (record mtwn-0049).
+// delay skipped, its records at this time.
 static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t timeNs)
 {
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
@@ -318,8 +318,7 @@ static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t
 }
 
 // A curve's own speed is the value's where the value is not held; held
-// past the floats a number is still, as the speed the values held give
-// (record mtwn-0069).
+// past the floats a number is still, as the speed the values held give.
 static void HoldStill(const double now[4], double speed[4])
 {
     for (int i = 0; i < 4; ++i)
@@ -400,12 +399,12 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     }
     if (slot->kind == mtwn_valueScale)
     {
-        // A scale's curve speed is a decay's, never past the floats (record
-        // mtwn-0059); a spring's is taken from the values held, above.
+        // A scale's curve speed is a decay's, never past the floats;
+        // a spring's is taken from the values held, above.
         value[0] = mtwnScaleFloat(now[0]);
         velocity[0] = mtwnVelocityFloat(speed[0]);
     }
-    // Numbers held within the floats (record mtwn-0069); a scale's value
+    // Numbers held within the floats; a scale's value
     // is within them already.
     WriteTarget(context, target,
                 mtwnNumbersHeld((mtwnVec4){value[0], value[1], value[2], value[3]}),
@@ -417,7 +416,7 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     double now = (double)timeNs / 1e9;
     double before = (double)beforeNs / 1e9;
     uint32_t queued = context->eventCount;
-    // Set when the first clip's player is made (record mtwn-0047).
+    // Set when the first clip's player is made.
     if (context->clipUpdate != NULL)
     {
         context->clipUpdate->begin(context, before, now);
