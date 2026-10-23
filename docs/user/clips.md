@@ -4,12 +4,12 @@ A clip is an animation written ahead of time: tracks of keyframes on nested time
 
 ## Building a clip
 
-A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnGetClipBytes` says how much a def takes, so a host can size `clipStorageBytes` for the clips it makes.
+A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnGetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
 
 ```c
 mtwnClipDef clipDef = mtwnDefaultClipDef();
 uint64_t bytes = 0;
-mtwnResult built = mtwnGetClipBytes(&clipDef, &bytes); // its share of the clip storage
+mtwnResult built = mtwnGetClipBytes(context, &clipDef, &bytes); // its share of the clip storage
 mtwnClipId clip;
 built = mtwnCreateClip(context, &clipDef, &clip);
 

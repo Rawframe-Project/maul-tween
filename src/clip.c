@@ -87,17 +87,16 @@ static mtwnResult CheckClipDef(const mtwnClipDef* def)
     return counts ? mtwn_success : mtwn_errorInvalid;
 }
 
-mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut)
+static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
 {
-    if (def == NULL || bytesOut == NULL)
+    if (context == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *bytesOut = 0;
-    mtwnResult checked = CheckClipDef(def);
+    mtwnResult checked = def == NULL || bytesOut == NULL ? mtwn_errorInvalid : CheckClipDef(def);
     if (checked != mtwn_success)
     {
-        return checked;
+        return Misuse(context, checked);
     }
     // Counts within MTWN_MAX_COUNT never overflow the plan; a size past
     // what this platform can allocate is still the size.
@@ -105,6 +104,22 @@ mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut)
     (void)PlanClip(def, &layout);
     *bytesOut = layout.bytes;
     return mtwn_success;
+}
+
+mtwnResult mtwnGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
+{
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (bytesOut != NULL)
+    {
+        *bytesOut = 0;
+    }
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunGetClipBytes(context, def, bytesOut);
+    mtwnLeave(context);
+    return result;
 }
 
 static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)

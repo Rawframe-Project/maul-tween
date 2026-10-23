@@ -651,7 +651,7 @@ static void TestHost(void)
           "the opacity reported changed");
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
-    mtwnResult built = mtwnGetClipBytes(&clipDef, &bytes); // its share of the clip storage
+    mtwnResult built = mtwnGetClipBytes(context, &clipDef, &bytes); // its share of the clip storage
     mtwnClipId clip;
     built = mtwnCreateClip(context, &clipDef, &clip);
 

@@ -248,16 +248,21 @@ extern "C"
         uint32_t slot;
     } mtwnClipTrack;
 
-    /// Gives the clip storage a clip of a def takes, so a host can size its
-    /// context's clipStorageBytes for the clips it makes.
+    /// Gives the clip storage a clip of a def takes, so a host can grow its
+    /// context's clipStorageBytes (mtwnGrowContext) for the clips it makes.
+    /// It takes the context so that the def is read only by a library whose
+    /// ABI the context's def has matched.
     ///
+    /// @param context     The context.
     /// @param def         The clip's def.
-    /// @param bytesOut    Receives the bytes; unchanged on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a def
-    ///         without its cookie or a capacity past MTWN_MAX_COUNT.
+    /// @param bytesOut    Receives the bytes; 0 on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
+    ///         without its cookie or a capacity past MTWN_MAX_COUNT;
+    ///         mtwn_errorState while the context is busy.
     /// @par Thread safety
-    /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut);
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(mtwnContext* context,
+                                                        const mtwnClipDef* def, uint64_t* bytesOut);
 
     /// Makes a clip: allocates its storage in one block, counted against the
     /// context's clip storage. Its root timeline, node 1, lasts as long as

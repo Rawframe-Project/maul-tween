@@ -83,6 +83,8 @@ static void TestOnContext(void)
         CLEARED(seconds, mtwnMeasureTransition(c, NULL, &seconds), "a distance: 0");
         mtwnClipId clip;
         CLEARED(clip, mtwnCreateClip(c, NULL, &clip), "a clip: the null id");
+        uint64_t bytes;
+        CLEARED(bytes, mtwnGetClipBytes(c, NULL, &bytes), "a clip's bytes: 0");
         mtwnClipId noClip = {0, 0};
         mtwnNode node;
         CLEARED(node, mtwnClip_AddTrack(c, noClip, NULL, &node), "a track: 0");
@@ -184,8 +186,6 @@ static void TestMakers(void)
     UNCHANGED(samples, mtwnSampleEasing(NULL, 4, samples), "an easing's samples");
     double offsets[4];
     UNCHANGED(offsets, mtwnComputeStagger(NULL, 4, offsets), "a stagger's offsets");
-    uint64_t bytes;
-    UNCHANGED(bytes, mtwnGetClipBytes(NULL, &bytes), "a clip's bytes");
     uint32_t fitted;
     UNCHANGED(fitted, mtwnFitLinearEasing(NULL, 0.01, NULL, 0, &fitted), "a fit's count");
 }
