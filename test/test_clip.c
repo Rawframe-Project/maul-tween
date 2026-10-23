@@ -283,9 +283,6 @@ static void TestRefusals(void)
     clipDef.cookie = 0;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "no cookie");
     clipDef = mtwnDefaultClipDef();
-    clipDef.version = MTWN_ABI_VERSION + 1;
-    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorVersion, "another version");
-    clipDef = mtwnDefaultClipDef();
     clipDef.keyframeCapacity = MTWN_MAX_COUNT + 1;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "a capacity too large");
     clipDef = mtwnDefaultClipDef();
@@ -329,10 +326,7 @@ static void TestRefusals(void)
     def.cookie = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no cookie");
     def.cookie = MTWN_CLIP_TRACK_DEF_COOKIE;
-    def.version = MTWN_ABI_VERSION + 1;
-    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorVersion, "a version");
-    def.version = MTWN_ABI_VERSION;
-    CHECK(mtwnGetContextMisuse(context) == misuse + 11, "each counted");
+    CHECK(mtwnGetContextMisuse(context) == misuse + 10, "each counted");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "then it fits");
     def.parent = node;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid,
@@ -890,10 +884,6 @@ static void TestDefaults(void)
     CHECK(mtwnGetClipBytes(NULL, &more) == mtwn_errorInvalid &&
               mtwnGetClipBytes(&clipDef, NULL) == mtwn_errorInvalid,
           "null arguments refused");
-    clipDef.version += 1;
-    CHECK(mtwnGetClipBytes(&clipDef, &more) == mtwn_errorVersion && more == 0,
-          "another version refused");
-    clipDef = mtwnDefaultClipDef();
     clipDef.cookie = 0;
     CHECK(mtwnGetClipBytes(&clipDef, &more) == mtwn_errorInvalid, "a def without its cookie");
     clipDef = mtwnDefaultClipDef();

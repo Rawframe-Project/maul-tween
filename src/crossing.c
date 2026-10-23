@@ -14,6 +14,7 @@
 
 #include "crossing.h"
 
+#include "invariant.h"
 #include "timing_internal.h"
 
 #include "maul-tween/easing.h"
@@ -655,10 +656,14 @@ mtwnCrossings mtwnCountCrossingsMemo(const mtwnLevel* levels, uint32_t count, co
         {
             return (mtwnCrossings){0.0, 0.0};
         }
+        // What is reached by a later time includes what is reached by an
+        // earlier one, so no count is negative.
+        MTWN_ASSERT(!(sum.same < 0.0) && !(sum.opposite < 0.0));
         return sum;
     }
     sum = Reached(levels, count, leaf, from, !fromClosed, memo);
     Add(&sum, -1.0, false, Reached(levels, count, leaf, to, true, memo));
+    MTWN_ASSERT(!(sum.same < 0.0) && !(sum.opposite < 0.0));
     // The sweep runs against the coordinate: the leaf moves the other way.
     return (mtwnCrossings){sum.opposite, sum.same};
 }

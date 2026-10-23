@@ -51,9 +51,15 @@ extern "C"
     {
         // Set by mtwnDefaultTransitionDef; checked by mtwnStartTransition.
         uint32_t cookie;
-        // The headers' MTWN_ABI_VERSION.
-        uint32_t version;
         mtwnTargetId target;
+        // For a color: the space it is interpolated in, and the hue method
+        // for OkLCh.
+        mtwnColorSpace colorSpace;
+        mtwnHueMethod hueMethod;
+        // For an angle: the method.
+        mtwnAngleMethod angleMethod;
+        // For a rotation: the way it turns.
+        mtwnRotationPath rotationPath;
         // The end value, as the target's kind takes it; a decay has none.
         mtwnVec4 value;
         // With mtwn_velocityGiven, the start velocity in the kind's
@@ -81,14 +87,6 @@ extern "C"
         // decay as a share of the value a second; finite, above 0.
         double restOffset;
         double restSpeed;
-        // For a color: the space it is interpolated in, and the hue method
-        // for OkLCh.
-        mtwnColorSpace colorSpace;
-        mtwnHueMethod hueMethod;
-        // For an angle: the method.
-        mtwnAngleMethod angleMethod;
-        // For a rotation: the way it turns.
-        mtwnRotationPath rotationPath;
         mtwnTransitionSpec spec;
         mtwnVelocitySource velocitySource;
         // For an easing: whether a reversal is shortened as CSS Transitions
@@ -125,8 +123,7 @@ extern "C"
     /// perceptual duration; for a decay, iOS's normal deceleration, 0.998
     /// kept a millisecond; rest within 1e-3 and 1e-2 a second; the target's
     /// velocity; colors in Oklab with the shorter hue, angles the shorter
-    /// way, rotations the shortest. Built in the program, so it carries the
-    /// version of the headers the program includes.
+    /// way, rotations the shortest.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -139,7 +136,6 @@ extern "C"
     mtwnTransitionDef def = {0};
 #endif
         def.cookie = MTWN_TRANSITION_DEF_COOKIE;
-        def.version = MTWN_ABI_VERSION;
         def.duration = 0.25;
         // CSS's ease, cubic-bezier(0.25, 0.1, 0.25, 1), always accepted.
         (void)mtwnMakeCssEasing(mtwn_cssEase, &def.easing);
@@ -187,8 +183,7 @@ extern "C"
     ///         and landing, a lower bound above the upper or NaN, a scale's
     ///         bound not above 0, or a landing whose velocity does not move
     ///         a channel toward its value;
-    ///         mtwn_errorVersion for a def built against another major or
-    ///         minor version; mtwn_errorStale for a target that is not alive;
+    ///         mtwn_errorStale for a target that is not alive;
     ///         mtwn_errorLimit when the context holds its capacity of
     ///         players.
     /// @par Thread safety
@@ -214,9 +209,8 @@ extern "C"
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie, an end value the target's kind refuses,
     ///         an unknown rotation path, the longest way between equal
-    ///         rotations, or a discrete value, which has no distance; mtwn_errorVersion for a def
-    ///         built against another major or minor version; mtwn_errorStale for a target that is
-    ///         not alive.
+    ///         rotations, or a discrete value, which has no distance; mtwn_errorStale for a
+    ///         target that is not alive.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMeasureTransition(mtwnContext* context,

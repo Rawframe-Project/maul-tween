@@ -577,11 +577,7 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    if (def->version != MTWN_ABI_VERSION)
-    {
-        return Misuse(context, mtwn_errorVersion);
-    }
-    if (def->reserved != 0)
+    if (!mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return Misuse(context, mtwn_errorInvalid);
     }

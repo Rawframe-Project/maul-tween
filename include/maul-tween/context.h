@@ -62,7 +62,8 @@ extern "C"
     {
         // Set by mtwnDefaultContextDef; checked by mtwnCreateContext.
         uint32_t cookie;
-        // The headers' MTWN_ABI_VERSION.
+        // The headers' MTWN_ABI_VERSION, set by mtwnDefaultContextDef: the
+        // other defs are used under a context and carry only their cookie.
         uint32_t version;
         // The allocator; zeroed means the C library's.
         mtwnAllocator allocator;
@@ -143,11 +144,12 @@ extern "C"
     ///
     /// @param def         The def.
     /// @param contextOut  Receives the context, or NULL on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie, an allocator or a task system with one
-    ///         function of the two, or a capacity past its maximum; mtwn_errorVersion for a
-    ///         def built against another major or minor version, before
-    ///         anything else in it is read; mtwn_errorCapacity when the
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument or a def
+    ///         without its cookie; then mtwn_errorVersion for a def stamped
+    ///         by headers of another ABI version than the library's, before
+    ///         anything else in it is read; mtwn_errorInvalid for an
+    ///         allocator or a task system with one function of the two, or a
+    ///         capacity past its maximum; mtwn_errorCapacity when the
     ///         allocator fails or the block's size does not fit.
     /// @par Thread safety
     /// Safe from any thread.
@@ -175,7 +177,7 @@ extern "C"
     ///         without its cookie, a capacity below the context's or past
     ///         its limit, another allocator, or a task system with one
     ///         function of the two; mtwn_errorVersion for a def of another
-    ///         version; mtwn_errorCapacity when the allocator fails.
+    ///         ABI version; mtwn_errorCapacity when the allocator fails.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut,

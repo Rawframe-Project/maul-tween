@@ -3,7 +3,7 @@
 All notable changes to this project are recorded here, grouped as
 Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
-may change the API and the ABI; a def built against other headers is
+may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
 ## [0.0.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.0.1)
@@ -52,3 +52,14 @@ host's clock, with the same results on every platform.
   environment.
 - A static or shared library, a CMake package and a pkg-config module;
   Linux, macOS, Windows with `clang-cl`, and WebAssembly.
+
+### Changed
+
+- Against the withdrawn 1.0 releases: sine and cosine are within 1 ulp
+  for every finite argument, so results change where an argument
+  reaches 1.5 * 2^20 radians, which were bounded but inexact before:
+  an underdamped spring sampled that far into its oscillation, an
+  elastic easing of a very short period, and an OkLCh color mix, a
+  sine easing or a slerp extrapolated that far.
+- Only the context def carries the ABI version; the other defs carry
+  only their cookie, and the version holds the whole release before 1.0.

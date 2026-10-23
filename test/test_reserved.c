@@ -270,7 +270,7 @@ static void TestMade(void)
     CHECK(contextDef.reserved == 0 && clipDef.reserved == 0 && CLEAR(clipTrack.reserved) &&
               CLEAR(clipTrack.track.reserved) && CLEAR(clipTrack.timing.reserved) &&
               CLEAR(clipTrack.position.reserved) && CLEAR(timeline.reserved) &&
-              CLEAR(timeline.position.reserved) && player.reserved == 0 &&
+              CLEAR(timeline.position.reserved) && CLEAR(player.reserved) &&
               transition.easing.reserved == 0 && transition.spring.reserved == 0,
           "every default def");
 

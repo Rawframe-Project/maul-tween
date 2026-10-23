@@ -7,6 +7,8 @@
 
 #include "runs.h"
 
+#include "invariant.h"
+
 static uint32_t Length(const mtwnRuns* runs, uint32_t start)
 {
     return runs->entries[start].target.index1;
@@ -62,6 +64,7 @@ bool mtwnTakeRun(mtwnRuns* runs, uint32_t count, uint32_t* startOut)
         {
             SetRun(runs, previous - 1, Length(runs, previous - 1), replacement);
         }
+        MTWN_ASSERT(start + count <= runs->capacity);
         *startOut = start;
         return true;
     }
@@ -78,6 +81,11 @@ void mtwnGiveRun(mtwnRuns* runs, uint32_t start, uint32_t count)
         before = after;
         after = Next(runs, after - 1);
     }
+    // A run given back was taken: it lies inside the entries and overlaps
+    // neither free run beside it.
+    MTWN_ASSERT(count > 0 && start + count <= runs->capacity);
+    MTWN_ASSERT(after == 0 || start + count <= after - 1);
+    MTWN_ASSERT(before == 0 || before - 1 + Length(runs, before - 1) <= start);
     uint32_t length = count;
     uint32_t next = after;
     if (after != 0 && start + count == after - 1)

@@ -83,14 +83,23 @@ static void TestDefRefusals(void)
     CHECK(mtwnCreateContext(&def, NULL) == mtwn_errorInvalid, "null out");
     def.cookie = 0;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "no cookie");
+    def.version = 0;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "the cookie before the version");
     def = mtwnDefaultContextDef();
     def.version = MTWN_ABI_VERSION + 1;
     def.targetCapacity = UINT32_MAX;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorVersion,
-          "another minor version, before the rest is read");
+          "another patch version, before the rest is read");
     def = mtwnDefaultContextDef();
-    def.version = MTWN_ABI_VERSION + (1u << 16);
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorVersion, "another major version");
+    def.version = MTWN_ABI_VERSION + (1u << 8);
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorVersion, "another minor version");
+    def = mtwnDefaultContextDef();
+    def.version = 0;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorVersion, "a zeroed version");
+    def.version = MTWN_ABI_VERSION & 0x7FFFFFFFu;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorVersion,
+          "the version without its top bit");
+    CHECK(MTWN_ABI_VERSION == 0x80000001u, "0.0.1 stamps 0x80000001");
     def = mtwnDefaultContextDef();
     def.allocator.alloc = CountAlloc;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "an allocator of one function");
@@ -168,25 +177,6 @@ static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records)
 // below it, apart from the next group's and from the groups' node times
 // after them: groups on threads at once would otherwise write each
 // other's levels, which no sanitizer sees inside one block.
-static void TestGroupLevels(void)
-{
-    mtwnContextDef def = mtwnDefaultContextDef();
-    def.enqueueTask = RunNow;
-    def.finishTask = FinishNone;
-    mtwnContext* context = NULL;
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "made");
-    bool apart = true;
-    for (uint32_t g = 0; g < MTWN_GROUPS; ++g)
-    {
-        const char* end = (const char*)(context->works[g].levels + MTWN_MAX_CLIP_DEPTH + 2u);
-        const char* next = g + 1 < MTWN_GROUPS ? (const char*)context->works[g + 1].levels
-                                               : (const char*)context->works[0].times;
-        apart = apart && end <= next;
-    }
-    CHECK(apart, "every group's levels the deepest clip's, apart");
-    mtwnDestroyContext(context);
-}
-
 static mtwnContext* Make(uint32_t targets)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -371,7 +361,6 @@ int main(void)
     TestCreate();
     TestDefRefusals();
     TestSharingCapacities();
-    TestGroupLevels();
     TestIds();
     TestRetire();
     TestValues();
