@@ -36,11 +36,10 @@ double mtwnCbrt(double x);
 // for a negative x, which the library never raises.
 double mtwnPow(double x, double y);
 
-// The sine and cosine of x together, each within 1 ulp for |x| up to
-// 2^20 pi / 2 (about 1.6e6), where the reduction by pi / 2 is exact to
-// beyond double precision; past it the results stay bounded and the
-// same on every platform but lose accuracy. Both are NaN for an
-// infinite or NaN x.
+// The sine and cosine of x together, each within 1 ulp for every finite
+// x: below 1.5 2^20 the reduction by pi / 2 uses three parts of it,
+// past that Payne and Hanek's, from 2 / pi's bits, exact for any double.
+// Both are a quiet NaN with its sign clear for an infinite or NaN x.
 void mtwnSinCos(double x, double* sineOut, double* cosineOut);
 
 // The angle of the point (x, y) from the positive x axis, in radians

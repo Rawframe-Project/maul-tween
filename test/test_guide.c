@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The guide's snippets (docs/guide.md), each as written, built and run;
+// The snippets of docs/user/, each as written, built and run;
 // tools/check_guide.py checks each appears here unchanged. Between them,
-// checks of what the guide says they do.
+// checks of what the pages say they do.
 
 #include "test_harness.h"
 

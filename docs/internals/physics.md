@@ -1,0 +1,47 @@
+# Springs, decay and signals
+
+Springs, decay, inertia, the rubber band, punch and shake are closed forms of time from a start. None is stepped: a frame-by-frame integrator gives a different path at 30 and at 144 frames a second, and drifts. Sampled at the time since its start, a motion gives the same value at any frame rate, and a retarget starts a new motion from the position and velocity at that time.
+
+## One spring formula
+
+With decay rate `a = zeta w0` and damped frequency `w = w0 sqrt(|1 - zeta^2|)`, a start `(x0, v0)` moves as
+
+```text
+x = e^(-a t) (x0 C + (v0 + a x0) S)
+v = e^(-a t) (v0 C - (a v0 + w0^2 x0) S)
+```
+
+where `C` and `S` are `cos(w t)` and `sin(w t) / w` below critical damping, and `cosh(w t)` and `sinh(w t) / w` from it ([`src/spring.c`](../../src/spring.c)). At critical damping `w` is 0 and `S` is `t`. The regimes must meet without a jump as the damping ratio crosses 1, which naive forms break by dividing by a vanishing `w`:
+
+- `sin(w t) / w` keeps its digits however small `w` is, as the sine does.
+- `sinh(w t) / w` is `t` times a series below `w t = 1/2`.
+- Above that, an overdamped spring is written in its two rates, the slow one as `w0^2 / (a + w)`, so nothing cancels or overflows however heavy the damping.
+
+The motion over one time is a 2 by 2 matrix taking a start's offset and velocity to those at the time (`mtwnSpringMotionAt`). A value of four channels computes it once and costs four multiplications a channel. A spring stores the natural frequency, the damping ratio and what its samples need, whichever way it was made: stiffness, damping and mass; hertz and a ratio; or Apple's duration and bounce, mapped as SwiftUI, Motion and anime.js map them (frequency `2 pi / duration`, ratio `1 - bounce`, or `1 / (1 + bounce)` below 0).
+
+## Settling
+
+`mtwnSpringSettlingTime` returns when bounds on the offset and the velocity both stay below their tolerances for good. Where a bound is a pure exponential, the time is in closed form. Otherwise the bound's logarithm is concave, so Newton's steps from past its peak approach the crossing from the right and never pass the true time: a spring is never ended early. The host snaps it to the target then, which is what a transition does.
+
+## Decay and inertia
+
+A decay at rate `k` moves `velocity (1 - e^(-k t)) / k` from its start ([`src/decay.c`](../../src/decay.c)). For a small `y = k t`, `1 - e^(-y)` loses its digits, so below `y = 1/2` the factor comes from its series; the crossing time `-ln(1 - f) / k` is likewise `2 atanh(f / (2 - f)) / k` by the atanh series for `f <= 1/2`. iOS's per-millisecond deceleration `r` is the rate `-1000 ln r`.
+
+Inertia ([`src/inertia.c`](../../src/inertia.c)) builds on the decay without changing it:
+
+- **Landing.** The decay that comes to rest on a chosen end with the start's velocity has rate `velocity / (end - position)`. The natural rest is the decay at infinite time, iOS's projection, so the snapping rule (the nearest page, a grid, a list) stays the host's.
+- **Bounds.** A bounded decay is the decay while it would come to rest within its bounds. Where it would rest past one, it is the decay until the exact time it reaches that bound (the crossing time, not the frame after it), then the spring from the bound with the velocity it has there; a start past a bound is the spring's from the start. Velocity is continuous at both hand-overs and the path is the same at any frame rate, as Flutter's BouncingScrollSimulation and Motion's inertia with bounds give it, with the crossing found exactly.
+
+A transition's decay of a scale runs in its logarithm, its start velocity a share of the value a second, so a zoom coasts by ratios.
+
+## Punch and shake
+
+Punch is `sin(2 pi f t) (1 - t / duration)^e`. Shake is Perlin's improved gradient noise in one dimension ([`src/signal.c`](../../src/signal.c)): 0 at each lattice point, and between two it blends their gradients' lines by the quintic fade `6u^5 - 15u^4 + 10u^3`, whose first two derivatives vanish at the lattice, so it is smooth. Each gradient comes from SplitMix64 of the seed, the channel and the lattice index: no table, no state, the same bits on every platform for a seed, and any channel and time sampled in any order. Both are exactly 0 at the start, at the end and outside them, so a host adds them and nothing is left behind.
+
+`mtwnShakeNoise` is the noise alone, on a clock that runs on through every hit, for shakes whose amplitude the host drives (trauma squared); `mtwnSampleShake` is that noise times its envelope, bit for bit.
+
+## Not built
+
+- A wiggle as an easing: a wiggle is a displacement that ends where it began, as punch and shake are, not a progress.
+- SlowMo: GSAP's alone among the libraries surveyed, and a host easing gives it exactly.
+- Spring tightening under reduced motion, or a global duration scale: the host chooses its springs and can scale its own clock.

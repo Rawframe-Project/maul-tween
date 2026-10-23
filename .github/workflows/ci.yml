@@ -109,18 +109,17 @@ jobs:
         if: matrix.name == 'linux-gcc-14'
         run: size -t build/libmaul-tween.a | tail -1
 
-  # The API reference is generated from the headers; it must match them,
-  # and the README must give its function count.
+  # The documentation site, with the API reference generated from the
+  # headers, must build.
   docs:
     name: generated docs
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: The API reference matches the headers
+      - name: The documentation site builds
         run: |
-          COUNT=$(python3 tools/gen_api.py | grep -oE '\([0-9]+ functions\)' | grep -oE '[0-9]+')
-          git diff --exit-code docs/api.md || { echo "docs/api.md is stale: run tools/gen_api.py"; exit 1; }
-          grep -q "$COUNT public functions" README.md || { echo "README says the wrong function count ($COUNT)"; exit 1; }
+          pip install markdown==3.6 >/dev/null
+          python3 tools/build_docs.py
 
   windows-clang-cl:
     name: windows-clang-cl
