@@ -400,8 +400,11 @@ extern "C"
     MTWN_API double mtwnEase(const mtwnEasing* easing, double progress, bool before);
 
     /// Samples a cubic bezier easing as mtwnEase does, to the bit, in each
-    /// mode, reaching none of the other curves, so a program that samples
-    /// only cubic beziers through it links none of them.
+    /// mode, reaching none of the other curves. With link-time optimization
+    /// or unused sections dropped, a program that samples cubic beziers
+    /// only through it links none of mtwnEase's dispatch, Penner's curves
+    /// or the spring easing; without either, the makers and
+    /// mtwnSetEaseMode bring them along.
     ///
     /// @param easing    An easing made by mtwnMakeCubicBezier or
     ///                  mtwnMakeCssEasing, its mode set by mtwnSetEaseMode,

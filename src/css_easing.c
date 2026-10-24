@@ -7,8 +7,9 @@
 // leave it or the slope is not positive; the stop
 // on a tolerance is a comparison, so results are the same everywhere.
 // mtwnEaseCubicBezier is here, apart from mtwnEase's dispatch over every
-// kind, so a program that samples only cubic beziers links none of the
-// other curves.
+// kind: with link-time optimization or unused sections dropped, a program
+// that samples cubic beziers only through it links none of the other
+// curves (the makers in src/easing.c bring them along otherwise).
 
 #include "css_easing.h"
 
