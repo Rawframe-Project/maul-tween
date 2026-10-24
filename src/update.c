@@ -227,13 +227,12 @@ mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
     {
         return target->velocity;
     }
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     // A clip's track's only once a clip's player exists, so its part is
     // there to compute it.
     mtwnVec4 velocity = lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
                                                  : context->clipUpdate->velocity(context, target);
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
     return velocity;
 }
 
@@ -459,10 +458,9 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     }
     uint64_t beforeNs = context->lastTimeNs;
     context->lastTimeNs = timeNs;
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     UpdateWorker(context, beforeNs, timeNs);
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
     for (uint32_t i = 0; i < context->changedCount; ++i)
     {
         uint32_t index1 = context->changed[i];

@@ -81,14 +81,16 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/event.c
     src/sweep.c
     src/elementary_float.c)
-# The tests' hooks (src/test_hooks.h), for the white-box suites and the
-# fuzz targets, which build only against the static library: a shared
-# library holds none of them, nor does a static one built without tests or
-# fuzzing, as installed and packaged.
-if(NOT MAUL_TWEEN_BUILD_SHARED AND (MAUL_TWEEN_BUILD_TESTS OR MAUL_TWEEN_FUZZ))
-    target_sources(maul-tween PRIVATE src/test_hooks.c)
-endif()
 maul_configure_library(maul-tween)
+# The tests' hooks (src/test_hooks.h) are a library of their own, linked
+# only into the suites and the fuzz target that use them and never
+# installed, so no build of maul-tween, static or shared, holds them.
+if(NOT MAUL_TWEEN_BUILD_SHARED AND (MAUL_TWEEN_BUILD_TESTS OR MAUL_TWEEN_FUZZ))
+    add_library(maul-tween-test-hooks STATIC src/test_hooks.c)
+    target_link_libraries(maul-tween-test-hooks PUBLIC maul-tween)
+    target_include_directories(maul-tween-test-hooks PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    maul_apply_flags(maul-tween-test-hooks)
+endif()
 # The exactly rounded functions the library takes from libm
 # (tools/libm-allowed.txt).
 if(NOT WIN32 AND NOT APPLE)
@@ -123,6 +125,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(signal)
     maul_add_test(mix WHITEBOX)
     maul_add_test(pool WHITEBOX)
+    maul_add_test(fpenv WHITEBOX)
     maul_add_test(stagger WHITEBOX)
     maul_add_test(timing)
     maul_add_test(context)
@@ -173,6 +176,13 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(invariants)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
+    # The suites that read the tests' hooks; white-box, so a shared build
+    # has none of them.
+    foreach(suite IN ITEMS clip_tasks clip_step sweep)
+        if(TARGET test_${suite})
+            target_link_libraries(test_${suite} PRIVATE maul-tween-test-hooks)
+        endif()
+    endforeach()
     maul_add_header_tests()
     # The fuzz targets' scripts on a fixed set of random inputs.
     if(NOT MAUL_TWEEN_BUILD_SHARED)
@@ -181,6 +191,9 @@ if(MAUL_TWEEN_BUILD_TESTS)
             target_link_libraries(test_fuzz_${target} PRIVATE ${PROJECT_NAME})
             target_include_directories(test_fuzz_${target} PRIVATE ${PROJECT_SOURCE_DIR}/src)
             maul_apply_flags(test_fuzz_${target})
+            if(target STREQUAL "api")
+                target_link_libraries(test_fuzz_${target} PRIVATE maul-tween-test-hooks)
+            endif()
             add_test(NAME fuzz_${target} COMMAND test_fuzz_${target})
             set_tests_properties(fuzz_${target} PROPERTIES LABELS fuzz_${target})
         endforeach()
@@ -202,17 +215,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
                          -DC_COMPILER=${CMAKE_C_COMPILER} -P ${PROJECT_SOURCE_DIR}/cmake/PackageTest.cmake)
         set_tests_properties(package PROPERTIES LABELS package)
     endif()
-    # A shared build exports the public functions and nothing else: the
-    # tests' hooks and every internal function stay hidden.
-    if(MAUL_TWEEN_BUILD_SHARED AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        find_package(Python3 COMPONENTS Interpreter)
-        if(Python3_FOUND)
-            add_test(NAME exports COMMAND Python3::Interpreter
-                                          ${PROJECT_SOURCE_DIR}/tools/check_exports.py
-                                          $<TARGET_FILE:${PROJECT_NAME}>)
-            set_tests_properties(exports PROPERTIES LABELS exports)
-        endif()
-    endif()
+    maul_add_exports_test()
 endif()
 
 # The fuzz targets, each run as fuzz_<name> <corpus dir>: test/fuzz_api.c
@@ -225,6 +228,8 @@ if(MAUL_TWEEN_FUZZ)
     # the sanitizers watch its code. Undefined behaviour stops the run.
     target_compile_options(maul-tween PRIVATE -fsanitize=fuzzer-no-link,address,undefined
                                               -fno-sanitize-recover=all)
+    target_compile_options(maul-tween-test-hooks PRIVATE -fsanitize=fuzzer-no-link,address,undefined
+                                                         -fno-sanitize-recover=all)
     target_link_options(maul-tween PUBLIC -fsanitize=address,undefined)
     foreach(target IN ITEMS api values fit)
         set(source ${target})
@@ -236,6 +241,9 @@ if(MAUL_TWEEN_FUZZ)
             target_compile_definitions(fuzz_${target} PRIVATE MTWN_FUZZ_FIT)
         endif()
         target_link_libraries(fuzz_${target} PRIVATE maul-tween)
+        if(target STREQUAL "api")
+            target_link_libraries(fuzz_${target} PRIVATE maul-tween-test-hooks)
+        endif()
         target_include_directories(fuzz_${target} PRIVATE ${PROJECT_SOURCE_DIR}/src)
         target_compile_definitions(fuzz_${target} PRIVATE MTWN_FUZZING)
         maul_apply_flags(fuzz_${target})

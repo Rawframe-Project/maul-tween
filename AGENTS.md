@@ -45,7 +45,7 @@ The server's default `gcc` is 13, which the family refuses; use `gcc-14` or `cla
 
 Follow the [repository standard's Tests section](https://github.com/Rawframe-Project/.github/blob/main/docs/repository-standard.md#tests); in this repository:
 
-- Test through the public headers. A white-box suite includes `src/` only for an internal function no public call reaches exactly (the elementary functions, the mix, the crossing count, the pool); never test internal state or sizes. Switches and counts only a test needs (every record counted, what the sharing kept) go through `src/test_hooks.h`, which is never exported, so a test reads no library struct.
+- Test through the public headers. A white-box suite includes `src/` only for an internal function no public call reaches exactly (the elementary functions, the mix, the crossing count, the pool); never test internal state or sizes. Switches and counts only a test needs (every record counted, what the sharing kept) go through `src/test_hooks.h`, a library of its own that is never exported or installed, so a test reads no library struct.
 - Exactness is checked against an independent reference: the long double formulas, the oracles in `tools/oracle/`, or the rivals' committed outputs. A bound comes from the definitions, not from what the code happens to give.
 - Implementations that must agree (serial and on tasks, sharing on and off, the sweep's shortcuts on and off) are checked by running both on twin contexts and comparing bits.
 - Every C snippet of `docs/user/` appears unchanged in `test/test_guide.c`; `tools/check_guide.py` enforces it.

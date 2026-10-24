@@ -174,13 +174,30 @@ static void Seed(GroupTask* task, uint32_t groups)
 static void RunGroups(int32_t startIndex, int32_t endIndex, void* taskContext)
 {
     const GroupTask* task = (const GroupTask*)taskContext;
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     for (int32_t g = startIndex; g < endIndex; ++g)
     {
         RunGroup(task, (uint32_t)g);
     }
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
+}
+
+// The host's task hooks, which schedule and compute nothing of the
+// library's, called in the host's own environment: each the one call
+// between the switches.
+static MTWN_NOINLINE void* Enqueue(const mtwnContextDef* def, GroupTask* task, int32_t groups)
+{
+    mtwnFloatHost host = mtwnFloatHostEnter();
+    void* handle = def->enqueueTask(RunGroups, groups, 1, task, def->userTaskContext);
+    mtwnFloatHostLeave(host);
+    return handle;
+}
+
+static MTWN_NOINLINE void Finish(const mtwnContextDef* def, void* handle)
+{
+    mtwnFloatHost host = mtwnFloatHostEnter();
+    def->finishTask(handle, def->userTaskContext);
+    mtwnFloatHostLeave(host);
 }
 
 void mtwnRunClipGroups(mtwnContext* context, double before, double now)
@@ -223,10 +240,10 @@ void mtwnRunClipGroups(mtwnContext* context, double before, double now)
     const mtwnContextDef* def = &context->def;
     int32_t groups = (int32_t)(count < MTWN_GROUPS ? count : MTWN_GROUPS);
     Seed(&task, (uint32_t)groups);
-    void* handle = def->enqueueTask(RunGroups, groups, 1, &task, def->userTaskContext);
+    void* handle = Enqueue(def, &task, groups);
     if (handle != NULL)
     {
-        def->finishTask(handle, def->userTaskContext);
+        Finish(def, handle);
     }
 }
 

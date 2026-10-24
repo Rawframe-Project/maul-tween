@@ -442,10 +442,9 @@ static mtwnResult RunStartTransition(mtwnContext* context, const mtwnTransitionD
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = StartWorker(context, def, playerOut);
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -539,12 +538,11 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
         return mtwn_errorStale;
     }
     mtwnVec4 end = {0};
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = mtwnAcceptValue(target->kind, def->value, &end)
                             ? Distance(def, target->kind, target->value, end, distanceOut)
                             : mtwn_errorInvalid;
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
     if (result != mtwn_success)
     {
         *distanceOut = 0.0;
