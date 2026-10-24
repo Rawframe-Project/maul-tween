@@ -200,6 +200,10 @@ static const Case s_cases[] = {
 
 static const mtwnEaseMode s_modes[] = {mtwn_easeIn, mtwn_easeOut, mtwn_easeInOut, mtwn_easeOutIn};
 
+// How much finer than the fixed cases' the sweeps across progress are:
+// ten times in the dense test (`test_easing dense`).
+static int s_finer = 1;
+
 static void TestEndsAreExact(void)
 {
     int wrong = 0;
@@ -254,10 +258,22 @@ static void TestEndsAreExactForEveryParameter(void)
     CHECK(wrong == 0, "power, back and elastic land exactly for every parameter");
 }
 
+// Penner's bounce changes parabola at these points of its out curve, so
+// a piece taken a little early or late shows only near them.
+static const double s_bounceBreaks[] = {1.0 / 2.75, 2.0 / 2.75, 2.5 / 2.75};
+
+// An easing's distance from its formula at a progress, clamped to [0, 1].
+static double FormulaError(const Case* c, mtwnEaseMode mode, const mtwnEasing* easing, double p)
+{
+    p = p < 0.0 ? 0.0 : (p > 1.0 ? 1.0 : p);
+    return fabs(mtwnEase(easing, p, false) - (double)EaseWide(&c->reference, mode, (Wide)p));
+}
+
 static void TestAgainstTheFormulas(void)
 {
     for (size_t c = 0; c < sizeof s_cases / sizeof s_cases[0]; ++c)
     {
+        bool bounce = s_cases[c].reference.family == family_bounce;
         double worst = 0.0;
         for (int m = 0; m < 4; ++m)
         {
@@ -267,12 +283,27 @@ static void TestAgainstTheFormulas(void)
                 worst = HUGE_VAL;
                 continue;
             }
-            for (int i = 0; i <= 20000; ++i)
+            for (int i = 0; i <= 2000 * s_finer; ++i)
             {
-                double p = (double)i / 20000.0;
-                double error = fabs(mtwnEase(&easing, p, false) -
-                                    (double)EaseWide(&s_cases[c].reference, s_modes[m], (Wide)p));
+                double error =
+                    FormulaError(&s_cases[c], s_modes[m], &easing, (double)i / (2000.0 * s_finer));
                 worst = error > worst ? error : worst;
+            }
+            // Every 1e-5 within 1e-3 of a bounce's breaks, wherever a mode
+            // puts them: at q and 1 - q, and at their halves in either half.
+            for (size_t b = 0; bounce && b < sizeof s_bounceBreaks / sizeof s_bounceBreaks[0]; ++b)
+            {
+                for (int j = -100; j <= 100; ++j)
+                {
+                    double q = s_bounceBreaks[b] + (double)j * 1e-5;
+                    const double at[6] = {
+                        q, 1.0 - q, 0.5 * q, 0.5 * (1.0 - q), 0.5 + 0.5 * q, 0.5 + 0.5 * (1.0 - q)};
+                    for (int k = 0; k < 6; ++k)
+                    {
+                        double error = FormulaError(&s_cases[c], s_modes[m], &easing, at[k]);
+                        worst = error > worst ? error : worst;
+                    }
+                }
             }
         }
         if (!(worst <= s_cases[c].bound + s_slack))
@@ -304,9 +335,9 @@ static void TestMonotonicEasingsNeverDecrease(void)
                 continue;
             }
             double previous = 0.0;
-            for (int i = 0; i <= 100000; ++i)
+            for (int i = 0; i <= 10000 * s_finer; ++i)
             {
-                double value = mtwnEase(&easing, (double)i / 100000.0, false);
+                double value = mtwnEase(&easing, (double)i / (10000.0 * s_finer), false);
                 wrong += value < previous;
                 previous = value;
             }
@@ -573,8 +604,15 @@ static void TestCubicBezierSampler(void)
     }
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
+    bool dense = argc == 2 && strcmp(argv[1], "dense") == 0;
+    if (argc > 2 || (argc == 2 && !dense))
+    {
+        printf("usage: test_easing [dense]\n");
+        return 2;
+    }
+    s_finer = dense ? 10 : 1;
     TestElasticZero();
     TestLinearRunEnd();
     TestEndsAreExact();

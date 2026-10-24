@@ -707,8 +707,10 @@ static void TestOracle(int part, int parts)
 // An outer level passing its time through (endless, from 0, without
 // delay, at rate 1, forwards): the levels below it count the same without
 // it, and the searches find the same times, before 0 too; one below with
-// something before its start, a negative delay, is not passed.
-static void TestPassedLevels(void)
+// something before its start, a negative delay, is not passed. Over a
+// number of random trials: 400 in the exact cases, 2,000 in the dense
+// test (`test_crossing passed`).
+static void TestPassedLevels(int trials)
 {
     Seed(1u << 20);
     static const mtwnCrossingWay s_ways[3] = {mtwn_crossingEither, mtwn_crossingForwards,
@@ -719,7 +721,7 @@ static void TestPassedLevels(void)
     int wronglyPassed = 0;
     int compared = 0;
     int mismatches = 0;
-    for (int trial = 0; trial < 2000; ++trial)
+    for (int trial = 0; trial < trials; ++trial)
     {
         mtwnLevel levels[3];
         memset(levels, 0, sizeof levels);
@@ -792,10 +794,11 @@ static void TestPassedLevels(void)
             }
         }
     }
-    CHECK(mismatches == 0 && compared > 20000,
+    CHECK(mismatches == 0 && compared > 10 * trials,
           "levels below one passing its time through count and find the same without it");
-    CHECK(passed > 1000 && kept > 10, "an outer level passed, and not over a negative delay");
-    CHECK(notPassing > 500 && wronglyPassed == 0,
+    CHECK(passed > trials / 2 && kept > trials / 200,
+          "an outer level passed, and not over a negative delay");
+    CHECK(notPassing > trials / 4 && wronglyPassed == 0,
           "an outer level delayed, at another rate, later or backwards not passed");
 
     // An instant the level below reaches before 0: passing the outer level
@@ -814,18 +817,25 @@ static void TestPassedLevels(void)
           "not passed over a level with something before its start");
 }
 
-// No argument: every test. "exact": all but the oracle's trials; "oracle
-// K N": slice K of N of those, so ctest runs the slices side by side.
+// No argument: every test. "exact": all but the oracle's trials, with
+// the passed levels' fewer trials; "passed": the passed levels' every
+// trial; "oracle K N": slice K of N of the oracle's, so ctest runs the
+// slices side by side.
 int main(int argc, char** argv)
 {
     bool exact = argc == 1 || (argc == 2 && strcmp(argv[1], "exact") == 0);
+    bool passed = argc == 2 && strcmp(argv[1], "passed") == 0;
     bool sliced = argc == 4 && strcmp(argv[1], "oracle") == 0;
     int part = sliced ? atoi(argv[2]) : 0;
     int parts = sliced ? atoi(argv[3]) : 1;
-    if ((!exact && !sliced) || parts < 1 || part < 0 || part >= parts)
+    if ((!exact && !passed && !sliced) || parts < 1 || part < 0 || part >= parts)
     {
-        printf("usage: test_crossing [exact | oracle K N]\n");
+        printf("usage: test_crossing [exact | passed | oracle K N]\n");
         return 2;
+    }
+    if (passed)
+    {
+        TestPassedLevels(2000);
     }
     if (exact)
     {
@@ -837,7 +847,7 @@ int main(int argc, char** argv)
         TestCountNeverFalls();
         TestExactEdges();
         TestTimes();
-        TestPassedLevels();
+        TestPassedLevels(argc == 1 ? 2000 : 400);
     }
     if (sliced || argc == 1)
     {

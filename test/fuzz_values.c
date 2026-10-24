@@ -687,25 +687,37 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 }
 
 #ifndef MTWN_FUZZING
+// The random inputs after the seeds: a fit's, at its limit, costs a
+// thousand times the rest, so the fit's replay takes 10 of them and its
+// dense test (`test_fuzz_fit dense`) 50.
 #ifdef MTWN_FUZZ_FIT
 #include "generated/fuzz_seeds_fit.h"
 enum
 {
-    s_randomInputs = 50
+    s_randomInputs = 10,
+    s_denseInputs = 50
 };
 #else
 #include "generated/fuzz_seeds_values.h"
 enum
 {
-    s_randomInputs = 2000
+    s_randomInputs = 2000,
+    s_denseInputs = 2000
 };
 #endif
 
 // In the test suite: the committed seeds (tools/fuzz_seeds.py), one per
 // edge a campaign reached, then a fixed set of random inputs
 // (xorshift64).
-int main(void)
+int main(int argc, char** argv)
 {
+    bool dense = argc == 2 && strcmp(argv[1], "dense") == 0;
+    if (argc > 2 || (argc == 2 && !dense))
+    {
+        printf("usage: %s [dense]\n", argv[0]);
+        return 2;
+    }
+    int inputs = dense ? s_denseInputs : s_randomInputs;
     uint32_t begin = 0;
     for (size_t k = 0; k < sizeof s_seedEnds / sizeof s_seedEnds[0]; ++k)
     {
@@ -714,7 +726,7 @@ int main(void)
     }
     uint64_t state = 0x2545F4914F6CDD1Du;
     static uint8_t input[512];
-    for (int n = 0; n < s_randomInputs; ++n)
+    for (int n = 0; n < inputs; ++n)
     {
         size_t size = 16 + (size_t)(n * 29 % 480);
         for (size_t i = 0; i < size; ++i)
