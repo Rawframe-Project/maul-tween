@@ -333,3 +333,15 @@ mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, ui
     mtwnLeave(context);
     return result;
 }
+
+uint32_t mtwnCountLayered(const mtwnContext* context)
+{
+    uint32_t layered = 0;
+    for (uint32_t index1 = 1; index1 <= context->targets.high; ++index1)
+    {
+        const mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
+        bool alive = (slot->header.flags & MTWN_SLOT_ALIVE) != 0;
+        layered += alive && mtwnLayered(slot) ? 1u : 0u;
+    }
+    return layered;
+}

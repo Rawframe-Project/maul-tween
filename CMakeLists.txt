@@ -82,9 +82,10 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/sweep.c
     src/elementary_float.c)
 # The tests' hooks (src/test_hooks.h), for the white-box suites and the
-# fuzz targets, which build only against the static library: a shared one
-# holds none of them.
-if(NOT MAUL_TWEEN_BUILD_SHARED)
+# fuzz targets, which build only against the static library: a shared
+# library holds none of them, nor does a static one built without tests or
+# fuzzing, as installed and packaged.
+if(NOT MAUL_TWEEN_BUILD_SHARED AND (MAUL_TWEEN_BUILD_TESTS OR MAUL_TWEEN_FUZZ))
     target_sources(maul-tween PRIVATE src/test_hooks.c)
 endif()
 maul_configure_library(maul-tween)

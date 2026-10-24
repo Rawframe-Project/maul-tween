@@ -29,7 +29,7 @@ timing_internal:
 allocator:
 fpenv:
 pool: invariant
-context_internal: crossing pool runs
+context_internal: crossing invariant pool runs
 context: allocator context_internal invariant pool reserved_internal
 target: context_internal pool
 transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
@@ -42,7 +42,7 @@ clip: allocator context_internal fpenv pool reserved_internal
 runs: invariant
 player: context_internal fpenv invariant pool reserved_internal runs
 player_slot: context_internal pool runs
-clip_sample: compose context_internal elementary fpenv pool runs bounds_internal
+clip_sample: compose context_internal elementary fpenv invariant pool runs bounds_internal
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal
 compose: elementary bounds_internal

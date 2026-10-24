@@ -10,6 +10,7 @@
 #ifndef MAUL_TWEEN_SRC_TEST_HOOKS_H
 #define MAUL_TWEEN_SRC_TEST_HOOKS_H
 
+#include "maul-tween/clip.h"
 #include "maul-tween/context.h"
 #include "maul-tween/player.h"
 
@@ -57,5 +58,77 @@ void mtwnTestSweep(mtwnContext* context, mtwnPlayerId player, const mtwnTestSwee
 // Whether the context is inside a call, so host code called back from it
 // is refused.
 bool mtwnTestIsBusy(const mtwnContext* context);
+
+// The clips of a context's clip players before an update, in creation
+// order: the order the groups stage them in.
+typedef struct mtwnTestOrder
+{
+    uint32_t count;
+    uint32_t clips[128];
+} mtwnTestOrder;
+
+// What the groups of a task system did, summed over updates.
+typedef struct mtwnTestTasks
+{
+    // Players the groups ran, and left to the serial pass.
+    uint32_t staged;
+    uint32_t serial;
+    // Left to the serial pass for staging that ran out.
+    uint32_t ranOut;
+    // Updates in which a group dropped records past its staging.
+    uint32_t dropped;
+    // A clip of more nodes than a group keeps, staged anyway: with other
+    // players, which must not be, or alone, in its own node times.
+    uint32_t bigStaged;
+    uint32_t bigAlone;
+    // A clip's own node times written by a group while it has other
+    // players, which must not be; updates in which a group sampled a clip
+    // of one player in them.
+    uint32_t touched;
+    uint32_t ownTimes;
+    // Players with a binding alone on its target that a group ran.
+    uint32_t aloneInGroups;
+} mtwnTestTasks;
+
+// Before an update with a task system: notes the clip players' order and
+// marks the own node times of the clips given, which only the serial
+// pass may write.
+void mtwnTestTasksBefore(mtwnContext* context, const mtwnClipId* clips, uint32_t clipCount,
+                         mtwnTestOrder* order);
+
+// After it: adds what the groups did.
+void mtwnTestTasksAfter(const mtwnContext* context, const mtwnClipId* clips, uint32_t clipCount,
+                        const mtwnTestOrder* order, mtwnTestTasks* tasks);
+
+// The nodes of a finished clip that share their timing with a sibling;
+// with keep false, that sharing forced off for every one.
+uint32_t mtwnTestShareTiming(mtwnContext* context, mtwnClipId clip, bool keep);
+
+// The players a clip has.
+uint32_t mtwnTestClipUsers(const mtwnContext* context, mtwnClipId clip);
+
+// Empties the groups' staging of the kinds set: records 1, track results
+// 2, changed targets 4.
+void mtwnTestEmptyStaging(mtwnContext* context, unsigned kinds);
+
+// Whether a clip player's binding of a slot was its target's alone in the
+// last update with groups, and how many of a live player's were.
+bool mtwnTestIsAlone(const mtwnContext* context, mtwnPlayerId player, uint32_t slot);
+uint32_t mtwnTestAloneCount(const mtwnContext* context, mtwnPlayerId player);
+
+// Records staged into the first group's work, one more than it holds.
+typedef struct mtwnTestStaging
+{
+    uint32_t capacity;
+    uint32_t staged;
+    // The last staged record's key, keys counting from 1.
+    uint32_t lastKey;
+    uint64_t dropped;
+    bool overflow;
+    // Whether the next group's staging was left as it was.
+    bool nextUntouched;
+} mtwnTestStaging;
+
+mtwnTestStaging mtwnTestStageRecords(mtwnContext* context);
 
 #endif // MAUL_TWEEN_SRC_TEST_HOOKS_H

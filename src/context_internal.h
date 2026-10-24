@@ -9,6 +9,7 @@
 #define MAUL_TWEEN_SRC_CONTEXT_INTERNAL_H
 
 #include "crossing.h"
+#include "invariant.h"
 #include "pool.h"
 #include "runs.h"
 
@@ -725,6 +726,8 @@ static inline void mtwnAddWriter(mtwnContext* context, mtwnTargetSlot* slot, boo
 {
     bool was = mtwnLayered(slot);
     ++context->writersEpoch;
+    // A binding is taken away only after it was counted.
+    MTWN_ASSERT(more || slot->clipWriters > 0);
     if (slot->clipWriters != UINT16_MAX)
     {
         slot->clipWriters = (uint16_t)(more ? slot->clipWriters + 1u : slot->clipWriters - 1u);
@@ -743,6 +746,10 @@ static inline void mtwnLinkTarget(mtwnContext* context, mtwnTargetSlot* slot, ui
     context->layeredTargets =
         context->layeredTargets - (was ? 1u : 0u) + (mtwnLayered(slot) ? 1u : 0u);
 }
+
+// The live targets mtwnLayered counts, recounted: what layeredTargets
+// keeps, for an assertion (src/target.c).
+uint32_t mtwnCountLayered(const mtwnContext* context);
 
 // The parallel phase: the clips' players in creation order, in groups on
 // the host's task system, staged; nothing without one (src/clip_tasks.c).

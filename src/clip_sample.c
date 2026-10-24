@@ -83,6 +83,9 @@ uint32_t mtwnMarkUnwrittenOf(mtwnContext* context, const mtwnClipPlay* play, boo
             // In the player's group, which alone writes its bindings.
             bound->alone = IsAlone(context, bound->target);
         }
+        // Kept since the writers last changed, a binding's alone is still
+        // what its target's writers give.
+        MTWN_ASSERT(!alone || bound->alone == IsAlone(context, bound->target));
         bool taken = bound->alone == alone;
         others += !taken && bound->target.index1 != 0 ? 1u : 0u;
         uint32_t target =

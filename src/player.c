@@ -430,6 +430,8 @@ static void BeginClips(mtwnContext* context, double before, double now)
         // targets; the others, which no group touches, after them.
         mtwnRunClipGroups(context, before, now);
     }
+    // The count the groups skip by is the targets' own.
+    MTWN_ASSERT(!grouped || context->layeredTargets == mtwnCountLayered(context));
     for (uint32_t index1 = grouped && context->layeredTargets == 0 ? 0 : first; index1 != 0;)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);

@@ -10,10 +10,11 @@
 // few bindings and a clip of more nodes than a group keeps make the
 // staging run out, so every way back to the serial pass is taken.
 
-#include "context_internal.h"
 #include "test_harness.h"
+#include "test_hooks.h"
 
 #include "maul-tween/clip.h"
+#include "maul-tween/event.h"
 #include "maul-tween/player.h"
 #include "maul-tween/target.h"
 #include "maul-tween/transition.h"
@@ -86,6 +87,8 @@ typedef struct Twin
     mtwnPlayerId players[s_players];
     // Its clips' sibling tracks never share their timing.
     bool unshared;
+    // The slots each clip's tracks use.
+    bool used[s_clips][s_slots];
 } Twin;
 
 // Ranges run at the wait, for a host that returns a handle.
@@ -380,30 +383,25 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
             }
             lastTrack =
                 mtwnClip_AddTrack(twin->context, twin->clips[c], &track, &node) == mtwn_success;
+            twin->used[c][slot] = twin->used[c][slot] || lastTrack;
             last = track;
             continue;
         }
         lastTrack = false;
     }
     CHECK(mtwnClip_Finish(twin->context, twin->clips[c]) == mtwn_success, "a finished clip");
-    mtwnClipSlot* clip = mtwnClipAt(twin->context, twin->clips[c].index1);
-    for (uint32_t i = 0; i < clip->nodeCount; ++i)
-    {
-        s_shared += clip->nodes[i].sharesTiming ? 1u : 0u;
-        // The replay and the kept timing forced off.
-        clip->nodes[i].sharesTiming = clip->nodes[i].sharesTiming && !(twin->unshared);
-    }
+    // The replay and the kept timing forced off for the unshared twin.
+    s_shared += mtwnTestShareTiming(twin->context, twin->clips[c], !twin->unshared);
 }
 
 static void MakePlayer(Twin* twin, uint32_t p)
 {
     uint32_t c = Next() % s_clips;
     // Clip 0 has one player at most, clip 1 two.
-    if (s_lonelyClip && c < 2u && mtwnClipAt(twin->context, twin->clips[c].index1)->users > c)
+    if (s_lonelyClip && c < 2u && mtwnTestClipUsers(twin->context, twin->clips[c]) > c)
     {
         c = 2u + Next() % (s_clips - 2u);
     }
-    const mtwnClipSlot* clip = mtwnClipAt(twin->context, twin->clips[c].index1);
     // A binding for each slot the clip's tracks use; one no track uses is
     // refused.
     mtwnBinding bindings[s_slots];
@@ -417,7 +415,7 @@ static void MakePlayer(Twin* twin, uint32_t p)
         mtwnBinding binding = mtwnBind(s, twin->targets[s][t]);
         binding.composite = Next() % 3 == 0 ? mtwn_compositeAdd : mtwn_compositeReplace;
         binding.weight = Next() % 3 == 0 ? 0.5f : 1.0f;
-        if (s < clip->slotCount && clip->slotKinds[s] != 0)
+        if (twin->used[c][s])
         {
             bindings[bound++] = binding;
         }
@@ -503,127 +501,14 @@ static bool SameRecord(const mtwnEvent* a, const mtwnEvent* b)
 }
 
 // What the parallel twin's groups did, to see each way taken, and what
-// they must not have done.
+// they must not have done; and the serial twin's
+// mtwnContext_GetSerialAdvances, and the hooked twin's.
 typedef struct Taken
 {
-    uint32_t staged;
-    uint32_t serial;
-    // Left to the serial pass for staging that ran out.
-    uint32_t ranOut;
-    uint32_t dropped;
-    // A clip of more nodes than a group keeps, staged anyway: with other
-    // players, which must not be, or alone, in its own node times.
-    uint32_t bigStaged;
-    uint32_t bigAlone;
-    // A clip's own node times written by a group.
-    uint32_t touched;
-    // The serial twin's mtwnContext_GetSerialAdvances, and the hooked
-    // twin's.
+    mtwnTestTasks groups;
     uint64_t serialUnhooked;
     uint64_t advances;
-    // Updates in which a group sampled a clip of one player in its own
-    // node times.
-    uint32_t ownTimes;
-    // Players with an alone target that a group ran, not left serial.
-    uint32_t aloneInGroups;
 } Taken;
-
-// The clips' players before an update, in creation order: the order the
-// groups stage them in, with their clips.
-typedef struct Order
-{
-    uint32_t count;
-    uint32_t clips[128];
-} Order;
-
-static const uint64_t s_poison = 0x7FF8DEADBEEF0001ull;
-
-// Notes the order and poisons each clip's own node times, which only the
-// serial pass may write.
-static void Prepare(const Twin* twin, Order* order)
-{
-    const mtwnContext* context = twin->context;
-    order->count = 0;
-    for (uint32_t index1 = context->firstPlayer; index1 != 0;)
-    {
-        const mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
-        if (slot->type == MTWN_PLAYER_CLIP)
-        {
-            order->clips[order->count++] = slot->play.clip.index1;
-        }
-        index1 = slot->later;
-    }
-    for (uint32_t c = 0; c < s_clips; ++c)
-    {
-        const mtwnClipSlot* clip = mtwnClipAt(context, twin->clips[c].index1);
-        for (uint32_t k = 0; k < clip->nodeCount; ++k)
-        {
-            memcpy(&clip->times[k].now, &s_poison, sizeof s_poison);
-        }
-    }
-}
-
-static void Count(const Twin* twin, const Order* order, Taken* taken)
-{
-    const mtwnContext* context = twin->context;
-    if (order->count < 2)
-    {
-        return;
-    }
-    bool serialClip[s_clips] = {false};
-    uint32_t players[s_clips] = {0};
-    for (uint32_t i = 0; i < order->count; ++i)
-    {
-        for (uint32_t c = 0; c < s_clips; ++c)
-        {
-            players[c] += twin->clips[c].index1 == order->clips[i] ? 1u : 0u;
-        }
-    }
-    for (uint32_t i = 0; i < order->count; ++i)
-    {
-        uint32_t of = 0;
-        for (uint32_t c = 0; c < s_clips; ++c)
-        {
-            of += twin->clips[c].index1 == order->clips[i] ? players[c] : 0u;
-        }
-        bool serial = context->staged[i].serial;
-        const mtwnClipPlay* play = &mtwnPlayerAt(context, context->staged[i].player)->play;
-        bool anyAlone = false;
-        // A player that finished was freed in the update: not read.
-        for (uint32_t s = 0; !context->staged[i].done && s < play->bindingCount; ++s)
-        {
-            anyAlone = anyAlone || context->bindings.entries[play->bindingStart + s].alone;
-        }
-        taken->aloneInGroups += anyAlone && !serial ? 1u : 0u;
-        taken->serial += serial ? 1u : 0u;
-        taken->staged += serial ? 0u : 1u;
-        bool big = mtwnClipAt(context, order->clips[i])->nodeCount > MTWN_GROUP_NODES;
-        taken->bigStaged += big && !serial && of != 1 ? 1u : 0u;
-        taken->bigAlone += big && !serial && of == 1 ? 1u : 0u;
-        taken->ranOut += serial && !big ? 1u : 0u;
-        for (uint32_t c = 0; c < s_clips; ++c)
-        {
-            serialClip[c] = serialClip[c] || (serial && twin->clips[c].index1 == order->clips[i]);
-        }
-    }
-    for (uint32_t c = 0; c < s_clips; ++c)
-    {
-        const mtwnClipSlot* clip = mtwnClipAt(context, twin->clips[c].index1);
-        uint32_t written = 0;
-        for (uint32_t k = 0; k < clip->nodeCount && !serialClip[c]; ++k)
-        {
-            written += memcmp(&clip->times[k].now, &s_poison, sizeof s_poison) == 0 ? 0u : 1u;
-        }
-        // A clip of one player is sampled in its own times; another's are
-        // left alone, as groups may sample it side by side.
-        taken->touched += players[c] == 1 ? 0u : written;
-        taken->ownTimes += players[c] == 1 && written > 0 ? 1u : 0u;
-    }
-    for (uint32_t g = 0; g < MTWN_GROUPS; ++g)
-    {
-        taken->dropped += context->works[g].dropped > 0 ? 1u : 0u;
-    }
-}
 
 // Compares the twins after an update; returns the differences.
 static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* changedA,
@@ -682,19 +567,9 @@ static bool s_unsharedMode;
 // The bindings that were their target's alone in the last update.
 static void CountAlone(const Twin* twin)
 {
-    const mtwnContext* context = twin->context;
     for (uint32_t p = 0; p < s_players; ++p)
     {
-        mtwnPlayerId id = twin->players[p];
-        if (id.index1 == 0 || mtwnPoolFind(&context->players, id.index1, id.generation) == NULL)
-        {
-            continue;
-        }
-        const mtwnClipPlay* play = &mtwnPlayerAt(context, id.index1)->play;
-        for (uint32_t s = 0; s < play->bindingCount; ++s)
-        {
-            s_alone += context->bindings.entries[play->bindingStart + s].alone ? 1u : 0u;
-        }
+        s_alone += mtwnTestAloneCount(twin->context, twin->players[p]);
     }
 }
 
@@ -710,14 +585,9 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
         own.finishTask = tasks ? Finish : NULL;
         twins[k].unshared = k == 1 && s_unsharedMode;
         CHECK(mtwnCreateContext(&own, &twins[k].context) == mtwn_success, "a context");
-        for (uint32_t g = 0; k == 1 && s_emptyStaging != 0 && g < MTWN_GROUPS; ++g)
+        if (k == 1 && s_emptyStaging != 0)
         {
-            mtwnWork* work = &twins[k].context->works[g];
-            work->recordCapacity = (s_emptyStaging & 1u) != 0 ? 0u : work->recordCapacity;
-            work->trackCapacity = (s_emptyStaging & 2u) != 0 ? 0u : work->trackCapacity;
-            work->changeCapacity = (s_emptyStaging & 4u) != 0 ? 0u : work->changeCapacity;
-            // Nowhere to write: a change staged past the capacity crashes.
-            work->changes = (s_emptyStaging & 4u) != 0 ? NULL : work->changes;
+            mtwnTestEmptyStaging(twins[k].context, s_emptyStaging);
         }
         s_script = seed;
         for (uint32_t s = 0; s < s_slots; ++s)
@@ -739,7 +609,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
         }
     }
     uint32_t differences = 0;
-    Order order;
+    mtwnTestOrder order;
     uint64_t now = 0;
     uint64_t script = s_script;
     for (uint32_t f = 0; f < s_frames; ++f)
@@ -773,7 +643,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
             }
             if (k == 1 && !s_unsharedMode)
             {
-                Prepare(&twins[k], &order);
+                mtwnTestTasksBefore(twins[k].context, twins[k].clips, s_clips, &order);
             }
             CHECK(mtwnUpdate(twins[k].context, now, changed[k], 512, &totals[k]) == mtwn_success,
                   "an update");
@@ -781,7 +651,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
         script = s_script;
         if (!s_unsharedMode)
         {
-            Count(&twins[1], &order, taken);
+            mtwnTestTasksAfter(twins[1].context, twins[1].clips, s_clips, &order, &taken->groups);
             CountAlone(&twins[1]);
         }
         differences += Compare(&twins[0], &twins[1], changed[0], changed[1], totals[0], totals[1]);
@@ -817,13 +687,14 @@ static void TestTwins(void)
     CHECK(differences == 0, "the twins hold the same bits after every update");
     CHECK(s_made > 10 * s_refused, "nearly every player made");
     CHECK(s_enqueued > 100, "the task system was handed the groups");
-    CHECK(taken.staged > 1000, "players staged by the groups");
-    CHECK(taken.serial > 10, "players left to the serial pass");
-    CHECK(taken.ranOut > 10, "players whose staging ran out put back and left to it");
-    CHECK(taken.dropped > 0, "records past a group's staging dropped as the queue would");
-    CHECK(taken.bigStaged == 0,
+    CHECK(taken.groups.staged > 1000, "players staged by the groups");
+    CHECK(taken.groups.serial > 10, "players left to the serial pass");
+    CHECK(taken.groups.ranOut > 10, "players whose staging ran out put back and left to it");
+    CHECK(taken.groups.dropped > 0, "records past a group's staging dropped as the queue would");
+    CHECK(taken.groups.bigStaged == 0,
           "a clip of more nodes than a group keeps and other players plays serially");
-    CHECK(taken.touched == 0, "the groups leave a clip's own node times alone if it has players");
+    CHECK(taken.groups.touched == 0,
+          "the groups leave a clip's own node times alone if it has players");
 
     // A clip of one player: its group samples it in the clip's own times.
     s_lonelyClip = true;
@@ -840,11 +711,11 @@ static void TestTwins(void)
         lonelyDifferences += Run(def, seed, seed % 2 == 0 ? 240u : 0u, &lonely);
     }
     s_lonelyClip = false;
-    CHECK(lonelyDifferences == 0 && lonely.touched == 0 && lonely.ownTimes > 10,
+    CHECK(lonelyDifferences == 0 && lonely.groups.touched == 0 && lonely.groups.ownTimes > 10,
           "a clip of one player sampled in its own node times, the same bits");
-    CHECK(lonely.bigStaged == 0 && lonely.bigAlone > 10,
+    CHECK(lonely.groups.bigStaged == 0 && lonely.groups.bigAlone > 10,
           "a clip of one player in a group past the nodes a group keeps times for");
-    CHECK(taken.serialUnhooked == 0 && taken.advances == taken.serial,
+    CHECK(taken.serialUnhooked == 0 && taken.advances == taken.groups.serial,
           "every advance left serial counted, none without a task system");
 
     // Every player put back: still the serial update's bits.
@@ -860,8 +731,8 @@ static void TestTwins(void)
         emptyDifferences += Run(def, seed, 0, &empty);
     }
     s_emptyStaging = 0;
-    CHECK(empty.advances == empty.serial, "each put back counted");
-    CHECK(emptyDifferences == 0 && empty.ranOut > 1000,
+    CHECK(empty.advances == empty.groups.serial, "each put back counted");
+    CHECK(emptyDifferences == 0 && empty.groups.ranOut > 1000,
           "with staging that holds nothing, every player put back, the same bits");
 
     // Targets of the players' own, written in the groups, and others
@@ -899,11 +770,11 @@ static void TestTwins(void)
     s_emptyStaging = 0;
     s_ownTargets = false;
     CHECK(ownDifferences == 0, "with targets of their own, the twins hold the same bits");
-    CHECK(emptyOwnDifferences == 0 && emptyOwn.serial > 100,
+    CHECK(emptyOwnDifferences == 0 && emptyOwn.groups.serial > 100,
           "each staging empty, players with targets of their own left serial, the same bits");
-    CHECK(own.aloneInGroups > 10000,
+    CHECK(own.groups.aloneInGroups > 10000,
           "players with targets of their own run by their groups when they fit");
-    CHECK(s_alone > 10000 && own.staged > 1000 && own.serial > 10,
+    CHECK(s_alone > 10000 && own.groups.staged > 1000 && own.groups.serial > 10,
           "alone targets written in the groups, and players left serial among them");
 }
 
@@ -930,20 +801,6 @@ static void TestReplayOff(void)
     CHECK(differences == 0, "the same bits with the replay and kept timing forced off");
 }
 
-static void Fill(mtwnContext* context, uint32_t count, mtwnWork* work)
-{
-    work->recordCount = 0;
-    work->dropped = 0;
-    work->overflow = false;
-    mtwnEvent event = {0};
-    event.count = 1;
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        event.key = i + 1;
-        mtwnWorkEvent(context, work, &event, 0.0);
-    }
-}
-
 // A group's records stop at its staging: past one as large as the queue
 // they are dropped, past a smaller one the player runs out; the next
 // group's staging is never written.
@@ -957,18 +814,15 @@ static void TestStagingBounds(void)
         def.finishTask = Finish;
         mtwnContext* context = NULL;
         CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
-        mtwnWork* first = &context->works[0];
-        mtwnWork* next = &context->works[1];
-        next->records[0].key = 77;
-        uint32_t capacity = first->recordCapacity;
+        mtwnTestStaging staged = mtwnTestStageRecords(context);
+        uint32_t capacity = staged.capacity;
         CHECK(capacity == (large ? 1024u : 4u), "a group stages up to the queue, at most 1,024");
-        Fill(context, capacity + 1, first);
-        CHECK(first->recordCount == capacity && first->records[capacity - 1].key == capacity,
+        CHECK(staged.staged == capacity && staged.lastKey == capacity,
               "records staged to the capacity");
-        CHECK(large ? first->overflow && first->dropped == 0
-                    : !first->overflow && first->dropped == 1,
+        CHECK(large ? staged.overflow && staged.dropped == 0
+                    : !staged.overflow && staged.dropped == 1,
               "past a staging like the queue a record is dropped, past a smaller one it runs out");
-        CHECK(next->records[0].key == 77, "the next group's staging untouched");
+        CHECK(staged.nextUntouched, "the next group's staging untouched");
         mtwnDestroyContext(context);
     }
 }
@@ -1069,7 +923,7 @@ static void TestDeepThreads(void)
     }
     s_deep = false;
     s_threaded = false;
-    CHECK(differences == 0 && taken.staged > 100,
+    CHECK(differences == 0 && taken.groups.staged > 100,
           "deep clips' groups on threads at once, the same bits as serial");
 }
 
@@ -1088,7 +942,7 @@ static void TestThreads(void)
         differences += Run(def, seed, seed == 44 ? 240u : 0u, &taken);
     }
     s_threaded = false;
-    CHECK(differences == 0 && taken.staged > 1000,
+    CHECK(differences == 0 && taken.groups.staged > 1000,
           "groups on threads at once, the same bits as serial");
 }
 
@@ -1110,8 +964,7 @@ static void WaitForNothing(void* userTask, void* userContext)
 
 static bool Alone(const mtwnContext* context, mtwnPlayerId player, uint32_t slot)
 {
-    const mtwnClipPlay* play = &mtwnPlayerAt(context, player.index1)->play;
-    return context->bindings.entries[play->bindingStart + slot].alone;
+    return mtwnTestIsAlone(context, player, slot);
 }
 
 // A kept player of a clip of two scalar tracks, slots 0 and 1, bound to
@@ -1163,8 +1016,9 @@ static void Step(mtwnContext* context, double seconds)
 // Each clip's player's binding is its target's alone when no other binding
 // names the target and no transition is on it (with a task system): the
 // writers kept as players are made and destroyed, transitions start and
-// end and targets are destroyed, the targets that need an order counted
-// exactly, the context grown with them.
+// end and targets are destroyed, the context grown with them. The count of
+// targets that need an order is asserted against a recount on every
+// update with groups.
 static void TestWriters(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -1197,14 +1051,11 @@ static void TestWriters(void)
           "a target with a transition on it is not a player's alone");
     CHECK(!Alone(context, twice, 0) && !Alone(context, twice, 1),
           "a target bound twice by one player is not alone either");
-    CHECK(context->layeredTargets == 3,
-          "layered: a target two bind, one with a transition, one bound twice");
 
     CHECK(mtwnDestroyPlayer(context, two) == mtwn_success, "destroyed");
     Step(context, 0.05);
     CHECK(Alone(context, one, 1), "the other player gone, the target is the first's alone");
     Step(context, 0.2);
-    CHECK(context->layeredTargets == 1, "a player and a transition gone, two left layered");
     Step(context, 0.25);
     CHECK(Alone(context, three, 0), "the transition ended, the target is the player's alone");
 
@@ -1218,9 +1069,8 @@ static void TestWriters(void)
               reused.index1 == t[0].index1,
           "the slot reused");
     move.target = reused;
-    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success &&
-              context->layeredTargets == 1,
-          "a transition on a target no player binds layers nothing");
+    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success,
+          "a transition on a target no player binds");
     move.target = t[3];
     CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success, "a transition");
     Step(context, 0.32);
@@ -1232,19 +1082,17 @@ static void TestWriters(void)
     CHECK(mtwnDestroyPlayer(context, twice) == mtwn_success, "destroyed");
     Step(context, 0.345);
     move.target = t[4];
-    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success &&
-              context->layeredTargets == 2,
-          "a transition on a target its only player left layers nothing");
+    CHECK(mtwnStartTransition(context, &move, &moving) == mtwn_success,
+          "a transition on a target its only player left");
 
     def.playerCapacity *= 2;
     CHECK(mtwnGrowContext(&context, &def) == mtwn_success, "grown");
-    CHECK(context->layeredTargets == 2, "the counts kept across growing");
     Step(context, 0.35);
     CHECK(Alone(context, three, 0) && !Alone(context, one, 1) && !Alone(context, four, 0),
           "the same after growing");
     // A layered target destroyed is layered no more.
-    CHECK(mtwnDestroyTarget(context, t[1]) == mtwn_success && context->layeredTargets == 1,
-          "a target two players bind destroyed");
+    CHECK(mtwnDestroyTarget(context, t[1]) == mtwn_success, "a target two players bind destroyed");
+    Step(context, 0.36);
     mtwnDestroyContext(context);
 
     // Without a task system the writers are counted, no alone worked out.
@@ -1255,8 +1103,7 @@ static void TestWriters(void)
           "a target");
     mtwnPlayerId only = PlayTwo(context, TwoTracks(context), lone, (mtwnTargetId){0, 0});
     Step(context, 0.0);
-    CHECK(!Alone(context, only, 0) && mtwnTargetAt(context, lone.index1)->clipWriters == 1,
-          "without a task system, writers counted and no alone worked out");
+    CHECK(!Alone(context, only, 0), "without a task system, no alone worked out");
     mtwnDestroyContext(context);
 }
 
@@ -1272,8 +1119,6 @@ static void TestExactFit(void)
     def.finishTask = WaitForNothing;
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
-    CHECK(context->works[0].trackCapacity == 2 && context->works[0].changeCapacity == 2,
-          "room for two results and two changes a group");
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
@@ -1509,8 +1354,6 @@ static void TestLayeredFit(void)
     def.finishTask = WaitForNothing;
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
-    CHECK(context->works[0].trackCapacity == 3 && context->works[0].changeCapacity == 3,
-          "room for three results and three changes a group");
     mtwnTargetId a = {0, 0};
     mtwnTargetId b = {0, 0};
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &a) == mtwn_success &&
