@@ -11,10 +11,11 @@
 // destroyed and another made in its slot must not take the first's
 // results.
 
-#include "context_internal.h"
 #include "test_harness.h"
+#include "test_hooks.h"
 
 #include "maul-tween/clip.h"
+#include "maul-tween/event.h"
 #include "maul-tween/player.h"
 #include "maul-tween/target.h"
 
@@ -242,13 +243,6 @@ static uint32_t Step(Twin twins[2], uint64_t now, uint32_t* records)
             differences +=
                 Same(x.base, y.base) && Same(x.value, y.value) && Same(x.velocity, y.velocity) ? 0u
                                                                                                : 1u;
-            // And as kept: a velocity left to be read is kept so on both.
-            const mtwnTargetSlot* a = mtwnTargetAt(twins[0].context, twins[0].targets[p][s].index1);
-            const mtwnTargetSlot* b = mtwnTargetAt(twins[1].context, twins[1].targets[p][s].index1);
-            differences += a->header.flags == b->header.flags &&
-                                   memcmp(&a->velocity, &b->velocity, sizeof a->velocity) == 0
-                               ? 0u
-                               : 1u;
         }
     }
     static mtwnEvent read[2][4096];
@@ -346,20 +340,10 @@ static Seen Crowd(double spread, bool mixed, bool tasks, uint32_t eventCapacity)
             }
         }
         seen.differences += Step(twins, now, &seen.records);
-        const mtwnContext* on = twins[1].context;
-        const mtwnSharing* sharing = &on->serial->sharing;
-        bool keptSample = sharing->sampleKept;
-        bool keptSweep = sharing->sweepKept;
-        bool noted = sharing->sampleValid || sharing->sweepValid;
-        for (uint32_t g = 0; on->works != NULL && g < MTWN_GROUPS; ++g)
-        {
-            keptSample = keptSample || on->works[g].sharing.sampleKept;
-            keptSweep = keptSweep || on->works[g].sharing.sweepKept;
-            noted = noted || on->works[g].sharing.sampleValid || on->works[g].sharing.sweepValid;
-        }
-        seen.keptSamples += keptSample ? 1u : 0u;
-        seen.keptSweeps += keptSweep ? 1u : 0u;
-        seen.noted += noted ? 1u : 0u;
+        mtwnTestSharing sharing = mtwnTestGetSharing(twins[1].context);
+        seen.keptSamples += sharing.sampleKept ? 1u : 0u;
+        seen.keptSweeps += sharing.sweepKept ? 1u : 0u;
+        seen.noted += sharing.noted ? 1u : 0u;
         now += 16000000u;
     }
     mtwnDestroyContext(twins[0].context);
@@ -456,7 +440,7 @@ static void TestReusedSlot(void)
         differences += Step(twins, now, &records);
     }
     CHECK(differences == 0, "a clip in a reused slot takes nothing of the old one's");
-    CHECK(twins[1].context->serial->sharing.sampleKept, "the new clip's players share");
+    CHECK(mtwnTestGetSharing(twins[1].context).sampleKept, "the new clip's players share");
     mtwnDestroyContext(twins[0].context);
     mtwnDestroyContext(twins[1].context);
 }
@@ -484,16 +468,7 @@ static uint32_t CompareRecords(Twin twins[2], uint32_t* count)
 
 // A sweep's inputs, set on a player before it sweeps: its swept time (NaN
 // for none) and way, its own rate, and the call's.
-typedef struct SweepCase
-{
-    double swept;
-    int8_t way;
-    double playRate;
-    double to;
-    double rate;
-    double hostFrom;
-    double hostTo;
-} SweepCase;
+typedef mtwnTestSweepInputs SweepCase;
 
 // Player p of each twin sweeps: the first twin's alone, the second's as
 // one near the last, which takes the records last kept if its key is
@@ -502,22 +477,7 @@ static void SweepBoth(Twin twins[2], uint32_t p, const SweepCase* c)
 {
     for (int k = 0; k < 2; ++k)
     {
-        mtwnContext* context = twins[k].context;
-        uint32_t index1 = twins[k].players[p].index1;
-        mtwnClipPlay* play = &mtwnPlayerAt(context, index1)->play;
-        play->swept = c->swept;
-        play->sweptWay = c->way;
-        play->rate = c->playRate;
-        if (k == 0)
-        {
-            mtwnSweepEvents(context, context->serial, index1, c->to, c->rate, c->hostFrom,
-                            c->hostTo);
-        }
-        else
-        {
-            mtwnSweepEventsNear(context, context->serial, index1, c->to, c->rate, c->hostFrom,
-                                c->hostTo);
-        }
+        mtwnTestSweep(twins[k].context, twins[k].players[p], c, k == 1);
     }
 }
 
@@ -582,7 +542,7 @@ static void TestSweepKeys(void)
     {
         SweepBoth(twins, 0, &first[v]);
         SweepBoth(twins, 1, &first[v]);
-        kept += twins[1].context->serial->sharing.sweepKept ? 1u : 0u;
+        kept += mtwnTestGetSharing(twins[1].context).sweepKept ? 1u : 0u;
         SweepBoth(twins, 2, &apart[v]);
         // And one in step with it, which takes them.
         SweepBoth(twins, 3, &apart[v]);
@@ -597,7 +557,7 @@ static void TestSweepKeys(void)
     // the old clip's records.
     SweepBoth(twins, 0, &base);
     SweepBoth(twins, 1, &base);
-    CHECK(twins[1].context->serial->sharing.sweepKept, "the old clip's records kept");
+    CHECK(mtwnTestGetSharing(twins[1].context).sweepKept, "the old clip's records kept");
     for (int k = 0; k < 2; ++k)
     {
         for (uint32_t p = 0; p < 4; ++p)
@@ -665,7 +625,7 @@ static void TestManyRecords(void)
     uint32_t records = 0;
     SweepBoth(twins, 0, &across);
     SweepBoth(twins, 1, &across);
-    CHECK(!twins[1].context->serial->sharing.sweepKept, "past the records kept, none kept");
+    CHECK(!mtwnTestGetSharing(twins[1].context).sweepKept, "past the records kept, none kept");
     SweepBoth(twins, 2, &across);
     CHECK(CompareRecords(twins, &records) == 0 && records == 240,
           "past the records kept, each works its own out");

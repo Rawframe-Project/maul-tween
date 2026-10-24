@@ -49,3 +49,4 @@ compose: elementary bounds_internal
 crossing: invariant timing_internal
 event: context_internal invariant pool
 sweep: context_internal crossing pool runs
+test_hooks: context_internal

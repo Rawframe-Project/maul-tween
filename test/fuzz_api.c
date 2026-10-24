@@ -16,7 +16,7 @@
 // corpus directory; in the test suite it runs a fixed set of random
 // inputs.
 
-#include "context_internal.h"
+#include "test_hooks.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/easing.h"
@@ -93,7 +93,7 @@ static bool s_unflagged;
 static double Watched(void* unused, double progress)
 {
     (void)unused;
-    s_unflagged = s_unflagged || s_watched == NULL || !s_watched->busy;
+    s_unflagged = s_unflagged || s_watched == NULL || !mtwnTestIsBusy(s_watched);
     return pow(progress, 3.5);
 }
 
@@ -103,7 +103,7 @@ static double Watched(void* unused, double progress)
 static double Overshooting(void* unused, double progress)
 {
     (void)unused;
-    s_unflagged = s_unflagged || s_watched == NULL || !s_watched->busy;
+    s_unflagged = s_unflagged || s_watched == NULL || !mtwnTestIsBusy(s_watched);
     return progress + 1e45 * progress * progress * (1.0 - progress);
 }
 
@@ -206,7 +206,7 @@ static void Status(Run* run, mtwnResult r)
 {
     int32_t v = (int32_t)r;
     Mix(run, &v, sizeof v);
-    run->bad = run->bad || s_watched == NULL || s_watched->busy;
+    run->bad = run->bad || s_watched == NULL || mtwnTestIsBusy(s_watched);
 }
 
 static bool Finite(mtwnVec4 v)
@@ -494,7 +494,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         run.bad = true;
         return run;
     }
-    context->countEvery = mode == 2;
+    mtwnTestSetCountEvery(context, mode == 2);
     s_watched = context;
     s_unflagged = false;
     mtwnTargetId targets[s_targets];

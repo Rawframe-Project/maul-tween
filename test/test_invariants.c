@@ -11,7 +11,6 @@
 // in their ranges, values stay finite, records come in order, and under
 // reduced motion nothing that can finish is left moving.
 
-#include "context_internal.h"
 #include "test_harness.h"
 
 #include "maul-tween/clip.h"
@@ -266,14 +265,26 @@ static void TestPositionNeverStepsBack(void)
     CHECK(checked > 100000 && steps == 0, "the position never steps back");
 }
 
-// A random call on a clip being built: whether it was refused, and then
-// that nothing changed.
-static void BuildOne(mtwnContext* context, mtwnClipId clip, mtwnNode* timelines,
-                     uint32_t* timelineCount, uint32_t* refusals, uint32_t* changedOnRefusal)
+// What a clip being built was seen to accept: its nodes, the root
+// counted, the keyframes its tracks took, and each slot's value kind plus
+// 1, 0 for a slot no track uses.
+typedef struct Built
 {
-    mtwnClipSlot* slot = mtwnClipAt(context, clip.index1);
-    uint32_t nodes = slot->nodeCount;
-    uint32_t keyframes = slot->keyframeCount;
+    uint32_t nodes;
+    uint32_t keyframes;
+    uint8_t slotKinds[6];
+} Built;
+
+// A random call on a clip being built: whether it was refused, and then
+// that nothing changed: a refused add gives no node and the next accepted
+// one the next node, so a refusal took none.
+static void BuildOne(mtwnContext* context, mtwnClipId clip, mtwnNode* timelines,
+                     uint32_t* timelineCount, Built* built, uint32_t* refusals,
+                     uint32_t* changedOnRefusal)
+{
+    uint32_t keyframesTaken = 0;
+    uint32_t trackSlot = UINT32_MAX;
+    mtwnValueKind trackKind = 0;
     mtwnNode parent = timelines[Next() % *timelineCount];
     if (Next() % 10 == 0)
     {
@@ -331,19 +342,68 @@ static void BuildOne(mtwnContext* context, mtwnClipId clip, mtwnNode* timelines,
         def.incremental = Next() % 4 == 0;
         def.constantSpeed = Next() % 4 == 0;
         r = mtwnClip_AddTrack(context, clip, &def, &node);
+        keyframesTaken = count;
+        trackSlot = def.slot;
+        trackKind = def.track.kind;
         break;
     }
     }
     if (r != mtwn_success)
     {
         ++*refusals;
-        bool same = slot->nodeCount == nodes && slot->keyframeCount == keyframes && node == 0;
-        *changedOnRefusal += same ? 0u : 1u;
+        *changedOnRefusal += node == 0 ? 0u : 1u;
+        return;
     }
-    else
+    *changedOnRefusal += node == built->nodes + 1 ? 0u : 1u;
+    built->nodes = node;
+    if (trackSlot != UINT32_MAX)
     {
-        *changedOnRefusal += slot->nodeCount == nodes + 1 ? 0u : 1u;
+        built->keyframes += keyframesTaken;
+        built->slotKinds[trackSlot] = (uint8_t)(trackKind + 1u);
     }
+}
+
+// Whether a clip being built has as many keyframes left as it was seen
+// to take: a track of one more than are left is refused, and one of them
+// all fits (a track takes at least two). Tried only with a node and a
+// slot of numbers free for the track.
+static bool KeyframesLeft(mtwnContext* context, mtwnClipId clip, const mtwnClipDef* def,
+                          Built* built, uint32_t* probed)
+{
+    uint32_t left = def->keyframeCapacity - built->keyframes;
+    uint32_t slot = 0;
+    while (slot < def->slotCapacity && built->slotKinds[slot] != 0 &&
+           built->slotKinds[slot] != mtwn_valueScalar + 1u)
+    {
+        ++slot;
+    }
+    if (built->nodes > def->nodeCapacity || slot == def->slotCapacity || left == 0 || left + 1 > 32)
+    {
+        return true;
+    }
+    mtwnKeyframe keys[32];
+    memset(keys, 0, sizeof keys);
+    for (uint32_t k = 0; k <= left; ++k)
+    {
+        keys[k].offset = left == 0 ? 0.0 : (double)k / (double)left;
+        keys[k].easing = mtwnLinearEasing();
+    }
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.slot = slot;
+    track.keyframes = keys;
+    track.keyframeCount = left + 1;
+    mtwnNode node = 0;
+    bool over = mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorLimit;
+    bool fits = true;
+    if (left >= 2)
+    {
+        keys[left - 1].offset = 1.0;
+        track.keyframeCount = left;
+        fits = mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success;
+        built->nodes = fits ? node : built->nodes;
+    }
+    ++*probed;
+    return over && fits;
 }
 
 static void TestBuilder(void)
@@ -353,6 +413,7 @@ static void TestBuilder(void)
     uint32_t refusals = 0;
     uint32_t changedOnRefusal = 0;
     uint32_t broken = 0;
+    uint32_t probed = 0;
     for (uint32_t c = 0; c < 400; ++c)
     {
         mtwnContext* context = NULL;
@@ -365,17 +426,21 @@ static void TestBuilder(void)
         CHECK(mtwnCreateClip(context, &def, &clip) == mtwn_success, "a clip");
         mtwnNode timelines[8] = {MTWN_ROOT_NODE};
         uint32_t timelineCount = 1;
+        Built built = {1, 0, {0}};
         for (uint32_t k = 0; k < 24; ++k)
         {
-            BuildOne(context, clip, timelines, &timelineCount, &refusals, &changedOnRefusal);
+            BuildOne(context, clip, timelines, &timelineCount, &built, &refusals,
+                     &changedOnRefusal);
         }
+        changedOnRefusal += KeyframesLeft(context, clip, &def, &built, &probed) ? 0u : 1u;
         if (mtwnClip_Finish(context, clip) == mtwn_success)
         {
             double duration = 0.0;
             bool ok =
                 mtwnClip_GetDuration(context, clip, &duration) == mtwn_success && duration >= 0.0;
-            uint32_t nodes = mtwnClipAt(context, clip.index1)->nodeCount;
-            for (mtwnNode n = 1; n <= nodes; ++n)
+            mtwnClipNodeInfo past;
+            ok = ok && mtwnClip_GetNode(context, clip, built.nodes + 1, &past) != mtwn_success;
+            for (mtwnNode n = 1; n <= built.nodes; ++n)
             {
                 mtwnClipNodeInfo info;
                 ok = ok && mtwnClip_GetNode(context, clip, n, &info) == mtwn_success &&
@@ -387,6 +452,7 @@ static void TestBuilder(void)
     }
     CHECK(refusals > 1000, "refusals tried");
     CHECK(changedOnRefusal == 0, "a refused call changes nothing, an accepted one adds a node");
+    CHECK(probed > 50, "the keyframes left probed");
     CHECK(broken == 0, "every finished clip's nodes at finite starts, ends after them");
 }
 
@@ -426,9 +492,10 @@ static void TestPlaying(void)
         uint32_t timelineCount = 1;
         uint32_t ignored = 0;
         uint32_t ignoredToo = 0;
+        Built built = {1, 0, {0}};
         for (uint32_t k = 0; k < 12; ++k)
         {
-            BuildOne(context, clip, timelines, &timelineCount, &ignored, &ignoredToo);
+            BuildOne(context, clip, timelines, &timelineCount, &built, &ignored, &ignoredToo);
         }
         if (mtwnClip_Finish(context, clip) != mtwn_success)
         {
@@ -439,9 +506,9 @@ static void TestPlaying(void)
         mtwnBinding bindings[6];
         // A target for each slot a track uses, of the track's kind.
         uint32_t slots = 0;
-        for (uint32_t used = 0; used < mtwnClipAt(context, clip.index1)->slotCount; ++used)
+        for (uint32_t used = 0; used < 6; ++used)
         {
-            uint8_t kind = mtwnClipAt(context, clip.index1)->slotKinds[used];
+            uint8_t kind = built.slotKinds[used];
             if (kind == 0)
             {
                 continue;
@@ -570,6 +637,8 @@ static void TestTransitions(void)
     uint64_t now = 0;
     // Whether each target's latest transition is essential.
     bool essential[10] = {false};
+    // Each target's last transition: it rests once that one is gone.
+    mtwnPlayerId last[10] = {{0, 0}};
     uint32_t reducedFrames = 0;
     for (uint32_t f = 0; f < 3000; ++f)
     {
@@ -611,6 +680,7 @@ static void TestTransitions(void)
             bool started = mtwnStartTransition(context, &def, &player) == mtwn_success;
             bad += started ? 0u : 1u;
             essential[k] = started && def.essential;
+            last[k] = started ? player : last[k];
         }
         now += 1000000u + (uint64_t)(Next() % 30) * 1000000u;
         CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
@@ -618,7 +688,7 @@ static void TestTransitions(void)
         {
             mtwnTargetState state;
             bool read = mtwnTarget_GetState(context, targets[t], &state) == mtwn_success;
-            bool resting = mtwnTargetAt(context, targets[t].index1)->header.link == 0;
+            bool resting = !mtwnPlayer_IsValid(context, last[t]);
             bool ok = read && Finite(state.value) && Finite(state.velocity) && Finite(state.base) &&
                       (!resting || SameBits(state.value, state.base));
             // Reduced: nothing but an essential transition is left moving.

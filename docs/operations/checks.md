@@ -34,7 +34,7 @@ Run `changed` before every push. On the shared development machine, run `pr` and
 
 ## Tests
 
-Each suite in `test/` is one executable, registered with CTest under its name and labeled with it; the fuzz targets' replays are `fuzz_api`, `fuzz_values` and `fuzz_fit`, the samples are labeled `samples` and the package test `package`. No test reports itself skipped; a test preset that finds no test fails, and so does a CI cell where a test is skipped or not run.
+Each suite in `test/` is one executable, registered with CTest under its name and labeled with it; the fuzz targets' replays are `fuzz_api`, `fuzz_values` and `fuzz_fit`, the samples are labeled `samples`, the package test `package`, and `exports`, in Linux shared builds, checks that the library exports the public functions and nothing else. No test reports itself skipped; a test preset that finds no test fails, and so does a CI cell where a test is skipped or not run.
 
 The large random scenes carry the label `nightly` as well as their suite's, and the pull request presets leave them out: `clip_tasks_twins` and `sweep_twins` play random scripts on twin contexts (serial and on tasks, shortcuts on and off), `clip_step_crowd` runs the bench's crowd of players in step with the sharing on and off, and `crossing_oracle_0` to `_2` take every one of the crossing oracle's 3,000 trials. The pull request check runs each suite's fixed cases and a thirtieth of the oracle's trials, and the fuzz job compares the serial, tasked and record-counting contexts on every input.
 
