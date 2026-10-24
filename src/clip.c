@@ -107,7 +107,8 @@ static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, 
     return mtwn_success;
 }
 
-mtwnResult mtwnGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
+static MTWN_NOINLINE mtwnResult mtwnGetClipBytesWork(mtwnContext* context, const mtwnClipDef* def,
+                                                     uint64_t* bytesOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (bytesOut != NULL)
@@ -120,6 +121,14 @@ mtwnResult mtwnGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64
     }
     mtwnResult result = RunGetClipBytes(context, def, bytesOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnGetClipBytesWork(context, def, bytesOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -181,7 +190,8 @@ static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mt
     return mtwn_success;
 }
 
-mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
+static MTWN_NOINLINE mtwnResult mtwnCreateClipWork(mtwnContext* context, const mtwnClipDef* def,
+                                                   mtwnClipId* clipOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (clipOut != NULL)
@@ -194,6 +204,14 @@ mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClip
     }
     mtwnResult result = RunCreateClip(context, def, clipOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnCreateClipWork(context, def, clipOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -222,7 +240,7 @@ static mtwnResult RunDestroyClip(mtwnContext* context, mtwnClipId clip)
     return mtwn_success;
 }
 
-mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
+static MTWN_NOINLINE mtwnResult mtwnDestroyClipWork(mtwnContext* context, mtwnClipId clip)
 {
     if (!mtwnEnter(context))
     {
@@ -230,6 +248,14 @@ mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
     }
     mtwnResult result = RunDestroyClip(context, clip);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnDestroyClipWork(context, clip);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -583,8 +609,9 @@ static mtwnResult RunClipAddTrack(mtwnContext* context, mtwnClipId clip,
     return Counted(context, result);
 }
 
-mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnClipTrackDef* def,
-                             mtwnNode* nodeOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_AddTrackWork(mtwnContext* context, mtwnClipId clip,
+                                                      const mtwnClipTrackDef* def,
+                                                      mtwnNode* nodeOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (nodeOut != NULL)
@@ -597,6 +624,15 @@ mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnCl
     }
     mtwnResult result = RunClipAddTrack(context, clip, def, nodeOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip, const mtwnClipTrackDef* def,
+                             mtwnNode* nodeOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_AddTrackWork(context, clip, def, nodeOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -620,8 +656,9 @@ static mtwnResult RunClipAddTimeline(mtwnContext* context, mtwnClipId clip,
     return Counted(context, result);
 }
 
-mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
-                                const mtwnClipTimelineDef* def, mtwnNode* nodeOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_AddTimelineWork(mtwnContext* context, mtwnClipId clip,
+                                                         const mtwnClipTimelineDef* def,
+                                                         mtwnNode* nodeOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (nodeOut != NULL)
@@ -634,6 +671,15 @@ mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
     }
     mtwnResult result = RunClipAddTimeline(context, clip, def, nodeOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_AddTimeline(mtwnContext* context, mtwnClipId clip,
+                                const mtwnClipTimelineDef* def, mtwnNode* nodeOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_AddTimelineWork(context, clip, def, nodeOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -662,8 +708,9 @@ static mtwnResult RunClipAddLabel(mtwnContext* context, mtwnClipId clip, mtwnNod
     return AddInstant(context, clip, mtwn_nodeLabel, parent, position, key, nodeOut);
 }
 
-mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
-                             mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_AddLabelWork(mtwnContext* context, mtwnClipId clip,
+                                                      mtwnNode parent, mtwnPosition position,
+                                                      uint32_t key, mtwnNode* nodeOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (nodeOut != NULL)
@@ -679,14 +726,24 @@ mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode par
     return result;
 }
 
+mtwnResult mtwnClip_AddLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
+                             mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_AddLabelWork(context, clip, parent, position, key, nodeOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
 static mtwnResult RunClipAddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
                                  mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
 {
     return AddInstant(context, clip, mtwn_nodeMark, parent, position, key, nodeOut);
 }
 
-mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
-                            mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_AddMarkWork(mtwnContext* context, mtwnClipId clip,
+                                                     mtwnNode parent, mtwnPosition position,
+                                                     uint32_t key, mtwnNode* nodeOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (nodeOut != NULL)
@@ -699,6 +756,15 @@ mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode pare
     }
     mtwnResult result = RunClipAddMark(context, clip, parent, position, key, nodeOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
+                            mtwnPosition position, uint32_t key, mtwnNode* nodeOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_AddMarkWork(context, clip, parent, position, key, nodeOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -787,7 +853,7 @@ static mtwnResult RunClipFinish(mtwnContext* context, mtwnClipId clip)
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
+static MTWN_NOINLINE mtwnResult mtwnClip_FinishWork(mtwnContext* context, mtwnClipId clip)
 {
     if (!mtwnEnter(context))
     {
@@ -795,6 +861,14 @@ mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
     }
     mtwnResult result = RunClipFinish(context, clip);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_FinishWork(context, clip);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -840,8 +914,8 @@ static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNod
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                             mtwnClipTrack* trackOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_GetTrackWork(mtwnContext* context, mtwnClipId clip,
+                                                      mtwnNode node, mtwnClipTrack* trackOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (trackOut != NULL)
@@ -854,6 +928,15 @@ mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode nod
     }
     mtwnResult result = RunClipGetTrack(context, clip, node, trackOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
+                             mtwnClipTrack* trackOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_GetTrackWork(context, clip, node, trackOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -890,8 +973,8 @@ static mtwnResult RunClipGetNode(mtwnContext* context, mtwnClipId clip, mtwnNode
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                            mtwnClipNodeInfo* infoOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_GetNodeWork(mtwnContext* context, mtwnClipId clip,
+                                                     mtwnNode node, mtwnClipNodeInfo* infoOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (infoOut != NULL)
@@ -904,6 +987,15 @@ mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node
     }
     mtwnResult result = RunClipGetNode(context, clip, node, infoOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
+                            mtwnClipNodeInfo* infoOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_GetNodeWork(context, clip, node, infoOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -934,8 +1026,9 @@ static mtwnResult RunClipFindLabel(mtwnContext* context, mtwnClipId clip, mtwnNo
     return mtwn_success;
 }
 
-mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, uint32_t key,
-                              double* secondsOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_FindLabelWork(mtwnContext* context, mtwnClipId clip,
+                                                       mtwnNode parent, uint32_t key,
+                                                       double* secondsOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (secondsOut != NULL)
@@ -948,6 +1041,15 @@ mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode pa
     }
     mtwnResult result = RunClipFindLabel(context, clip, parent, key, secondsOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, uint32_t key,
+                              double* secondsOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_FindLabelWork(context, clip, parent, key, secondsOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -971,7 +1073,8 @@ static mtwnResult RunClipGetDuration(mtwnContext* context, mtwnClipId clip, doub
     return result;
 }
 
-mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
+static MTWN_NOINLINE mtwnResult mtwnClip_GetDurationWork(mtwnContext* context, mtwnClipId clip,
+                                                         double* secondsOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (secondsOut != NULL)
@@ -984,5 +1087,13 @@ mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* s
     }
     mtwnResult result = RunClipGetDuration(context, clip, secondsOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnClip_GetDurationWork(context, clip, secondsOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
