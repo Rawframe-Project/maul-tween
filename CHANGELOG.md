@@ -6,6 +6,29 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.2.0](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.2.0) (2026-10-24)
+
+### Changed
+
+- **Breaking:** a spring whose start overflows its settling bound now
+  gets its true settling time, where 0.1.0 gave infinity. This covers a
+  coefficient that overflows, two products that overflow with opposite
+  signs, and, for a slow spring, a bound that overflows on the way.
+  `mtwnSpringSettlingTime` and `mtwnBoundedDecayStopTime` return the
+  true, finite time. A spring transition from such a start, or a
+  bounded decay handing over to a spring, ends at that time: the end
+  value becomes the target's base and an end record is written, where
+  before it ran until replaced or stopped. An absurdly stiff spring from
+  far out really settles almost at once. Every result that did not
+  overflow keeps its bits.
+- Code is larger by 320 to 384 bytes a part: curves 27,545 bytes (from
+  27,161), values 59,673 (59,289), transitions 62,937 (62,617), clips
+  151,388 (151,004), and the whole library 169,218 (168,834), as
+  `tools/code_size.py` measures them. An ordinary `mtwnSpringSettlingTime`
+  takes 3,204 instructions where it took 3,169.
+- The user guide's clips, transitions and players pages open with a
+  list of their sections.
+
 ## [0.1.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.1.1) (2026-10-24)
 
 ### Changed
