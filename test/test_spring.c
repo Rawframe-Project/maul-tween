@@ -556,6 +556,15 @@ static void TestSettlingAtTheEdges(void)
     CHECK(mtwnMakeSpring(1e300, 1e300, 1.0, &stiff) == mtwn_success, "a stiff spring");
     settle = mtwnSpringSettlingTime(&stiff, 210.8154296875 - 1e300, 1e300, 0.5, 1.0);
     CHECK(settle == HUGE_VAL, "overflowing bounds never end it early");
+    // A critical spring has no cap, its bounds found by Newton's steps:
+    // there too a velocity bound overflowing is infinite, not NaN (found
+    // by the values' fuzz).
+    mtwnSpring critical;
+    CHECK(mtwnMakeSpringFromFrequency(1e4, 1.0, &critical) == mtwn_success, "a critical spring");
+    CHECK(mtwnSpringSettlingTime(&critical, 1e300, 1.0, 0.5, 1.0) == HUGE_VAL,
+          "an overflowing bound without a cap never ends it early");
+    CHECK(mtwnSpringSettlingTime(&critical, 1e300, -1e305, 0.5, 1.0) == HUGE_VAL,
+          "nor one whose products overflow with opposite signs");
 }
 
 typedef struct EasingCase

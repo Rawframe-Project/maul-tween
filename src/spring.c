@@ -213,9 +213,15 @@ static double Excess(const Bound* bound, double t)
 // after that time, as the tangent lies above the curve, and its iterates
 // then approach it from the right.
 // A bound of 0 is within at once; one that never decays, past its cap,
-// never.
+// never. A coefficient that overflowed, or two of its products
+// overflowing with opposite signs that left no sum, is bounded by
+// infinity, which never ends the spring early.
 static double BoundTime(const Bound* bound)
 {
+    if (!(bound->b < HUGE_VAL))
+    {
+        return HUGE_VAL;
+    }
     // The bound's largest value, where its logarithm's slope is 0.
     double peak = 0.0;
     if (bound->b > 0.0 && bound->rate > 0.0)
@@ -292,9 +298,6 @@ double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double ve
     Bound velocityBound = bound;
     velocityBound.a = fabs(velocity);
     velocityBound.b = fabs(decay * velocity + spring->parameters[s_squared] * offset);
-    // Two products overflowing with opposite signs leave no sum: bounded by
-    // infinity, which never ends the spring early.
-    velocityBound.b = isnan(velocityBound.b) ? HUGE_VAL : velocityBound.b;
     velocityBound.logTolerance = mtwnLog(velocityTolerance);
     double offsetTime = BoundTime(&offsetBound);
     double velocityTime = BoundTime(&velocityBound);
