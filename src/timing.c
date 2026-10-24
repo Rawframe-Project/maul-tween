@@ -10,6 +10,7 @@
 
 #include "maul-tween/timing.h"
 
+#include "fpenv.h"
 #include "reserved_internal.h"
 #include "timing_internal.h"
 #include "work.h"
@@ -26,7 +27,7 @@ mtwnTiming mtwnDefaultTiming(void)
     return timing;
 }
 
-mtwnResult mtwnValidateTiming(const mtwnTiming* timing)
+MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing)
 {
     if (timing == NULL)
     {
@@ -49,6 +50,14 @@ mtwnResult mtwnValidateTiming(const mtwnTiming* timing)
                 timing->duration == 0.0;
     }
     return valid ? mtwn_success : mtwn_errorInvalid;
+}
+
+mtwnResult mtwnValidateTiming(const mtwnTiming* timing)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnValidateTimingWork(timing);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 bool mtwnHasRepeatDelay(const mtwnTiming* timing)
@@ -244,8 +253,8 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     return simple;
 }
 
-void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
-                       mtwnTimingResult* resultOut)
+MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localTime, bool backwards,
+                                         mtwnTimingResult* resultOut)
 {
     // Built in place: a copy out of a local read back the fields it had
     // just stored, in wider loads than the stores.
@@ -306,4 +315,12 @@ void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backward
         result->transformedProgress =
             mtwnEaseWork(&timing->easing, result->directedProgress, result->before);
     }
+}
+
+void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
+                       mtwnTimingResult* resultOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnComputeTimingWork(timing, localTime, backwards, resultOut);
+    mtwnFloatEnvLeave(env);
 }

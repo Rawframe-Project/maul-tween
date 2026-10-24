@@ -22,8 +22,8 @@ reserved_internal:
 invariant:
 zoom: elementary fpenv work
 signal: elementary mix_internal fpenv
-timing: reserved_internal timing_internal work
-stagger: reserved_internal stagger_internal work
+timing: reserved_internal timing_internal work fpenv
+stagger: reserved_internal stagger_internal work fpenv
 stagger_internal:
 timing_internal:
 allocator:
@@ -48,6 +48,6 @@ clip_tasks: context_internal fpenv pool runs
 coast: context_internal work
 compose: elementary bounds_internal work
 crossing: invariant timing_internal work
-event: context_internal invariant pool
-sweep: context_internal crossing pool runs
+event: context_internal invariant pool fpenv
+sweep: context_internal crossing pool runs work
 test_hooks: context_internal

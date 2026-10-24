@@ -58,5 +58,8 @@ MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe
                                            uint32_t count, double* lengthsOut,
                                            mtwnSegmentMix* mixesOut, mtwnTrack* trackOut);
 MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress);
+MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing);
+MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localTime, bool backwards,
+                                         mtwnTimingResult* resultOut);
 
 #endif // MAUL_TWEEN_SRC_WORK_H

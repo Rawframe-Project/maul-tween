@@ -7,3 +7,13 @@ makes an easing from integers, pointers and constants, computing no float:
     mtwnMakeHostEasing
     mtwnMakeSteps
     mtwnSetEaseMode
+
+makes a default from constants, computing no float:
+    mtwnDefaultTiming
+    mtwnDefaultStagger
+
+reports a stored count, flag, identity, name or the version, computing no float:
+    mtwnGetVersion
+    mtwnResultName
+    mtwnContext_GetEventCount
+    mtwnContext_GetDroppedEvents

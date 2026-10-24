@@ -10,6 +10,7 @@
 // offsets are the same bits on every platform. A random order is an
 // inside-out shuffle driven by SplitMix64 of the seed.
 
+#include "fpenv.h"
 #include "reserved_internal.h"
 #include "stagger_internal.h"
 #include "work.h"
@@ -198,7 +199,8 @@ static void Spread(const mtwnStagger* stagger, uint32_t count, double* leastOut,
     *rangeOut = most - least;
 }
 
-mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double* offsetsOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeStaggerWork(const mtwnStagger* stagger, uint32_t count,
+                                                       double* offsetsOut)
 {
     if (!IsValid(stagger, count, offsetsOut))
     {
@@ -235,4 +237,12 @@ mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double
         offsetsOut[i] = stagger->start + span * mtwnEaseWork(&stagger->easing, t, false);
     }
     return mtwn_success;
+}
+
+mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double* offsetsOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnComputeStaggerWork(stagger, count, offsetsOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

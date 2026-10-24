@@ -311,7 +311,7 @@ static mtwnTiming ResolvedTiming(const mtwnClipNode* node, double childrenEnd)
 static double EndOf(double start, const mtwnTiming* timing, double* activeOut)
 {
     mtwnTimingResult result;
-    mtwnComputeTiming(timing, 0.0, false, &result);
+    mtwnComputeTimingWork(timing, 0.0, false, &result);
     if (activeOut != NULL)
     {
         *activeOut = result.activeDuration;
@@ -423,7 +423,7 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
                               def->track.kind != mtwn_valueDiscrete && !endlessAtOnce);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) || !slot ||
         !incremental || def->keyframes == NULL ||
-        mtwnValidateTiming(&def->timing) != mtwn_success ||
+        mtwnValidateTimingWork(&def->timing) != mtwn_success ||
         !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return mtwn_errorInvalid;
@@ -484,7 +484,7 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     node.autoDuration = def->autoDuration;
     mtwnTiming resolved = ResolvedTiming(&node, 0.0);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
-        mtwnValidateTiming(&resolved) != mtwn_success ||
+        mtwnValidateTimingWork(&resolved) != mtwn_success ||
         !mtwnIsEasingMonotonicWork(&def->timing.easing) ||
         !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
@@ -754,15 +754,15 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
         if (node->kind == mtwn_nodeTimeline || node->kind == mtwn_nodeTrack)
         {
             mtwnTimingResult shape;
-            mtwnComputeTiming(&node->timing, 0.0, false, &shape);
+            mtwnComputeTimingWork(&node->timing, 0.0, false, &shape);
             node->activeDuration = shape.activeDuration;
             // Its iterations there, held either side: the first at its
             // start, the last at its end.
             mtwnTiming held = node->timing;
             held.fill = mtwn_fillBoth;
-            mtwnComputeTiming(&held, held.delay, false, &shape);
+            mtwnComputeTimingWork(&held, held.delay, false, &shape);
             node->startIteration = shape.iteration;
-            mtwnComputeTiming(&held, held.delay + node->activeDuration, false, &shape);
+            mtwnComputeTimingWork(&held, held.delay + node->activeDuration, false, &shape);
             node->endIteration = shape.iteration;
         }
         const mtwnClipNode* before = i > 0 ? &slot->nodes[i - 1] : NULL;

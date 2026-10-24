@@ -14,6 +14,7 @@
 
 #include "context_internal.h"
 #include "crossing.h"
+#include "work.h"
 
 #include <math.h>
 
@@ -275,7 +276,7 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
     for (int k = 0; k < 2; ++k)
     {
         mtwnTimingResult result;
-        mtwnComputeTiming(&timing, ends[k] - n->start, false, &result);
+        mtwnComputeTimingWork(&timing, ends[k] - n->start, false, &result);
         iterations[k] = result.iteration;
         children[k] = isinf(timing.duration)
                           ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)

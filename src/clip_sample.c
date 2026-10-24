@@ -174,7 +174,7 @@ void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* gr
 static double ChildTime(const mtwnTiming* timing, double local, bool backwards, bool* forwards)
 {
     mtwnTimingResult result;
-    mtwnComputeTiming(timing, local, backwards, &result);
+    mtwnComputeTimingWork(timing, local, backwards, &result);
     if (forwards != NULL)
     {
         *forwards = result.forwards;
@@ -213,7 +213,7 @@ static double TrackProgress(const mtwnClipNode* node, double local, bool backwar
         return (double)NAN;
     }
     mtwnTimingResult result;
-    mtwnComputeTiming(&node->timing, local, backwards, &result);
+    mtwnComputeTimingWork(&node->timing, local, backwards, &result);
     *iterationOut = result.iteration;
     return result.transformedProgress;
 }

@@ -9,6 +9,7 @@
 #include "maul-tween/event.h"
 
 #include "context_internal.h"
+#include "fpenv.h"
 #include "invariant.h"
 
 void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
@@ -145,8 +146,9 @@ static mtwnResult RunReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint
     return mtwn_success;
 }
 
-mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
-                          uint32_t* countOut, uint64_t* droppedOut)
+static MTWN_NOINLINE mtwnResult mtwnReadEventsWork(mtwnContext* context, mtwnEvent* eventsOut,
+                                                   uint32_t capacity, uint32_t* countOut,
+                                                   uint64_t* droppedOut)
 {
     // Cleared first, so a busy or missing context's failure clears them too.
     if (countOut != NULL)
@@ -163,6 +165,15 @@ mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t c
     }
     mtwnResult result = RunReadEvents(context, eventsOut, capacity, countOut, droppedOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
+                          uint32_t* countOut, uint64_t* droppedOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnReadEventsWork(context, eventsOut, capacity, countOut, droppedOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 

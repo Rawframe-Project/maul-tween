@@ -81,7 +81,7 @@ static Shape ShapeOf(const mtwnTiming* timing, double active)
 static double ActiveOf(const mtwnTiming* timing)
 {
     mtwnTimingResult result;
-    mtwnComputeTiming(timing, 0.0, false, &result);
+    mtwnComputeTimingWork(timing, 0.0, false, &result);
     return result.activeDuration;
 }
 
@@ -820,7 +820,7 @@ double mtwnIterationAt(const mtwnLevel* levels, uint32_t count, double t)
         mtwnTiming timing = levels[i].timing;
         timing.fill = mtwn_fillBoth;
         mtwnTimingResult result;
-        mtwnComputeTiming(&timing, x, false, &result);
+        mtwnComputeTimingWork(&timing, x, false, &result);
         iteration = result.iteration;
         double child = 0.0;
         if (isinf(timing.duration))
