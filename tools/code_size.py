@@ -38,9 +38,9 @@ PARTS = [
 ]
 
 # Each part's budget in bytes, about 6% over its size when it was set;
-# the curves' moved by what the float environment's wrappers cost (#22),
-# and the whole library's by what an overflowing start's exact settling
-# time costs (#20).
+# the curves' moved by what the float environment's wrappers cost, and
+# the whole library's by what an overflowing start's exact settling time
+# costs.
 BUDGETS = {
     "curves": 27900,
     "values": 60000,
@@ -63,7 +63,7 @@ RELEASED = {
 GROWTH = 0.10
 RAISED = {
     "curves": "every public call that computes enters the float environment through a "
-    "wrapper of its own (#22), 0.8 kB here with -fno-math-errno",
+    "wrapper of its own, 0.8 kB here with -fno-math-errno",
 }
 
 
