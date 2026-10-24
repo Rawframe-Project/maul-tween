@@ -906,13 +906,14 @@ static void TestOneTimeOrder(void)
 // Groups on threads over clips at the deepest chain: each group's levels
 // hold the whole chain at once, next to the next group's, which a layout
 // a few levels short overlaps (a race the thread sanitizer reports).
-static void TestDeepThreads(void)
+// One seed here, two in the nightly run.
+static void TestDeepThreads(uint64_t last)
 {
     s_threaded = true;
     s_deep = true;
     Taken taken = {0};
     uint32_t differences = 0;
-    for (uint64_t seed = 51; seed <= 52; ++seed)
+    for (uint64_t seed = 51; seed <= last; ++seed)
     {
         mtwnContextDef def = mtwnDefaultContextDef();
         def.playerCapacity = 128;
@@ -927,12 +928,14 @@ static void TestDeepThreads(void)
           "deep clips' groups on threads at once, the same bits as serial");
 }
 
-static void TestThreads(void)
+// Two seeds here, the second with a first update of 240 players; four in
+// the nightly run.
+static void TestThreads(uint64_t first)
 {
     s_threaded = true;
     Taken taken = {0};
     uint32_t differences = 0;
-    for (uint64_t seed = 41; seed <= 44; ++seed)
+    for (uint64_t seed = first; seed <= 44; ++seed)
     {
         mtwnContextDef def = mtwnDefaultContextDef();
         def.playerCapacity = 128;
@@ -1383,6 +1386,8 @@ int main(int argc, char** argv)
     {
         TestTwins();
         TestReplayOff();
+        TestThreads(41);
+        TestDeepThreads(52);
         return s_failures == 0 ? 0 : 1;
     }
     TestWriters();
@@ -1394,7 +1399,7 @@ int main(int argc, char** argv)
     TestExactFit();
     TestStagingBounds();
     TestOneTimeOrder();
-    TestThreads();
-    TestDeepThreads();
+    TestThreads(43);
+    TestDeepThreads(51);
     return s_failures == 0 ? 0 : 1;
 }

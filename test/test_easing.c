@@ -200,6 +200,10 @@ static const Case s_cases[] = {
 
 static const mtwnEaseMode s_modes[] = {mtwn_easeIn, mtwn_easeOut, mtwn_easeInOut, mtwn_easeOutIn};
 
+// How much finer than the pull request's the sweeps across progress are:
+// ten times in the nightly run (`test_easing dense`).
+static int s_finer = 1;
+
 static void TestEndsAreExact(void)
 {
     int wrong = 0;
@@ -267,9 +271,9 @@ static void TestAgainstTheFormulas(void)
                 worst = HUGE_VAL;
                 continue;
             }
-            for (int i = 0; i <= 20000; ++i)
+            for (int i = 0; i <= 2000 * s_finer; ++i)
             {
-                double p = (double)i / 20000.0;
+                double p = (double)i / (2000.0 * s_finer);
                 double error = fabs(mtwnEase(&easing, p, false) -
                                     (double)EaseWide(&s_cases[c].reference, s_modes[m], (Wide)p));
                 worst = error > worst ? error : worst;
@@ -304,9 +308,9 @@ static void TestMonotonicEasingsNeverDecrease(void)
                 continue;
             }
             double previous = 0.0;
-            for (int i = 0; i <= 100000; ++i)
+            for (int i = 0; i <= 10000 * s_finer; ++i)
             {
-                double value = mtwnEase(&easing, (double)i / 100000.0, false);
+                double value = mtwnEase(&easing, (double)i / (10000.0 * s_finer), false);
                 wrong += value < previous;
                 previous = value;
             }
@@ -573,8 +577,15 @@ static void TestCubicBezierSampler(void)
     }
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
+    bool dense = argc == 2 && strcmp(argv[1], "dense") == 0;
+    if (argc > 2 || (argc == 2 && !dense))
+    {
+        printf("usage: test_easing [dense]\n");
+        return 2;
+    }
+    s_finer = dense ? 10 : 1;
     TestElasticZero();
     TestLinearRunEnd();
     TestEndsAreExact();

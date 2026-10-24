@@ -124,14 +124,15 @@ static Wide SegmentLength(const mtwnPath* timed, double a, double b, uint8_t cha
 }
 
 // Each segment's measured length within 1e-10 relative of its length
-// found again, on 20 random paths: measured on 1,000 the worst was 1.8e-12
+// found again, on 4 random paths, and 20 in the nightly run
+// (`test_path_length dense`): measured on 1,000 the worst was 1.8e-12
 // (the reference here, on fewer panels, adds up to 1.7e-11 where a
 // segment's speed has a cusp).
-static void TestLengthError(void)
+static void TestLengthError(int paths)
 {
     s_state = 0x9E3779B97F4A7C15u;
     double worst = 0.0;
-    for (int n = 0; n < 20; ++n)
+    for (int n = 0; n < paths; ++n)
     {
         RandomPath p = MakeRandom();
         double cumulative[8];
@@ -158,8 +159,14 @@ static void TestLengthError(void)
     CHECK(worst <= 1e-10, "every segment's length far inside the tolerance");
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
-    TestLengthError();
+    bool dense = argc == 2 && strcmp(argv[1], "dense") == 0;
+    if (argc > 2 || (argc == 2 && !dense))
+    {
+        printf("usage: test_path_length [dense]\n");
+        return 2;
+    }
+    TestLengthError(dense ? 20 : 4);
     return s_failures == 0 ? 0 : 1;
 }

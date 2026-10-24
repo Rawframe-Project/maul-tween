@@ -17,6 +17,7 @@
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
+#include <string.h>
 
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
@@ -35,15 +36,22 @@ typedef struct Case
     double ratio;
     // The largest error allowed, each entry of the motion scaled to 1.
     double bound;
+    // Integrated only in the nightly run (`test_spring dense`): its
+    // fastest rate takes the most steps.
+    bool dense;
 } Case;
 
 // An undamped spring turns the double rounding of 2 pi f into phase,
 // 56 radians of it by 3 seconds at 3 Hz.
 static const Case s_cases[] = {
-    {1.0, 0.5, 3e-16},      {2.0, 0.1, 8e-16},      {1.5, 1.0, 3e-16},
-    {1.0, 0.999999, 3e-16}, {1.0, 1.000001, 4e-16}, {1.0, 3.0, 4e-16},
-    {0.5, 50.0, 4e-16},     {3.0, 0.0, 1.2e-14},    {10.0, 0.05, 1.5e-15},
+    {1.0, 0.5, 3e-16, false},      {2.0, 0.1, 8e-16, false},      {1.5, 1.0, 3e-16, false},
+    {1.0, 0.999999, 3e-16, false}, {1.0, 1.000001, 4e-16, false}, {1.0, 3.0, 4e-16, false},
+    {0.5, 50.0, 4e-16, true},      {3.0, 0.0, 1.2e-14, false},    {10.0, 0.05, 1.5e-15, true},
 };
+
+// Whether this run is the nightly one, which integrates every case and
+// samples the settling ten times as finely.
+static bool s_dense = false;
 
 // The motion's four entries at times k / 100 for k from 0 to 300, by
 // integrating from (1, 0) and from (0, 1).
@@ -86,6 +94,10 @@ static void TestAgainstIntegration(void)
 {
     for (size_t c = 0; c < sizeof s_cases / sizeof s_cases[0]; ++c)
     {
+        if (s_cases[c].dense && !s_dense)
+        {
+            continue;
+        }
         mtwnSpring spring;
         CHECK(mtwnMakeSpringFromFrequency(s_cases[c].hertz, s_cases[c].ratio, &spring) ==
                   mtwn_success,
@@ -337,9 +349,10 @@ static void TestSettling(void)
         bool within = isfinite(settle) && settle >= 0.0;
         double lastOut = 0.0;
         double horizon = (isfinite(settle) ? settle : 0.0) * 3.0 + 1.0;
-        for (int k = 0; k <= 200000; ++k)
+        int samples = s_dense ? 200000 : 20000;
+        for (int k = 0; k <= samples; ++k)
         {
-            double t = horizon * (double)k / 200000.0;
+            double t = horizon * (double)k / (double)samples;
             double offset = 0.0;
             double velocity = 0.0;
             mtwnSampleSpring(&spring, sc->offset, sc->velocity, t, &offset, &velocity);
@@ -759,8 +772,14 @@ static void TestSlowSprings(void)
     CHECK(never == 4, "a tolerance of 0 never met, from rest too");
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
+    s_dense = argc == 2 && strcmp(argv[1], "dense") == 0;
+    if (argc > 2 || (argc == 2 && !s_dense))
+    {
+        printf("usage: test_spring [dense]\n");
+        return 2;
+    }
     TestRangeEnds();
     TestAgainstIntegration();
     TestMakersAgree();
