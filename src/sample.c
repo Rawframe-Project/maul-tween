@@ -12,6 +12,7 @@
 
 #include "maul-tween/sample.h"
 
+#include "fpenv.h"
 #include "work.h"
 
 #include <math.h>
@@ -31,7 +32,8 @@ enum
 
 static const double s_narrowest = 0x1.0p-24;
 
-mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* valuesOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleEasingWork(const mtwnEasing* easing, uint32_t count,
+                                                     float* valuesOut)
 {
     if (easing == NULL || valuesOut == NULL || count < 2)
     {
@@ -43,6 +45,14 @@ mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* val
         valuesOut[i] = (float)mtwnEaseWork(easing, (double)i / last, false);
     }
     return mtwn_success;
+}
+
+mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* valuesOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnSampleEasingWork(easing, count, valuesOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // A point of the curve.
@@ -85,8 +95,9 @@ static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe
     return isfinite(split->y);
 }
 
-mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
-                               mtwnLinearPoint* pointsOut, uint32_t capacity, uint32_t* countOut)
+static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing, double tolerance,
+                                                        mtwnLinearPoint* pointsOut,
+                                                        uint32_t capacity, uint32_t* countOut)
 {
     if (easing == NULL || countOut == NULL || (pointsOut == NULL && capacity > 0) ||
         easing->kind == mtwn_easingSteps || !isfinite(tolerance) || tolerance <= 0.0)
@@ -142,4 +153,13 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
     }
     *countOut = count;
     return count <= capacity ? mtwn_success : mtwn_errorCapacity;
+}
+
+mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
+                               mtwnLinearPoint* pointsOut, uint32_t capacity, uint32_t* countOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnFitLinearEasingWork(easing, tolerance, pointsOut, capacity, countOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

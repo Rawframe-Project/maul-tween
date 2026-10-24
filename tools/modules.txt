@@ -7,7 +7,7 @@ css_easing: fpenv
 easing: css_easing easing_internal elementary spring_easing fpenv work
 easing_internal: work
 inertia: fpenv work
-sample: work
+sample: work fpenv
 rough: fpenv work
 spring_easing:
 spring_internal:
