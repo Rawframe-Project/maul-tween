@@ -459,9 +459,7 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     }
     uint64_t beforeNs = context->lastTimeNs;
     context->lastTimeNs = timeNs;
-    uint64_t env = mtwnFloatEnvEnter();
     UpdateWorker(context, beforeNs, timeNs);
-    mtwnFloatEnvLeave(env);
     for (uint32_t i = 0; i < context->changedCount; ++i)
     {
         uint32_t index1 = context->changed[i];
@@ -480,8 +478,9 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     return mtwn_success;
 }
 
-mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
-                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+static MTWN_NOINLINE mtwnResult mtwnUpdateWork(mtwnContext* context, uint64_t timeNs,
+                                               mtwnTargetId* changedOut, uint32_t changedCapacity,
+                                               uint32_t* changedTotalOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (changedTotalOut != NULL)
@@ -494,5 +493,15 @@ mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* chang
     }
     mtwnResult result = RunUpdate(context, timeNs, changedOut, changedCapacity, changedTotalOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
+                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result =
+        mtwnUpdateWork(context, timeNs, changedOut, changedCapacity, changedTotalOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }

@@ -17,3 +17,11 @@ reports a stored count, flag, identity, name or the version, computing no float:
     mtwnResultName
     mtwnContext_GetEventCount
     mtwnContext_GetDroppedEvents
+    mtwnGetContextMisuse
+    mtwnContext_GetSerialAdvances
+    mtwnContext_GetMemoryBytes
+    mtwnContext_IsReducedMotion
+    mtwnContext_GetPlayingOnCount
+
+frees the context's memory through the host's allocator, computing no float:
+    mtwnDestroyContext

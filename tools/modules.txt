@@ -26,12 +26,12 @@ timing: reserved_internal timing_internal work fpenv
 stagger: reserved_internal stagger_internal work fpenv
 stagger_internal:
 timing_internal:
-allocator:
+allocator: fpenv
 fpenv:
 work: fpenv
 pool: invariant
 context_internal: crossing invariant pool runs
-context: allocator context_internal invariant pool reserved_internal
+context: allocator context_internal invariant pool reserved_internal fpenv
 target: context_internal pool
 transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal work
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
