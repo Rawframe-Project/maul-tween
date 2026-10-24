@@ -17,7 +17,7 @@ Every track and timeline of a clip, and `mtwnComputeTiming` for a host, computes
 
 ## Players
 
-A player has a start time, a hold time and a signed rate, the play states idle, running, paused and finished, and Level 1's procedures ([`src/player.c`](../../src/player.c)): play with auto-rewind, pause, reverse, finish, cancel, seek, and a rate change that keeps the current time. The ready time Level 1 waits for is the next update's: a play that needs a start time, a rate change on a running player and a reverse take effect there, the old rate running until then. Pause, seek, finish and cancel take effect at once, at the last update's time.
+A player has a start time, a hold time and a signed rate, the play states idle, running, paused and finished, and Level 1's procedures ([`src/player.c`](../../src/player.c), the controls in [`src/player_control.c`](../../src/player_control.c)): play with auto-rewind, pause, reverse, finish, cancel, seek, and a rate change that keeps the current time. The ready time Level 1 waits for is the next update's: a play that needs a start time, a rate change on a running player and a reverse take effect there, the old rate running until then. Pause, seek, finish and cancel take effect at once, at the last update's time.
 
 A rate change keeps the current time through the start time, so to within an ulp of the host time times the rate. At a rate of 1e300 that is no time at all, and records would be stamped before their update, so a rate larger than `MTWN_RATE_LIMIT` (2^20) is refused: at the limit and 10^7 seconds of host time the time is kept to 2 ms, and no host loses time silently.
 

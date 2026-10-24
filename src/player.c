@@ -11,58 +11,14 @@
 #include "context_internal.h"
 #include "fpenv.h"
 #include "invariant.h"
+#include "player_internal.h"
 #include "reserved_internal.h"
 
 #include <math.h>
 
-static mtwnPlayerSlot* FindPlayer(const mtwnContext* context, mtwnPlayerId player)
-{
-    return (mtwnPlayerSlot*)mtwnPoolFind(&context->players, player.index1, player.generation);
-}
-
-// The timeline time: the last update's host time, in seconds.
-static double Now(const mtwnContext* context)
-{
-    return (double)context->lastTimeNs / 1e9;
-}
-
-static double EffectEnd(const mtwnContext* context, const mtwnClipPlay* play)
-{
-    return mtwnClipAt(context, play->clip.index1)->nodes[0].childrenEnd;
-}
-
-static double CurrentTime(const mtwnClipPlay* play, double now)
-{
-    if (!isnan(play->holdTime))
-    {
-        return play->holdTime;
-    }
-    if (isnan(play->startTime))
-    {
-        return (double)NAN;
-    }
-    return (now - play->startTime) * play->rate;
-}
-
-// The rate the player is going to: its pending one, if any.
-static double Effective(const mtwnClipPlay* play)
-{
-    return isnan(play->pendingRate) ? play->rate : play->pendingRate;
-}
-
-// Level 1's applying of a pending playback rate.
-static void ApplyPendingRate(mtwnClipPlay* play)
-{
-    if (!isnan(play->pendingRate))
-    {
-        play->rate = play->pendingRate;
-        play->pendingRate = (double)NAN;
-    }
-}
-
 static mtwnPlayState StateOf(const mtwnClipPlay* play, double now, double end)
 {
-    double current = CurrentTime(play, now);
+    double current = mtwnCurrentTime(play, now);
     if (isnan(current) && isnan(play->startTime) && !play->pending)
     {
         return mtwn_playIdle;
@@ -72,7 +28,7 @@ static mtwnPlayState StateOf(const mtwnClipPlay* play, double now, double end)
         return mtwn_playPaused;
     }
     // Level 1 tests the finished state against the effective rate.
-    double rate = Effective(play);
+    double rate = mtwnEffectiveRate(play);
     if (!isnan(current) && ((rate > 0.0 && current >= end) || (rate < 0.0 && current <= 0.0)))
     {
         return mtwn_playFinished;
@@ -112,7 +68,7 @@ static void UpdateFinished(mtwnClipPlay* play, double now, double end, bool didS
     double unconstrained = (double)NAN;
     if (didSeek)
     {
-        unconstrained = CurrentTime(play, now);
+        unconstrained = mtwnCurrentTime(play, now);
     }
     else if (!isnan(play->startTime))
     {
@@ -122,7 +78,7 @@ static void UpdateFinished(mtwnClipPlay* play, double now, double end, bool didS
     {
         Hold(play, now, end, didSeek, unconstrained);
     }
-    play->previousTime = CurrentTime(play, now);
+    play->previousTime = mtwnCurrentTime(play, now);
 }
 
 // Level 1's silent setting of the current time.
@@ -139,7 +95,7 @@ static void SilentlySet(mtwnClipPlay* play, double now, double seek)
     play->previousTime = (double)NAN;
 }
 
-static void SetCurrent(mtwnClipPlay* play, double now, double end, double seek)
+void mtwnSetClipTime(mtwnClipPlay* play, double now, double end, double seek)
 {
     SilentlySet(play, now, seek);
     UpdateFinished(play, now, end, true);
@@ -147,11 +103,11 @@ static void SetCurrent(mtwnClipPlay* play, double now, double end, double seek)
 
 // Level 1's play with auto-rewind; the pending play is resolved by the next
 // update.
-static mtwnResult Play(mtwnClipPlay* play, double now, double end)
+mtwnResult mtwnPlayClip(mtwnClipPlay* play, double now, double end)
 {
     double seek = (double)NAN;
-    double current = CurrentTime(play, now);
-    double rate = Effective(play);
+    double current = mtwnCurrentTime(play, now);
+    double rate = mtwnEffectiveRate(play);
     if (rate >= 0.0 && (isnan(current) || current < 0.0 || current >= end))
     {
         seek = 0.0;
@@ -188,31 +144,31 @@ static mtwnResult Play(mtwnClipPlay* play, double now, double end)
     return mtwn_success;
 }
 
-static mtwnResult Pause(mtwnClipPlay* play, double now, double end)
+mtwnResult mtwnPauseClip(mtwnClipPlay* play, double now, double end)
 {
-    double current = CurrentTime(play, now);
+    double current = mtwnCurrentTime(play, now);
     if (isnan(current))
     {
-        if (Effective(play) < 0.0 && isinf(end))
+        if (mtwnEffectiveRate(play) < 0.0 && isinf(end))
         {
             return mtwn_errorState;
         }
-        play->holdTime = Effective(play) >= 0.0 ? 0.0 : end;
+        play->holdTime = mtwnEffectiveRate(play) >= 0.0 ? 0.0 : end;
     }
     play->pending = false;
     if (!isnan(play->startTime) && isnan(play->holdTime))
     {
         play->holdTime = (now - play->startTime) * play->rate;
     }
-    ApplyPendingRate(play);
+    mtwnApplyPendingRate(play);
     play->startTime = (double)NAN;
     UpdateFinished(play, now, end, false);
     return mtwn_success;
 }
 
-static mtwnResult Finish(mtwnClipPlay* play, double now, double end)
+mtwnResult mtwnFinishClip(mtwnClipPlay* play, double now, double end)
 {
-    double rate = Effective(play);
+    double rate = mtwnEffectiveRate(play);
     if (rate == 0.0 || (rate > 0.0 && isinf(end)))
     {
         return mtwn_errorState;
@@ -223,7 +179,7 @@ static mtwnResult Finish(mtwnClipPlay* play, double now, double end)
         play->holdTime = (now - play->startTime) * play->rate;
         play->startTime = (double)NAN;
     }
-    ApplyPendingRate(play);
+    mtwnApplyPendingRate(play);
     double limit = play->rate > 0.0 ? end : 0.0;
     SilentlySet(play, now, limit);
     if (isnan(play->startTime))
@@ -234,14 +190,14 @@ static mtwnResult Finish(mtwnClipPlay* play, double now, double end)
     // Held exactly at the limit, as Level 1's exact arithmetic leaves it:
     // a start rebased by limit / rate can round the time just short of it.
     Hold(play, now, end, true, limit);
-    play->previousTime = CurrentTime(play, now);
+    play->previousTime = mtwnCurrentTime(play, now);
     return mtwn_success;
 }
 
 // A rate change keeps the current time: a moving player changes at the next
 // update, as Level 1's seamless update does at its ready time; a held or
 // idle one at once.
-static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
+void mtwnSetClipRate(mtwnClipPlay* play, double now, double end, double rate)
 {
     bool moving = !isnan(play->startTime) && isnan(play->holdTime);
     // Running at a rate of 0, its time held, it is running all the same:
@@ -253,12 +209,12 @@ static void SetRate(mtwnClipPlay* play, double now, double end, double rate)
         play->pendingRate = rate;
         return;
     }
-    double previous = CurrentTime(play, now);
+    double previous = mtwnCurrentTime(play, now);
     play->rate = rate;
     play->pendingRate = (double)NAN;
     if (!isnan(previous))
     {
-        SetCurrent(play, now, end, previous);
+        mtwnSetClipTime(play, now, end, previous);
     }
 }
 
@@ -276,8 +232,8 @@ static void StartPending(mtwnClipPlay* play, double now)
     if (!isnan(play->pendingRate) && !play->pending)
     {
         // The old rate ran until now; the new one runs from the time reached.
-        double current = CurrentTime(play, now);
-        ApplyPendingRate(play);
+        double current = mtwnCurrentTime(play, now);
+        mtwnApplyPendingRate(play);
         if (play->rate != 0.0)
         {
             play->startTime = now - current / play->rate;
@@ -296,7 +252,7 @@ static void StartPending(mtwnClipPlay* play, double now)
         // case, a start time with a pending rate, is StartPending's first.
         MTWN_ASSERT(!isnan(play->holdTime));
         play->pending = false;
-        ApplyPendingRate(play);
+        mtwnApplyPendingRate(play);
         play->startTime = play->rate != 0.0 ? now - play->holdTime / play->rate : now;
         if (play->rate != 0.0)
         {
@@ -309,7 +265,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
                            double now)
 {
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
-    double end = EffectEnd(context, play);
+    double end = mtwnEffectEnd(context, play);
     // The rate its time ran at since the last update, 0 if it was held.
     double ranAt =
         !play->pending && !isnan(play->startTime) && isnan(play->holdTime) ? play->rate : 0.0;
@@ -319,9 +275,9 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     // what lies between crossed at this time; one with
     // an infinite end cannot and plays on. It is judged after the finished
     // state's update, by the state this update leaves.
-    double reached = CurrentTime(play, now);
+    double reached = mtwnCurrentTime(play, now);
     if (context->reducedMotion && !play->essential && StateOf(play, now, end) == mtwn_playRunning &&
-        Finish(play, now, end) == mtwn_success)
+        mtwnFinishClip(play, now, end) == mtwn_success)
     {
         // A sweep not yet begun takes where the player was first, as a
         // first update does, so its starts are crossed.
@@ -339,7 +295,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     }
     // A player of the same clip at the same time as the last the work
     // advanced is near it, and may take its results.
-    double current = CurrentTime(play, now);
+    double current = mtwnCurrentTime(play, now);
     mtwnSharing* sharing = &work->sharing;
     bool near =
         sharing->nearClip == play->clip.index1 && mtwnSameBits(sharing->nearCurrent, current);
@@ -367,17 +323,6 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     return done;
 }
 
-// A rate whose size keeps the time to its limit's resolution.
-static bool IsRate(double rate)
-{
-    return fabs(rate) <= MTWN_RATE_LIMIT;
-}
-
-static bool IsWeight(double weight)
-{
-    return weight >= 0.0 && weight <= 1.0;
-}
-
 // Whether the bindings name slots the clip's tracks use, each once, and
 // live targets of their kinds.
 static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
@@ -393,7 +338,7 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
         const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
             &context->targets, binding->target.index1, binding->target.generation);
         if (binding->slot >= clip->slotCount || target == NULL ||
-            binding->composite > mtwn_compositeAdd || !IsWeight((double)binding->weight) ||
+            binding->composite > mtwn_compositeAdd || !mtwnIsWeight((double)binding->weight) ||
             !mtwnReservedClear(binding->reserved, sizeof binding->reserved) ||
             clip->slotKinds[binding->slot] != target->kind + 1)
         {
@@ -458,7 +403,7 @@ static void AdvanceClip(mtwnContext* context, uint32_t player, double before, do
                     : mtwnAdvanceClipPlayer(context, context->serial, player, before, now);
     const mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     if (!done && context->reducedMotion &&
-        PlaysOn(context, play, StateOf(play, now, EffectEnd(context, play))))
+        PlaysOn(context, play, StateOf(play, now, mtwnEffectEnd(context, play))))
     {
         ++context->playingOn;
     }
@@ -508,7 +453,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorState);
     }
-    if (!IsRate(def->rate) || !IsWeight(def->weight) || !AreBindings(context, def, clip))
+    if (!mtwnIsRate(def->rate) || !mtwnIsWeight(def->weight) || !AreBindings(context, def, clip))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
@@ -558,7 +503,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     context->clipUpdate = &s_clipUpdate;
     if (def->play)
     {
-        (void)Play(play, Now(context), EffectEnd(context, play));
+        (void)mtwnPlayClip(play, mtwnTimelineNow(context), mtwnEffectEnd(context, play));
     }
     *playerOut = (mtwnPlayerId){index1, mtwnPlayerAt(context, index1)->header.generation};
     return mtwn_success;
@@ -618,7 +563,7 @@ static mtwnResult RunDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     {
         return mtwn_errorInvalid;
     }
-    mtwnPlayerSlot* slot = FindPlayer(context, player);
+    mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
     if (slot == NULL)
     {
         return Misuse(context, mtwn_errorStale);
@@ -671,351 +616,7 @@ mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
 
 bool mtwnPlayer_IsValid(const mtwnContext* context, mtwnPlayerId player)
 {
-    return context != NULL && FindPlayer(context, player) != NULL;
-}
-
-// What a control asks of its player.
-typedef enum Control
-{
-    s_play,
-    s_pause,
-    s_reverse,
-    s_finish,
-    s_cancel,
-    s_seek,
-    s_seekProgress,
-    s_seekLabel,
-    s_sweep,
-    s_setRate,
-    s_setWeight,
-} Control;
-
-// A seek jumped: nothing between is crossed, and a record says so.
-static void Jumped(mtwnContext* context, uint32_t player, double now)
-{
-    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
-    play->swept = CurrentTime(play, now);
-    play->sweptWay = 0;
-    if (!isnan(play->swept))
-    {
-        mtwnPlayerEvent(context, player, mtwn_eventSeek, now, play->swept);
-    }
-}
-
-// A seek that sweeps: what lies between the time it leaves and the time it
-// reaches is crossed now, at the last update's time.
-static void Swept(mtwnContext* context, uint32_t player, double before, double now)
-{
-    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
-    play->swept = before;
-    double after = CurrentTime(play, now);
-    if (!isnan(after))
-    {
-        uint32_t queued = context->eventCount;
-        mtwnSweepEvents(context, context->serial, player, after, 0.0, now, now);
-        mtwnSortEvents(context, queued);
-    }
-}
-
-static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control, double argument,
-                          uint32_t key);
-
-static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, uint32_t player,
-                                              Control control, double argument, uint32_t key)
-{
-    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
-    double now = Now(context);
-    double end = EffectEnd(context, play);
-    switch (control)
-    {
-    case s_play:
-        return Play(play, now, end);
-    case s_pause:
-        return Pause(play, now, end);
-    case s_reverse:
-    {
-        // Level 1's reverse: the negated rate pending, then a play with
-        // auto-rewind; both take effect at the next update.
-        mtwnClipPlay before = *play;
-        play->pendingRate = -Effective(play);
-        mtwnResult result = Play(play, now, end);
-        if (result != mtwn_success)
-        {
-            *play = before;
-        }
-        return result;
-    }
-    case s_finish:
-    {
-        // Finishing runs to the end, crossing what lies before it.
-        double before = CurrentTime(play, now);
-        mtwnResult result = Finish(play, now, end);
-        if (result == mtwn_success)
-        {
-            Swept(context, player, before, now);
-        }
-        return result;
-    }
-    case s_cancel:
-        if (!isnan(CurrentTime(play, now)))
-        {
-            mtwnPlayerEvent(context, player, mtwn_eventCancel, now, CurrentTime(play, now));
-        }
-        play->swept = (double)NAN;
-        ApplyPendingRate(play);
-        play->pending = false;
-        play->holdTime = (double)NAN;
-        play->startTime = (double)NAN;
-        play->previousTime = (double)NAN;
-        return mtwn_success;
-    case s_setRate:
-        SetRate(play, now, end, argument);
-        return mtwn_success;
-    case s_setWeight:
-        play->weight = argument;
-        return mtwn_success;
-    default:
-        return Seeking(context, player, control, argument, key);
-    }
-}
-
-// The seeks: to a time, a share, a root label, or sweeping to a time.
-static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control, double argument,
-                          uint32_t key)
-{
-    mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
-    double now = Now(context);
-    double end = EffectEnd(context, play);
-    double target = argument;
-    if (control == s_seekProgress)
-    {
-        if (!isfinite(end))
-        {
-            return mtwn_errorState;
-        }
-        target = argument * end;
-    }
-    else if (control == s_seekLabel)
-    {
-        const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-        uint32_t child = clip->nodes[0].firstChild;
-        while (child != 0 && !(clip->nodes[child - 1].kind == mtwn_nodeLabel &&
-                               clip->nodes[child - 1].key == key))
-        {
-            child = clip->nodes[child - 1].nextSibling;
-        }
-        if (child == 0)
-        {
-            return mtwn_errorInvalid;
-        }
-        target = clip->nodes[child - 1].start;
-    }
-    double before = CurrentTime(play, now);
-    SetCurrent(play, now, end, target);
-    if (control == s_sweep && !isnan(before))
-    {
-        Swept(context, player, before, now);
-    }
-    else
-    {
-        Jumped(context, player, now);
-    }
-    return mtwn_success;
-}
-
-static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control control,
-                             double argument, uint32_t key)
-{
-    if (context == NULL)
-    {
-        return mtwn_errorInvalid;
-    }
-    mtwnPlayerSlot* slot = FindPlayer(context, player);
-    if (slot == NULL)
-    {
-        return Misuse(context, mtwn_errorStale);
-    }
-    if (slot->type != MTWN_PLAYER_CLIP)
-    {
-        return Misuse(context, mtwn_errorState);
-    }
-    if (control == s_setWeight && !IsWeight(argument))
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    if (control == s_setRate && !IsRate(argument))
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    if ((control == s_seek || control == s_seekProgress || control == s_sweep) &&
-        !isfinite(argument))
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
-    return result == mtwn_success ? result : Misuse(context, result);
-}
-
-// A control, the context entered for it.
-static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control control, double argument,
-                        uint32_t key)
-{
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorState;
-    }
-    mtwnResult result = RunControl(context, player, control, argument, key);
-    mtwnLeave(context);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_PlayWork(mtwnContext* context, mtwnPlayerId player)
-{
-    return Apply(context, player, s_play, 0.0, 0);
-}
-
-mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_PlayWork(context, player);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_PauseWork(mtwnContext* context, mtwnPlayerId player)
-{
-    return Apply(context, player, s_pause, 0.0, 0);
-}
-
-mtwnResult mtwnPlayer_Pause(mtwnContext* context, mtwnPlayerId player)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_PauseWork(context, player);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_ReverseWork(mtwnContext* context, mtwnPlayerId player)
-{
-    return Apply(context, player, s_reverse, 0.0, 0);
-}
-
-mtwnResult mtwnPlayer_Reverse(mtwnContext* context, mtwnPlayerId player)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_ReverseWork(context, player);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_FinishWork(mtwnContext* context, mtwnPlayerId player)
-{
-    return Apply(context, player, s_finish, 0.0, 0);
-}
-
-mtwnResult mtwnPlayer_Finish(mtwnContext* context, mtwnPlayerId player)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_FinishWork(context, player);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_CancelWork(mtwnContext* context, mtwnPlayerId player)
-{
-    return Apply(context, player, s_cancel, 0.0, 0);
-}
-
-mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_CancelWork(context, player);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_SeekWork(mtwnContext* context, mtwnPlayerId player,
-                                                    double seconds)
-{
-    return Apply(context, player, s_seek, seconds, 0);
-}
-
-mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player, double seconds)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_SeekWork(context, player, seconds);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_SweepWork(mtwnContext* context, mtwnPlayerId player,
-                                                     double seconds)
-{
-    return Apply(context, player, s_sweep, seconds, 0);
-}
-
-mtwnResult mtwnPlayer_Sweep(mtwnContext* context, mtwnPlayerId player, double seconds)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_SweepWork(context, player, seconds);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_SeekProgressWork(mtwnContext* context,
-                                                            mtwnPlayerId player, double progress)
-{
-    return Apply(context, player, s_seekProgress, progress, 0);
-}
-
-mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context, mtwnPlayerId player, double progress)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_SeekProgressWork(context, player, progress);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_SeekLabelWork(mtwnContext* context, mtwnPlayerId player,
-                                                         uint32_t key)
-{
-    return Apply(context, player, s_seekLabel, 0.0, key);
-}
-
-mtwnResult mtwnPlayer_SeekLabel(mtwnContext* context, mtwnPlayerId player, uint32_t key)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_SeekLabelWork(context, player, key);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_SetRateWork(mtwnContext* context, mtwnPlayerId player,
-                                                       double rate)
-{
-    return Apply(context, player, s_setRate, rate, 0);
-}
-
-mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_SetRateWork(context, player, rate);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnPlayer_SetWeightWork(mtwnContext* context, mtwnPlayerId player,
-                                                         double weight)
-{
-    return Apply(context, player, s_setWeight, weight, 0);
-}
-
-mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_SetWeightWork(context, player, weight);
-    mtwnFloatEnvLeave(env);
-    return result;
+    return context != NULL && mtwnFindPlayer(context, player) != NULL;
 }
 
 static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
@@ -1025,7 +626,7 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
     {
         return mtwn_errorInvalid;
     }
-    mtwnPlayerSlot* slot = FindPlayer(context, player);
+    mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
     if (slot == NULL)
     {
         return Misuse(context, mtwn_errorStale);
@@ -1039,11 +640,11 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
         return Misuse(context, mtwn_errorState);
     }
     const mtwnClipPlay* play = &slot->play;
-    double now = Now(context);
-    double end = EffectEnd(context, play);
+    double now = mtwnTimelineNow(context);
+    double end = mtwnEffectEnd(context, play);
     mtwnPlayState state = StateOf(play, now, end);
-    *stateOut = (mtwnPlayerState){.currentTime = CurrentTime(play, now),
-                                  .rate = Effective(play),
+    *stateOut = (mtwnPlayerState){.currentTime = mtwnCurrentTime(play, now),
+                                  .rate = mtwnEffectiveRate(play),
                                   .duration = end,
                                   .state = state,
                                   .pending = play->pending || !isnan(play->pendingRate),

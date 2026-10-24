@@ -24,9 +24,9 @@ values layer (no owner, any thread)          context (one thread at a time)
 -----------------------------------          ------------------------------
 easing.c css_easing.c rough.c sample.c       context.c  target.c  pool.c
 spring.c decay.c inertia.c                   transition.c  update.c  coast.c
-color.c rotation.c scale.c zoom.c signal.c   clip.c  player.c  player_slot.c  runs.c
-path.c path_length.c path_direction.c        clip_sample.c  compose.c  clip_tasks.c
-timing.c stagger.c                           sweep.c  crossing.c  event.c
+color.c rotation.c scale.c zoom.c signal.c   clip.c  clip_read.c  clip_sample.c  compose.c
+path.c path_length.c path_direction.c        player.c  player_control.c  player_slot.c  runs.c
+timing.c stagger.c                           clip_tasks.c  sweep.c  crossing.c  event.c
              \_______ elementary.c, fpenv.c, mix and bounds helpers _______/
 ```
 
