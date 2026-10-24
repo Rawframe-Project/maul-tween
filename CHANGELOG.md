@@ -6,18 +6,7 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
-## [0.0.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.0.1...v0.0.1) (2026-10-24)
-
-
-### ⚠ BREAKING CHANGES
-
-* **context:** against the withdrawn 1.0 releases, `mtwnGetClipBytes` now takes the context as its first argument; the transition, clip, clip track, clip timeline and player defs lose their `version` field, the transition def's value methods move after `target`, the player def's `bindingCount` before `bindings`, the clip track def's `keyframeCount` after `slot`, and the player, clip track and timeline defs' reserved bytes grow. Only the context def carries the ABI version, which holds the whole release before 1.0.
-
-### Fixed
-
-* **context:** stamp only the context def with the family's ABI version ([#4](https://github.com/Rawframe-Project/maul-tween/issues/4)) ([4b30709](https://github.com/Rawframe-Project/maul-tween/commit/4b307098c069a9211daa7c5bb2e7688c32c8ece8))
-
-## [0.0.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.0.1)
+## [0.0.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.0.1) (2026-10-24)
 
 The first release: easing, springs, tweens and timelines driven by the
 host's clock, with the same results on every platform.
