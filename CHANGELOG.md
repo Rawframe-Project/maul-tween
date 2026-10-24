@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.2.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.1.1...v0.2.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **spring:** for a start that overflows a settling bound, mtwnSpringSettlingTime and mtwnBoundedDecayStopTime return the true finite time instead of infinity, and a spring transition from such a start, or a bounded decay handing over to one, ends at that time with an end record instead of running until replaced or stopped. Every other result keeps its bits.
+
+### Fixed
+
+* **spring:** give the true settling time when a start overflows ([#27](https://github.com/Rawframe-Project/maul-tween/issues/27)) ([f30bef8](https://github.com/Rawframe-Project/maul-tween/commit/f30bef87c6da454537edd6734ea125e48bd6eb5d)), closes [#20](https://github.com/Rawframe-Project/maul-tween/issues/20)
+
 ## [0.1.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.1.1) (2026-10-24)
 
 ### Changed
