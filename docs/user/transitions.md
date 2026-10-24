@@ -2,6 +2,15 @@
 
 A context holds the values a program animates as targets; a transition moves one target to a new value in one call; each frame the host updates the context to its clock and redraws what changed. This is the short path: [clips](clips.md) are for animations written ahead of time.
 
+## Contents
+
+- [A context and its targets](#a-context-and-its-targets)
+- [Starting a transition](#starting-a-transition)
+- [Duration by distance](#duration-by-distance)
+- [The update](#the-update)
+- [Reduced motion](#reduced-motion)
+- [Not obvious](#not-obvious)
+
 ## A context and its targets
 
 ```c

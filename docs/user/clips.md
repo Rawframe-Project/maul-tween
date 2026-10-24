@@ -2,6 +2,14 @@
 
 A clip is an animation written ahead of time: tracks of keyframes on nested timelines, with labels to seek to and marks to be told of. It is built once, finished, and then played by any number of [players](players.md), each on its own targets.
 
+## Contents
+
+- [Building a clip](#building-a-clip)
+- [Positions](#positions)
+- [Timing and timelines](#timing-and-timelines)
+- [Staggers](#staggers)
+- [Not obvious](#not-obvious)
+
 ## Building a clip
 
 A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnGetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.

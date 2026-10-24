@@ -2,6 +2,15 @@
 
 A player plays a finished [clip](clips.md) with its slots bound to targets, by Web Animations' procedures on the host's clock. Players report what they cross as event records, and layer over each other by composite operations and weights.
 
+## Contents
+
+- [Playing](#playing)
+- [A rate that eases](#a-rate-that-eases)
+- [Scroll-driven playback](#scroll-driven-playback)
+- [Events](#events)
+- [Layers](#layers)
+- [Not obvious](#not-obvious)
+
 ## Playing
 
 ```c
