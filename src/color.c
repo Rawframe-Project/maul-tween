@@ -10,7 +10,9 @@
 
 #include "bounds_internal.h"
 #include "elementary.h"
+#include "fpenv.h"
 #include "mix_internal.h"
+#include "work.h"
 
 #include "generated/color_matrices.h"
 #include "generated/math_constants.h"
@@ -177,8 +179,8 @@ static void FixHues(mtwnHueMethod method, double* first, double* second)
     }
 }
 
-mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, mtwnHueMethod hue,
-                            mtwnColorMix* mixOut)
+MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwnColorSpace space,
+                                              mtwnHueMethod hue, mtwnColorMix* mixOut)
 {
     if (mixOut == NULL || !IsSpace(space) || hue > mtwn_hueDecreasing || !IsColor(from) ||
         !IsColor(to))
@@ -209,7 +211,16 @@ mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, 
     return mtwn_success;
 }
 
-mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress)
+mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, mtwnHueMethod hue,
+                            mtwnColorMix* mixOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeColorMixWork(from, to, space, hue, mixOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progress)
 {
     if (progress == 0.0)
     {
@@ -237,7 +248,16 @@ mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress)
     return FromSpace(at, mix->space);
 }
 
-mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordinatesOut[4])
+mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnColor result = mtwnMixColorWork(mix, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
+                                              double coordinatesOut[4])
 {
     if (coordinatesOut == NULL || !IsSpace(space) || !IsColor(color))
     {
@@ -247,8 +267,16 @@ mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordi
     return mtwn_success;
 }
 
-mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space,
-                              mtwnColor* colorOut)
+mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordinatesOut[4])
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnColorToSpaceWork(color, space, coordinatesOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnColorFromSpaceWork(const double coordinates[4],
+                                                       mtwnColorSpace space, mtwnColor* colorOut)
 {
     if (coordinates == NULL || colorOut == NULL || !IsSpace(space))
     {
@@ -264,4 +292,13 @@ mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space,
     }
     *colorOut = FromSpace(coordinates, space);
     return mtwn_success;
+}
+
+mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space,
+                              mtwnColor* colorOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnColorFromSpaceWork(coordinates, space, colorOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

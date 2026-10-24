@@ -13,6 +13,7 @@
 
 #include "bounds_internal.h"
 #include "elementary.h"
+#include "work.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -118,9 +119,10 @@ static mtwnQuat Multiply(mtwnQuat a, mtwnQuat b)
 static mtwnQuat Toward(mtwnQuat from, mtwnQuat to, double weight)
 {
     mtwnRotationMix mix;
-    if (weight < 1.0 && mtwnMakeRotationMix(from, to, mtwn_rotationShortest, &mix) == mtwn_success)
+    if (weight < 1.0 &&
+        mtwnMakeRotationMixWork(from, to, mtwn_rotationShortest, &mix) == mtwn_success)
     {
-        return mtwnMixRotation(&mix, weight);
+        return mtwnMixRotationWork(&mix, weight);
     }
     return to;
 }

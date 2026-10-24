@@ -256,8 +256,8 @@ static bool Coast(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
         if (out->kind == mtwn_valueAngle)
         {
             // Landing on the value moved by the method's turns.
-            out->to.x =
-                (float)mtwnMixAngle((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
+            out->to.x = (float)mtwnMixAngleWork((double)out->from.x, (double)out->to.x,
+                                                def->angleMethod, 1.0);
         }
     }
     else if (!def->bounded)
@@ -320,7 +320,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     {
         // The end moved by the method's turns, once.
         out->to.x =
-            (float)mtwnMixAngle((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
+            (float)mtwnMixAngleWork((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
     }
     out->crosses = 0;
     out->past = 0;
@@ -333,14 +333,14 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     switch (target->kind)
     {
     case mtwn_valueColor:
-        return mtwnMakeColorMix(ToColor(out->from), ToColor(out->to), def->colorSpace,
-                                def->hueMethod, &out->mix.color);
+        return mtwnMakeColorMixWork(ToColor(out->from), ToColor(out->to), def->colorSpace,
+                                    def->hueMethod, &out->mix.color);
     case mtwn_valueRotation:
-        return mtwnMakeRotationMix(ToQuat(out->from), ToQuat(out->to), def->rotationPath,
-                                   &out->mix.rotation);
+        return mtwnMakeRotationMixWork(ToQuat(out->from), ToQuat(out->to), def->rotationPath,
+                                       &out->mix.rotation);
     case mtwn_valueScale:
         // A decay's end rounded to float may leave a scale's range.
-        return mtwnMakeScaleMix((double)out->from.x, (double)out->to.x, &out->mix.scale);
+        return mtwnMakeScaleMixWork((double)out->from.x, (double)out->to.x, &out->mix.scale);
     default:
         return mtwn_success;
     }
@@ -478,7 +478,7 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     case mtwn_valueDiscrete:
         return mtwn_errorInvalid;
     case mtwn_valueAngle:
-        *distanceOut = fabs(mtwnMixAngle(a[0], b[0], def->angleMethod, 1.0) - a[0]);
+        *distanceOut = fabs(mtwnMixAngleWork(a[0], b[0], def->angleMethod, 1.0) - a[0]);
         return mtwn_success;
     case mtwn_valueScale:
         *distanceOut = fabs(mtwnLog(b[0]) - mtwnLog(a[0]));
@@ -487,13 +487,14 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     {
         // The mix's angle is between the quaternions, half the turn.
         mtwnRotationMix mix;
-        mtwnResult made = mtwnMakeRotationMix(ToQuat(from), ToQuat(to), def->rotationPath, &mix);
+        mtwnResult made =
+            mtwnMakeRotationMixWork(ToQuat(from), ToQuat(to), def->rotationPath, &mix);
         *distanceOut = made == mtwn_success ? 2.0 * mix.angle : 0.0;
         return made;
     }
     case mtwn_valueColor:
-        if (mtwnColorToSpace(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
-            mtwnColorToSpace(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
+        if (mtwnColorToSpaceWork(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
+            mtwnColorToSpaceWork(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
         {
             return mtwn_errorInvalid;
         }

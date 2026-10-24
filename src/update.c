@@ -36,7 +36,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
     {
     case mtwn_valueColor:
     {
-        mtwnColor color = mtwnMixColor(&slot->mix.color, progress);
+        mtwnColor color = mtwnMixColorWork(&slot->mix.color, progress);
         out[0] = (double)color.red;
         out[1] = (double)color.green;
         out[2] = (double)color.blue;
@@ -45,7 +45,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
     }
     case mtwn_valueRotation:
     {
-        mtwnQuat q = mtwnMixRotation(&slot->mix.rotation, progress);
+        mtwnQuat q = mtwnMixRotationWork(&slot->mix.rotation, progress);
         out[0] = (double)q.x;
         out[1] = (double)q.y;
         out[2] = (double)q.z;
@@ -53,7 +53,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
         return;
     }
     case mtwn_valueScale:
-        out[0] = mtwnMixScale(&slot->mix.scale, progress);
+        out[0] = mtwnMixScaleWork(&slot->mix.scale, progress);
         return;
     default:
         // A discrete value, the only kind left.

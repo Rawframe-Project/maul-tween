@@ -8,6 +8,8 @@
 // (zoom.c), so a program scaling links none of it.
 
 #include "elementary.h"
+#include "fpenv.h"
+#include "work.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -16,7 +18,7 @@
 // Where exp(x) is still finite and above the smallest normal.
 static const double s_expRange = 700.0;
 
-mtwnResult mtwnMakeScaleMix(double from, double to, mtwnScaleMix* mixOut)
+MTWN_NOINLINE mtwnResult mtwnMakeScaleMixWork(double from, double to, mtwnScaleMix* mixOut)
 {
     if (mixOut == NULL || !isfinite(from) || !isfinite(to) || !(from > 0.0) || !(to > 0.0))
     {
@@ -27,7 +29,15 @@ mtwnResult mtwnMakeScaleMix(double from, double to, mtwnScaleMix* mixOut)
     return mtwn_success;
 }
 
-double mtwnMixScale(const mtwnScaleMix* mix, double progress)
+mtwnResult mtwnMakeScaleMix(double from, double to, mtwnScaleMix* mixOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeScaleMixWork(from, to, mixOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE double mtwnMixScaleWork(const mtwnScaleMix* mix, double progress)
 {
     if (progress == 0.0)
     {
@@ -42,4 +52,12 @@ double mtwnMixScale(const mtwnScaleMix* mix, double progress)
     // factor alone would overflow or underflow.
     return fabs(exponent) < s_expRange ? mix->from * mtwnExp(exponent)
                                        : mtwnExp(mix->logFrom + exponent);
+}
+
+double mtwnMixScale(const mtwnScaleMix* mix, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnMixScaleWork(mix, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

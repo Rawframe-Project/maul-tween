@@ -583,8 +583,8 @@ static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         mtwnKeyframe* k = &keyframes[i];
         if (def->kind == mtwn_valueAngle)
         {
-            float moved = (float)mtwnMixAngle((double)keyframes[i - 1].value.x, (double)k->value.x,
-                                              def->angleMethod, 1.0);
+            float moved = (float)mtwnMixAngleWork((double)keyframes[i - 1].value.x,
+                                                  (double)k->value.x, def->angleMethod, 1.0);
             double by = (double)moved - (double)k->value.x;
             k->value.x = moved;
             Shift(&k->in, by);
@@ -618,8 +618,8 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         mtwnVec4 b = keyframes[i + 1].value;
         mtwnRotationMix tried;
         if (keyframes[i].kind == mtwn_segmentLinear &&
-            mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
-                                def->rotationPath, &tried) != mtwn_success)
+            mtwnMakeRotationMixWork((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
+                                    def->rotationPath, &tried) != mtwn_success)
         {
             return mtwn_errorInvalid;
         }
@@ -636,15 +636,15 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         mtwnResult made = mtwn_success;
         if (def->kind == mtwn_valueColor)
         {
-            made =
-                mtwnMakeColorMix((mtwnColor){a.x, a.y, a.z, a.w}, (mtwnColor){b.x, b.y, b.z, b.w},
-                                 def->colorSpace, def->hueMethod, &mixesOut[i].color);
+            made = mtwnMakeColorMixWork((mtwnColor){a.x, a.y, a.z, a.w},
+                                        (mtwnColor){b.x, b.y, b.z, b.w}, def->colorSpace,
+                                        def->hueMethod, &mixesOut[i].color);
         }
         else if (keyframes[i].kind == mtwn_segmentLinear)
         {
-            made =
-                mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
-                                    def->rotationPath, &mixesOut[i].rotation);
+            made = mtwnMakeRotationMixWork((mtwnQuat){a.x, a.y, a.z, a.w},
+                                           (mtwnQuat){b.x, b.y, b.z, b.w}, def->rotationPath,
+                                           &mixesOut[i].rotation);
         }
         if (made != mtwn_success)
         {
@@ -722,7 +722,7 @@ static mtwnVec4 SampleScale(const mtwnPath* path, uint32_t i, double u, const mt
     {
         mtwnScaleMix mix = {from, (double)k[i + 1].value.x, mtwnLog(from),
                             mtwnLog((double)k[i + 1].value.x) - mtwnLog(from)};
-        scale = mtwnMixScale(&mix, u);
+        scale = mtwnMixScaleWork(&mix, u);
     }
     else
     {
@@ -767,7 +767,7 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
         {
             return held;
         }
-        mtwnColor color = mtwnMixColor(&track->mixes[i].color, u);
+        mtwnColor color = mtwnMixColorWork(&track->mixes[i].color, u);
         return (mtwnVec4){color.red, color.green, color.blue, color.alpha};
     }
     default:
@@ -776,7 +776,7 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
     // A rotation, normalized whatever its segment.
     if (kind == mtwn_segmentLinear)
     {
-        mtwnQuat q = mtwnMixRotation(&track->mixes[i].rotation, u);
+        mtwnQuat q = mtwnMixRotationWork(&track->mixes[i].rotation, u);
         return (mtwnVec4){q.x, q.y, q.z, q.w};
     }
     if (kind == mtwn_segmentStep || u == 1.0)

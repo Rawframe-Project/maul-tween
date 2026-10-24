@@ -42,5 +42,17 @@ MTWN_NOINLINE void mtwnSampleBoundedDecayWork(const mtwnBoundedDecay* bounded, d
 MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded, double position,
                                                   double velocity, double offsetTolerance,
                                                   double stopSpeed);
+MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwnColorSpace space,
+                                              mtwnHueMethod hue, mtwnColorMix* mixOut);
+MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progress);
+MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
+                                              double coordinatesOut[4]);
+MTWN_NOINLINE double mtwnMixAngleWork(double from, double to, mtwnAngleMethod method,
+                                      double progress);
+MTWN_NOINLINE mtwnResult mtwnMakeRotationMixWork(mtwnQuat from, mtwnQuat to, mtwnRotationPath path,
+                                                 mtwnRotationMix* mixOut);
+MTWN_NOINLINE mtwnQuat mtwnMixRotationWork(const mtwnRotationMix* mix, double progress);
+MTWN_NOINLINE mtwnResult mtwnMakeScaleMixWork(double from, double to, mtwnScaleMix* mixOut);
+MTWN_NOINLINE double mtwnMixScaleWork(const mtwnScaleMix* mix, double progress);
 
 #endif // MAUL_TWEEN_SRC_WORK_H
