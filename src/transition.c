@@ -447,8 +447,9 @@ static mtwnResult RunStartTransition(mtwnContext* context, const mtwnTransitionD
     return result;
 }
 
-mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                               mtwnPlayerId* playerOut)
+static MTWN_NOINLINE mtwnResult mtwnStartTransitionWork(mtwnContext* context,
+                                                        const mtwnTransitionDef* def,
+                                                        mtwnPlayerId* playerOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (playerOut != NULL)
@@ -461,6 +462,15 @@ mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* de
     }
     mtwnResult result = RunStartTransition(context, def, playerOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                               mtwnPlayerId* playerOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnStartTransitionWork(context, def, playerOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -549,8 +559,9 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
     return result;
 }
 
-mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                                 double* distanceOut)
+static MTWN_NOINLINE mtwnResult mtwnMeasureTransitionWork(mtwnContext* context,
+                                                          const mtwnTransitionDef* def,
+                                                          double* distanceOut)
 {
     if (!mtwnEnter(context))
     {
@@ -558,6 +569,15 @@ mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* 
     }
     mtwnResult result = RunMeasureTransition(context, def, distanceOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                 double* distanceOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMeasureTransitionWork(context, def, distanceOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
