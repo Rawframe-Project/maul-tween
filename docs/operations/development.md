@@ -2,6 +2,18 @@
 
 How to build, test and change Maul Tween as a maintainer. Building and installing as a user is in [getting-started.md](../user/getting-started.md); what the checks run and their time budgets is in [checks.md](checks.md), and how a release is made in [release.md](release.md).
 
+## Contents
+
+- [Toolchain](#toolchain)
+- [Build options for development](#build-options-for-development)
+- [Running one test](#running-one-test)
+- [Generated files](#generated-files)
+- [Code size](#code-size)
+- [Benchmarks](#benchmarks)
+- [Fuzzing](#fuzzing)
+- [Debugging a failure](#debugging-a-failure)
+- [Shared family files](#shared-family-files)
+
 ## Toolchain
 
 - CMake 3.25 or newer and Ninja.
@@ -80,6 +92,24 @@ python3 tools/fuzz_seeds.py extract api out/corpus-api
 `fuzz_api` drives the public API from bytes (clips built node by node, players under controls, transitions and updates) on a context alone, on a task system and counting every record, which must agree bit for bit. `fuzz_values` drives the values layer with ordinary and wild parameters (huge, tiny, infinite, NaN): whatever a function accepts, its results are finite, or at least not NaN where the inputs had none. `fuzz_fit` fits easings to `linear()` at drawn tolerances, kept apart because a fit at its limit costs a thousand times the rest.
 
 Always pass `-max_total_time`, and stop what you started. A crash becomes a test: the minimized input (`-minimize_crash=1`) goes into `test/fuzz_regressions/<target>/` as a `.bin` file. `fuzz_seeds.py write` adds those files to every corpus it records, and so to the seeds header the target's CTest replay runs, so no merge drops them.
+
+## Debugging a failure
+
+- **A red CI cell.** A failed test cell uploads its ctest logs as `logs-<preset>` for a week (`gh run download <run> -n logs-<preset>`); a fuzz job that finds something uploads `fuzz-<target>`, its log and the crashing input. The same preset reproduces it here: `cmake --preset <preset> && cmake --build --preset <preset> && ctest --preset <preset> -R '^<suite>$' --output-on-failure`.
+- **A fuzz finding.** The fuzz target run on the one input replays it and stops: `./out/fuzz/fuzz_values <input>`. `-minimize_crash=1 -max_total_time=60` shrinks it before it goes into `test/fuzz_regressions/<target>/`.
+- **A broken assertion.** `MTWN_ASSERT` traps where the check fails; `gdb -batch -ex run -ex bt --args out/<preset>/test_<suite>` prints the stack.
+- **Bits that differ under a host's floating-point setting.** `test_hosts` names the case (`easings: bits differ`); the case's calls are the ones to look at, each run under every rounding mode the platform has, with the flush bits off and on where it has them (eight settings on x86 and AArch64).
+- **A moved determinism hash.** `test_determinism` holds one hash for its whole scenario and names no part. Given any argument, it prints the hash it got, so the change that moved it is found by building commits and comparing.
+- **The i686 preset on a host without 32-bit C libraries.** It runs in the CI image of `ci.yml`'s pin, on a copy of the tree:
+
+  ```sh
+  mkdir <dir> && git archive HEAD | tar -x -C <dir>
+  docker run --rm -v <dir>:/src -w /src ghcr.io/rawframe-project/ci-cpp:<pin> sh -c \
+    'cmake --preset linux-i686-gcc-14 && cmake --build --preset linux-i686-gcc-14 && ctest --preset linux-i686-gcc-14'
+  ```
+
+- **ThreadSanitizer in docker.** Where docker's seccomp blocks `personality(ADDR_NO_RANDOMIZE)`, TSan does not start in the image: run the `linux-clang-20-tsan` preset on the host, or add `--security-opt seccomp=unconfined`.
+- **A part over its code budget.** `python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --map PART` shows which object files link it in.
 
 ## Shared family files
 
