@@ -5,7 +5,7 @@
 // against conversions.js written again in long double, with its matrices
 // applied one after another rather than combined; the hue methods on CSS
 // Color 4's own worked examples; premultiplication, powerless hues and
-// the ends of a mix.
+// the ends of a mix; the powerless threshold against the CSS sample code.
 
 #include "test_harness.h"
 
@@ -487,6 +487,48 @@ static void TestPowerlessHue(void)
           "the same color");
 }
 
+// Whether a mix's middle is the color CSS's sample code gives, to the
+// float's rounding and a little over.
+static bool MiddleIs(mtwnColor from, mtwnColor to, const double css[3])
+{
+    mtwnColorMix mix;
+    if (mtwnMakeColorMix(from, to, mtwn_colorOklch, mtwn_hueShorter, &mix) != mtwn_success)
+    {
+        return false;
+    }
+    mtwnColor middle = mtwnMixColor(&mix, 0.5);
+    const double got[3] = {(double)middle.red, (double)middle.green, (double)middle.blue};
+    return fabs(got[0] - css[0]) <= 0x1p-24 && fabs(got[1] - css[1]) <= 0x1p-24 &&
+           fabs(got[2] - css[2]) <= 0x1p-24;
+}
+
+// Two dark grays a float apart either side of the powerless threshold,
+// green raised by 7e-6 over a 0.2 gray: conversions.js gives the one a
+// chroma of 0.000003996840368, powerless, and the other 0.000004005308214
+// at 145.576 degrees. Mixed halfway with a powerless light gray, the hue
+// is the dark gray's, or 0 where both are powerless; the middles, from
+// conversions.js and CSS Color 4's interpolation under Node 24, differ by
+// over 200 floats.
+static void TestPowerlessThreshold(void)
+{
+    mtwnColor above = {0x1.99999ap-3f, 0x1.999d4cp-3f, 0x1.99999ap-3f, 1.0f};
+    mtwnColor below = {0x1.99999ap-3f, 0x1.999d4ap-3f, 0x1.99999ap-3f, 1.0f};
+    mtwnColor light = {0.8f, 0.8f, 0.8f, 1.0f};
+    double lch[4];
+    CHECK(mtwnColorToSpace(above, mtwn_colorOklch, lch) == mtwn_success &&
+              fabs(lch[1] - 0.000004005308213971577) <= 1e-15 &&
+              fabs(lch[2] - 2.5407821091132377) <= 16.0 * DBL_EPSILON / lch[1],
+          "just above the threshold, a hue");
+    CHECK(mtwnColorToSpace(below, mtwn_colorOklch, lch) == mtwn_success &&
+              fabs(lch[1] - 0.000003996840368034605) <= 1e-15 && isnan(lch[2]),
+          "just below, powerless");
+    const double kept[3] = {0.48263147841931403, 0.482635569501299, 0.4826314784094808};
+    const double zero[3] = {0.48263861757472676, 0.48263241801731566, 0.48263395519757885};
+    CHECK(MiddleIs(above, light, kept), "the light gray takes the dark gray's hue");
+    CHECK(MiddleIs(light, above, kept), "from either end");
+    CHECK(MiddleIs(below, light, zero), "both powerless: hue 0");
+}
+
 int main(void)
 {
     TestConversionsAgainstConversionsJs();
@@ -501,5 +543,6 @@ int main(void)
     TestRefusals();
     TestFarProgress();
     TestPowerlessHue();
+    TestPowerlessThreshold();
     return s_failures == 0 ? 0 : 1;
 }
