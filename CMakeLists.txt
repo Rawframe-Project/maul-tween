@@ -46,6 +46,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/allocator.c
     src/base.c
     src/clip.c
+    src/clip_read.c
     src/clip_sample.c
     src/clip_tasks.c
     src/compose.c

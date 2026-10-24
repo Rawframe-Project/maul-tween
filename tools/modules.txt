@@ -39,7 +39,9 @@ path: elementary fpenv path_internal path_length bounds_internal reserved_intern
 path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length fpenv
-clip: allocator context_internal fpenv pool reserved_internal work
+clip: allocator clip_internal context_internal fpenv pool reserved_internal work
+clip_internal: context_internal
+clip_read: clip_internal context_internal fpenv
 runs: invariant
 player: context_internal fpenv invariant pool reserved_internal runs
 player_slot: context_internal pool runs

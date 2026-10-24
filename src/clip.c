@@ -8,6 +8,7 @@
 // carried up to the root as they arrive.
 
 #include "allocator.h"
+#include "clip_internal.h"
 #include "context_internal.h"
 #include "fpenv.h"
 #include "reserved_internal.h"
@@ -62,11 +63,6 @@ static bool PlanClip(const mtwnClipDef* def, ClipLayout* layout)
 static bool IsCount(uint32_t count)
 {
     return count <= MTWN_MAX_COUNT;
-}
-
-static mtwnClipSlot* FindClip(const mtwnContext* context, mtwnClipId clip)
-{
-    return (mtwnClipSlot*)mtwnPoolFind(&context->clips, clip.index1, clip.generation);
 }
 
 // Counts a refusal against a live context as misuse.
@@ -221,7 +217,7 @@ static mtwnResult RunDestroyClip(mtwnContext* context, mtwnClipId clip)
     {
         return mtwn_errorInvalid;
     }
-    mtwnClipSlot* slot = FindClip(context, clip);
+    mtwnClipSlot* slot = mtwnFindClip(context, clip);
     if (slot == NULL)
     {
         return Misuse(context, mtwn_errorStale);
@@ -261,41 +257,15 @@ mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip)
 
 bool mtwnClip_IsValid(const mtwnContext* context, mtwnClipId clip)
 {
-    return context != NULL && FindClip(context, clip) != NULL;
-}
-
-static const mtwnClipNode* NodeAt(const mtwnClipSlot* clip, uint32_t index1)
-{
-    return &clip->nodes[index1 - 1];
-}
-
-static bool IsTimeline(const mtwnClipSlot* clip, uint32_t index1)
-{
-    return index1 >= 1 && index1 <= clip->nodeCount &&
-           NodeAt(clip, index1)->kind == mtwn_nodeTimeline;
-}
-
-// The label of a parent with a key, 0 when none.
-static uint32_t FindLabelIn(const mtwnClipSlot* clip, uint32_t parent, uint32_t key)
-{
-    for (uint32_t child = NodeAt(clip, parent)->firstChild; child != 0;
-         child = NodeAt(clip, child)->nextSibling)
-    {
-        const mtwnClipNode* node = NodeAt(clip, child);
-        if (node->kind == mtwn_nodeLabel && node->key == key)
-        {
-            return child;
-        }
-    }
-    return 0;
+    return context != NULL && mtwnFindClip(context, clip) != NULL;
 }
 
 // The start a position gives in a timeline.
 static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
 {
-    const mtwnClipNode* timeline = NodeAt(clip, parent);
+    const mtwnClipNode* timeline = mtwnClipNodeAt(clip, parent);
     const mtwnClipNode* previous =
-        timeline->previous != 0 ? NodeAt(clip, timeline->previous) : NULL;
+        timeline->previous != 0 ? mtwnClipNodeAt(clip, timeline->previous) : NULL;
     switch (position.kind)
     {
     case mtwn_positionAfterEnd:
@@ -305,7 +275,8 @@ static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition po
     case mtwn_positionAfterPrevious:
         return (previous != NULL ? previous->end : 0.0) + position.offset;
     case mtwn_positionAtLabel:
-        return NodeAt(clip, FindLabelIn(clip, parent, position.label))->start + position.offset;
+        return mtwnClipNodeAt(clip, mtwnClipLabelIn(clip, parent, position.label))->start +
+               position.offset;
     default:
         return position.offset;
     }
@@ -318,19 +289,8 @@ static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition p
     return position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
            mtwnReservedClear(position.reserved, sizeof position.reserved) &&
            (position.kind != mtwn_positionAtLabel ||
-            FindLabelIn(clip, parent, position.label) != 0) &&
+            mtwnClipLabelIn(clip, parent, position.label) != 0) &&
            isfinite(StartOf(clip, parent, position));
-}
-
-// A timeline's timing with its duration resolved.
-static mtwnTiming ResolvedTiming(const mtwnClipNode* node, double childrenEnd)
-{
-    mtwnTiming timing = node->timing;
-    if (node->autoDuration)
-    {
-        timing.duration = childrenEnd;
-    }
-    return timing;
 }
 
 // A node's end in its parent, from its start and timing.
@@ -363,7 +323,7 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
         {
             return true;
         }
-        mtwnTiming timing = ResolvedTiming(timeline, childrenEnd);
+        mtwnTiming timing = mtwnClipTimelineTiming(timeline, childrenEnd);
         double active = 0.0;
         end = EndOf(timeline->start, &timing, &active);
         if (timing.playbackRate < 0.0 && !isfinite(active))
@@ -447,8 +407,8 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
     bool incremental =
         !def->incremental || (def->track.kind != mtwn_valueColor &&
                               def->track.kind != mtwn_valueDiscrete && !endlessAtOnce);
-    if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) || !slot ||
-        !incremental || def->keyframes == NULL ||
+    if (!mtwnClipIsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
+        !slot || !incremental || def->keyframes == NULL ||
         mtwnValidateTimingWork(&def->timing) != mtwn_success ||
         !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
@@ -508,15 +468,15 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     mtwnClipNode node = {0};
     node.timing = def->timing;
     node.autoDuration = def->autoDuration;
-    mtwnTiming resolved = ResolvedTiming(&node, 0.0);
-    if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
+    mtwnTiming resolved = mtwnClipTimelineTiming(&node, 0.0);
+    if (!mtwnClipIsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
         mtwnValidateTimingWork(&resolved) != mtwn_success ||
         !mtwnIsEasingMonotonicWork(&def->timing.easing) ||
         !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return mtwn_errorInvalid;
     }
-    node.depth = (uint8_t)(NodeAt(clip, def->parent)->depth + 1);
+    node.depth = (uint8_t)(mtwnClipNodeAt(clip, def->parent)->depth + 1);
     if (!HasRoom(clip) || node.depth > MTWN_MAX_CLIP_DEPTH)
     {
         return mtwn_errorLimit;
@@ -537,8 +497,8 @@ static MTWN_NOINLINE mtwnResult AddInstantWorker(mtwnClipSlot* clip, mtwnNodeKin
                                                  mtwnNode parent, mtwnPosition position,
                                                  uint32_t key, mtwnNode* nodeOut)
 {
-    if (!IsTimeline(clip, parent) || !IsPosition(clip, parent, position) ||
-        (kind == mtwn_nodeLabel && FindLabelIn(clip, parent, key) != 0))
+    if (!mtwnClipIsTimeline(clip, parent) || !IsPosition(clip, parent, position) ||
+        (kind == mtwn_nodeLabel && mtwnClipLabelIn(clip, parent, key) != 0))
     {
         return mtwn_errorInvalid;
     }
@@ -566,7 +526,7 @@ static mtwnClipSlot* Adding(mtwnContext* context, mtwnClipId clip, bool given, b
     {
         *nodeOut = 0;
     }
-    mtwnClipSlot* slot = FindClip(context, clip);
+    mtwnClipSlot* slot = mtwnFindClip(context, clip);
     mtwnResult result = mtwn_success;
     if (slot == NULL)
     {
@@ -768,16 +728,6 @@ mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode pare
     return result;
 }
 
-// Whether two doubles are the same bits (a signed zero is not the other).
-static bool SameBits(double a, double b)
-{
-    uint64_t x = 0;
-    uint64_t y = 0;
-    memcpy(&x, &a, sizeof x);
-    memcpy(&y, &b, sizeof y);
-    return x == y;
-}
-
 // Whether two timings give the same results for the same inputs: every
 // field the same, doubles as bits. A host easing is never the same, as
 // nothing says calling it fewer times is allowed.
@@ -789,14 +739,14 @@ static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
                   e->position == f->position && e->count == f->count && e->points == f->points;
     for (int k = 0; k < 5; ++k)
     {
-        easing = easing && SameBits(e->parameters[k], f->parameters[k]);
+        easing = easing && mtwnSameBits(e->parameters[k], f->parameters[k]);
     }
-    return easing && SameBits(a->delay, b->delay) && SameBits(a->endDelay, b->endDelay) &&
-           SameBits(a->iterationStart, b->iterationStart) &&
-           SameBits(a->iterations, b->iterations) && SameBits(a->duration, b->duration) &&
-           SameBits(a->repeatDelay, b->repeatDelay) && SameBits(a->playbackRate, b->playbackRate) &&
-           a->fill == b->fill && a->direction == b->direction &&
-           a->alternateEasing == b->alternateEasing;
+    return easing && mtwnSameBits(a->delay, b->delay) && mtwnSameBits(a->endDelay, b->endDelay) &&
+           mtwnSameBits(a->iterationStart, b->iterationStart) &&
+           mtwnSameBits(a->iterations, b->iterations) && mtwnSameBits(a->duration, b->duration) &&
+           mtwnSameBits(a->repeatDelay, b->repeatDelay) &&
+           mtwnSameBits(a->playbackRate, b->playbackRate) && a->fill == b->fill &&
+           a->direction == b->direction && a->alternateEasing == b->alternateEasing;
 }
 
 static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
@@ -828,7 +778,7 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
         const mtwnClipNode* before = i > 0 ? &slot->nodes[i - 1] : NULL;
         node->sharesTiming = node->kind == mtwn_nodeTrack && before != NULL &&
                              before->kind == mtwn_nodeTrack && before->parent == node->parent &&
-                             SameBits(before->start, node->start) &&
+                             mtwnSameBits(before->start, node->start) &&
                              SameTiming(&before->timing, &node->timing);
     }
     slot->finished = true;
@@ -840,7 +790,7 @@ static mtwnResult RunClipFinish(mtwnContext* context, mtwnClipId clip)
     {
         return mtwn_errorInvalid;
     }
-    mtwnClipSlot* slot = FindClip(context, clip);
+    mtwnClipSlot* slot = mtwnFindClip(context, clip);
     if (slot == NULL)
     {
         return Misuse(context, mtwn_errorStale);
@@ -868,232 +818,6 @@ mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
 {
     uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = mtwnClip_FinishWork(context, clip);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-// The finished clip an id names, with the refusal counted.
-static mtwnResult Finished(mtwnContext* context, mtwnClipId clip, mtwnClipSlot** slotOut)
-{
-    *slotOut = FindClip(context, clip);
-    if (*slotOut == NULL)
-    {
-        return Misuse(context, mtwn_errorStale);
-    }
-    if (!(*slotOut)->finished)
-    {
-        return Misuse(context, mtwn_errorState);
-    }
-    return mtwn_success;
-}
-
-static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                                  mtwnClipTrack* trackOut)
-{
-    if (context == NULL)
-    {
-        return mtwn_errorInvalid;
-    }
-    if (trackOut == NULL)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    memset(trackOut, 0, sizeof *trackOut);
-    mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
-    if (result != mtwn_success)
-    {
-        return result;
-    }
-    if (node < 1 || node > slot->nodeCount || slot->nodes[node - 1].kind != mtwn_nodeTrack)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    const mtwnClipNode* n = &slot->nodes[node - 1];
-    *trackOut = (mtwnClipTrack){n->track, n->timing, n->start, n->parent, n->slot};
-    return mtwn_success;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnClip_GetTrackWork(mtwnContext* context, mtwnClipId clip,
-                                                      mtwnNode node, mtwnClipTrack* trackOut)
-{
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (trackOut != NULL)
-    {
-        *trackOut = (mtwnClipTrack){0};
-    }
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorState;
-    }
-    mtwnResult result = RunClipGetTrack(context, clip, node, trackOut);
-    mtwnLeave(context);
-    return result;
-}
-
-mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                             mtwnClipTrack* trackOut)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnClip_GetTrackWork(context, clip, node, trackOut);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static mtwnResult RunClipGetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                                 mtwnClipNodeInfo* infoOut)
-{
-    if (context == NULL)
-    {
-        return mtwn_errorInvalid;
-    }
-    if (infoOut == NULL)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    memset(infoOut, 0, sizeof *infoOut);
-    mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
-    if (result != mtwn_success)
-    {
-        return result;
-    }
-    if (node < 1 || node > slot->nodeCount)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    const mtwnClipNode* n = NodeAt(slot, node);
-    infoOut->timing = n->kind == mtwn_nodeTimeline ? ResolvedTiming(n, n->childrenEnd) : n->timing;
-    infoOut->start = n->start;
-    infoOut->end = node == MTWN_ROOT_NODE ? n->childrenEnd : n->end;
-    infoOut->parent = n->parent;
-    infoOut->slot = n->kind == mtwn_nodeTrack ? n->slot : 0;
-    infoOut->key = n->key;
-    infoOut->kind = n->kind;
-    return mtwn_success;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnClip_GetNodeWork(mtwnContext* context, mtwnClipId clip,
-                                                     mtwnNode node, mtwnClipNodeInfo* infoOut)
-{
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (infoOut != NULL)
-    {
-        *infoOut = (mtwnClipNodeInfo){0};
-    }
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorState;
-    }
-    mtwnResult result = RunClipGetNode(context, clip, node, infoOut);
-    mtwnLeave(context);
-    return result;
-}
-
-mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip, mtwnNode node,
-                            mtwnClipNodeInfo* infoOut)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnClip_GetNodeWork(context, clip, node, infoOut);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static mtwnResult RunClipFindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
-                                   uint32_t key, double* secondsOut)
-{
-    if (context == NULL)
-    {
-        return mtwn_errorInvalid;
-    }
-    if (secondsOut == NULL)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    *secondsOut = 0.0;
-    mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
-    if (result != mtwn_success)
-    {
-        return result;
-    }
-    uint32_t label = IsTimeline(slot, parent) ? FindLabelIn(slot, parent, key) : 0;
-    if (label == 0)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    *secondsOut = NodeAt(slot, label)->start;
-    return mtwn_success;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnClip_FindLabelWork(mtwnContext* context, mtwnClipId clip,
-                                                       mtwnNode parent, uint32_t key,
-                                                       double* secondsOut)
-{
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (secondsOut != NULL)
-    {
-        *secondsOut = 0.0;
-    }
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorState;
-    }
-    mtwnResult result = RunClipFindLabel(context, clip, parent, key, secondsOut);
-    mtwnLeave(context);
-    return result;
-}
-
-mtwnResult mtwnClip_FindLabel(mtwnContext* context, mtwnClipId clip, mtwnNode parent, uint32_t key,
-                              double* secondsOut)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnClip_FindLabelWork(context, clip, parent, key, secondsOut);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
-static mtwnResult RunClipGetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
-{
-    if (context == NULL)
-    {
-        return mtwn_errorInvalid;
-    }
-    if (secondsOut == NULL)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    *secondsOut = 0.0;
-    mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
-    if (result == mtwn_success)
-    {
-        *secondsOut = slot->nodes[0].childrenEnd;
-    }
-    return result;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnClip_GetDurationWork(mtwnContext* context, mtwnClipId clip,
-                                                         double* secondsOut)
-{
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (secondsOut != NULL)
-    {
-        *secondsOut = 0.0;
-    }
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorState;
-    }
-    mtwnResult result = RunClipGetDuration(context, clip, secondsOut);
-    mtwnLeave(context);
-    return result;
-}
-
-mtwnResult mtwnClip_GetDuration(mtwnContext* context, mtwnClipId clip, double* secondsOut)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnClip_GetDurationWork(context, clip, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
