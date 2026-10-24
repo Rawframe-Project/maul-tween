@@ -6,6 +6,28 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.1.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.0.1...v0.1.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **spring:** mtwnSpringMotionAt and mtwnSampleSpring, and the spring easings, bounded decays and spring transitions built on them, return different bits for an underdamped spring whose phase (damped rate times time) is finite and at least 2^52 radians while its envelope is not 0; results below 2^52 are unchanged.
+
+### Added
+
+* **easing:** sample a cubic bezier without linking every curve ([#21](https://github.com/Rawframe-Project/maul-tween/issues/21)) ([00526e4](https://github.com/Rawframe-Project/maul-tween/commit/00526e41e40f5a64daa8a52a35439b27796238b7))
+
+
+### Fixed
+
+* **spring:** an overflowing settling bound is infinite, not NaN ([#19](https://github.com/Rawframe-Project/maul-tween/issues/19)) ([6956ce3](https://github.com/Rawframe-Project/maul-tween/commit/6956ce35e9e8b089b15a3ee2dcd8b5aa99e1e4ca)), closes [#16](https://github.com/Rawframe-Project/maul-tween/issues/16)
+
+
+### Changed
+
+* **player:** start every group from the first group's sharing ([#17](https://github.com/Rawframe-Project/maul-tween/issues/17)) ([1f048d3](https://github.com/Rawframe-Project/maul-tween/commit/1f048d3d26afac3334a1692e436448464c393de2)), closes [#9](https://github.com/Rawframe-Project/maul-tween/issues/9)
+* **spring:** leave a far phase to the sine's exact reduction ([#15](https://github.com/Rawframe-Project/maul-tween/issues/15)) ([0c8acfe](https://github.com/Rawframe-Project/maul-tween/commit/0c8acfed5501372828de774591208688fdafdaac))
+
 ## [0.0.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.0.1) (2026-10-24)
 
 The first release: easing, springs, tweens and timelines driven by the
