@@ -38,12 +38,12 @@ update: coast context_internal easing_internal elementary fpenv pool bounds_inte
 path: elementary fpenv path_internal path_length bounds_internal reserved_internal work
 path_length: elementary invariant
 path_internal: path_length
-path_direction: elementary path_internal path_length
+path_direction: elementary path_internal path_length fpenv
 clip: allocator context_internal fpenv pool reserved_internal work
 runs: invariant
 player: context_internal fpenv invariant pool reserved_internal runs
 player_slot: context_internal pool runs
-clip_sample: compose context_internal elementary fpenv invariant pool runs bounds_internal
+clip_sample: compose context_internal elementary fpenv invariant pool runs bounds_internal work
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal work
 compose: elementary bounds_internal work

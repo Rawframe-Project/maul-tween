@@ -9,6 +9,7 @@
 // with a length, else after it, and a path of no length points along +x.
 
 #include "elementary.h"
+#include "fpenv.h"
 #include "path_internal.h"
 #include "path_length.h"
 
@@ -75,7 +76,8 @@ static bool Heading(const mtwnPath* path, const mtwnCubic* cubic, double u, doub
     return true;
 }
 
-void mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4])
+static MTWN_NOINLINE void mtwnPathDirectionWork(const mtwnPath* path, double progress,
+                                                double directionOut[4])
 {
     uint32_t i = 0;
     double u = 0.0;
@@ -107,9 +109,24 @@ void mtwnPathDirection(const mtwnPath* path, double progress, double directionOu
     memcpy(directionOut, along, sizeof along);
 }
 
-double mtwnPathAngle(const mtwnPath* path, double progress)
+void mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4])
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnPathDirectionWork(path, progress, directionOut);
+    mtwnFloatEnvLeave(env);
+}
+
+static MTWN_NOINLINE double mtwnPathAngleWork(const mtwnPath* path, double progress)
 {
     double direction[4];
-    mtwnPathDirection(path, progress, direction);
+    mtwnPathDirectionWork(path, progress, direction);
     return mtwnAtan2(direction[1], direction[0]);
+}
+
+double mtwnPathAngle(const mtwnPath* path, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnPathAngleWork(path, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

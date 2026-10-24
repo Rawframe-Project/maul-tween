@@ -348,10 +348,20 @@ static mtwnResult MakePathOf(const mtwnKeyframe* keyframes, uint32_t count, uint
     return mtwn_success;
 }
 
+static MTWN_NOINLINE mtwnResult mtwnMakePathWork(const mtwnKeyframe* keyframes, uint32_t count,
+                                                 uint8_t channels, double alpha, double* lengthsOut,
+                                                 mtwnPath* pathOut)
+{
+    return MakePathOf(keyframes, count, channels, alpha, false, lengthsOut, pathOut);
+}
+
 mtwnResult mtwnMakePath(const mtwnKeyframe* keyframes, uint32_t count, uint8_t channels,
                         double alpha, double* lengthsOut, mtwnPath* pathOut)
 {
-    return MakePathOf(keyframes, count, channels, alpha, false, lengthsOut, pathOut);
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakePathWork(keyframes, count, channels, alpha, lengthsOut, pathOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // The last segment whose start is at or below key in values, from 0 to
@@ -469,9 +479,17 @@ void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueO
     }
 }
 
-void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+static MTWN_NOINLINE void mtwnSamplePathWork(const mtwnPath* path, double progress,
+                                             double valueOut[4], double tangentOut[4])
 {
     mtwnSamplePathCounting(path, progress, valueOut, tangentOut, NULL);
+}
+
+void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnSamplePathWork(path, progress, valueOut, tangentOut);
+    mtwnFloatEnvLeave(env);
 }
 
 void mtwnLocatePath(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
@@ -600,8 +618,9 @@ static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     }
 }
 
-mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count,
-                         double* lengthsOut, mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
+MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe* keyframes,
+                                           uint32_t count, double* lengthsOut,
+                                           mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
 {
     if (trackOut == NULL || !CheckTrack(def, keyframes, count, lengthsOut != NULL, mixesOut))
     {
@@ -660,6 +679,15 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     }
     *trackOut = track;
     return mtwn_success;
+}
+
+mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count,
+                         double* lengthsOut, mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeTrackWork(def, keyframes, count, lengthsOut, mixesOut, trackOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // A number track's sample as floats, held within the finite floats:
@@ -735,13 +763,13 @@ static mtwnVec4 SampleScale(const mtwnPath* path, uint32_t i, double u, const mt
     return (mtwnVec4){mtwnScaleFloat(scale), 0.0f, 0.0f, 0.0f};
 }
 
-mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
+MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress)
 {
     const mtwnPath* path = &track->path;
     double value[4];
     if (IsNumberKind(track->kind))
     {
-        mtwnSamplePath(path, progress, value, NULL);
+        mtwnSamplePathWork(path, progress, value, NULL);
         if (track->kind == mtwn_valueInteger)
         {
             value[0] = round(value[0]);
@@ -790,4 +818,12 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
         Evaluate(&cubic, end, u, 4, value, NULL);
     }
     return Normalized(value, k[i].value);
+}
+
+mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnVec4 result = mtwnSampleTrackWork(track, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

@@ -13,6 +13,7 @@
 #include "context_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
+#include "work.h"
 
 #include "maul-tween/path.h"
 
@@ -285,11 +286,11 @@ static mtwnVec4 Unrounded(const mtwnTrack* track, double progress)
 {
     if (track->kind != mtwn_valueInteger)
     {
-        return mtwnSampleTrack(track, progress);
+        return mtwnSampleTrackWork(track, progress);
     }
     mtwnTrack scalar = *track;
     scalar.kind = mtwn_valueScalar;
-    return mtwnSampleTrack(&scalar, progress);
+    return mtwnSampleTrackWork(&scalar, progress);
 }
 
 // A clip track's velocity left lazy: the parent's time a moment ago, and

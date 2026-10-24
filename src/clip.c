@@ -447,9 +447,9 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     mtwnKeyframe* keyframes = &clip->keyframes[base];
     memcpy(keyframes, def->keyframes, (size_t)def->keyframeCount * sizeof(mtwnKeyframe));
     mtwnClipNode node = {0};
-    mtwnResult made = mtwnMakeTrack(&def->track, keyframes, def->keyframeCount,
-                                    def->constantSpeed ? &clip->lengths[base] : NULL,
-                                    &clip->mixes[base], &node.track);
+    mtwnResult made = mtwnMakeTrackWork(&def->track, keyframes, def->keyframeCount,
+                                        def->constantSpeed ? &clip->lengths[base] : NULL,
+                                        &clip->mixes[base], &node.track);
     if (made != mtwn_success)
     {
         return made;
