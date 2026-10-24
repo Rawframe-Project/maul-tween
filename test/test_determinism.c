@@ -37,7 +37,7 @@
 #include <string.h>
 
 // The scenario's hash, the same everywhere.
-static const uint64_t s_expected = 0x88e8a56ff5b825d7u;
+static const uint64_t s_expected = 0x5e319086fd2791ddu;
 
 enum
 {
@@ -735,8 +735,8 @@ static void HashEdges(void)
         HashDouble(mtwnMixScale(&wide, across[a]));
     }
     // An undamped spring of 2 Hz turns 4 pi a second, so its phase passes
-    // 2^52, where it is reduced by whole turns, between 3.58e14 and
-    // 3.59e14 seconds; and infinity.
+    // 2^52, where it holds no angle, between 3.58e14 and 3.59e14 seconds;
+    // and infinity.
     mtwnSpring undamped;
     mtwnSpring nearCritical;
     mtwnSpring over;
