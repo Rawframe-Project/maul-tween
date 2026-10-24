@@ -7,7 +7,6 @@
 // reached, the commit at the end, the changed report, refusals, and the
 // same bits under a host's flush-to-zero and rounding toward zero.
 
-#include "context_internal.h"
 #include "fpenv.h"
 #include "test_harness.h"
 
@@ -789,8 +788,8 @@ static void TestMeasure(void)
           "no cookie, no def, no context");
     def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
     CHECK(mtwnMeasureTransition(context, &def, NULL) == mtwn_errorInvalid, "nowhere to put it");
-    CHECK(mtwnTargetAt(context, red.index1)->header.link == 0 &&
-              State(context, red).value.x == 1.0f,
+    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success &&
+              State(context, red).value.x == 1.0f && State(context, red).velocity.x == 0.0f,
           "nothing started or changed");
     mtwnDestroyContext(context);
 }
@@ -1314,9 +1313,9 @@ static void TestStartVelocity(void)
 }
 
 // Starts an eased transition of x to a value over a duration, CSS's
-// reversal asked for or not; returns its slot.
-static mtwnPlayerSlot* Toward(mtwnContext* context, mtwnTargetId x, float value, double seconds,
-                              const mtwnEasing* easing, bool reverses)
+// reversal asked for or not; returns its player.
+static mtwnPlayerId Toward(mtwnContext* context, mtwnTargetId x, float value, double seconds,
+                           const mtwnEasing* easing, bool reverses)
 {
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = x;
@@ -1326,8 +1325,37 @@ static mtwnPlayerSlot* Toward(mtwnContext* context, mtwnTargetId x, float value,
     def.reverses = reverses;
     mtwnPlayerId player;
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a transition");
-    return mtwnPlayerAt(context, player.index1);
+    return player;
 }
+
+// The first channel of x after an update at a host time.
+static float ValueAt(mtwnContext* context, mtwnTargetId x, uint64_t now)
+{
+    CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "updated");
+    return State(context, x).value.x;
+}
+
+// Whether a transition, started by the update at a host time, lasts the
+// nanoseconds given: still playing one before, and at them freed with its
+// target at its end in every channel.
+static bool Lasts(mtwnContext* context, mtwnTargetId x, mtwnPlayerId player, uint64_t start,
+                  uint64_t ns, mtwnVec4 end)
+{
+    bool before = mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success;
+    if (ns > 0)
+    {
+        before = before && mtwnPlayer_IsValid(context, player) &&
+                 mtwnUpdate(context, start + ns - 1, NULL, 0, NULL) == mtwn_success &&
+                 mtwnPlayer_IsValid(context, player);
+    }
+    bool after = mtwnUpdate(context, start + ns, NULL, 0, NULL) == mtwn_success &&
+                 !mtwnPlayer_IsValid(context, player);
+    mtwnVec4 value = State(context, x).value;
+    return before && after && value.x == end.x && value.y == end.y && value.z == end.z &&
+           value.w == end.w;
+}
+
+static const mtwnVec4 s_zero = {0.0f, 0.0f, 0.0f, 0.0f};
 
 static void TestReversal(void)
 {
@@ -1338,53 +1366,66 @@ static void TestReversal(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
           "a target");
     mtwnEasing linear = mtwnLinearEasing();
-    // 0 to 1 over a second, left a quarter of the way: back in a quarter.
+    // 0 to 1 over a second, left a quarter of the way: back in a quarter,
+    // so half way back an eighth of a second later.
     (void)Toward(context, x, 1.0f, 1.0, &linear, true);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
-    CHECK(mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success, "a quarter");
-    mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
-    CHECK(back->duration == 0.25 && back->shortening == 0.25 && back->reversingStart.x == 1.0f,
+    CHECK(ValueAt(context, x, 0) == 0.0f && ValueAt(context, x, s_second / 4) == 0.25f,
+          "a quarter");
+    (void)Toward(context, x, 0.0f, 1.0, &linear, true);
+    CHECK(ValueAt(context, x, s_second / 4) == 0.25f &&
+              ValueAt(context, x, s_second * 3 / 8) == 0.125f,
           "the way back shortened to a quarter");
     // Half way back, forward again: the share of the way is CSS's, from
-    // the shortened reversal, 0.5 x 0.25 + 0.75.
-    CHECK(mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second * 3 / 8, NULL, 0, NULL) == mtwn_success,
-          "half way back");
-    mtwnPlayerSlot* again = Toward(context, x, 1.0f, 1.0, &linear, true);
-    CHECK(again->duration == 0.875 && again->reversingStart.x == 0.0f,
+    // the shortened reversal, 0.5 x 0.25 + 0.75, so seven eighths of a
+    // second, half of it 0.4375 s later.
+    uint64_t forward = s_second * 3 / 8;
+    (void)Toward(context, x, 1.0f, 1.0, &linear, true);
+    CHECK(ValueAt(context, x, forward) == 0.125f &&
+              ValueAt(context, x, forward + 437500000u) == 0.5625f,
           "forward again over seven eighths");
-    // Not a reversal: another end, or the reversal not asked for.
-    mtwnPlayerSlot* elsewhere = Toward(context, x, 0.5f, 1.0, &linear, true);
-    CHECK(elsewhere->duration == 1.0 && elsewhere->shortening == 1.0,
+    // Not a reversal: another end takes its whole duration, and the way
+    // back to its start, not asked for, takes its whole duration too
+    // (asked for, it would take half).
+    uint64_t elsewhere = forward + 437500000u;
+    (void)Toward(context, x, 0.5f, 1.0, &linear, true);
+    CHECK(ValueAt(context, x, elsewhere) == 0.5625f &&
+              ValueAt(context, x, elsewhere + s_second / 2) == 0.53125f,
           "another end takes its whole duration");
-    CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success, "moving");
-    mtwnPlayerSlot* unasked = Toward(context, x, 1.0f, 1.0, &linear, false);
-    CHECK(unasked->duration == 1.0, "a reversal not asked for takes its whole duration");
+    uint64_t unasked = elsewhere + s_second / 2;
+    (void)Toward(context, x, 0.5625f, 1.0, &linear, false);
+    CHECK(ValueAt(context, x, unasked) == 0.53125f &&
+              ValueAt(context, x, unasked + s_second / 2) == 0.546875f,
+          "a reversal not asked for takes its whole duration");
     mtwnDestroyContext(context);
 
     // The share is of the eased way: a quadratic out a quarter of the
-    // time in has gone 1 - 0.75^2 of the way.
+    // time in has gone 1 - 0.75^2 of the way, so back over 0.4375 s.
     CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
           "a target");
     mtwnEasing quadOut;
     CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &quadOut) == mtwn_success, "quad out");
     (void)Toward(context, x, 1.0f, 1.0, &quadOut, true);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(ValueAt(context, x, 0) == 0.0f && ValueAt(context, x, s_second / 4) == 0.4375f,
           "a quarter of the time");
-    back = Toward(context, x, 0.0f, 1.0, &quadOut, true);
-    CHECK(back->duration == 0.4375, "back over the share of the way gone");
+    (void)Toward(context, x, 0.0f, 1.0, &quadOut, true);
+    // Half its time in, a quadratic out has gone three quarters of the way.
+    uint64_t sprung = s_second / 4 + 218750000u;
+    CHECK(ValueAt(context, x, s_second / 4) == 0.4375f && ValueAt(context, x, sprung) == 0.109375f,
+          "back over the share of the way gone");
     // A spring does not shorten, nor shorten the eased one after it.
     mtwnTransitionDef spring = mtwnDefaultTransitionDef();
     spring.target = x;
     spring.spec = mtwn_transitionSpring;
     spring.reverses = true;
-    mtwnPlayerId sprung;
-    CHECK(mtwnStartTransition(context, &spring, &sprung) == mtwn_success, "a spring");
-    CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success, "springing");
-    mtwnPlayerSlot* after = Toward(context, x, 0.0f, 1.0, &quadOut, true);
-    CHECK(after->duration == 1.0, "an easing after a spring takes its whole duration");
+    mtwnPlayerId springing;
+    CHECK(mtwnStartTransition(context, &spring, &springing) == mtwn_success, "a spring");
+    CHECK(mtwnUpdate(context, sprung, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, sprung + s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "springing");
+    mtwnPlayerId after = Toward(context, x, 0.0f, 1.0, &quadOut, true);
+    CHECK(Lasts(context, x, after, sprung + s_second / 4, s_second, s_zero),
+          "an easing after a spring takes its whole duration");
     mtwnDestroyContext(context);
 }
 
@@ -1404,8 +1445,9 @@ static void TestReversalSignedZero(void)
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "a quarter in");
-    mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
-    CHECK(back->duration == 0.25, "back to +0 from -0 shortened");
+    mtwnPlayerId back = Toward(context, x, 0.0f, 1.0, &linear, true);
+    CHECK(Lasts(context, x, back, s_second / 4, s_second / 4, s_zero),
+          "back to +0 from -0 shortened");
     mtwnDestroyContext(context);
 
     // A jump-start step has gone a quarter of the way at its start: CSS's
@@ -1418,7 +1460,7 @@ static void TestReversalSignedZero(void)
     (void)Toward(context, x, 1.0f, 1.0, &steps, true);
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "at its start");
     back = Toward(context, x, 0.0f, 1.0, &steps, true);
-    CHECK(back->duration == 0.25, "back over the step already taken");
+    CHECK(Lasts(context, x, back, 0, s_second / 4, s_zero), "back over the step already taken");
     mtwnDestroyContext(context);
     // Before its first update it has not begun, no step taken: back at once.
     CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
@@ -1426,7 +1468,7 @@ static void TestReversalSignedZero(void)
           "a target");
     (void)Toward(context, x, 1.0f, 1.0, &steps, true);
     back = Toward(context, x, 0.0f, 1.0, &steps, true);
-    CHECK(back->duration == 0.0, "not begun: no way back to take");
+    CHECK(Lasts(context, x, back, 0, 0, s_zero), "not begun: no way back to take");
     mtwnDestroyContext(context);
 
     // Every channel compares: an end differing in any one alone is not the
@@ -1450,7 +1492,7 @@ static void TestReversalSignedZero(void)
         def.value = (mtwnVec4){1, 2, 3, 4};
         (&def.value.x)[channel] += 0.5f;
         CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
-                  mtwnPlayerAt(context, player.index1)->duration == 1.0,
+                  Lasts(context, v, player, s_second / 4, s_second, def.value),
               "another end in one channel takes its whole duration");
         mtwnDestroyContext(context);
     }
@@ -1474,8 +1516,8 @@ static void TestReversalOvershoot(void)
               mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success,
           "three quarters in");
     mtwnEasing linear = mtwnLinearEasing();
-    mtwnPlayerSlot* back = Toward(context, x, 0.0f, 1.0, &linear, true);
-    CHECK(back->duration == 1.0 && back->shortening == 1.0, "back over the whole way");
+    mtwnPlayerId back = Toward(context, x, 0.0f, 1.0, &linear, true);
+    CHECK(Lasts(context, x, back, 3 * s_second / 4, s_second, s_zero), "back over the whole way");
     mtwnDestroyContext(context);
 }
 
@@ -1496,21 +1538,17 @@ static void TestReversalEdges(void)
     CHECK(mtwnUpdate(context, 5 * s_second, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, 5 * s_second + s_second / 4, NULL, 0, NULL) == mtwn_success,
           "a quarter in");
-    mtwnPlayerSlot* back = Toward(context, x, 2.0f, 1.0, &linear, true);
-    CHECK(back->duration == 0.25, "from 2, back over a quarter");
-    mtwnTargetState state;
-    CHECK(mtwnUpdate(context, 5 * s_second + s_second / 4, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 5 * s_second + s_second / 2, NULL, 0, NULL) == mtwn_success &&
-              mtwnTarget_GetState(context, x, &state) == mtwn_success && state.value.x == 2.0f &&
-              state.base.x == 2.0f && x.index1 != 0 &&
-              mtwnTargetAt(context, x.index1)->header.link == 0,
-          "ended at its shortened end, its value committed");
+    const mtwnVec4 two = {2.0f, 0, 0, 0};
+    mtwnPlayerId back = Toward(context, x, 2.0f, 1.0, &linear, true);
+    CHECK(Lasts(context, x, back, 5 * s_second + s_second / 4, s_second / 4, two) &&
+              State(context, x).base.x == 2.0f,
+          "from 2, back over a quarter, ended at its end, its value committed");
     // Reversed before the other's first update, or in its delay: it had
     // gone none of the way, so the way back takes no time.
-    mtwnPlayerSlot* fresh = Toward(context, x, 3.0f, 1.0, &linear, true);
-    (void)fresh;
-    mtwnPlayerSlot* undone = Toward(context, x, 2.0f, 1.0, &linear, true);
-    CHECK(undone->duration == 0.0, "reversed before it started");
+    (void)Toward(context, x, 3.0f, 1.0, &linear, true);
+    mtwnPlayerId undone = Toward(context, x, 2.0f, 1.0, &linear, true);
+    CHECK(Lasts(context, x, undone, 5 * s_second + s_second / 2, 0, two),
+          "reversed before it started");
     mtwnTransitionDef late = mtwnDefaultTransitionDef();
     late.target = x;
     late.value = (mtwnVec4){3.0f, 0, 0, 0};
@@ -1524,7 +1562,7 @@ static void TestReversalEdges(void)
               mtwnUpdate(context, 6 * s_second + s_second / 10, NULL, 0, NULL) == mtwn_success,
           "in its delay");
     undone = Toward(context, x, 2.0f, 1.0, &linear, true);
-    CHECK(undone->duration == 0.0, "reversed in its delay");
+    CHECK(Lasts(context, x, undone, 6 * s_second + s_second / 10, 0, two), "reversed in its delay");
     mtwnDestroyContext(context);
     // An easing that first goes below its start (back in): the share of
     // the way is its size, |p f + 1 - f|.
@@ -1539,7 +1577,15 @@ static void TestReversalEdges(void)
           "a quarter in, below the start");
     double p = mtwnEase(&backIn, 0.25, false);
     back = Toward(context, x, 0.0f, 1.0, &backIn, true);
-    CHECK(p < 0.0 && back->duration == -p, "back over the size of the share");
+    // The way back lasts -p seconds, to the nanosecond either side.
+    uint64_t start = s_second / 4;
+    uint64_t lower = (uint64_t)floor(-p * 1e9);
+    CHECK(p < 0.0 && mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, start + lower - 1, NULL, 0, NULL) == mtwn_success &&
+              mtwnPlayer_IsValid(context, back) &&
+              mtwnUpdate(context, start + lower + 2, NULL, 0, NULL) == mtwn_success &&
+              !mtwnPlayer_IsValid(context, back) && State(context, x).value.x == 0.0f,
+          "back over the size of the share");
     mtwnDestroyContext(context);
 }
 

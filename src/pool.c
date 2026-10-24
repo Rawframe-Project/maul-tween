@@ -25,9 +25,11 @@ uint32_t mtwnPoolAcquire(mtwnPool* pool)
     uint32_t index1 = pool->free;
     if (index1 != 0)
     {
-        // The free list holds released slots only.
+        // The free list holds released slots only, never a retired one,
+        // whose next generation would wrap to 0 and make its ids null.
         MTWN_ASSERT(index1 <= pool->high &&
-                    (mtwnPoolAt(pool, index1)->flags & MTWN_SLOT_ALIVE) == 0);
+                    (mtwnPoolAt(pool, index1)->flags & MTWN_SLOT_ALIVE) == 0 &&
+                    mtwnPoolAt(pool, index1)->generation != UINT32_MAX);
         pool->free = mtwnPoolAt(pool, index1)->link;
     }
     else if (pool->high < pool->capacity)

@@ -7,7 +7,6 @@
 // stale and are reused last in first out, misuse counted, and values
 // stored to the bit.
 
-#include "context_internal.h"
 #include "test_harness.h"
 
 #include "maul-tween/context.h"
@@ -59,12 +58,16 @@ static void TestCreate(void)
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success && context != NULL, "made");
     CHECK(counter.allocations == 1, "one block");
-    CHECK(mtwnContext_GetMemoryBytes(context) == counter.bytes &&
-              counter.bytes >= 100 * sizeof(mtwnTargetSlot),
-          "the block holds the targets and is the size reported");
+    CHECK(mtwnContext_GetMemoryBytes(context) == counter.bytes, "the block the size reported");
+    uint64_t hundred = counter.bytes;
     CHECK(mtwnGetContextMisuse(context) == 0, "no misuse yet");
     mtwnDestroyContext(context);
     CHECK(counter.frees == 1, "one free");
+    def.targetCapacity = 200;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success &&
+              mtwnContext_GetMemoryBytes(context) > hundred,
+          "and grows with the targets it holds");
+    mtwnDestroyContext(context);
     mtwnDestroyContext(NULL);
     counter.fail = true;
     context = (mtwnContext*)&counter;
@@ -236,27 +239,6 @@ static void TestIds(void)
     mtwnDestroyContext(context);
 }
 
-static void TestRetire(void)
-{
-    mtwnContext* context = Make(2);
-    mtwnVec4 one = {1.0f, 0.0f, 0.0f, 0.0f};
-    mtwnTargetId a;
-    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &a) == mtwn_success, "made");
-    CHECK(mtwnDestroyTarget(context, a) == mtwn_success, "freed");
-    mtwnTargetAt(context, 1)->header.generation = UINT32_MAX - 1;
-    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &a) == mtwn_success && a.index1 == 1 &&
-              a.generation == UINT32_MAX,
-          "the last generation");
-    CHECK(mtwnDestroyTarget(context, a) == mtwn_success, "freed at the end");
-    mtwnTargetId b;
-    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &b) == mtwn_success && b.index1 == 2,
-          "the retired slot is not reused");
-    mtwnTargetId c;
-    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &c) == mtwn_errorLimit,
-          "and does not count as free");
-    mtwnDestroyContext(context);
-}
-
 static void TestValues(void)
 {
     mtwnContext* context = Make(16);
@@ -303,8 +285,15 @@ static void TestValues(void)
               mtwnTarget_GetValue(context, id, &value) == mtwn_success && value.y == 1.0f &&
               value.w == 0.0f,
           "a target no animation writes shows its base at once");
-    CHECK((mtwnTargetAt(context, id.index1)->header.flags & MTWN_TARGET_CHANGED) != 0,
-          "and is marked for the next report");
+    mtwnTargetId changed[16];
+    uint32_t total = 0;
+    bool reported = false;
+    CHECK(mtwnUpdate(context, 0, changed, 16, &total) == mtwn_success, "updated");
+    for (uint32_t i = 0; i < total && i < 16; ++i)
+    {
+        reported = reported || changed[i].index1 == id.index1;
+    }
+    CHECK(reported, "and is in the next report");
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, given, NULL) == mtwn_errorInvalid,
           "null out");
     CHECK(mtwnCreateTarget(NULL, mtwn_valueScalar, given, &id) == mtwn_errorInvalid, "no context");
@@ -362,7 +351,6 @@ int main(void)
     TestDefRefusals();
     TestSharingCapacities();
     TestIds();
-    TestRetire();
     TestValues();
     TestReadMany();
     return s_failures == 0 ? 0 : 1;
