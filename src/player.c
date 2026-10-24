@@ -583,10 +583,9 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = CreateWorker(context, def, playerOut);
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -838,10 +837,9 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    mtwnFloatEnv env;
-    mtwnFloatEnvEnter(&env);
+    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
-    mtwnFloatEnvLeave(&env);
+    mtwnFloatEnvLeave(env);
     return result == mtwn_success ? result : Misuse(context, result);
 }
 
