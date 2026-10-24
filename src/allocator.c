@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The one place a zeroed allocator reaches the C library (record
-// mtwn-0006). The library asks it for max_align_t's alignment at most,
+// The one place a zeroed allocator reaches the C library.
+// The library asks it for max_align_t's alignment at most,
 // which malloc serves.
 
 #include "allocator.h"

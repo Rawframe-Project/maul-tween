@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Transitions (records mtwn-0004 and mtwn-0029): the short path, one call
+// Transitions: the short path, one call
 // that animates a target from its current value to another. A new
 // transition on a target replaces the one running there, starting from
 // the value it had reached.
@@ -98,18 +98,18 @@ extern "C"
         // the other covered, eased: a hover left half way takes half the
         // time back.
         bool reverses;
-        // Whether it plays on under reduced motion (record mtwn-0049): a
+        // Whether it plays on under reduced motion: a
         // fade, a color, or motion essential to what it shows; the others
         // finish at once.
         bool essential;
-        // For a decay (record mtwn-0063): held between lower and upper.
+        // For a decay: held between lower and upper.
         // Where a channel would come to rest past one, the def's spring
         // takes it back from the exact time it reaches the bound, with the
         // velocity it has there, and it ends on the bound; a channel
         // starting past one is the spring's from the start. Numbers,
         // vectors, integers and scales, a scale's in its logarithm.
         bool bounded;
-        // For a decay (record mtwn-0063): it comes to rest on the def's
+        // For a decay: it comes to rest on the def's
         // value, each channel by its own rate with the start velocity it
         // has, as mtwnMakeDecayToRest; a channel the velocity does not move
         // toward its value is refused, one at its value with none stays.
@@ -199,7 +199,7 @@ extern "C"
 
     /// Measures how far a transition would move its target: from the
     /// target's current value to the def's value, in the kind's own
-    /// measure, for a duration set by speed (record mtwn-0060):
+    /// measure, for a duration set by speed:
     /// def.duration = distance / speed, within whatever bounds the host
     /// keeps. Numbers, vectors and integers: their Euclidean distance; an
     /// angle: the radians it turns after the method's whole turns; a

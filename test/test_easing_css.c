@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// CSS Easing Level 2's curves (records mtwn-0009, mtwn-0011, mtwn-0020):
+// CSS Easing Level 2's curves:
 // cubic-bezier against bisection in long double where the platform has
 // one wider than double, its end tangents in every case the
 // specification lists, steps and linear() on cases worked by hand from
@@ -68,7 +68,7 @@ typedef struct BezierCase
     double bound;
 } BezierCase;
 
-// The eight curves the solver was measured on (record mtwn-0009): the
+// The eight curves the solver was measured on: the
 // four keywords, a back-like overshoot, and three whose slope vanishes or
 // nearly does, where conditioning sets the floor; then two whose x slope
 // vanishes at an end, where a Newton step from t = x leaves the bracket.

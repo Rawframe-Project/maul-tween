@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Composition (record mtwn-0039): replace and add with weights per kind,
+// Composition: replace and add with weights per kind,
 // numbers, integers, colors premultiplied, rotations multiplied and
 // slerped, discrete values stepping; and players layered in composite
 // order, an add layer starting from the base each update, faded by its
@@ -250,7 +250,7 @@ static void TestCommitAndRefusals(void)
     mtwnDestroyContext(w.context);
 }
 
-// Scales (record mtwn-0059) compose in their logarithm: add multiplies,
+// Scales compose in their logarithm: add multiplies,
 // replace moves geometrically, a weight a power, velocities as rates; an
 // incremental scale track multiplies by its ratio each iteration.
 static void TestScales(void)
@@ -307,7 +307,7 @@ static void TestScales(void)
     mtwnDestroyContext(w.context);
 }
 
-// Velocities past the floats held within them (record mtwn-0059): a
+// Velocities past the floats held within them: a
 // scale added onto another, its product past the floats, and a clip's
 // track moving faster than the largest float a second.
 static void TestPastFloats(void)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Springs in one closed form (records mtwn-0010 and mtwn-0023). With
+// Springs in one closed form. With
 // decay rate a = zeta w0 and damped frequency w = w0 sqrt(|1 - zeta^2|),
 // a start (x0, v0) moves as x = e^(-a t) (x0 C + (v0 + a x0) S) and
 // v = e^(-a t) (v0 C - (a v0 + w0^2 x0) S), where C and S are cos(w t)

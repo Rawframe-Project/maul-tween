@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Events (records mtwn-0004, mtwn-0013 and mtwn-0038): records in the
+// Events: records in the
 // context's bounded queue, never callbacks. Each update appends what its
 // players crossed, at most one record per player, node or mark, kind and
 // direction, with the count of crossings, ordered by the time of the first
@@ -14,7 +14,7 @@
 // in clip order), so a full queue keeps the first made and drops the rest
 // of an update's; those kept are sorted. A context of eventCapacity 0
 // makes no records and drops none: its clips' players skip the sweeps
-// that find crossings, the cost of the records (record mtwn-0062).
+// that find crossings, the cost of the records.
 
 #ifndef MAUL_TWEEN_EVENT_H
 #define MAUL_TWEEN_EVENT_H
@@ -83,7 +83,7 @@ extern "C"
         mtwnEventKind kind;
         // Whether the crossings went backwards.
         bool backwards;
-        // Written 0 (record mtwn-0071).
+        // Written 0.
         uint8_t reserved[6];
     } mtwnEvent;
 

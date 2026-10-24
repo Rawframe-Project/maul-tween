@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The rivals as an oracle (record mtwn-0050): GSAP, tween.js and
+// The rivals as an oracle: GSAP, tween.js and
 // Motion's springs run under Node, and CSS Color 4's conversions.js, each
 // fetched by its pinned version and checked against its pinned hash
 // before it runs, never kept in the repository. What they compute for

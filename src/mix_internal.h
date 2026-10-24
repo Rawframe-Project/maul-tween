@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The mix of two values (record mtwn-0070).
+// The mix of two values.
 
 #ifndef MAUL_TWEEN_SRC_MIX_INTERNAL_H
 #define MAUL_TWEEN_SRC_MIX_INTERNAL_H

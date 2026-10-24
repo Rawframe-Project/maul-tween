@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The easings' commonest case inline, for the update's hot loop (record
-// mtwn-0042): an integer power already normal, by the general path's
+// The easings' commonest case inline, for the update's hot loop:
+// an integer power already normal, by the general path's
 // arithmetic, so the same bits.
 
 #ifndef MAUL_TWEEN_SRC_EASING_INTERNAL_H

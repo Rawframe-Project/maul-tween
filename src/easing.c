@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The easings (records mtwn-0011 and mtwn-0021). Each kind has one
+// The easings. Each kind has one
 // native curve: Penner's in curve for most, the out curve for elastic
 // and bounce, which GSAP and Penner define by it, and CSS's curves from
 // src/css_easing.c. A curve not exact at

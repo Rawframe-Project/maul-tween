@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A spring as an easing (record mtwn-0023), for src/easing.c: the
+// A spring as an easing, for src/easing.c: the
 // sample lives with the spring's layout in src/spring.c.
 
 #ifndef MAUL_TWEEN_SRC_SPRING_EASING_H

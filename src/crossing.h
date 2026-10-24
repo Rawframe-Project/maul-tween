@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Crossings (record mtwn-0037): how many times a sweep of a player's time
+// Crossings: how many times a sweep of a player's time
 // passes a point deep in a clip, exactly, through every ancestor's
 // iterations, without visiting them one by one.
 //

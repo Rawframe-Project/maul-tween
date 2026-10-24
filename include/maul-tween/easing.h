@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Easing: curves that map a timing's progress to eased progress (record
-// mtwn-0011). An easing is a value made by a function that validates it
+// Easing: curves that map a timing's progress to eased progress.
+// An easing is a value made by a function that validates it
 // and sampled by mtwnEase with no status to check: Penner's families,
 // which land exactly on 0 and 1, and CSS Easing Level 2 entire. Every
 // kind has the same four modes.
@@ -136,8 +136,7 @@ extern "C"
         mtwnEasingKind kind;
         mtwnEaseMode mode;
         mtwnStepPosition position;
-        // 0 as made, refused otherwise where taken in; padding through 1.x
-        // (record mtwn-0071).
+        // 0 as made, refused otherwise where taken in; padding.
         uint8_t reserved;
     } mtwnEasing;
 
@@ -265,8 +264,7 @@ extern "C"
     /// @param mode       The mode.
     /// @param function   The function; it must be safe to call from every
     ///                   thread that samples the easing, and calls no
-    ///                   function of a context sampling it (record
-    ///                   mtwn-0068).
+    ///                   function of a context sampling it.
     /// @param context    Passed to the function; may be NULL.
     /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null function or
@@ -278,7 +276,7 @@ extern "C"
                                                           mtwnEasing* easingOut);
 
     /// Makes CSS's cubic-bezier(x1, y1, x2, y2), solved by safeguarded
-    /// Newton to |x(t) - x| <= 1e-14 (record mtwn-0009): exactly 0 at 0 and
+    /// Newton to |x(t) - x| <= 1e-14: exactly 0 at 0 and
     /// 1 at 1, and outside 0 to 1 extended along CSS's end tangents.
     ///
     /// @param x1         The first control point's x, from 0 to 1.
@@ -340,7 +338,7 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count,
                                                             mtwnEasing* easingOut);
 
-    /// Makes a rough easing (record mtwn-0061): linear() through points
+    /// Makes a rough easing: linear() through points
     /// that wander from a shape by a seed, as GSAP's RoughEase and
     /// anime.js's irregular, the same curve for a seed on every platform.
     /// The first point is (0, 0) and the last (1, 1); the k-th of the m

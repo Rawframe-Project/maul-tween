@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// CSS Easing Level 2's curves (records mtwn-0009 and mtwn-0011), for
+// CSS Easing Level 2's curves, for
 // src/easing.c: cubic-bezier with its end tangents, steps with the
 // before flag, and linear() with its canonicalization.
 

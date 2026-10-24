@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Growing a context (record mtwn-0041): only when asked, to capacities at
+// Growing a context: only when asked, to capacities at
 // least its own (the sharing's any), with its own allocator; every id, a
 // playing clip, a running transition, the queued records and the free
 // slots carried over; on a refusal or an allocator's failure nothing
-// changes. A context of no records (record mtwn-0062) plays as one with
+// changes. A context of no records plays as one with
 // them, and grown to hold some, records from there on.
 
 #include "test_harness.h"
@@ -261,7 +261,7 @@ static void TestGrowFreeSlots(void)
 }
 
 // A def that keeps some capacities as they are and grows others is taken,
-// each capacity at least the context's (found by mutants).
+// each capacity at least the context's.
 static void TestGrowSome(void)
 {
     Budget budget = {0};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Sampling (record mtwn-0022): an easing turned into points in caller
+// Sampling: an easing turned into points in caller
 // memory, as an even table for a GPU or a host lookup, or as the points
 // of a CSS linear() fitted to a tolerance. Nothing is allocated.
 

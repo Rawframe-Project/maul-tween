@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Angles and rotations (records mtwn-0015, mtwn-0020, mtwn-0025): angles
+// Angles and rotations: angles
 // on CSS Color 4's hue examples in radians and with turns; rotations
 // against slerp written again in long double, at constant angular speed,
 // the shortest way and the longest.
@@ -233,7 +233,7 @@ static void TestPaths(void)
 // The methods at exactly half a turn apart, and at none, as CSS Color 4
 // adjusts hues: shorter leaves a half turn either way as it is; longer
 // adjusts only (0, half) and (-half, 0], so a half turn is left too, and
-// no difference becomes a whole turn (found by mutants).
+// no difference becomes a whole turn.
 static void TestHalfTurns(void)
 {
     double half = s_pi;
@@ -292,7 +292,7 @@ static void TestRefusals(void)
           "null out");
 }
 
-// Equal angles mix to that angle at any progress (record mtwn-0070).
+// Equal angles mix to that angle at any progress.
 static void TestAngleFarProgress(void)
 {
     CHECK(mtwnMixAngle(1.25, 1.25, mtwn_angleRaw, 1e20) == 1.25 &&

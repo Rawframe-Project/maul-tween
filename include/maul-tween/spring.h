@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Springs, decay and the rubber band (records mtwn-0010 and mtwn-0023):
+// Springs, decay and the rubber band:
 // a damped spring pulling a value to its target, and a velocity decaying
 // to rest, both solved in closed form from where they start, so the same
 // times give the same values at every frame rate; and iOS's rubber band
@@ -27,8 +27,7 @@ extern "C"
     {
         double parameters[5];
         uint32_t regime;
-        // 0 as made, refused otherwise where taken in; padding through 1.x
-        // (record mtwn-0071).
+        // 0 as made, refused otherwise where taken in; padding.
         uint32_t reserved;
     } mtwnSpring;
 
@@ -228,7 +227,7 @@ extern "C"
                                           double target);
 
     /// Makes the decay that comes to rest at an end from a start, keeping
-    /// the start's velocity (record mtwn-0063): its rate is velocity / (end
+    /// the start's velocity: its rate is velocity / (end
     /// - position). With mtwnSampleDecay's rest (seconds infinite) as the
     /// natural end, a host snaps a fling: it chooses the end, a page or a
     /// grid point near the natural one, and lands there.
@@ -246,7 +245,7 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeDecayToRest(double position, double velocity,
                                                            double rest, mtwnDecay* decayOut);
 
-    // A decay held between bounds (record mtwn-0063): it coasts while
+    // A decay held between bounds: it coasts while
     // within them; where it would come to rest past one, a spring takes
     // it from the bound, at the exact time it reaches the bound and with
     // the velocity it has there, back to the bound; a start past a bound

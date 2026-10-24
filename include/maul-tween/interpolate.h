@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Interpolation of values that are not plain numbers (records mtwn-0014,
-// mtwn-0015, mtwn-0016, mtwn-0017, mtwn-0024 to mtwn-0026): colors in a
+// Interpolation of values that are not plain numbers:
+// colors in a
 // named space as CSS Color 4 interpolates them, angles with CSS's hue
 // methods, rotations by slerp, integers and discrete values, and punch
 // and shake, the signals a host adds to a value.
@@ -66,7 +66,7 @@ extern "C"
         mtwnColor fromColor;
         mtwnColor toColor;
         mtwnColorSpace space;
-        // 0 as made; padding through 1.x (record mtwn-0071).
+        // 0 as made; padding.
         uint8_t reserved[7];
     } mtwnColorMix;
 
@@ -227,7 +227,7 @@ extern "C"
 
     // A scale: a positive number moved in its logarithm, so equal steps of
     // progress multiply it by equal ratios, where a linear mix from 1 to
-    // 100 seems to slow down (record mtwn-0059). Make one with
+    // 100 seems to slow down. Make one with
     // mtwnMakeScaleMix; its fields are the library's.
     typedef struct mtwnScaleMix
     {
@@ -421,8 +421,8 @@ extern "C"
     /// Safe from any thread.
     MTWN_API double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds);
 
-    /// Samples a shake's noise alone, its envelope left to the host (record
-    /// mtwn-0065): for a shake driven by "trauma" (Eiserloh's camera shake:
+    /// Samples a shake's noise alone, its envelope left to the host:
+    /// for a shake driven by "trauma" (Eiserloh's camera shake:
     /// an amount the host raises at each hit and lets decay, the shake its
     /// square), on a clock that runs on through the hits, so the noise never
     /// jumps where the amplitude changes. Each channel its own noise.

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Slots handed out by generation-checked ids (records mtwn-0028 and
-// mtwn-0029).
+// Slots handed out by generation-checked ids.
 
 #include "pool.h"
 

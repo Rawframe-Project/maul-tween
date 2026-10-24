@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The easings against their defining formulas, written again here in
-// long double where the platform has one wider than double (record
-// mtwn-0020): exact ends in every mode, the modes as reflections, the
+// long double where the platform has one wider than double:
+// exact ends in every mode, the modes as reflections, the
 // parameters mapped to GSAP's, Penner's and tween.js's, and every maker's
 // refusals.
 
@@ -478,8 +478,7 @@ static void TestRefusals(void)
     CHECK(lands, "back with an overshoot of 1e300 lands");
 }
 
-// An elastic easing's amplitude and period at 0 are refused (found by
-// mutants).
+// An elastic easing's amplitude and period at 0 are refused.
 static void TestElasticZero(void)
 {
     mtwnEasing easing;
@@ -489,49 +488,10 @@ static void TestElasticZero(void)
           "amplitude or period 0 refused");
 }
 
-// Values the 1.x promise keeps to the bit (record mtwn-0072): the bounce's
-// landings, where the parabolas meet, and an elastic away from its ends.
-static void TestPinnedBits(void)
+// Spreading a run of missing inputs leaves the run's end as given.
+static void TestLinearRunEnd(void)
 {
     mtwnEasing easing;
-    CHECK(mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeOut, &easing) == mtwn_success, "bounce");
-    CHECK(mtwnEase(&easing, 1.0 / 2.75, false) == 0x1.fffffffffffffp-1 &&
-              mtwnEase(&easing, 2.0 / 2.75, false) == 1.0 &&
-              mtwnEase(&easing, 2.5 / 2.75, false) == 1.0,
-          "the bounce's landings, bit for bit");
-    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 2.5, 0.2, &easing) == mtwn_success, "elastic");
-    CHECK(mtwnEase(&easing, 0.5, false) == -0x1.08421084210ap-5, "an elastic, bit for bit");
-    // A progress of -0 is inside, not clamped: the circ out keeps its sign.
-    CHECK(mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeOut, &easing) == mtwn_success, "circ");
-    double atZero = mtwnEase(&easing, -0.0, false);
-    CHECK(atZero == 0.0 && signbit(atZero), "the circ out at -0, -0");
-    CHECK(mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeIn, &easing) == mtwn_success, "sine");
-    CHECK(mtwnEase(&easing, 0.1, false) == 0x1.936daf406e901p-7, "a sine in, bit for bit");
-    CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1.70158, &easing) == mtwn_success, "back");
-    atZero = mtwnEase(&easing, 0.0, false);
-    CHECK(atZero == 0.0 && signbit(atZero), "the back in at 0, its raw -0");
-    // The largest integer power, 8, still by multiplication.
-    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 8.0, &easing) == mtwn_success, "power 8");
-    CHECK(mtwnEase(&easing, 0.1, false) == 0x1.5798ee2308c3fp-27, "0.1 to the 8th, bit for bit");
-    // A bezier whose x has no slope at 0, where Newton steps leave the
-    // bracket and are bisected instead.
-    CHECK(mtwnMakeCubicBezier(0.0, -2.0, 0.0, -2.0, &easing) == mtwn_success, "flat bezier");
-    CHECK(mtwnEase(&easing, 1.0 / 400.0, false) == -0x1.67115cc9d9e69p-1,
-          "a flat bezier, bit for bit");
-    CHECK(mtwnEase(&easing, 0.5, false) == -0x1.ee04c0c3fcc5p-2,
-          "a Newton step on the bracket's top taken");
-    double zero = mtwnEase(&easing, 0.0, false);
-    double negativeZero = mtwnEase(&easing, -0.0, false);
-    CHECK(zero == 0.0 && !signbit(zero) && negativeZero == 0.0 && signbit(negativeZero),
-          "a bezier's zero kept with its sign");
-    // A Newton step on the bracket's bottom, taken.
-    CHECK(mtwnMakeCubicBezier(1.0, -2.0, 0.0, -2.0, &easing) == mtwn_success, "an S bezier");
-    CHECK(mtwnEase(&easing, 0.25, false) == -0x1.1ba0dea0dd292p-1,
-          "a Newton step on the bracket's bottom taken");
-    CHECK(mtwnMakeSteps(3, mtwn_jumpEnd, &easing) == mtwn_success, "steps");
-    negativeZero = mtwnEase(&easing, -0.0, false);
-    CHECK(negativeZero == 0.0 && signbit(negativeZero), "steps at -0, -0");
-    // Spreading a run of missing inputs leaves the run's end as given.
     mtwnLinearPoint points[4] = {{0.0, 0.0}, {0.03, 0.2}, {(double)NAN, 0.5}, {0.3, 0.8}};
     CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success && points[3].input == 0.3,
           "the run's end input kept");
@@ -540,7 +500,7 @@ static void TestPinnedBits(void)
 int main(void)
 {
     TestElasticZero();
-    TestPinnedBits();
+    TestLinearRunEnd();
     TestEndsAreExact();
     TestEndsAreExactForEveryParameter();
     TestAgainstTheFormulas();

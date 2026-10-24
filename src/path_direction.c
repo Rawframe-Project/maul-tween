@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A path's direction (record mtwn-0064), by SVG 2's path directionality:
+// A path's direction, by SVG 2's path directionality:
 // the curve's direction within a segment, its limit where the derivative
 // vanishes (the first non-zero of the second and third derivatives, the
 // outgoing direction at a cusp), the later segment's at a boundary; a

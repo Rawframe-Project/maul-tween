@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Inertia (record mtwn-0063): a decay landing on a chosen end keeps its
+// Inertia: a decay landing on a chosen end keeps its
 // start velocity; a bounded decay is the decay until the exact time it
 // reaches a bound, then a spring from the bound with the velocity it had
 // there, continuous in both; a start past a bound is the spring's.

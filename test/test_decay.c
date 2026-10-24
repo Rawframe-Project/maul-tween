@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Decay and the rubber band (records mtwn-0010, mtwn-0020, mtwn-0023)
+// Decay and the rubber band
 // against their formulas in long double where the platform has one wider
 // than double: positions keep their relative digits down to tiny times,
 // iOS's deceleration rate means what it does there, and the stop and
@@ -262,7 +262,7 @@ static void TestRubberBand(void)
           "nor without a dimension");
 }
 
-// The documented ends (found by mutants): a stop speed not above 0 is
+// The documented ends: a stop speed not above 0 is
 // never reached, even from rest; a dimension of 0 bands nothing, a drag
 // of 0 included.
 static void TestEnds(void)

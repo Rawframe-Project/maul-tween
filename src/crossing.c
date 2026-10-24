@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Crossings (record mtwn-0037). A level's path: its iterations from the
+// Crossings. A level's path: its iterations from the
 // first its rate reaches to the last, each from its start to its end;
 // iteration j at progress q has the child time ChildAt(j, q). A local time
 // reaches part of the path: none, all, or every iteration before k and
@@ -150,7 +150,7 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
         j = j < floor(s) ? floor(s) : j;
         double within = position - j * cycle;
         // As the timing model forms them, so a child time here is the one
-        // Times and the values see, bit for bit (record mtwn-0042): a
+        // Times and the values see, bit for bit: a
         // quotient below the first iteration is the first, one rounded up
         // to j puts the position in the delay before j, and a progress
         // rounded to the end has reached the delay.

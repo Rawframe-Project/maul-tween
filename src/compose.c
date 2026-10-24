@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Composition (record mtwn-0039), Web Animations Level 1's replace and
+// Composition, Web Animations Level 1's replace and
 // add (accumulate is addition for every kind here, as CSS Values 4 says)
 // with a weight: the result mixes from the underlying value to the
 // composited one. Numbers add and mix per channel; colors premultiplied
 // by alpha; rotations multiply (the effect turning in the underlying's
-// frame) and mix by slerp; scales compose in their logarithm (record
-// mtwn-0059); a discrete value is not additive and steps at half.
+// frame) and mix by slerp; scales compose in their logarithm;
+// a discrete value is not additive and steps at half.
 
 #include "compose.h"
 
@@ -33,8 +33,7 @@ static mtwnVec4 Pack(const double v[4])
 }
 
 // Per channel: the sum for add, then the mix by the weight, of values and
-// velocities in double. Held past the floats, a number is still (record
-// mtwn-0069).
+// velocities in double. Held past the floats, a number is still.
 static mtwnMoving Linear(mtwnComposite composite, double weight, mtwnMoving under,
                          mtwnMoving effect)
 {

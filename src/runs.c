@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// First-fit runs with coalescing (record mtwn-0035). A free run's first
+// First-fit runs with coalescing. A free run's first
 // entry holds its length in index1 and the next free run's start plus 1
 // in generation.
 

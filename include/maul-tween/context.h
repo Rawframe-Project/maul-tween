@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The context (records mtwn-0003, mtwn-0006 and mtwn-0028): the owner of
+// The context: the owner of
 // targets, clips and players, made from a def that names every capacity
 // and allocated in one block through the host's allocator. Nothing
 // allocates after creation.
@@ -10,7 +10,7 @@
 // allocator, the task system's functions and tasks) calls no function of
 // that context: while one runs, those taking the context non-const refuse
 // with mtwn_errorState and count one misuse, and the const ones read it in
-// the middle of a call (record mtwn-0068).
+// the middle of a call.
 
 #ifndef MAUL_TWEEN_CONTEXT_H
 #define MAUL_TWEEN_CONTEXT_H
@@ -49,7 +49,7 @@ extern "C"
     // before returning may return NULL, and finishTask is then not called.
     // Results never depend on the split or the order: each item writes only
     // its own memory. Neither it nor the task calls a function of the
-    // context (record mtwn-0068).
+    // context.
     typedef void* mtwnEnqueueTaskFn(mtwnTaskFn* task, int32_t itemCount, int32_t minRange,
                                     void* taskContext, void* userContext);
 
@@ -67,7 +67,7 @@ extern "C"
         // The allocator; zeroed means the C library's.
         mtwnAllocator allocator;
         // The host's task system, which mtwnUpdate hands the clips' players
-        // to in up to 16 groups (record mtwn-0056); both NULL, the default,
+        // to in up to 16 groups; both NULL, the default,
         // runs every player on the calling thread. One without the other is
         // invalid. With them the context holds each group's scratch: about
         // 16 KB, 72 bytes for each event record up to 1,024 and 60 for each
@@ -86,19 +86,19 @@ extern "C"
         uint32_t clipCapacity;
         // Event records the queue holds between reads, up to
         // MTWN_MAX_COUNT; 0 makes none, and clips' players skip the
-        // sweeps that find their crossings (record mtwn-0062).
+        // sweeps that find their crossings.
         uint32_t eventCapacity;
         // Bindings of slots to targets the players hold at once, up to
         // MTWN_MAX_COUNT.
         uint32_t bindingCapacity;
         // The most nodes a clip may have for players in step to share its
-        // sample, and the most records a sweep keeps to share (record
-        // mtwn-0057), each up to MTWN_MAX_COUNT; 0 shares none of that
+        // sample, and the most records a sweep keeps to share,
+        // each up to MTWN_MAX_COUNT; 0 shares none of that
         // kind. The context holds 80 and 72 bytes for each, in its own
         // work and in each group's with a task system.
         uint32_t sharedNodeCapacity;
         uint32_t sharedRecordCapacity;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint32_t reserved;
         // Bytes for the clips' contents, up to MTWN_MAX_CLIP_STORAGE.
         uint64_t clipStorageBytes;
@@ -183,7 +183,7 @@ extern "C"
 
     /// Returns how many calls against the context were refused for an
     /// invalid argument, a stale id or a call back in from the host's code
-    /// (record mtwn-0068) since it was made.
+    ///  since it was made.
     ///
     /// @param context  The context.
     /// @return The count.
@@ -192,7 +192,7 @@ extern "C"
     MTWN_API uint64_t mtwnGetContextMisuse(const mtwnContext* context);
 
     /// Returns how many clip players' advances a context with a task system
-    /// ran on the calling thread since it was made (record mtwn-0056): a
+    /// ran on the calling thread since it was made: a
     /// player whose clip has more than 128 nodes and other players, one
     /// whose targets of its
     /// own might not fit its group's staging, one whose staging ran out,
@@ -213,7 +213,7 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
 
-    /// Sets reduced motion (record mtwn-0049), off when a context is made.
+    /// Sets reduced motion, off when a context is made.
     /// While it is on, every transition and every running clip's player
     /// with a finite end finishes at the next update, its delay skipped and
     /// its events at that update's time, unless its def marks it

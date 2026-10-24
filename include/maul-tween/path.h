@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Paths and tracks (records mtwn-0016, mtwn-0031 and mtwn-0032): keyframe
+// Paths and tracks: keyframe
 // curves of one to four channels, segment by segment linear, step, cubic
 // Bezier or Catmull-Rom (centripetal by default), timed by their keyframes
 // or traveled at constant speed by arc length; and tracks, which give
@@ -36,7 +36,7 @@ extern "C"
         // A cubic through the keyframes in time that never passes them in
         // any channel: Steffen's slopes over the offsets, flat at a
         // channel's turn, its speed continuous across keyframes of any
-        // spacing under a linear easing (record mtwn-0067).
+        // spacing under a linear easing.
         mtwn_segmentMonotone = 4,
     };
 
@@ -54,7 +54,7 @@ extern "C"
         // The easing of the segment that starts here, and its kind.
         mtwnEasing easing;
         mtwnSegmentKind kind;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[7];
     } mtwnKeyframe;
 
@@ -68,9 +68,9 @@ extern "C"
         uint32_t count;
         uint8_t channels;
         // Whether its values are scales, the path over their logarithms (a
-        // scale track's; record mtwn-0059).
+        // scale track's).
         uint8_t logarithmic;
-        // 0 as made; padding through 1.x (record mtwn-0071).
+        // 0 as made; padding.
         uint8_t reserved[2];
     } mtwnPath;
 
@@ -119,8 +119,8 @@ extern "C"
                                  double tangentOut[4]);
 
     /// Gives a path's direction at a progress, as SVG 2's path
-    /// directionality and CSS's offset-rotate: auto take it (record
-    /// mtwn-0064): a unit vector in its channels, 0 past them. Within a
+    /// directionality and CSS's offset-rotate: auto take it:
+    /// a unit vector in its channels, 0 past them. Within a
     /// segment the curve's direction; where its derivative is 0 (a Bezier
     /// control on its end, a cusp), the first non-zero of its second and
     /// third derivatives, the outgoing direction; at a keyframe the
@@ -171,7 +171,7 @@ extern "C"
         mtwnAngleMethod angleMethod;
         // For rotations: the way each segment turns.
         mtwnRotationPath rotationPath;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[3];
     } mtwnTrackDef;
 
@@ -207,7 +207,7 @@ extern "C"
         mtwnPath path;
         const mtwnSegmentMix* mixes;
         mtwnValueKind kind;
-        // 0 as made; padding through 1.x (record mtwn-0071).
+        // 0 as made; padding.
         uint8_t reserved[7];
     } mtwnTrack;
 
@@ -262,7 +262,7 @@ extern "C"
     /// @param progress  The progress, finite.
     /// @return The value, the kind's channels used and the rest 0; a number
     ///         past the floats' range held at the nearest finite float, as
-    ///         a target holds it (record mtwn-0069).
+    ///         a target holds it.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_API mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress);

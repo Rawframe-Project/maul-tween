@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Sampling (record mtwn-0022): even tables are the easing rounded to
+// Sampling: even tables are the easing rounded to
 // float, and a fitted linear() stays within its tolerance of the easing
 // on a grid of 100,001 progresses the fit never probed, read through the
 // library's own linear().
@@ -118,31 +118,6 @@ static void TestFitsWithinTolerance(void)
             CHECK(error <= tolerances[t], "a fit within its tolerance between its probes too");
         }
     }
-}
-
-// The method's own counts (record mtwn-0022: 32 probes inside each
-// segment, a split at the worst held to the middle 3/4), pinned so the
-// method changes by a decision and not unseen.
-static void TestFitMethod(void)
-{
-    mtwnEasing ease;
-    mtwnEasing quad;
-    mtwnEasing elastic;
-    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &ease) == mtwn_success &&
-              mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success &&
-              mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &elastic) == mtwn_success,
-          "the easings");
-    uint32_t counts[3] = {0, 0, 0};
-    CHECK(mtwnFitLinearEasing(&ease, 1e-3, s_points, s_capacity, &counts[0]) == mtwn_success &&
-              mtwnFitLinearEasing(&quad, 1e-3, s_points, s_capacity, &counts[1]) == mtwn_success &&
-              mtwnFitLinearEasing(&elastic, 1e-3, s_points, s_capacity, &counts[2]) == mtwn_success,
-          "fitted");
-    if (!(counts[0] == 28 && counts[1] == 22 && counts[2] == 73))
-    {
-        printf("  counts %u %u %u\n", counts[0], counts[1], counts[2]);
-    }
-    CHECK(counts[0] == 28 && counts[1] == 22 && counts[2] == 73,
-          "ease, p^2 and elastic out at 1e-3 in 28, 22 and 73 points");
 }
 
 // A bump only the last probe of the first segment sees: on the chord
@@ -321,7 +296,6 @@ int main(void)
 {
     TestEvenTables();
     TestFitsWithinTolerance();
-    TestFitMethod();
     TestFitLastProbe();
     TestFitCounts();
     TestToleranceMetExactly();

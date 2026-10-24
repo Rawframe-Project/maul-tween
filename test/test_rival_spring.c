@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Springs against Motion's own, run under Node by tools/oracle/rivals.mjs
-// (record mtwn-0050): by stiffness, damping and mass, underdamped, near
+// Springs against Motion's own, run under Node by tools/oracle/rivals.mjs:
+// by stiffness, damping and mass, underdamped, near
 // and at critical damping and overdamped, with and without a starting
 // velocity, the value and the velocity agree with Motion's closed forms
 // to rounding, scaled by the spring's amplitude.

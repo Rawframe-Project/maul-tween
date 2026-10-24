@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A clip's player sampled into its targets (records mtwn-0012, mtwn-0013
-// and mtwn-0036). The nodes are walked in the order they were added, each
+// A clip's player sampled into its targets.
+// The nodes are walked in the order they were added, each
 // after its parent: a timeline passes its children its transformed time
 // (Web Animations Level 2), a track writes its value into the target bound
 // to its slot, later tracks over earlier ones. A moving player's velocity
@@ -25,7 +25,7 @@ static const double s_velocitySpan = 0.001;
 
 // The sampling loop's track result stays in it though the sharing calls
 // it too: left out of line, as GCC 14 leaves it, the loop costs every
-// player 2% more (record mtwn-0057).
+// player 2% more.
 #if defined(_MSC_VER) && !defined(__clang__)
 #define MTWN_ALWAYS_INLINE __forceinline
 #else

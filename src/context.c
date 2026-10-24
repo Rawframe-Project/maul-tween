@@ -3,8 +3,7 @@
 //
 // The context: the def checked, the context, its pools and its list of
 // changed targets allocated in one block through the host's allocator,
-// and freed in one call with its clips' blocks (records mtwn-0006,
-// mtwn-0028, mtwn-0029 and mtwn-0033).
+// and freed in one call with its clips' blocks.
 
 #include "allocator.h"
 #include "context_internal.h"

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The easings against GSAP's and tween.js's own, run under Node by
-// tools/oracle/rivals.mjs (record mtwn-0050): with their parameters
+// tools/oracle/rivals.mjs: with their parameters
 // mapped as the easing header documents, each curve agrees with the
 // rival's to a few units in the last place, except where Maul Tween lands
 // exactly on 0 and 1 and the rival does not (expo, elastic), where the

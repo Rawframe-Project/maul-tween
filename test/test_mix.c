@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The mix's error (record mtwn-0070): float ends, equal, one ulp apart,
+// The mix's error: float ends, equal, one ulp apart,
 // thirty orders apart or random, at progress within and far past 0 to 1,
 // against the exact a + t (b - a) kept as an unevaluated sum. Its error is
 // at most u |r| + 2u |t (b - a)|, it is exact at t = 0, at t = 1 and for

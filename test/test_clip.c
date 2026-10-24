@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Clips (records mtwn-0004, mtwn-0013, mtwn-0020, mtwn-0033): one block
+// Clips: one block
 // per clip through the host's allocator within the context's clip
 // storage, tracks made in it as added and read back through the values
 // layer, positions resolved to start times, the states a clip passes, and
@@ -818,7 +818,7 @@ static void TestFloatEnvironment(void)
     CHECK(plain == hostile, "the same lengths under flush-to-zero and rounding toward zero");
 }
 
-// The builder's limits at their edges, found by mutants: a track taking
+// The builder's limits at their edges: a track taking
 // the last keyframes fits, a capacity of MTWN_MAX_COUNT is one, and a
 // node outside the clip is refused.
 static void TestLimitEdges(void)

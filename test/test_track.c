@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Tracks (records mtwn-0016, mtwn-0020, mtwn-0032): each value kind over
+// Tracks: each value kind over
 // keyframes against the values layer it is built from: paths, the
 // integer and discrete rules, angles unwrapped, colors and rotations
 // mixed per segment, rotations as glTF's normalized cubics.
@@ -92,7 +92,7 @@ static void TestKeyframeOffsets(void)
 }
 
 // A track's sample past the floats' range is held at the nearest finite
-// float, as a target's value is (record mtwn-0069): a back out of 100
+// float, as a target's value is: a back out of 100
 // takes 0 to 3e38 near 4e39.
 static void TestSamplePastFloats(void)
 {
@@ -321,7 +321,7 @@ static void TestRotations(void)
 }
 
 // A rotation track refuses an all-zero keyframe and takes others, one of
-// four nonzero channels and a half turn about each axis (found by mutants).
+// four nonzero channels and a half turn about each axis.
 static void TestRotationZero(void)
 {
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
@@ -454,7 +454,7 @@ static mtwnVec4 Scale(float s)
     return (mtwnVec4){s, 0, 0, 0};
 }
 
-// Scales (record mtwn-0059): a track moves their logarithms, so equal
+// Scales: a track moves their logarithms, so equal
 // steps of progress multiply by equal ratios.
 static void TestScales(void)
 {

@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Refusals the headers name that no other test reached (item 108's
-// branch audit): every call given a missing context, the makers' and
-// conversions' null outputs and unknown modes, defs with one of a pair of
-// functions, capacities past the limit, a context grown smaller, a spring
-// not made by the library, a missing output or cookie when adding to a
-// clip, and a node that is not a track.
+// Refusals the headers name that no module's suite reaches: every call given a missing context, the
+// makers' and conversions' null outputs and unknown modes, defs with one of a pair of functions,
+// capacities past the limit, a context grown smaller, a spring not made by the library, a missing
+// output or cookie when adding to a clip, and a node that is not a track.
 
 #include "test_harness.h"
 

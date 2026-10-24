@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Targets (records mtwn-0004 and mtwn-0028): one animated value of a fixed
+// Targets: one animated value of a fixed
 // kind, holding the host's base value, the current value animations
 // compose over it and its velocity. Animations write targets; the host
 // reads them by id.
@@ -22,14 +22,14 @@ extern "C"
     // A target as it is: its kind, base value, current value and velocity
     // (channels per second). The value and velocity are always finite: one
     // driven past the floats' range is held at the nearest finite float,
-    // and still while held (records mtwn-0059 and mtwn-0069).
+    // and still while held.
     typedef struct mtwnTargetState
     {
         mtwnVec4 base;
         mtwnVec4 value;
         mtwnVec4 velocity;
         mtwnValueKind kind;
-        // Written 0 (record mtwn-0071).
+        // Written 0.
         uint8_t reserved[3];
     } mtwnTargetState;
 

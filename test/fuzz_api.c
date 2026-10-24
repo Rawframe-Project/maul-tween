@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The public API driven by bytes (records mtwn-0046, mtwn-0056): clips
+// The public API driven by bytes: clips
 // built node by node with any timing, valid or not; targets of every
 // kind; players with layered bindings, controlled and destroyed;
 // transitions; targets destroyed under their players; reduced motion;
@@ -84,8 +84,8 @@ static double Wild(Bytes* in, double scale)
 }
 
 // The context a script runs on, and whether a host easing ran on it while
-// it was not busy: every call running host code must flag it (record
-// mtwn-0068), and this finds one that does not.
+// it was not busy: every call running host code must flag it,
+// and this finds one that does not.
 static mtwnContext* s_watched;
 static bool s_unflagged;
 
@@ -99,7 +99,7 @@ static double Watched(void* unused, double progress)
 
 // A host curve 0 and 1 at its ends and near 1.5e44 between: whatever the
 // change it eases, it goes past the floats' range, where its values are
-// held (record mtwn-0069). Watching its context too.
+// held. Watching its context too.
 static double Overshooting(void* unused, double progress)
 {
     (void)unused;
@@ -109,7 +109,7 @@ static double Overshooting(void* unused, double progress)
 
 // A value or velocity: Wild's draws, but one in twelve a signed fraction
 // of the largest float, so the script reaches the floats' range without
-// a host curve tuned to (record mtwn-0069). It takes the same bytes as
+// a host curve tuned to. It takes the same bytes as
 // Wild, so a seed's later draws keep their meaning.
 static double Value(Bytes* in, double scale)
 {
@@ -201,7 +201,7 @@ static void Mix(Run* run, const void* bytes, size_t size)
 }
 
 // Every call's status, and whether the call left its context busy: each
-// one leaves what it enters (record mtwn-0068), on every return.
+// one leaves what it enters, on every return.
 static void Status(Run* run, mtwnResult r)
 {
     int32_t v = (int32_t)r;
@@ -377,7 +377,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         (void)mtwnMakeSpringFromDuration(duration, 0.1 * Below(in, 5), &def.spring);
         if (def.spec == mtwn_transitionDecay && Below(in, 2) == 0)
         {
-            // A fling, bounded or landing (record mtwn-0063).
+            // A fling, bounded or landing.
             def.velocitySource = mtwn_velocityGiven;
             def.velocity = (mtwnVec4){(float)Value(in, 8.0), (float)Value(in, 8.0), 0.0f, 0.0f};
             def.bounded = Below(in, 2) == 0;

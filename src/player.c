@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Players (records mtwn-0004, mtwn-0012 and mtwn-0035): every player in
+// Players: every player in
 // creation order, and a clip's player by Web Animations Level 1's
 // procedures, its pending play resolved at the next update, whose host
 // time is the ready time. Times are seconds; NaN is unresolved.
@@ -316,7 +316,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     StartPending(play, now);
     UpdateFinished(play, now, end, false);
     // Under reduced motion one not essential finishes, as a finish does,
-    // what lies between crossed at this time (record mtwn-0049); one with
+    // what lies between crossed at this time; one with
     // an infinite end cannot and plays on. It is judged after the finished
     // state's update, by the state this update leaves.
     double reached = CurrentTime(play, now);
@@ -338,7 +338,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
         return false;
     }
     // A player of the same clip at the same time as the last the work
-    // advanced is near it, and may take its results (record mtwn-0057).
+    // advanced is near it, and may take its results.
     double current = CurrentTime(play, now);
     mtwnSharing* sharing = &work->sharing;
     bool near =
@@ -367,8 +367,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     return done;
 }
 
-// A rate whose size keeps the time to its limit's resolution (record
-// mtwn-0046).
+// A rate whose size keeps the time to its limit's resolution.
 static bool IsRate(double rate)
 {
     return fabs(rate) <= MTWN_RATE_LIMIT;
@@ -848,7 +847,7 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     return result == mtwn_success ? result : Misuse(context, result);
 }
 
-// A control, the context entered for it (record mtwn-0068).
+// A control, the context entered for it.
 static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control control, double argument,
                         uint32_t key)
 {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Players in step share their work (record mtwn-0057): twin contexts run
+// Players in step share their work: twin contexts run
 // one script, one with the sharing and one with it off, and after every
 // update hold the same bits: every target's base, value and velocity, the
 // changed targets in order, every record and the dropped count. The
@@ -739,11 +739,23 @@ static void TestDirectionAtStart(void)
     mtwnDestroyContext(twins[1].context);
 }
 
-int main(void)
+// With no argument, the fixed cases; with "crowd", the bench's crowd of
+// players on twin contexts, the nightly run's.
+int main(int argc, char** argv)
 {
-    TestInStep();
-    TestSpread();
-    TestMixed();
+    bool crowd = argc == 2 && strcmp(argv[1], "crowd") == 0;
+    if (argc > 2 || (argc == 2 && !crowd))
+    {
+        printf("usage: test_clip_step [crowd]\n");
+        return 2;
+    }
+    if (crowd)
+    {
+        TestInStep();
+        TestSpread();
+        TestMixed();
+        return s_failures == 0 ? 0 : 1;
+    }
     TestReusedSlot();
     TestSweepKeys();
     TestManyRecords();

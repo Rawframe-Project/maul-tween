@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Clips (records mtwn-0004, mtwn-0013, mtwn-0033 and mtwn-0034):
+// Clips:
 // immutable descriptions of tracks on nested timelines with labels and
 // marks, built node by node at positions
 // resolved when added, then finished. A finished clip is read through the
@@ -76,7 +76,7 @@ extern "C"
         // For mtwn_positionAtLabel: the label's key.
         uint32_t label;
         mtwnPositionKind kind;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[3];
     } mtwnPosition;
 
@@ -92,7 +92,7 @@ extern "C"
         uint32_t nodeCapacity;
         uint32_t keyframeCapacity;
         uint32_t slotCapacity;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint32_t reserved;
     } mtwnClipDef;
 
@@ -153,7 +153,7 @@ extern "C"
         // Numbers, vectors, angles, integers and rotations; not endless
         // iterations of no duration, which pass at once.
         bool incremental;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[2];
     } mtwnClipTrackDef;
 
@@ -198,7 +198,7 @@ extern "C"
         // children arrive (infinite after an endless child, which makes the
         // timeline endless); otherwise the timing's duration, which clips.
         bool autoDuration;
-        // 0: a call refuses another value (record mtwn-0071).
+        // 0: a call refuses another value.
         uint8_t reserved[3];
         mtwnPosition position;
         // Its timing; its easing must be monotonic.
@@ -245,7 +245,7 @@ extern "C"
         uint32_t slot;
         uint32_t key;
         mtwnNodeKind kind;
-        // Written 0 (record mtwn-0071).
+        // Written 0.
         uint8_t reserved[3];
     } mtwnClipNodeInfo;
 

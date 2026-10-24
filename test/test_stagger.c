@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Staggers (record mtwn-0048): items one cell apart are each apart in a
+// Staggers: items one cell apart are each apart in a
 // row and in a grid, the nearest items begin at the start, every origin
 // and axis measures what it names, a random order is a permutation that
 // repeats for its seed with the same bits everywhere, and misuse writes

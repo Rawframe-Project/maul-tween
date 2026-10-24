@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The reserved bytes of what a call takes in (record mtwn-0071): each
+// The reserved bytes of what a call takes in: each
 // must be 0, so a later 1.y may give one a meaning without changing what
 // a program asks for; a call refuses one that is not.
 

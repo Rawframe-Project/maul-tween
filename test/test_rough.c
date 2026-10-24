@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Rough easings (record mtwn-0061): a seed's points the same bits on
+// Rough easings: a seed's points the same bits on
 // every platform (against SplitMix64 worked in Python), the ends exact,
 // the inputs one to each range, the offsets within the strength by the
 // taper, the flags, and the refusals.

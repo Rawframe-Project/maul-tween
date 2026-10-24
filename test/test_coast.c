@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Transitions' decays bounded and landing (record mtwn-0063): a bounded
+// Transitions' decays bounded and landing: a bounded
 // decay plays as mtwnSampleBoundedDecay per channel and ends on the bound
 // it reached; a landing plays each channel at its own rate and ends on
 // the def's value; scales in their logarithm; angles land after their
@@ -302,8 +302,8 @@ static void TestScalePastFloats(void)
 }
 
 // A number flung, unbounded, so fast it would stop past the floats: the
-// end it stops at is held at the largest float, as its samples are
-// (record mtwn-0069). A scale's is refused (record mtwn-0059, in
+// end it stops at is held at the largest float, as its samples are.
+// A scale's is refused (in
 // test_transition).
 static void TestStopsPastFloats(void)
 {

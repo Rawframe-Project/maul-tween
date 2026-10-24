@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Values as the floats a target holds, past the floats' range the nearest
-// one (records mtwn-0059 and mtwn-0069). A scale within the positive
+// one. A scale within the positive
 // floats, the largest for one past them and the smallest for one below,
 // so that no extrapolation, overshoot or repeat leaves it infinite or 0;
 // a number within the finite floats, as CSS converts a value past its

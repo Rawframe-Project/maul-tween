@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Timings against the library's targets (record mtwn-0043), on the task
+// Timings against the library's targets, on the task
 // its rivals were measured with: 64,000 transitions of a number from 0 to
 // 100 over a second with a quadratic ease out. Creates them all, then
 // updates them at 16 ms steps, the best of 50 updates, without and with
@@ -11,9 +11,9 @@
 // timeline repeating; then one sample each of the values layer's cases.
 // Prints each section's counts and bytes, which do
 // not depend on the machine, as comment lines, then its named results,
-// the best of five runs (the updates' best of 50). Given a baseline
-// file, such as bench/baseline.txt, it prints each result's ratio to the
-// recorded one as well. With --count and a layout of the clip players
+// the best of five runs (the updates' best of 50). Given a file of an
+// earlier run's output, it prints each result's ratio to the one there
+// as well. With --count and a layout of the clip players
 // (step, spread, clips, repeat, churn; -tasks after one runs it in groups
 // on the calling thread, -quiet in a context of no records) and a number
 // of updates, and the clip's period if not 1 s, or a values case (oklab,
@@ -62,7 +62,7 @@ static char s_baseline[16384];
 // Keeps the samples' results alive.
 static volatile double s_sink;
 // The clip's period in seconds: 1, or as --count is given, so that a
-// repeat can fall on every other frame (record mtwn-0043).
+// repeat can fall on every other frame.
 static double s_period = 1.0;
 
 // The value the baseline records for a name, or 0.
@@ -114,12 +114,12 @@ static void Check(mtwnResult status, const char* what)
     }
 }
 
-// The values layer's cases (record mtwn-0058): a color, red to blue, mixed in
+// The values layer's cases: a color, red to blue, mixed in
 // Oklab and in OkLCh; a rotation, identity to 120 degrees about
 // (1, 2, 3), by slerp; a path through eight points at constant speed
 // (centripetal Catmull-Rom); a track of a number, 0, 100, 0 at 0, 1/2
-// and 1, a quadratic out on each segment; a monotone track of a number
-// (record mtwn-0067), 0, 30, 40, 100, 100 at 0, 0.1, 0.4, 0.5 and 1.
+// and 1, a quadratic out on each segment; a monotone track of a number,
+// 0, 30, 40, 100, 100 at 0, 0.1, 0.4, 0.5 and 1.
 enum
 {
     VALUE_OKLAB,
@@ -259,11 +259,11 @@ static uint64_t ClipBytes(void)
 
 // Whether a context runs the clips' players in groups on a task system,
 // here the calling thread, as --count's layouts ending in -tasks ask: what
-// the hooks cost on one worker (record mtwn-0056).
+// the hooks cost on one worker.
 static bool s_tasks = false;
 
-// Whether a context makes no records (an event capacity of 0, record
-// mtwn-0062), as --count's layouts ending in -quiet ask: what a host that
+// Whether a context makes no records (an event capacity of 0), as
+// --count's layouts ending in -quiet ask: what a host that
 // reads no events pays.
 static bool s_quiet = false;
 
@@ -459,8 +459,8 @@ static mtwnClipId MakeClip(mtwnContext* context)
 }
 
 // How the clip players are laid out: in step; spread, player p sought to
-// p ms; each on a clip of its own, in step, so none takes another's work
-// (record mtwn-0057); and so, sought to 0.99 s, so that the first update
+// p ms; each on a clip of its own, in step, so none takes another's work;
+// and so, sought to 0.99 s, so that the first update
 // after the start crosses every player's repeat.
 typedef enum Layout
 {
@@ -556,7 +556,7 @@ static void Churn(mtwnContext* context, uint32_t p)
 // For an instruction counter: a layout's players and then count updates
 // at 16 ms steps, or a values case's count samples, printing nothing, so
 // that two counts' difference is their updates' or samples'
-// (`perf stat -e instructions:u`; records mtwn-0057 and mtwn-0058).
+// (`perf stat -e instructions:u`).
 static int Count(const char* name, int count)
 {
     size_t length = strlen(name);
@@ -628,7 +628,7 @@ int main(int argc, char** argv)
     }
     if (argc == 2 && strcmp(argv[1], "--compiler") == 0)
     {
-        // What tools/bench_counts.py names beside the bounds it checks.
+        // Named beside instruction counts, which differ between compilers.
 #if defined(__clang__)
         printf("Clang %d.%d.%d\n", __clang_major__, __clang_minor__, __clang_patchlevel__);
 #elif defined(__GNUC__)

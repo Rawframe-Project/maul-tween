@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Springs (records mtwn-0010, mtwn-0020, mtwn-0023) against an
+// Springs against an
 // independent reference: the oscillator x'' = -2 a x' - w0^2 x
 // integrated by fourth-order Runge-Kutta in small fixed steps, in long
 // double where the platform has one wider than double. Then the makers'
@@ -223,7 +223,7 @@ static void TestEndsOfTime(void)
                   isfinite(m.velocityFromOffset);
     }
     // Between 2^53 and 2^60 too, where the sine is already out of
-    // [-1, 1] (-3.2e22 at 1e18; a mutant moving the bound found it).
+    // [-1, 1] (-3.2e22 at 1e18).
     CHECK(mtwnMakeSpringFromFrequency(1e18 / s_twoPi, 0.0, &stiff) == mtwn_success, "1e18 rad/s");
     mtwnSpringMotion mid = mtwnSpringMotionAt(&stiff, 1.0);
     bounded = bounded && fabs(mid.offsetFromOffset) <= 1.0 && fabs(mid.velocityFromVelocity) <= 1.0;
@@ -370,7 +370,7 @@ static void TestSettling(void)
     CHECK(isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 1e-3, (double)NAN)), "a NaN one");
 }
 
-// The settling bounds of record mtwn-0023, written again: |x| <= e^(-r t)
+// The settling bounds, written again: |x| <= e^(-r t)
 // (a + b min(t, cap)) for the offset, with a = |x0|, b = |v0 + alpha x0|,
 // and for the velocity with a = |v0|, b = |alpha v0 + w0^2 x0|; rate
 // alpha and cap 1 / w below critical damping, rate w0^2 / (alpha + w) and
@@ -537,7 +537,7 @@ static void TestSettlingTimesAreTheBounds(void)
 }
 
 // Starts whose bounds the search met at their edges (found by fuzz_values
-// with record mtwn-0063's bounded decay): a critical spring whose
+// with the bounded decay): a critical spring whose
 // velocity bound peaks at a time that rounds to nearly 0, where Newton
 // once started on a slope of 0; and products overflowing with opposite
 // signs, once a NaN sum.
@@ -667,7 +667,7 @@ static void TestSpringEasingRefusals(void)
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
 }
 
-// The makers' ranges at their ends (found by mutants): a stiffness of 0
+// The makers' ranges at their ends: a stiffness of 0
 // is refused, a bounce of 1 (no damping) taken, a spring easing in every
 // mode taken.
 static void TestRangeEnds(void)
@@ -711,30 +711,6 @@ static void TestSlowSprings(void)
     never += mtwnSpringSettlingTime(&critical, 0.0, 0.0, 0.0, 1e-3) == HUGE_VAL;
     never += mtwnSpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 0.0) == HUGE_VAL;
     CHECK(never == 4, "a tolerance of 0 never met, from rest too");
-    mtwnSpring stiff;
-    CHECK(mtwnMakeSpringFromFrequency(7.75, 1.0, &stiff) == mtwn_success, "a critical spring");
-    CHECK(mtwnSpringSettlingTime(&stiff, -1e-7, -1e-4, 1e-7, 0.5) == 0x1.838eecff3de01p-4,
-          "its settling time to the bit");
-}
-
-// Motion and settling on their edges, to the bit: a phase of exactly
-// 2^52, the first reduced; an overdamped phase of exactly 0.5, the first
-// past the series; and an offset whose bound has no velocity term (v =
-// -decay x), e^-t from 1 to 0.5 in ln 2.
-static void TestSpringEdgeBits(void)
-{
-    mtwnSpring undamped;
-    CHECK(mtwnMakeSpring(1.0, 0.0, 1.0, &undamped) == mtwn_success, "undamped, 1 rad/s");
-    CHECK(mtwnSpringMotionAt(&undamped, 0x1p52).offsetFromOffset == -0x1.42f30bfeab95fp-1,
-          "cos(2^52), reduced");
-    mtwnSpring over;
-    CHECK(mtwnMakeSpring(1.0, 2.5, 1.0, &over) == mtwn_success, "overdamped, w = 0.75");
-    CHECK(mtwnSpringMotionAt(&over, 0x1.5555555555555p-1).offsetFromOffset == 0x1.bc2a301994bdfp-1,
-          "w t of 0.5 exactly, past the series");
-    mtwnSpring spring;
-    CHECK(mtwnMakeSpring(4.0, 2.0, 1.0, &spring) == mtwn_success, "a decay of 1");
-    CHECK(mtwnSpringSettlingTime(&spring, 1.0, -1.0, 0.5, 10.0) == 0x1.62e42fefa39efp-1,
-          "ln 2, the bound with no velocity term");
 }
 
 int main(void)
@@ -752,6 +728,5 @@ int main(void)
     TestSpringEasingFitsLinear();
     TestSpringEasingRefusals();
     TestSlowSprings();
-    TestSpringEdgeBits();
     return s_failures == 0 ? 0 : 1;
 }

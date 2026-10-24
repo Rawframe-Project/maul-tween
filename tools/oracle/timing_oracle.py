@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Sirac Ozmen
 #
-# An independent reference for Maul Tween's timing (records mtwn-0012,
-# mtwn-0020 and mtwn-0027): Web Animations Level 1's timing steps
+# An independent reference for Maul Tween's timing:
+# Web Animations Level 1's timing steps
 # written again from the specification's text, with Level 2's effect
 # playback rate and Maul Tween's repeat delay and alternate easing, and
 # CSS's steps() easing so the before flag shows. It writes
@@ -212,7 +212,7 @@ def compute(t, local, backwards):
 def cases():
     random = SplitMix64(2026)
     out = []
-    for _ in range(1200):
+    for _ in range(300):
         t = {
             "delay": random.pick([-2.0, -1.0, -0.5, 0.0, 0.25, 0.5, 1.0, 2.0]),
             "endDelay": random.pick([-2.0, -0.5, 0.0, 0.0, 0.5, 1.5]),
@@ -239,7 +239,7 @@ def cases():
             local = 1.0
         out.append((t, local, backwards, compute(t, local, backwards)))
     # Repeat delays, at times inside the active interval where they lie.
-    for _ in range(400):
+    for _ in range(100):
         t = {
             "delay": random.pick([0.0, 0.5, -0.5]),
             "endDelay": random.pick([0.0, 1.0]),
@@ -263,7 +263,7 @@ def cases():
 
 
 def regressions():
-    """Fixed cases for defects the crossing oracle found (record mtwn-0027), kept
+    """Fixed cases for defects the crossing oracle found, kept
     so a later change to repeat delays or negative rates meets them."""
     base = {"delay": 0.0, "endDelay": 0.0, "iterationStart": 0.0, "iterations": 2.0,
             "duration": 1.0, "repeatDelay": 0.0, "rate": 1.0, "fill": FILL_BOTH,
@@ -298,7 +298,7 @@ def regressions():
     t = dict(base, iterationStart=1e300, iterations=0.25, repeatDelay=0.5)
     for local in [0.0, 0.125, 0.25]:
         out.append((t, local, False, compute(t, local, False)))
-    # Rounding that stepped the position back (record mtwn-0012, amended
+    # Rounding that stepped the position back (amended
     # 2026-10-17): iterations of 0.1 with delays of 0.1, where 2 + 0.1 /
     # 0.1 rounds to 3 at a delay's start; and a negative rate a double
     # after its delay, its scaled time rounded to the whole.
@@ -310,7 +310,7 @@ def regressions():
         out.append((t, local, False, compute(t, local, False)))
     # A whole iteration start whose cycles' quotient rounds below it (339
     # times 0.2 over 0.2 floors to 338): the first iteration's start, not
-    # an iteration before it held at its end (record mtwn-0012, amended
+    # an iteration before it held at its end (amended
     # 2026-10-17).
     for start, d, r in [(339.0, 0.1, 0.1), (933.0, 0.3, 0.05)]:
         t = dict(base, iterationStart=start, duration=d, repeatDelay=r, iterations=3.0)

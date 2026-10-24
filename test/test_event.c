@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Events (records mtwn-0004, mtwn-0013, mtwn-0038): a played clip's
+// Events: a played clip's
 // records, counted and ordered by the time of their first crossing; an
 // hour's stall over an endless repeat in one record; backwards; jumping and
 // sweeping seeks; cancel; transitions; a full queue; two players' order.
@@ -131,8 +131,8 @@ static void TestPlayed(void)
     mtwnDestroyContext(w.context);
 }
 
-// A context of no events makes none and skips the sweeps (record
-// mtwn-0062): a mark and a track's iterations and ends crossed, nothing
+// A context of no events makes none and skips the sweeps:
+// a mark and a track's iterations and ends crossed, nothing
 // recorded or dropped, each frame's value that of a twin with a queue.
 static void TestNoQueue(void)
 {
@@ -984,8 +984,8 @@ static void TestOrder(void)
 }
 
 // One clip played to the same time by three paths of frames: each
-// record's time may be another double where its count flips (record
-// mtwn-0053) but lies within 1e-9 s of the others', and two boundaries
+// record's time may be another double where its count flips
+//  but lies within 1e-9 s of the others', and two boundaries
 // 1e-12 s apart, thousands of doubles, keep their order.
 static void TestPaths(void)
 {

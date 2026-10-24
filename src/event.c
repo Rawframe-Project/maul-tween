@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Events (records mtwn-0004, mtwn-0013 and mtwn-0038): the bounded queue.
+// Events: the bounded queue.
 // Records are kept in the order they are made (creation order; a clip's
 // player's in clip order, then start, iteration, end, by src/sweep.c) and
 // sorted, stably, by time once the update is done.

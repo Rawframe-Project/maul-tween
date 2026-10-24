@@ -22,3 +22,5 @@
 ## Maintaining it
 
 - [Development](operations/development.md): toolchain, running one test, generated files and oracles, code size, benchmarks, fuzzing.
+- [Checks](operations/checks.md): the local tiers, the CI jobs, test labels and the nightly scenes, the time budgets.
+- [Release](operations/release.md): how a version is released and what it carries.

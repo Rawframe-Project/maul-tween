@@ -1,5 +1,4 @@
-# The <math.h> functions src/ may call (conventions section 11,
-# record mtwn-0001): each exactly rounded, so its results are the same
+# The <math.h> functions src/ may call: each exactly rounded, so its results are the same
 # under every C library; any other is refused by tools/check_source.py.
 # The library writes its own exponential, logarithm, trigonometry and
 # powers.

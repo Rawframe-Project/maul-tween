@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Runs of entries in a fixed array, handed out first fit and coalesced
-// when given back (record mtwn-0035): the players' bindings. A free run
+// when given back: the players' bindings. A free run
 // keeps its length and the next free run in its first entry.
 
 #ifndef MAUL_TWEEN_SRC_RUNS_H

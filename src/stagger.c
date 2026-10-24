@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Staggers (record mtwn-0048). The distances' least and range are found
+// Staggers. The distances' least and range are found
 // first, without writing, so a spread that is not finite is refused with
 // nothing written; then each item's distance is written into the
 // caller's offsets and normalized, eased and scaled in place, so nothing

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Transitions in the player pool (records mtwn-0004 and mtwn-0029): a
+// Transitions in the player pool: a
 // start from the target's current value, the kind's mix made at once,
 // and the transition it replaces ended. The mixes, a spring's settling
 // time and a decay's stop compute, so starting runs in the library's
-// floating-point environment (records mtwn-0029 and mtwn-0030).
+// floating-point environment.
 
 #include "maul-tween/transition.h"
 
@@ -189,9 +189,9 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
                         NULL);
         position = scale ? mtwnExp(position) : position;
         position = out->kind == mtwn_valueInteger ? round(position) : position;
-        // A number held within the floats as every sample is (record
-        // mtwn-0069), a fast fling stopping past them; a scale's stop past
-        // them is refused instead (record mtwn-0059).
+        // A number held within the floats as every sample is,
+        // a fast fling stopping past them; a scale's stop past
+        // them is refused instead.
         to[i] = (float)(scale ? position : mtwnNumberHeld(position));
     }
 }
@@ -238,7 +238,7 @@ static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* ou
     return true;
 }
 
-// A decay's landing or bounds (record mtwn-0063): the landing's rate per
+// A decay's landing or bounds: the landing's rate per
 // channel and its value as the end; the channels a bounded decay hands
 // over to its bounce, their bound as the end. False when the def's
 // landing or bounds are refused.
@@ -348,7 +348,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
 // CSS Transitions' reversal: an eased transition starts where the one it
 // replaces would return to, unless it reverses that one, ending where it
 // began: then its duration shrinks by the share of the way that one
-// covered, eased (record mtwn-0045).
+// covered, eased.
 static void Reverse(const mtwnContext* context, const mtwnTransitionDef* def,
                     const mtwnTargetSlot* target, mtwnPlayerSlot* out)
 {
@@ -472,7 +472,7 @@ mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* de
 }
 
 // The distance from a value to an end, both accepted, in the kind's own
-// measure (record mtwn-0060).
+// measure.
 static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtwnVec4 from,
                            mtwnVec4 to, double* distanceOut)
 {

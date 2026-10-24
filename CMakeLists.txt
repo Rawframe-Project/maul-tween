@@ -23,7 +23,8 @@ option(MAUL_TWEEN_WERROR "Treat compiler warnings as errors" OFF)
 option(MAUL_TWEEN_SANITIZE "Instrument with AddressSanitizer and UBSan" OFF)
 option(MAUL_TWEEN_TSAN "Instrument with ThreadSanitizer" OFF)
 option(MAUL_TWEEN_COVERAGE "Instrument for gcov coverage" OFF)
-option(MAUL_TWEEN_FUZZ "Build the libFuzzer target (Clang)" OFF)
+option(MAUL_TWEEN_FUZZ "Build the libFuzzer targets (Clang)" OFF)
+option(MAUL_TWEEN_TEST_PACKAGE "Test the installed package by building samples/minimal against it" OFF)
 
 # Every executable (tests, benchmarks, tools) lands in the top of the
 # build tree, so scripts and CI find them in one place.
@@ -82,13 +83,22 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/elementary_float.c)
 maul_configure_library(maul-tween)
 # The exactly rounded functions the library takes from libm
-# (tools/libm-allowed.txt, record mtwn-0001).
+# (tools/libm-allowed.txt).
 if(NOT WIN32 AND NOT APPLE)
     target_link_libraries(maul-tween PUBLIC m)
 endif()
 
 if(MAUL_TWEEN_BUILD_TESTS)
     enable_testing()
+    # maul_add_nightly(<name> <argument>): test_<name> run with the argument
+    # as <name>_<argument>, a large random scene labeled nightly, which the
+    # pull request check leaves out.
+    function(maul_add_nightly name argument)
+        if(TARGET test_${name})
+            add_test(NAME ${name}_${argument} COMMAND test_${name} ${argument})
+            set_tests_properties(${name}_${argument} PROPERTIES LABELS "${name};nightly")
+        endif()
+    endfunction()
     maul_add_test(base)
     maul_add_test(easing)
     maul_add_test(easing_css)
@@ -113,28 +123,34 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(path)
     maul_add_test(direction)
     maul_add_test(monotone)
-    maul_add_test(path_counts WHITEBOX)
+    maul_add_test(path_length)
     maul_add_test(track)
     maul_add_test(clip WHITEBOX)
-    maul_add_test(player WHITEBOX)
+    maul_add_test(player)
     maul_add_test(clip_play)
     maul_add_test(clip_share)
     maul_add_test(clip_tasks WHITEBOX THREADS)
     maul_add_test(clip_step WHITEBOX)
+    maul_add_nightly(clip_tasks twins)
+    maul_add_nightly(clip_step crowd)
     maul_add_test(clip_velocity)
     maul_add_test(reduced)
     maul_add_test(threads THREADS)
-    # The crossing test's oracle trials in three slices beside its exact
-    # cases, run side by side; with no argument the program runs all.
+    # The crossing test's exact cases, and a thirtieth of its oracle trials;
+    # the nightly run takes them all, in three slices side by side.
     maul_add_test(crossing WHITEBOX MANUAL)
     if(TARGET test_crossing)
         add_test(NAME crossing COMMAND test_crossing exact)
+        add_test(NAME crossing_oracle COMMAND test_crossing oracle 0 30)
+        set_tests_properties(crossing crossing_oracle PROPERTIES LABELS crossing)
         foreach(slice 0 1 2)
             add_test(NAME crossing_oracle_${slice} COMMAND test_crossing oracle ${slice} 3)
+            set_tests_properties(crossing_oracle_${slice} PROPERTIES LABELS "crossing;nightly")
         endforeach()
     endif()
     maul_add_test(exact WHITEBOX)
     maul_add_test(sweep WHITEBOX)
+    maul_add_nightly(sweep twins)
     maul_add_test(event)
     maul_add_test(compose WHITEBOX)
     maul_add_test(incremental)
@@ -158,6 +174,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
             target_include_directories(test_fuzz_${target} PRIVATE ${PROJECT_SOURCE_DIR}/src)
             maul_apply_flags(test_fuzz_${target})
             add_test(NAME fuzz_${target} COMMAND test_fuzz_${target})
+            set_tests_properties(fuzz_${target} PROPERTIES LABELS fuzz_${target})
         endforeach()
         # The fit's target is fuzz_values' easings with their fits.
         add_executable(test_fuzz_fit ${PROJECT_SOURCE_DIR}/test/fuzz_values.c)
@@ -166,6 +183,16 @@ if(MAUL_TWEEN_BUILD_TESTS)
         target_compile_definitions(test_fuzz_fit PRIVATE MTWN_FUZZ_FIT)
         maul_apply_flags(test_fuzz_fit)
         add_test(NAME fuzz_fit COMMAND test_fuzz_fit)
+        set_tests_properties(fuzz_fit PROPERTIES LABELS fuzz_fit)
+    endif()
+    # The package test: installs the build into the build tree and builds
+    # samples/minimal against it, as a consumer of the package would.
+    if(MAUL_TWEEN_TEST_PACKAGE AND MAUL_TWEEN_INSTALL)
+        add_test(NAME package
+                 COMMAND ${CMAKE_COMMAND} -DBINARY_DIR=${PROJECT_BINARY_DIR}
+                         -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -DGENERATOR=${CMAKE_GENERATOR}
+                         -DC_COMPILER=${CMAKE_C_COMPILER} -P ${PROJECT_SOURCE_DIR}/cmake/PackageTest.cmake)
+        set_tests_properties(package PROPERTIES LABELS package)
     endif()
 endif()
 

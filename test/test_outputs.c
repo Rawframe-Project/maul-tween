@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Outputs on failure (record mtwn-0073): each output filled with bytes of
+// Outputs on failure: each output filled with bytes of
 // 0xAB, each call made to fail. A call on a context clears its outputs, a
 // missing context's failure too; a call without one leaves them as they
 // were; arrays rewritten in place are as they were where the header says

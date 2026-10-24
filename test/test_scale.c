@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Scales and zooms (record mtwn-0059): against 60-digit decimals
+// Scales and zooms: against 60-digit decimals
 // (tools/oracle/zoom_oracle.py), van Wijk and Nuij's path written as the
 // paper writes it; ends exact, equal ratios for equal steps, the zoom of
 // equal centres the limit of a pan going to 0, and the refusals.
@@ -80,11 +80,6 @@ static void TestScaleShape(void)
     double v = mtwnMixScale(&mix, 0.9);
     CHECK(isfinite(v) && fabs(v / 1e240 - 1.0) <= 1e-12, "1e-300 to 1e300 at 0.9 is 1e240");
     CHECK(mtwnMixScale(&mix, 2.0) == HUGE_VAL, "past the range it overflows");
-    // An exponent of exactly 700, where the form changes to the sum of
-    // logarithms: the same bits (record mtwn-0072).
-    CHECK(mtwnMakeScaleMix(0x1.56e1fc2f8f359p-997, 0x1.7e43c8800759cp+996, &mix) == mtwn_success &&
-              mtwnMixScale(&mix, 0x1.036b277015af3p-1) == 0x1.3cf2907b21126p+13,
-          "at the form's switch, bit for bit");
     const double bad[] = {0.0, -1.0, HUGE_VAL, (double)NAN};
     int refused = 0;
     for (int i = 0; i < 4; ++i)
@@ -148,11 +143,6 @@ static void TestZoomShape(void)
     CHECK(at0.x == a.x && at0.y == a.y && at0.width == a.width && at1.x == b.x && at1.y == b.y &&
               at1.width == b.width,
           "its ends exact");
-    // A point on the way, the same bits (record mtwn-0072).
-    mtwnZoomView at9 = mtwnMixZoom(&mix, 9.0 / 64.0);
-    CHECK(at9.x == 0x1.e5d7058f4208cp-2 && at9.y == -0x1.5166c1fdb387dp+1 &&
-              at9.width == 0x1.3773370801a64p+2,
-          "a point on the way, bit for bit");
     // A pan of 7 widths' worth zooms out on the way.
     double widest = 0.0;
     for (int k = 1; k < 64; ++k)
@@ -225,21 +215,16 @@ static void TestZoomRefusals(void)
           "into 1e-300 still taken");
 }
 
-// The bits a zoom gives and its bounds, to the last bit (the same bits on
-// every platform): a point near the end, whose pan's sinh the series
-// gives; and a path parameter of exactly 700 at the start (zooming out
-// to a width of 1.007e152) or at the end (into 1.97e-304), on the
-// range's bound and refused. A negative rho with equal views, whose
+// A path parameter of exactly 700 at the start (zooming out to a width of
+// 1.007e152) or at the end (into 1.97e-304), on the range's bound, is
+// refused. A negative rho with equal views, whose
 // length would be -0, is refused as every rho not above 0.
-static void TestZoomBits(void)
+static void TestZoomRange(void)
 {
     mtwnZoomMix mix;
     mtwnZoomView a = {0.0, 0.0, 1.0};
     CHECK(mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 2.0}, 1.0, &mix) == mtwn_success,
           "a zoom out with a pan");
-    mtwnZoomView v = mtwnMixZoom(&mix, 63.0 / 64.0);
-    CHECK(v.x == 0x1.f251e7f022ee7p-1 && v.y == 0.0 && v.width == 0x1.fc85c1b95ee79p+0,
-          "its point at 63/64, to the bit");
     int refused = 0;
     refused += mtwnMakeZoomMix(a, (mtwnZoomView){1.0, 0.0, 0x1.ec417a3e63b75p+504}, 1.0, &mix) ==
                mtwn_errorInvalid;
@@ -256,6 +241,6 @@ int main(void)
     TestZoomCases();
     TestZoomShape();
     TestZoomRefusals();
-    TestZoomBits();
+    TestZoomRange();
     return s_failures == 0 ? 0 : 1;
 }

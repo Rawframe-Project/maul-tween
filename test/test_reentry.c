@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Calls back in from the host's code a context runs (record mtwn-0068): a
+// Calls back in from the host's code a context runs: a
 // host easing, the allocator and the task system calling a function of the
 // context they serve are refused, each counted as misuse, the context
 // intact.

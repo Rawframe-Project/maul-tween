@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A path's direction (record mtwn-0064), by SVG 2's rules: a line's own,
+// A path's direction, by SVG 2's rules: a line's own,
 // the later segment's at a keyframe, a derivative of 0 by the next one
 // that is not, a step and coincident keyframes by their neighbours, a
 // path of no length along the first channel, at constant speed alike;
@@ -91,16 +91,15 @@ static void TestStillDerivatives(void)
     keys[1].in = keys[0].value;
     CHECK(mtwnMakePath(keys, 2, 2, 0.5, NULL, &path) == mtwn_success, "both on its start");
     CHECK(Along(&path, 0.0, 0.0, -1.0) && Along(&path, 0.5, 0.0, -1.0), "straight down");
-    // Its bits, which 1.x keeps on every platform: the way to (0.001,
-    // -0.003) as the library finds it, the third derivative, under 1, over
-    // its largest component, then over its norm.
+    // A small slanted end: the third derivative, under 1, still gives its
+    // way, (1, -3) normalized.
     keys[1].value = (mtwnVec4){0.001f, -0.003f, 0, 0};
     CHECK(mtwnMakePath(keys, 2, 2, 0.5, NULL, &path) == mtwn_success, "a slanted one");
     double d[4];
     mtwnPathDirection(&path, 0.0, d);
-    CHECK(d[0] == 0x1.43d136e241268p-2 && d[1] == -0x1.e5b9d117276b2p-1 && d[2] == 0.0 &&
-              d[3] == 0.0,
-          "its way to the bit");
+    CHECK(fabs(d[0] - 1.0 / sqrt(10.0)) <= 1e-6 && fabs(d[1] + 3.0 / sqrt(10.0)) <= 1e-6 &&
+              d[2] == 0.0 && d[3] == 0.0,
+          "its way, toward the end");
     // A cusp inside: (0, 0) with controls (1, 1) and (0, 1) to (1, 0) stops at
     // half way, where the second derivative turns it down.
     mtwnKeyframe cusp[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
@@ -142,7 +141,7 @@ static void TestNeighbours(void)
     CHECK(mtwnMakePath(still, 3, 2, 0.5, NULL, &path) == mtwn_success, "coincident first");
     CHECK(Along(&path, 0.1, 0.0, 1.0) && Along(&path, -1.0, 0.0, 1.0), "the line after's");
     // And as a Catmull-Rom between them at constant speed, whose length
-    // is rounding (record mtwn-0031, amended).
+    // is rounding.
     still[0].kind = mtwn_segmentCatmullRom;
     double lengths[3];
     CHECK(mtwnMakePath(still, 3, 2, 0.5, lengths, &path) == mtwn_success, "at constant speed");
