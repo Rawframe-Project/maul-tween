@@ -62,7 +62,7 @@ python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --budget
 python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --map clips   # what links a part in
 ```
 
-The parts are the curves (easing, sampling, springs), the values (interpolation, paths, timing), the transitions (a context, targets, transitions) and the clips (clips, players, events). Each has a budget in the script, about 6% over its size when the budget was set, for GCC 14 on x86-64; about 12 kB of each is the library's own elementary functions. `--budget` fails past one. A budget is raised only with a reason given in the pull request.
+The parts are the curves (easing, sampling, springs), the values (interpolation, paths, timing), the transitions (a context, targets, transitions) and the clips (clips, players, events). Each has a budget in the script, about 6% over its size when the budget was set and moved since only by what a pull request states, for GCC 14 on x86-64; about 12 kB of each is the library's own elementary functions. `--budget` fails past one. A budget is raised only with a reason given in the pull request.
 
 ## Benchmarks
 
