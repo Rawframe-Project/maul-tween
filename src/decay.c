@@ -9,6 +9,8 @@
 // f <= 1/2, for the same reason.
 
 #include "elementary.h"
+#include "fpenv.h"
+#include "work.h"
 
 #include "maul-tween/spring.h"
 
@@ -16,7 +18,7 @@
 
 static const double s_seriesBelow = 0.5;
 
-mtwnResult mtwnMakeDecay(double rate, mtwnDecay* decayOut)
+MTWN_NOINLINE mtwnResult mtwnMakeDecayWork(double rate, mtwnDecay* decayOut)
 {
     if (decayOut == NULL || !isfinite(rate) || rate <= 0.0)
     {
@@ -26,11 +28,28 @@ mtwnResult mtwnMakeDecay(double rate, mtwnDecay* decayOut)
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeDecayFromDeceleration(double perMillisecond, mtwnDecay* decayOut)
+mtwnResult mtwnMakeDecay(double rate, mtwnDecay* decayOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeDecayWork(rate, decayOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakeDecayFromDecelerationWork(double perMillisecond,
+                                                                  mtwnDecay* decayOut)
 {
     // A share outside (0, 1) gives a rate that is NaN, infinite or not above
     // 0, which mtwnMakeDecay refuses.
     return mtwnMakeDecay(-1000.0 * mtwnLog(perMillisecond), decayOut);
+}
+
+mtwnResult mtwnMakeDecayFromDeceleration(double perMillisecond, mtwnDecay* decayOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeDecayFromDecelerationWork(perMillisecond, decayOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // (1 - e^(-y)) / y for y >= 0.
@@ -51,8 +70,8 @@ static double TravelShare(double y)
     return sum;
 }
 
-void mtwnSampleDecay(const mtwnDecay* decay, double position, double velocity, double seconds,
-                     double* positionOut, double* velocityOut)
+MTWN_NOINLINE void mtwnSampleDecayWork(const mtwnDecay* decay, double position, double velocity,
+                                       double seconds, double* positionOut, double* velocityOut)
 {
     double rate = decay->rate;
     double travel = 0.0;
@@ -77,7 +96,16 @@ void mtwnSampleDecay(const mtwnDecay* decay, double position, double velocity, d
     }
 }
 
-double mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed)
+void mtwnSampleDecay(const mtwnDecay* decay, double position, double velocity, double seconds,
+                     double* positionOut, double* velocityOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnSampleDecayWork(decay, position, velocity, seconds, positionOut, velocityOut);
+    mtwnFloatEnvLeave(env);
+}
+
+MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double velocity,
+                                           double stopSpeed)
 {
     if (!(stopSpeed > 0.0))
     {
@@ -87,8 +115,16 @@ double mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpe
     return speed <= stopSpeed ? 0.0 : mtwnLog(speed / stopSpeed) / decay->rate;
 }
 
-double mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
-                             double target)
+double mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnDecayStopTimeWork(decay, velocity, stopSpeed);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double position,
+                                               double velocity, double target)
 {
     double distance = target - position;
     if (distance == 0.0)
@@ -118,7 +154,17 @@ double mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double vel
     return 2.0 * s * sum / decay->rate;
 }
 
-double mtwnRubberBand(double distance, double dimension, double coefficient)
+double mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
+                             double target)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnDecayCrossingTimeWork(decay, position, velocity, target);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE double mtwnRubberBandWork(double distance, double dimension,
+                                               double coefficient)
 {
     if (!(dimension > 0.0) || !(coefficient > 0.0) || isnan(distance))
     {
@@ -140,7 +186,16 @@ double mtwnRubberBand(double distance, double dimension, double coefficient)
     return copysign(isinf(smaller) ? smaller : smaller / (1.0 + smaller / larger), distance);
 }
 
-double mtwnRubberBandInverse(double offset, double dimension, double coefficient)
+double mtwnRubberBand(double distance, double dimension, double coefficient)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnRubberBandWork(distance, dimension, coefficient);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE double mtwnRubberBandInverseWork(double offset, double dimension,
+                                                      double coefficient)
 {
     if (!(dimension > 0.0) || !(coefficient > 0.0) || isnan(offset))
     {
@@ -154,4 +209,12 @@ double mtwnRubberBandInverse(double offset, double dimension, double coefficient
     // An endless view resists nothing: d / (d - o) tends to 1.
     double resisted = isinf(dimension) ? 1.0 : dimension / (dimension - moved);
     return copysign(resisted * moved / coefficient, offset);
+}
+
+double mtwnRubberBandInverse(double offset, double dimension, double coefficient)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnRubberBandInverseWork(offset, dimension, coefficient);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

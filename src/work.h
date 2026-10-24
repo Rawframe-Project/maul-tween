@@ -23,5 +23,24 @@ MTWN_NOINLINE mtwnResult mtwnMakeLinearEasingWork(mtwnLinearPoint* points, uint3
                                                   mtwnEasing* easingOut);
 MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
 MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, bool before);
+MTWN_NOINLINE mtwnSpringMotion mtwnSpringMotionAtWork(const mtwnSpring* spring, double seconds);
+MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset, double velocity,
+                                        double seconds, double* offsetOut, double* velocityOut);
+MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
+                                                double velocity, double offsetTolerance,
+                                                double velocityTolerance);
+MTWN_NOINLINE mtwnResult mtwnMakeDecayWork(double rate, mtwnDecay* decayOut);
+MTWN_NOINLINE void mtwnSampleDecayWork(const mtwnDecay* decay, double position, double velocity,
+                                       double seconds, double* positionOut, double* velocityOut);
+MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double velocity,
+                                           double stopSpeed);
+MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double position,
+                                               double velocity, double target);
+MTWN_NOINLINE void mtwnSampleBoundedDecayWork(const mtwnBoundedDecay* bounded, double position,
+                                              double velocity, double seconds, double* positionOut,
+                                              double* velocityOut);
+MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded, double position,
+                                                  double velocity, double offsetTolerance,
+                                                  double stopSpeed);
 
 #endif // MAUL_TWEEN_SRC_WORK_H

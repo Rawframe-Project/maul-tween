@@ -75,7 +75,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
     if (slot->spec == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))
     {
         double offset = 0.0;
-        mtwnSampleSpring(&slot->spring, -1.0, slot->velocity[0], t, &offset, NULL);
+        mtwnSampleSpringWork(&slot->spring, -1.0, slot->velocity[0], t, &offset, NULL);
         PathAt(slot, 1.0 + offset, value);
         return false;
     }
@@ -99,7 +99,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
     mtwnSpringMotion motion = {0};
     if (slot->spec == mtwn_transitionSpring)
     {
-        motion = mtwnSpringMotionAt(&slot->spring, t);
+        motion = mtwnSpringMotionAtWork(&slot->spring, t);
     }
     for (uint8_t i = 0; i < 4; ++i)
     {

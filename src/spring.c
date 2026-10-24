@@ -16,8 +16,10 @@
 #include "maul-tween/spring.h"
 
 #include "elementary.h"
+#include "fpenv.h"
 #include "spring_easing.h"
 #include "spring_internal.h"
+#include "work.h"
 
 #include "generated/math_constants.h"
 
@@ -84,7 +86,8 @@ static mtwnResult Finish(double frequency, double ratio, mtwnSpring* springOut)
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeSpring(double stiffness, double damping, double mass, mtwnSpring* springOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeSpringWork(double stiffness, double damping, double mass,
+                                                   mtwnSpring* springOut)
 {
     if (!isfinite(stiffness) || stiffness <= 0.0 || !isfinite(damping) || damping < 0.0 ||
         !isfinite(mass) || mass <= 0.0)
@@ -97,7 +100,16 @@ mtwnResult mtwnMakeSpring(double stiffness, double damping, double mass, mtwnSpr
     return Finish(frequency, ratio, springOut);
 }
 
-mtwnResult mtwnMakeSpringFromFrequency(double hertz, double dampingRatio, mtwnSpring* springOut)
+mtwnResult mtwnMakeSpring(double stiffness, double damping, double mass, mtwnSpring* springOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeSpringWork(stiffness, damping, mass, springOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakeSpringFromFrequencyWork(double hertz, double dampingRatio,
+                                                                mtwnSpring* springOut)
 {
     if (!isfinite(hertz) || hertz <= 0.0)
     {
@@ -106,7 +118,16 @@ mtwnResult mtwnMakeSpringFromFrequency(double hertz, double dampingRatio, mtwnSp
     return Finish(4.0 * MTWN_PIO2_HI * hertz, dampingRatio, springOut);
 }
 
-mtwnResult mtwnMakeSpringFromDuration(double duration, double bounce, mtwnSpring* springOut)
+mtwnResult mtwnMakeSpringFromFrequency(double hertz, double dampingRatio, mtwnSpring* springOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeSpringFromFrequencyWork(hertz, dampingRatio, springOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakeSpringFromDurationWork(double duration, double bounce,
+                                                               mtwnSpring* springOut)
 {
     if (!isfinite(duration) || duration <= 0.0 || !(bounce > -1.0 && bounce <= 1.0))
     {
@@ -114,6 +135,14 @@ mtwnResult mtwnMakeSpringFromDuration(double duration, double bounce, mtwnSpring
     }
     double ratio = bounce >= 0.0 ? 1.0 - bounce : 1.0 / (1.0 + bounce);
     return Finish(4.0 * MTWN_PIO2_HI / duration, ratio, springOut);
+}
+
+mtwnResult mtwnMakeSpringFromDuration(double duration, double bounce, mtwnSpring* springOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeSpringFromDurationWork(duration, bounce, springOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // The motion from e^(-a t), C and S.
@@ -147,7 +176,7 @@ static mtwnSpringMotion Overdamped(const mtwnSpring* spring, double seconds)
     return motion;
 }
 
-mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds)
+MTWN_NOINLINE mtwnSpringMotion mtwnSpringMotionAtWork(const mtwnSpring* spring, double seconds)
 {
     double decay = spring->parameters[s_decay];
     double damped = spring->parameters[s_damped];
@@ -175,10 +204,18 @@ mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds)
     return FromTerms(spring, envelope, 0.5 * (mtwnExp(y) + mtwnExp(-y)), seconds * SinhcSeries(y));
 }
 
-void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity, double seconds,
-                      double* offsetOut, double* velocityOut)
+mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds)
 {
-    mtwnSpringMotion motion = mtwnSpringMotionAt(spring, seconds);
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnSpringMotion result = mtwnSpringMotionAtWork(spring, seconds);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset, double velocity,
+                                        double seconds, double* offsetOut, double* velocityOut)
+{
+    mtwnSpringMotion motion = mtwnSpringMotionAtWork(spring, seconds);
     if (offsetOut != NULL)
     {
         *offsetOut = motion.offsetFromOffset * offset + motion.offsetFromVelocity * velocity;
@@ -187,6 +224,14 @@ void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity, 
     {
         *velocityOut = motion.velocityFromOffset * offset + motion.velocityFromVelocity * velocity;
     }
+}
+
+void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity, double seconds,
+                      double* offsetOut, double* velocityOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnSampleSpringWork(spring, offset, velocity, seconds, offsetOut, velocityOut);
+    mtwnFloatEnvLeave(env);
 }
 
 // The bound e^(-r t) (a + b min(t, cap)) on |x| for x = e^(-alpha t) (x0 C
@@ -269,8 +314,9 @@ static double BoundTime(const Bound* bound)
     return t;
 }
 
-double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
-                              double offsetTolerance, double velocityTolerance)
+MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
+                                                double velocity, double offsetTolerance,
+                                                double velocityTolerance)
 {
     if (!(offsetTolerance > 0.0) || !(velocityTolerance > 0.0))
     {
@@ -304,6 +350,16 @@ double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double ve
     return offsetTime > velocityTime ? offsetTime : velocityTime;
 }
 
+double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
+                              double offsetTolerance, double velocityTolerance)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result =
+        mtwnSpringSettlingTimeWork(spring, offset, velocity, offsetTolerance, velocityTolerance);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
 // The spring easing's parameters: the spring's rates and velocity scaled
 // to progress (a T, w T, (w0 T)^2, v T), and its value at progress 1.
 enum
@@ -323,12 +379,13 @@ static double SpringEasingRaw(const double* parameters, uint32_t regime, double 
     scaled.parameters[s_decay] = parameters[s_easingDecay];
     scaled.parameters[s_damped] = parameters[s_easingDamped];
     scaled.parameters[s_squared] = parameters[s_easingSquared];
-    mtwnSpringMotion motion = mtwnSpringMotionAt(&scaled, p);
+    mtwnSpringMotion motion = mtwnSpringMotionAtWork(&scaled, p);
     return 1.0 - motion.offsetFromOffset + motion.offsetFromVelocity * parameters[s_easingVelocity];
 }
 
-mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, double velocity,
-                                mtwnEaseMode mode, mtwnEasing* easingOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeSpringEasingWork(const mtwnSpring* spring, double duration,
+                                                         double velocity, mtwnEaseMode mode,
+                                                         mtwnEasing* easingOut)
 {
     // A duration or velocity NaN or infinite leaves a scaled parameter
     // that is not finite, refused below.
@@ -360,6 +417,15 @@ mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, doubl
     easing.parameters[s_easingRange] = range;
     *easingOut = easing;
     return mtwn_success;
+}
+
+mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring, double duration, double velocity,
+                                mtwnEaseMode mode, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeSpringEasingWork(spring, duration, velocity, mode, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 double mtwnSampleSpringEasing(const mtwnEasing* easing, double p)

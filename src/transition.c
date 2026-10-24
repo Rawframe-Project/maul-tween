@@ -17,6 +17,7 @@
 #include "fpenv.h"
 #include "reserved_internal.h"
 #include "spring_internal.h"
+#include "work.h"
 
 #include <math.h>
 
@@ -133,15 +134,15 @@ static MTWN_NOINLINE double CoastTime(const mtwnTransitionDef* def, const mtwnPl
     if (out->lands)
     {
         mtwnDecay own = {out->rates[i]};
-        return mtwnDecayStopTime(&own, v, def->restSpeed);
+        return mtwnDecayStopTimeWork(&own, v, def->restSpeed);
     }
     if (((out->crosses | out->past) & (1u << i)) != 0)
     {
         mtwnBoundedDecay bounded = mtwnCoastBounds(out, i, Line(out->kind, (&out->to.x)[i]), v);
-        return mtwnBoundedDecayStopTime(&bounded, Line(out->kind, (&out->from.x)[i]), v,
-                                        def->restOffset, def->restSpeed);
+        return mtwnBoundedDecayStopTimeWork(&bounded, Line(out->kind, (&out->from.x)[i]), v,
+                                            def->restOffset, def->restSpeed);
     }
-    return mtwnDecayStopTime(&out->decay, v, def->restSpeed);
+    return mtwnDecayStopTimeWork(&out->decay, v, def->restSpeed);
 }
 
 // The time after the delay a spring or decay ends, and a decay's end.
@@ -155,8 +156,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     uint8_t channels = mtwnKindChannels(out->kind);
     if (def->spec == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
     {
-        out->endTime = mtwnSpringSettlingTime(&out->spring, -1.0, out->velocity[0], def->restOffset,
-                                              def->restSpeed);
+        out->endTime = mtwnSpringSettlingTimeWork(&out->spring, -1.0, out->velocity[0],
+                                                  def->restOffset, def->restSpeed);
         return;
     }
     double end = 0.0;
@@ -166,8 +167,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     {
         double time =
             def->spec == mtwn_transitionSpring
-                ? mtwnSpringSettlingTime(&out->spring, (double)from[i] - (double)to[i],
-                                         out->velocity[i], def->restOffset, def->restSpeed)
+                ? mtwnSpringSettlingTimeWork(&out->spring, (double)from[i] - (double)to[i],
+                                             out->velocity[i], def->restOffset, def->restSpeed)
                 : CoastTime(def, out, i);
         end = time > end ? time : end;
     }
@@ -185,8 +186,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
             continue;
         }
         double position = 0.0;
-        mtwnSampleDecay(&out->decay, Line(out->kind, from[i]), out->velocity[i], end, &position,
-                        NULL);
+        mtwnSampleDecayWork(&out->decay, Line(out->kind, from[i]), out->velocity[i], end, &position,
+                            NULL);
         position = scale ? mtwnExp(position) : position;
         position = out->kind == mtwn_valueInteger ? round(position) : position;
         // A number held within the floats as every sample is,
@@ -227,7 +228,7 @@ static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* ou
     bool past = start < lo || start > hi;
     bool below = past ? start < lo : rest < lo;
     if (!past && !((rest < lo || rest > hi) &&
-                   isfinite(mtwnDecayCrossingTime(&def->decay, start, v, below ? lo : hi))))
+                   isfinite(mtwnDecayCrossingTimeWork(&def->decay, start, v, below ? lo : hi))))
     {
         return true;
     }
