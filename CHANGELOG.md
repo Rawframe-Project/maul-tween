@@ -6,6 +6,42 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.1.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.1.1) (2026-10-24)
+
+### Changed
+
+- The context calls the host's allocator in the host's own
+  floating-point environment, not the library's.
+- Every public call that computes switches to the library's
+  floating-point environment and back, about 45 instructions:
+  `mtwnEaseCubicBezier` takes 315 instructions where it took 272,
+  `mtwnSampleSpring` 474 where it took 399, and an empty `mtwnUpdate`
+  188 where it took 166.
+- Code is larger. A program links 0.8 to 4.7 kB more, by the parts it
+  uses: curves 27,161 bytes (from 26,345), values 59,289 (57,945),
+  transitions 62,617 (61,465), clips 151,004 (147,420), and the whole
+  library 168,834 (164,098), as `tools/code_size.py` measures them.
+  The wrappers add about 70 bytes each; building with
+  `-fno-math-errno` takes back about 0.3 to 1.2 kB of that per part.
+
+### Fixed
+
+- Calls outside the update and the clips' and transitions' work ran in
+  the host thread's floating-point environment. The easings, springs,
+  decays, interpolation, paths, timing, samplers and fits did, and so
+  did several context calls. A host thread with flush-to-zero,
+  denormals-are-zero or a rounding mode other than nearest got other
+  bits from them than other hosts do. Every public call that computes
+  now runs in the library's environment, so those threads get the
+  default environment's bits. Hosts in the default environment see no
+  change.
+- On 32-bit x86, glibc's `sqrt` and `ldexp` compute on the x87
+  unit, which rounded by the host's x87 setting: under upward rounding,
+  `mtwnMakeZoomMix` gave other bits. The library's environment there
+  now also sets the x87 control word (round to nearest, every exception
+  masked, 64-bit precision), and the library is built with
+  `-fno-math-errno`, so `sqrt` is always the SSE instruction.
+
 ## [0.1.0](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.1.0) (2026-10-24)
 
 ### Added
