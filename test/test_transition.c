@@ -502,6 +502,26 @@ static void TestSpring(void)
     mtwnDestroyContext(context);
 }
 
+// A stiff spring from far out: its settling bounds overflow, and it still
+// ends at its settling time, almost at once.
+static void TestStiffSpringEnds(void)
+{
+    mtwnContext* context = Make(4, 4);
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){-3e38f, 0, 0, 0});
+    mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    CHECK(mtwnMakeSpring(1e300, 1e150, 1.0, &def.spring) == mtwn_success, "a stiff spring");
+    mtwnPlayerId player = Start(context, &def);
+    double settle = mtwnSpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0, def.restOffset,
+                                           def.restSpeed);
+    CHECK(settle > 0.0 && settle < 1e-9, "it settles within a nanosecond");
+    Update(context, 0);
+    Update(context, 1);
+    CHECK(!mtwnPlayer_IsValid(context, player) && State(context, x).base.x == 1.0f &&
+              State(context, x).velocity.x == 0.0f,
+          "and ends there, at rest on its end");
+    mtwnDestroyContext(context);
+}
+
 static void TestHandover(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -1607,6 +1627,7 @@ int main(void)
     TestEqualEndsFarOut();
     TestExactness();
     TestSpring();
+    TestStiffSpringEnds();
     TestHandover();
     TestDecay();
     TestPathSprings();

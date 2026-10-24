@@ -38,13 +38,15 @@ PARTS = [
 ]
 
 # Each part's budget in bytes, about 6% over its size when it was set;
-# the curves' moved by what the float environment's wrappers cost (#22).
+# the curves' moved by what the float environment's wrappers cost (#22),
+# and the whole library's by what an overflowing start's exact settling
+# time costs (#20).
 BUDGETS = {
     "curves": 27900,
     "values": 60000,
     "transitions": 63000,
     "clips": 152000,
-    "everything": 169000,
+    "everything": 169400,
 }
 
 

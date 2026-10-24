@@ -258,15 +258,9 @@ static double Excess(const Bound* bound, double t)
 // after that time, as the tangent lies above the curve, and its iterates
 // then approach it from the right.
 // A bound of 0 is within at once; one that never decays, past its cap,
-// never. A coefficient that overflowed, or two of its products
-// overflowing with opposite signs that left no sum, is bounded by
-// infinity, which never ends the spring early.
+// never.
 static double BoundTime(const Bound* bound)
 {
-    if (!(bound->b < HUGE_VAL))
-    {
-        return HUGE_VAL;
-    }
     // The bound's largest value, where its logarithm's slope is 0.
     double peak = 0.0;
     if (bound->b > 0.0 && bound->rate > 0.0)
@@ -314,6 +308,35 @@ static double BoundTime(const Bound* bound)
     return t;
 }
 
+// The time both bounds of a start stay within their tolerances, given by
+// their logarithms.
+MTWN_NOINLINE static double SettleFrom(const mtwnSpring* spring, const Bound* bound, double offset,
+                                       double velocity, double logOffsetTolerance,
+                                       double logVelocityTolerance)
+{
+    double decay = spring->parameters[s_decay];
+    Bound offsetBound = *bound;
+    offsetBound.a = fabs(offset);
+    offsetBound.b = fabs(velocity + decay * offset);
+    offsetBound.logTolerance = logOffsetTolerance;
+    Bound velocityBound = *bound;
+    velocityBound.a = fabs(velocity);
+    velocityBound.b = fabs(decay * velocity + spring->parameters[s_squared] * offset);
+    velocityBound.logTolerance = logVelocityTolerance;
+    // A decaying bound ends, so an infinite or NaN time overflowed: a
+    // coefficient, two of its products with opposite signs, or the bound on
+    // the way; or the time itself is past the doubles. NaN tells the
+    // caller so.
+    if (!(offsetBound.b < HUGE_VAL) || !(velocityBound.b < HUGE_VAL))
+    {
+        return (double)NAN;
+    }
+    double offsetTime = BoundTime(&offsetBound);
+    double velocityTime = BoundTime(&velocityBound);
+    double time = offsetTime > velocityTime ? offsetTime : velocityTime;
+    return bound->rate > 0.0 && !(time < HUGE_VAL) ? (double)NAN : time;
+}
+
 MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
                                                 double velocity, double offsetTolerance,
                                                 double velocityTolerance)
@@ -337,17 +360,31 @@ MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double
         bound.rate = spring->parameters[s_squared] / (decay + damped);
         bound.cap = 0.5 / damped;
     }
-    Bound offsetBound = bound;
-    offsetBound.a = fabs(offset);
-    offsetBound.b = fabs(velocity + decay * offset);
-    offsetBound.logTolerance = mtwnLog(offsetTolerance);
-    Bound velocityBound = bound;
-    velocityBound.a = fabs(velocity);
-    velocityBound.b = fabs(decay * velocity + spring->parameters[s_squared] * offset);
-    velocityBound.logTolerance = mtwnLog(velocityTolerance);
-    double offsetTime = BoundTime(&offsetBound);
-    double velocityTime = BoundTime(&velocityBound);
-    return offsetTime > velocityTime ? offsetTime : velocityTime;
+    double logOffsetTolerance = mtwnLog(offsetTolerance);
+    double logVelocityTolerance = mtwnLog(velocityTolerance);
+    double time =
+        SettleFrom(spring, &bound, offset, velocity, logOffsetTolerance, logVelocityTolerance);
+    if (!isnan(time))
+    {
+        return time;
+    }
+    if (!isfinite(offset) || !isfinite(velocity))
+    {
+        return HUGE_VAL;
+    }
+    // The time a bound crosses its tolerance is the same with both divided
+    // by 2^e, for e the exponent of the start's larger part: the start is
+    // then below 1 and every coefficient at most decay + w0^2. Dividing it
+    // is exact but for a part too small beside the other to count, and the
+    // tolerances' logarithms move by e ln 2. A time still past the doubles
+    // is infinity.
+    int exponent = 0;
+    (void)frexp(fabs(offset) > fabs(velocity) ? offset : velocity, &exponent);
+    double shift = (double)exponent * MTWN_LN2_HI + (double)exponent * MTWN_LN2_LO;
+    double scale = ldexp(1.0, -exponent);
+    time = SettleFrom(spring, &bound, offset * scale, velocity * scale, logOffsetTolerance - shift,
+                      logVelocityTolerance - shift);
+    return isnan(time) ? HUGE_VAL : time;
 }
 
 double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,

@@ -416,24 +416,31 @@ static Wide BoundPeak(const WideBound* bound)
     return BoundAt(bound, PeakTime(bound));
 }
 
-// The last time the bound exceeds the tolerance: none if its peak does
-// not, else by bisection where it falls, past the peak.
-static double LastAbove(const WideBound* bound, Wide tolerance)
+// The bound's logarithm, finite where the bound would underflow.
+static Wide LogBoundAt(const WideBound* bound, Wide t)
+{
+    Wide g = t < bound->cap ? t : bound->cap;
+    return (Wide)logl((long double)(bound->a + bound->b * g)) - bound->rate * t;
+}
+
+// The last time the bound's logarithm exceeds the tolerance's: none if
+// its peak does not, else by bisection where it falls, past the peak.
+static double LastAbove(const WideBound* bound, Wide logTolerance)
 {
     Wide low = PeakTime(bound);
-    if (!(BoundAt(bound, low) > tolerance))
+    if (!(LogBoundAt(bound, low) > logTolerance))
     {
         return 0.0;
     }
     Wide high = low + 1;
-    while (BoundAt(bound, high) > tolerance)
+    while (LogBoundAt(bound, high) > logTolerance)
     {
         high = low + 2 * (high - low);
     }
     for (int i = 0; i < 200; ++i)
     {
         Wide middle = (low + high) / 2;
-        if (BoundAt(bound, middle) > tolerance)
+        if (LogBoundAt(bound, middle) > logTolerance)
         {
             low = middle;
         }
@@ -445,15 +452,16 @@ static double LastAbove(const WideBound* bound, Wide tolerance)
     return (double)high;
 }
 
-// The bounds of a start on a spring.
-static void MakeBounds(const SettleCase* sc, WideBound* offsetOut, WideBound* velocityOut)
+// The bounds of a start on a spring, divided by 2^exponent.
+static void MakeBounds(const SettleCase* sc, int exponent, WideBound* offsetOut,
+                       WideBound* velocityOut)
 {
     Wide w0 = (Wide)s_twoPi * (Wide)sc->hertz;
     Wide ratio = (Wide)sc->ratio;
     Wide alpha = ratio * w0;
     Wide w = w0 * (Wide)sqrt((double)fabsl((long double)((1 - ratio) * (1 + ratio))));
-    Wide x0 = (Wide)sc->offset;
-    Wide v0 = (Wide)sc->velocity;
+    Wide x0 = (Wide)ldexp(sc->offset, -exponent);
+    Wide v0 = (Wide)ldexp(sc->velocity, -exponent);
     WideBound offset = {0, 0, alpha, (Wide)HUGE_VAL};
     if (ratio < 1)
     {
@@ -482,11 +490,16 @@ static bool SettlesAsBounded(const SettleCase* sc, Wide offsetTolerance, Wide ve
     {
         return false;
     }
+    // Bounds and tolerances divided by the same 2^e cross where they did,
+    // and with e the start's larger exponent no start overflows them.
+    int exponent = 0;
+    (void)frexp(fabs(sc->offset) > fabs(sc->velocity) ? sc->offset : sc->velocity, &exponent);
+    Wide shift = (Wide)exponent * (Wide)logl(2.0L);
     WideBound offset;
     WideBound velocity;
-    MakeBounds(sc, &offset, &velocity);
-    double expected = LastAbove(&offset, offsetTolerance);
-    double speed = LastAbove(&velocity, velocityTolerance);
+    MakeBounds(sc, exponent, &offset, &velocity);
+    double expected = LastAbove(&offset, (Wide)logl((long double)offsetTolerance) - shift);
+    double speed = LastAbove(&velocity, (Wide)logl((long double)velocityTolerance) - shift);
     expected = speed > expected ? speed : expected;
     double settle = mtwnSpringSettlingTime(&spring, sc->offset, sc->velocity,
                                            (double)offsetTolerance, (double)velocityTolerance);
@@ -520,7 +533,7 @@ static void TestSettlingTimesAreTheBounds(void)
     {
         WideBound offset;
         WideBound velocity;
-        MakeBounds(&rising[c], &offset, &velocity);
+        MakeBounds(&rising[c], 0, &offset, &velocity);
         Wide peak = BoundPeak(&offset);
         Wide fast = BoundPeak(&velocity) * 2;
         wrong += !SettlesAsBounded(&rising[c], peak * (Wide)(1.0 + 1e-9), fast);
@@ -539,8 +552,8 @@ static void TestSettlingTimesAreTheBounds(void)
 // Starts whose bounds the search met at their edges (found by fuzz_values
 // with the bounded decay): a critical spring whose
 // velocity bound peaks at a time that rounds to nearly 0, where Newton
-// once started on a slope of 0; and products overflowing with opposite
-// signs, once a NaN sum.
+// once started on a slope of 0; and starts whose bounds overflow, once
+// bounded by infinity, which never ended them.
 static void TestSettlingAtTheEdges(void)
 {
     static const SettleCase flat = {1.0 / 3.0, 1.0, 0x1.56e1fc2f8f359p-997, 0x1.443418p+9};
@@ -552,19 +565,45 @@ static void TestSettlingAtTheEdges(void)
     CHECK(isfinite(settle) && settle > 0.0, "a peak at nearly 0 settles");
     CHECK(SettlesAsBounded(&flat, (Wide)flat.offset, (Wide)0x1.4bfcp-1),
           "where its bounds cross the tolerances last");
+    // A stiff spring's coefficient overflows. Its start and tolerances
+    // divided by 2^997 overflow nothing and cross at the same time.
     mtwnSpring stiff;
     CHECK(mtwnMakeSpring(1e300, 1e300, 1.0, &stiff) == mtwn_success, "a stiff spring");
     settle = mtwnSpringSettlingTime(&stiff, 210.8154296875 - 1e300, 1e300, 0.5, 1.0);
-    CHECK(settle == HUGE_VAL, "overflowing bounds never end it early");
-    // A critical spring has no cap, its bounds found by Newton's steps:
-    // there too a velocity bound overflowing is infinite, not NaN (found
-    // by the values' fuzz).
-    mtwnSpring critical;
-    CHECK(mtwnMakeSpringFromFrequency(1e4, 1.0, &critical) == mtwn_success, "a critical spring");
-    CHECK(mtwnSpringSettlingTime(&critical, 1e300, 1.0, 0.5, 1.0) == HUGE_VAL,
-          "an overflowing bound without a cap never ends it early");
-    CHECK(mtwnSpringSettlingTime(&critical, 1e300, -1e305, 0.5, 1.0) == HUGE_VAL,
-          "nor one whose products overflow with opposite signs");
+    double scaled = mtwnSpringSettlingTime(&stiff, ldexp(210.8154296875 - 1e300, -997),
+                                           ldexp(1e300, -997), ldexp(0.5, -997), ldexp(1.0, -997));
+    CHECK(isfinite(scaled) && scaled > 0.0 && fabs(settle - scaled) <= 1e-12 * scaled,
+          "overflowing bounds settle when the start divided down does");
+    // Overflowing a coefficient at, below and above critical damping, and
+    // at it two products with opposite signs (the first two, found by the
+    // values' fuzz); slow springs whose coefficients are finite but whose
+    // bounds overflow on the way; and the largest velocity.
+    static const SettleCase overflowing[] = {
+        {1e4, 1.0, 1e300, 1.0},
+        {1e4, 1.0, 1e300, -1e305},
+        {1e4, 0.5, 1e300, 0.0},
+        {1e4, 3.0, -1e300, 1e4},
+        {0.01, 1.0, 1e308, 1e308},
+        {0.01, 0.5, -1e308, 1e308},
+        {1.0, 1.0, 1.0, -0x1.fffffffffffffp+1023},
+    };
+    int wrong = 0;
+    for (size_t c = 0; c < sizeof overflowing / sizeof overflowing[0]; ++c)
+    {
+        wrong += !SettlesAsBounded(&overflowing[c], (Wide)0.5, (Wide)1.0);
+    }
+    CHECK(wrong == 0, "and settle where their bounds cross the tolerances last");
+    mtwnSpring undamped;
+    CHECK(mtwnMakeSpringFromFrequency(1e4, 0.0, &undamped) == mtwn_success, "an undamped spring");
+    CHECK(mtwnSpringSettlingTime(&undamped, 1e300, 0.0, 0.5, 1.0) == HUGE_VAL,
+          "an undamped one never settles from there");
+    // Damped so little that the time is past the doubles: infinity, on
+    // both sides of the division.
+    mtwnSpring faint;
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 0x1p-1060, &faint) == mtwn_success, "a faint spring");
+    CHECK(mtwnSpringSettlingTime(&faint, 1.0, 0.0, 1e-3, 1e-2) == HUGE_VAL &&
+              mtwnSpringSettlingTime(&faint, 1e300, 0.0, 1e-3, 1e-2) == HUGE_VAL,
+          "a time past the doubles is infinity");
 }
 
 typedef struct EasingCase

@@ -23,6 +23,8 @@ The motion over one time is a 2 by 2 matrix taking a start's offset and velocity
 
 `mtwnSpringSettlingTime` returns when bounds on the offset and the velocity both stay below their tolerances for good. Where a bound is a pure exponential, the time is in closed form. Otherwise the bound's logarithm is concave, so Newton's steps from past its peak approach the crossing from the right and never pass the true time: a spring is never ended early. The host snaps it to the target then, which is what a transition does.
 
+A start far enough out overflows a bound: a coefficient such as `w0^2 x`, two products with opposite signs, or the bound on Newton's way for a slow spring. A bound and its tolerance divided by the same `2^e` cross at the same time, so such a start is divided by `2^e`, with `e` the exponent of its larger part, and the tolerances' logarithms move by `e ln 2`. Its coefficients are then at most `decay + w0^2` and the time is the true one. Only a start that overflowed takes this path, so every other time keeps its bits; a start that is not finite still gets infinity.
+
 ## Decay and inertia
 
 A decay at rate `k` moves `velocity (1 - e^(-k t)) / k` from its start ([`src/decay.c`](../../src/decay.c)). For a small `y = k t`, `1 - e^(-y)` loses its digits, so below `y = 1/2` the factor comes from its series; the crossing time `-ln(1 - f) / k` is likewise `2 atanh(f / (2 - f)) / k` by the atanh series for `f <= 1/2`. iOS's per-millisecond deceleration `r` is the rate `-1000 ln r`.
