@@ -1,3 +1,9 @@
 # The public functions that need not enter the library's floating-point
 # environment (tools/check_float_env.py): each listed under the reason,
 # true of every name under it, that it computes no float.
+
+makes an easing from integers, pointers and constants, computing no float:
+    mtwnLinearEasing
+    mtwnMakeHostEasing
+    mtwnMakeSteps
+    mtwnSetEaseMode

@@ -21,6 +21,7 @@
 #include "path_internal.h"
 #include "path_length.h"
 #include "reserved_internal.h"
+#include "work.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -384,7 +385,7 @@ static double Eased(const mtwnPath* path, uint32_t i, double progress)
     // progress of -1.5e300.
     double width = k[i + 1].offset - k[i].offset;
     double local = width > 0x1p-52 ? (progress - k[i].offset) / width : 1.0;
-    return mtwnEase(&k[i].easing, local, false);
+    return mtwnEaseWork(&k[i].easing, local, false);
 }
 
 // The segment a progress falls in and the parameter within it.

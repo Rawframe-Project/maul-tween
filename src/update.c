@@ -15,6 +15,7 @@
 #include "elementary.h"
 #include "fpenv.h"
 #include "mix_internal.h"
+#include "work.h"
 
 #include <math.h>
 #include <string.h>
@@ -68,7 +69,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
 {
     if (slot->spec == mtwn_transitionEasing)
     {
-        PathAt(slot, mtwnEase(&slot->easing, t / slot->duration, false), value);
+        PathAt(slot, mtwnEaseWork(&slot->easing, t / slot->duration, false), value);
         return false;
     }
     if (slot->spec == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))

@@ -8,6 +8,8 @@
 #ifndef MAUL_TWEEN_SRC_EASING_INTERNAL_H
 #define MAUL_TWEEN_SRC_EASING_INTERNAL_H
 
+#include "work.h"
+
 #include "maul-tween/easing.h"
 
 #include <stdbool.h>
@@ -74,7 +76,7 @@ static inline double mtwnEaseNormalPower(const mtwnEasing* easing, double progre
 static inline double mtwnEaseFast(const mtwnEasing* easing, double progress)
 {
     return mtwnIsNormalPower(easing) ? mtwnEaseNormalPower(easing, progress)
-                                     : mtwnEase(easing, progress, false);
+                                     : mtwnEaseWork(easing, progress, false);
 }
 
 #endif

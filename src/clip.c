@@ -11,6 +11,7 @@
 #include "context_internal.h"
 #include "fpenv.h"
 #include "reserved_internal.h"
+#include "work.h"
 
 #include <math.h>
 #include <stdckdint.h>
@@ -484,7 +485,7 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     mtwnTiming resolved = ResolvedTiming(&node, 0.0);
     if (!IsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
         mtwnValidateTiming(&resolved) != mtwn_success ||
-        !mtwnIsEasingMonotonic(&def->timing.easing) ||
+        !mtwnIsEasingMonotonicWork(&def->timing.easing) ||
         !mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return mtwn_errorInvalid;

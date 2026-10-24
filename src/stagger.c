@@ -12,6 +12,7 @@
 
 #include "reserved_internal.h"
 #include "stagger_internal.h"
+#include "work.h"
 
 #include "maul-tween/timing.h"
 
@@ -231,7 +232,7 @@ mtwnResult mtwnComputeStagger(const mtwnStagger* stagger, uint32_t count, double
     for (uint32_t i = 0; i < count; ++i)
     {
         double t = range > 0.0 ? (offsetsOut[i] - least) / range : 0.0;
-        offsetsOut[i] = stagger->start + span * mtwnEase(&stagger->easing, t, false);
+        offsetsOut[i] = stagger->start + span * mtwnEaseWork(&stagger->easing, t, false);
     }
     return mtwn_success;
 }

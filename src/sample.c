@@ -12,6 +12,8 @@
 
 #include "maul-tween/sample.h"
 
+#include "work.h"
+
 #include <math.h>
 
 enum
@@ -38,7 +40,7 @@ mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* val
     double last = (double)(count - 1);
     for (uint32_t i = 0; i < count; ++i)
     {
-        valuesOut[i] = (float)mtwnEase(easing, (double)i / last, false);
+        valuesOut[i] = (float)mtwnEaseWork(easing, (double)i / last, false);
     }
     return mtwn_success;
 }
@@ -62,7 +64,7 @@ static int WorstProbe(const mtwnEasing* easing, Point a, Point b, double toleran
         double share = (double)k / (double)(s_probes + 1);
         double x = a.x + width * share;
         double chord = a.y + (b.y - a.y) * share;
-        double miss = fabs(mtwnEase(easing, x, false) - chord);
+        double miss = fabs(mtwnEaseWork(easing, x, false) - chord);
         if (miss > worst)
         {
             worst = miss;
@@ -79,7 +81,7 @@ static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe
 {
     probe = probe < s_firstSplit ? s_firstSplit : (probe > s_lastSplit ? s_lastSplit : probe);
     split->x = start.x + (next.x - start.x) * ((double)probe / (double)(s_probes + 1));
-    split->y = mtwnEase(easing, split->x, false);
+    split->y = mtwnEaseWork(easing, split->x, false);
     return isfinite(split->y);
 }
 
@@ -93,8 +95,8 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
     }
     Point stack[s_stackDepth];
     int depth = 0;
-    Point start = {0.0, mtwnEase(easing, 0.0, false)};
-    Point end = {1.0, mtwnEase(easing, 1.0, false)};
+    Point start = {0.0, mtwnEaseWork(easing, 0.0, false)};
+    Point end = {1.0, mtwnEaseWork(easing, 1.0, false)};
     if (!isfinite(start.y) || !isfinite(end.y))
     {
         return mtwn_errorInvalid;

@@ -13,6 +13,8 @@
 
 #include "css_easing.h"
 
+#include "fpenv.h"
+
 #include <math.h>
 
 // The solver stops once x(t) is this close to x, or the bracket narrower
@@ -115,7 +117,7 @@ static double BezierOut(const double control[4], double x)
     return 1.0 - mtwnSampleCubicBezier(control, 1.0 - x);
 }
 
-double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress)
+static MTWN_NOINLINE double mtwnEaseCubicBezierWork(const mtwnEasing* easing, double progress)
 {
     if (easing->kind == mtwn_easingLinear)
     {
@@ -138,6 +140,14 @@ double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress)
     default:
         return p < 0.5 ? 0.5 * BezierOut(c, 2.0 * p) : 0.5 + 0.5 * BezierIn(c, 2.0 * p - 1.0);
     }
+}
+
+double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnEaseCubicBezierWork(easing, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool before)

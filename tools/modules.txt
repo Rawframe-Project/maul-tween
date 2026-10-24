@@ -3,12 +3,12 @@
 base:
 elementary:
 elementary_float:
-css_easing:
-easing: css_easing easing_internal elementary spring_easing
-easing_internal:
+css_easing: fpenv
+easing: css_easing easing_internal elementary spring_easing fpenv work
+easing_internal: work
 inertia: fpenv
-sample:
-rough: fpenv
+sample: work
+rough: fpenv work
 spring_easing:
 spring_internal:
 spring: elementary spring_easing spring_internal
@@ -22,23 +22,24 @@ reserved_internal:
 invariant:
 zoom: elementary
 signal: elementary mix_internal
-timing: reserved_internal timing_internal
-stagger: reserved_internal stagger_internal
+timing: reserved_internal timing_internal work
+stagger: reserved_internal stagger_internal work
 stagger_internal:
 timing_internal:
 allocator:
 fpenv:
+work: fpenv
 pool: invariant
 context_internal: crossing invariant pool runs
 context: allocator context_internal invariant pool reserved_internal
 target: context_internal pool
 transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
-update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
-path: elementary fpenv path_internal path_length bounds_internal reserved_internal
+update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
+path: elementary fpenv path_internal path_length bounds_internal reserved_internal work
 path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length
-clip: allocator context_internal fpenv pool reserved_internal
+clip: allocator context_internal fpenv pool reserved_internal work
 runs: invariant
 player: context_internal fpenv invariant pool reserved_internal runs
 player_slot: context_internal pool runs
@@ -46,7 +47,7 @@ clip_sample: compose context_internal elementary fpenv invariant pool runs bound
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal
 compose: elementary bounds_internal
-crossing: invariant timing_internal
+crossing: invariant timing_internal work
 event: context_internal invariant pool
 sweep: context_internal crossing pool runs
 test_hooks: context_internal

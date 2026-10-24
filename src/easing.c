@@ -15,7 +15,9 @@
 #include "css_easing.h"
 #include "easing_internal.h"
 #include "elementary.h"
+#include "fpenv.h"
 #include "spring_easing.h"
+#include "work.h"
 
 #include "generated/math_constants.h"
 
@@ -179,7 +181,8 @@ mtwnEasing mtwnLinearEasing(void)
     return Blank(mtwn_easingLinear, mtwn_easeIn);
 }
 
-mtwnResult mtwnMakePowerEasing(mtwnEaseMode mode, double exponent, mtwnEasing* easingOut)
+static MTWN_NOINLINE mtwnResult mtwnMakePowerEasingWork(mtwnEaseMode mode, double exponent,
+                                                        mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !IsMode(mode) || !isfinite(exponent) || exponent <= 0.0)
     {
@@ -196,7 +199,16 @@ mtwnResult mtwnMakePowerEasing(mtwnEaseMode mode, double exponent, mtwnEasing* e
     return mtwn_success;
 }
 
-mtwnResult mtwnMakePennerEasing(mtwnEasingKind kind, mtwnEaseMode mode, mtwnEasing* easingOut)
+mtwnResult mtwnMakePowerEasing(mtwnEaseMode mode, double exponent, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakePowerEasingWork(mode, exponent, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakePennerEasingWork(mtwnEasingKind kind, mtwnEaseMode mode,
+                                                         mtwnEasing* easingOut)
 {
     bool known = kind == mtwn_easingSine || kind == mtwn_easingExpo || kind == mtwn_easingCirc ||
                  kind == mtwn_easingBounce;
@@ -210,7 +222,16 @@ mtwnResult mtwnMakePennerEasing(mtwnEasingKind kind, mtwnEaseMode mode, mtwnEasi
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeBackEasing(mtwnEaseMode mode, double overshoot, mtwnEasing* easingOut)
+mtwnResult mtwnMakePennerEasing(mtwnEasingKind kind, mtwnEaseMode mode, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakePennerEasingWork(kind, mode, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakeBackEasingWork(mtwnEaseMode mode, double overshoot,
+                                                       mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !IsMode(mode) || !isfinite(overshoot) || overshoot < 0.0)
     {
@@ -223,8 +244,16 @@ mtwnResult mtwnMakeBackEasing(mtwnEaseMode mode, double overshoot, mtwnEasing* e
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeElasticEasing(mtwnEaseMode mode, double amplitude, double period,
-                                 mtwnEasing* easingOut)
+mtwnResult mtwnMakeBackEasing(mtwnEaseMode mode, double overshoot, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeBackEasingWork(mode, overshoot, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakeElasticEasingWork(mtwnEaseMode mode, double amplitude,
+                                                          double period, mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !IsMode(mode) || !isfinite(amplitude) || amplitude <= 0.0 ||
         !isfinite(period) || period <= 0.0)
@@ -254,6 +283,15 @@ mtwnResult mtwnMakeElasticEasing(mtwnEaseMode mode, double amplitude, double per
     return mtwn_success;
 }
 
+mtwnResult mtwnMakeElasticEasing(mtwnEaseMode mode, double amplitude, double period,
+                                 mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeElasticEasingWork(mode, amplitude, period, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
 mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void* context,
                               mtwnEasing* easingOut)
 {
@@ -268,7 +306,8 @@ mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnEasing* easingOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeCubicBezierWork(double x1, double y1, double x2, double y2,
+                                                        mtwnEasing* easingOut)
 {
     bool inside = x1 >= 0.0 && x1 <= 1.0 && x2 >= 0.0 && x2 <= 1.0;
     if (easingOut == NULL || !inside || !isfinite(y1) || !isfinite(y2))
@@ -282,6 +321,14 @@ mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnE
     easing.parameters[3] = y2;
     *easingOut = easing;
     return mtwn_success;
+}
+
+mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeCubicBezierWork(x1, y1, x2, y2, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 mtwnResult mtwnMakeSteps(uint32_t count, mtwnStepPosition position, mtwnEasing* easingOut)
@@ -298,7 +345,7 @@ mtwnResult mtwnMakeSteps(uint32_t count, mtwnStepPosition position, mtwnEasing* 
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeCssEasing(mtwnCssKeyword keyword, mtwnEasing* easingOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeCssEasingWork(mtwnCssKeyword keyword, mtwnEasing* easingOut)
 {
     // The keywords' curves, CSS Easing Level 2 section 2.
     static const double s_beziers[4][4] = {
@@ -325,7 +372,16 @@ mtwnResult mtwnMakeCssEasing(mtwnCssKeyword keyword, mtwnEasing* easingOut)
     return mtwnMakeCubicBezier(c[0], c[1], c[2], c[3], easingOut);
 }
 
-mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count, mtwnEasing* easingOut)
+mtwnResult mtwnMakeCssEasing(mtwnCssKeyword keyword, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeCssEasingWork(keyword, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE mtwnResult mtwnMakeLinearEasingWork(mtwnLinearPoint* points, uint32_t count,
+                                                  mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !mtwnCanonicalizeLinearPoints(points, count))
     {
@@ -338,6 +394,14 @@ mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count, mtwnEas
     return mtwn_success;
 }
 
+mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count, mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeLinearEasingWork(points, count, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
 mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
 {
     if (easing == NULL || !IsMode(mode))
@@ -348,7 +412,7 @@ mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
     return mtwn_success;
 }
 
-bool mtwnIsEasingMonotonic(const mtwnEasing* easing)
+MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing)
 {
     switch (easing->kind)
     {
@@ -381,7 +445,15 @@ bool mtwnIsEasingMonotonic(const mtwnEasing* easing)
     }
 }
 
-double mtwnEase(const mtwnEasing* easing, double progress, bool before)
+bool mtwnIsEasingMonotonic(const mtwnEasing* easing)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    bool result = mtwnIsEasingMonotonicWork(easing);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, bool before)
 {
     if (easing->kind == mtwn_easingLinear)
     {
@@ -409,4 +481,12 @@ double mtwnEase(const mtwnEasing* easing, double progress, bool before)
         return p < 0.5 ? 0.5 * OutCurve(easing, 2.0 * p)
                        : 0.5 + 0.5 * InCurve(easing, 2.0 * p - 1.0, before);
     }
+}
+
+double mtwnEase(const mtwnEasing* easing, double progress, bool before)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnEaseWork(easing, progress, before);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

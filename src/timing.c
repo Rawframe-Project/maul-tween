@@ -12,6 +12,7 @@
 
 #include "reserved_internal.h"
 #include "timing_internal.h"
+#include "work.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -298,11 +299,11 @@ void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backward
                      (result->phase == mtwn_phaseAfter && !goingForwards);
     if (!forwards && timing->alternateEasing == mtwn_alternateRepeatsShape)
     {
-        result->transformedProgress = 1.0 - mtwnEase(&timing->easing, simple, result->before);
+        result->transformedProgress = 1.0 - mtwnEaseWork(&timing->easing, simple, result->before);
     }
     else
     {
         result->transformedProgress =
-            mtwnEase(&timing->easing, result->directedProgress, result->before);
+            mtwnEaseWork(&timing->easing, result->directedProgress, result->before);
     }
 }
