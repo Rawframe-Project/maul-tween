@@ -46,6 +46,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/allocator.c
     src/base.c
     src/clip.c
+    src/clip_read.c
     src/clip_sample.c
     src/clip_tasks.c
     src/compose.c
@@ -66,6 +67,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/path_direction.c
     src/path_length.c
     src/player.c
+    src/player_control.c
     src/player_slot.c
     src/pool.c
     src/runs.c
@@ -126,6 +128,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(mix WHITEBOX)
     maul_add_test(pool WHITEBOX)
     maul_add_test(fpenv WHITEBOX)
+    maul_add_test(hosts)
     maul_add_test(stagger WHITEBOX)
     maul_add_test(timing)
     maul_add_test(context)

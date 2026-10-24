@@ -1015,10 +1015,14 @@ static void TestFloatEnvironment(void)
     int restored = 0;
     uint64_t plain = Scenario(TestFloatGet(), &restored);
     CHECK(restored, "the default environment kept");
-    int hostileRestored = 0;
-    uint64_t hostile = Scenario(TestFloatHostile(), &hostileRestored);
-    CHECK(hostileRestored, "the host's flush-to-zero and rounding left as it set them");
-    CHECK(plain == hostile, "the same bits under the host's flush-to-zero and rounding");
+    for (int h = 0; h < TestFloatHostileCount(); ++h)
+    {
+        int hostileRestored = 0;
+        uint64_t hostile = Scenario(TestFloatHostileAt(h), &hostileRestored);
+        CHECK(hostileRestored, "the host's flush-to-zero and rounding left as it set them");
+        CHECK(plain == hostile, "the same bits under every rounding mode, with flush-to-zero and "
+                                "denormals-are-zero off and on");
+    }
 }
 
 static void TestReplacedVelocity(void)

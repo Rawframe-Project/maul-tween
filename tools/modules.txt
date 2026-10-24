@@ -3,50 +3,55 @@
 base:
 elementary:
 elementary_float:
-css_easing:
-easing: css_easing easing_internal elementary spring_easing
-easing_internal:
-inertia: fpenv
-sample:
-rough: fpenv
+css_easing: fpenv
+easing: css_easing easing_internal elementary spring_easing fpenv work
+easing_internal: work
+inertia: fpenv work
+sample: work fpenv
+rough: fpenv work
 spring_easing:
 spring_internal:
-spring: elementary spring_easing spring_internal
-decay: elementary
-color: bounds_internal elementary mix_internal
-rotation: elementary mix_internal
-scale: elementary
+spring: elementary spring_easing spring_internal fpenv work
+decay: elementary fpenv work
+color: bounds_internal elementary mix_internal fpenv work
+rotation: elementary mix_internal fpenv work
+scale: elementary fpenv work
 bounds_internal:
 mix_internal:
 reserved_internal:
 invariant:
-zoom: elementary
-signal: elementary mix_internal
-timing: reserved_internal timing_internal
-stagger: reserved_internal stagger_internal
+zoom: elementary fpenv work
+signal: elementary mix_internal fpenv
+timing: reserved_internal timing_internal work fpenv
+stagger: reserved_internal stagger_internal work fpenv
 stagger_internal:
 timing_internal:
-allocator:
+allocator: fpenv
 fpenv:
+work: fpenv
 pool: invariant
 context_internal: crossing invariant pool runs
-context: allocator context_internal invariant pool reserved_internal
-target: context_internal pool
-transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
-update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
-path: elementary fpenv path_internal path_length bounds_internal reserved_internal
+context: allocator context_internal invariant pool reserved_internal fpenv
+target: context_internal pool fpenv
+transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal work
+update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
+path: elementary fpenv path_internal path_length bounds_internal reserved_internal work
 path_length: elementary invariant
 path_internal: path_length
-path_direction: elementary path_internal path_length
-clip: allocator context_internal fpenv pool reserved_internal
+path_direction: elementary path_internal path_length fpenv
+clip: allocator clip_internal context_internal fpenv pool reserved_internal work
+clip_internal: context_internal
+clip_read: clip_internal context_internal fpenv
 runs: invariant
-player: context_internal fpenv invariant pool reserved_internal runs
+player: context_internal fpenv invariant player_internal pool reserved_internal runs
+player_control: context_internal fpenv player_internal
+player_internal: context_internal
 player_slot: context_internal pool runs
-clip_sample: compose context_internal elementary fpenv invariant pool runs bounds_internal
+clip_sample: compose context_internal elementary fpenv invariant pool runs bounds_internal work
 clip_tasks: context_internal fpenv pool runs
-coast: context_internal
-compose: elementary bounds_internal
-crossing: invariant timing_internal
-event: context_internal invariant pool
-sweep: context_internal crossing pool runs
+coast: context_internal work
+compose: elementary bounds_internal work
+crossing: invariant timing_internal work
+event: context_internal invariant pool fpenv
+sweep: context_internal crossing pool runs work
 test_hooks: context_internal

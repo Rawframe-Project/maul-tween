@@ -15,6 +15,7 @@
 #include "elementary.h"
 #include "fpenv.h"
 #include "mix_internal.h"
+#include "work.h"
 
 #include <math.h>
 #include <string.h>
@@ -35,7 +36,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
     {
     case mtwn_valueColor:
     {
-        mtwnColor color = mtwnMixColor(&slot->mix.color, progress);
+        mtwnColor color = mtwnMixColorWork(&slot->mix.color, progress);
         out[0] = (double)color.red;
         out[1] = (double)color.green;
         out[2] = (double)color.blue;
@@ -44,7 +45,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
     }
     case mtwn_valueRotation:
     {
-        mtwnQuat q = mtwnMixRotation(&slot->mix.rotation, progress);
+        mtwnQuat q = mtwnMixRotationWork(&slot->mix.rotation, progress);
         out[0] = (double)q.x;
         out[1] = (double)q.y;
         out[2] = (double)q.z;
@@ -52,7 +53,7 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
         return;
     }
     case mtwn_valueScale:
-        out[0] = mtwnMixScale(&slot->mix.scale, progress);
+        out[0] = mtwnMixScaleWork(&slot->mix.scale, progress);
         return;
     default:
         // A discrete value, the only kind left.
@@ -68,13 +69,13 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
 {
     if (slot->spec == mtwn_transitionEasing)
     {
-        PathAt(slot, mtwnEase(&slot->easing, t / slot->duration, false), value);
+        PathAt(slot, mtwnEaseWork(&slot->easing, t / slot->duration, false), value);
         return false;
     }
     if (slot->spec == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))
     {
         double offset = 0.0;
-        mtwnSampleSpring(&slot->spring, -1.0, slot->velocity[0], t, &offset, NULL);
+        mtwnSampleSpringWork(&slot->spring, -1.0, slot->velocity[0], t, &offset, NULL);
         PathAt(slot, 1.0 + offset, value);
         return false;
     }
@@ -98,7 +99,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
     mtwnSpringMotion motion = {0};
     if (slot->spec == mtwn_transitionSpring)
     {
-        motion = mtwnSpringMotionAt(&slot->spring, t);
+        motion = mtwnSpringMotionAtWork(&slot->spring, t);
     }
     for (uint8_t i = 0; i < 4; ++i)
     {
@@ -227,13 +228,10 @@ mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
     {
         return target->velocity;
     }
-    uint64_t env = mtwnFloatEnvEnter();
     // A clip's track's only once a clip's player exists, so its part is
     // there to compute it.
-    mtwnVec4 velocity = lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
-                                                 : context->clipUpdate->velocity(context, target);
-    mtwnFloatEnvLeave(env);
-    return velocity;
+    return lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
+                                    : context->clipUpdate->velocity(context, target);
 }
 
 double mtwnEasedProgress(const mtwnContext* context, uint32_t player)
@@ -458,9 +456,7 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     }
     uint64_t beforeNs = context->lastTimeNs;
     context->lastTimeNs = timeNs;
-    uint64_t env = mtwnFloatEnvEnter();
     UpdateWorker(context, beforeNs, timeNs);
-    mtwnFloatEnvLeave(env);
     for (uint32_t i = 0; i < context->changedCount; ++i)
     {
         uint32_t index1 = context->changed[i];
@@ -479,8 +475,9 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     return mtwn_success;
 }
 
-mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
-                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+static MTWN_NOINLINE mtwnResult mtwnUpdateWork(mtwnContext* context, uint64_t timeNs,
+                                               mtwnTargetId* changedOut, uint32_t changedCapacity,
+                                               uint32_t* changedTotalOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (changedTotalOut != NULL)
@@ -493,5 +490,15 @@ mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* chang
     }
     mtwnResult result = RunUpdate(context, timeNs, changedOut, changedCapacity, changedTotalOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
+                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result =
+        mtwnUpdateWork(context, timeNs, changedOut, changedCapacity, changedTotalOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }

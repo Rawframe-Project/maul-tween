@@ -21,6 +21,7 @@
 #include "path_internal.h"
 #include "path_length.h"
 #include "reserved_internal.h"
+#include "work.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -347,10 +348,20 @@ static mtwnResult MakePathOf(const mtwnKeyframe* keyframes, uint32_t count, uint
     return mtwn_success;
 }
 
+static MTWN_NOINLINE mtwnResult mtwnMakePathWork(const mtwnKeyframe* keyframes, uint32_t count,
+                                                 uint8_t channels, double alpha, double* lengthsOut,
+                                                 mtwnPath* pathOut)
+{
+    return MakePathOf(keyframes, count, channels, alpha, false, lengthsOut, pathOut);
+}
+
 mtwnResult mtwnMakePath(const mtwnKeyframe* keyframes, uint32_t count, uint8_t channels,
                         double alpha, double* lengthsOut, mtwnPath* pathOut)
 {
-    return MakePathOf(keyframes, count, channels, alpha, false, lengthsOut, pathOut);
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakePathWork(keyframes, count, channels, alpha, lengthsOut, pathOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // The last segment whose start is at or below key in values, from 0 to
@@ -384,7 +395,7 @@ static double Eased(const mtwnPath* path, uint32_t i, double progress)
     // progress of -1.5e300.
     double width = k[i + 1].offset - k[i].offset;
     double local = width > 0x1p-52 ? (progress - k[i].offset) / width : 1.0;
-    return mtwnEase(&k[i].easing, local, false);
+    return mtwnEaseWork(&k[i].easing, local, false);
 }
 
 // The segment a progress falls in and the parameter within it.
@@ -468,9 +479,17 @@ void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueO
     }
 }
 
-void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+static MTWN_NOINLINE void mtwnSamplePathWork(const mtwnPath* path, double progress,
+                                             double valueOut[4], double tangentOut[4])
 {
     mtwnSamplePathCounting(path, progress, valueOut, tangentOut, NULL);
+}
+
+void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnSamplePathWork(path, progress, valueOut, tangentOut);
+    mtwnFloatEnvLeave(env);
 }
 
 void mtwnLocatePath(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
@@ -582,8 +601,8 @@ static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         mtwnKeyframe* k = &keyframes[i];
         if (def->kind == mtwn_valueAngle)
         {
-            float moved = (float)mtwnMixAngle((double)keyframes[i - 1].value.x, (double)k->value.x,
-                                              def->angleMethod, 1.0);
+            float moved = (float)mtwnMixAngleWork((double)keyframes[i - 1].value.x,
+                                                  (double)k->value.x, def->angleMethod, 1.0);
             double by = (double)moved - (double)k->value.x;
             k->value.x = moved;
             Shift(&k->in, by);
@@ -599,8 +618,9 @@ static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     }
 }
 
-mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count,
-                         double* lengthsOut, mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
+MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe* keyframes,
+                                           uint32_t count, double* lengthsOut,
+                                           mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
 {
     if (trackOut == NULL || !CheckTrack(def, keyframes, count, lengthsOut != NULL, mixesOut))
     {
@@ -617,8 +637,8 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         mtwnVec4 b = keyframes[i + 1].value;
         mtwnRotationMix tried;
         if (keyframes[i].kind == mtwn_segmentLinear &&
-            mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
-                                def->rotationPath, &tried) != mtwn_success)
+            mtwnMakeRotationMixWork((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
+                                    def->rotationPath, &tried) != mtwn_success)
         {
             return mtwn_errorInvalid;
         }
@@ -635,15 +655,15 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
         mtwnResult made = mtwn_success;
         if (def->kind == mtwn_valueColor)
         {
-            made =
-                mtwnMakeColorMix((mtwnColor){a.x, a.y, a.z, a.w}, (mtwnColor){b.x, b.y, b.z, b.w},
-                                 def->colorSpace, def->hueMethod, &mixesOut[i].color);
+            made = mtwnMakeColorMixWork((mtwnColor){a.x, a.y, a.z, a.w},
+                                        (mtwnColor){b.x, b.y, b.z, b.w}, def->colorSpace,
+                                        def->hueMethod, &mixesOut[i].color);
         }
         else if (keyframes[i].kind == mtwn_segmentLinear)
         {
-            made =
-                mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
-                                    def->rotationPath, &mixesOut[i].rotation);
+            made = mtwnMakeRotationMixWork((mtwnQuat){a.x, a.y, a.z, a.w},
+                                           (mtwnQuat){b.x, b.y, b.z, b.w}, def->rotationPath,
+                                           &mixesOut[i].rotation);
         }
         if (made != mtwn_success)
         {
@@ -659,6 +679,15 @@ mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     }
     *trackOut = track;
     return mtwn_success;
+}
+
+mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count,
+                         double* lengthsOut, mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeTrackWork(def, keyframes, count, lengthsOut, mixesOut, trackOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // A number track's sample as floats, held within the finite floats:
@@ -721,7 +750,7 @@ static mtwnVec4 SampleScale(const mtwnPath* path, uint32_t i, double u, const mt
     {
         mtwnScaleMix mix = {from, (double)k[i + 1].value.x, mtwnLog(from),
                             mtwnLog((double)k[i + 1].value.x) - mtwnLog(from)};
-        scale = mtwnMixScale(&mix, u);
+        scale = mtwnMixScaleWork(&mix, u);
     }
     else
     {
@@ -734,13 +763,13 @@ static mtwnVec4 SampleScale(const mtwnPath* path, uint32_t i, double u, const mt
     return (mtwnVec4){mtwnScaleFloat(scale), 0.0f, 0.0f, 0.0f};
 }
 
-mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
+MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress)
 {
     const mtwnPath* path = &track->path;
     double value[4];
     if (IsNumberKind(track->kind))
     {
-        mtwnSamplePath(path, progress, value, NULL);
+        mtwnSamplePathWork(path, progress, value, NULL);
         if (track->kind == mtwn_valueInteger)
         {
             value[0] = round(value[0]);
@@ -766,7 +795,7 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
         {
             return held;
         }
-        mtwnColor color = mtwnMixColor(&track->mixes[i].color, u);
+        mtwnColor color = mtwnMixColorWork(&track->mixes[i].color, u);
         return (mtwnVec4){color.red, color.green, color.blue, color.alpha};
     }
     default:
@@ -775,7 +804,7 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
     // A rotation, normalized whatever its segment.
     if (kind == mtwn_segmentLinear)
     {
-        mtwnQuat q = mtwnMixRotation(&track->mixes[i].rotation, u);
+        mtwnQuat q = mtwnMixRotationWork(&track->mixes[i].rotation, u);
         return (mtwnVec4){q.x, q.y, q.z, q.w};
     }
     if (kind == mtwn_segmentStep || u == 1.0)
@@ -789,4 +818,12 @@ mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
         Evaluate(&cubic, end, u, 4, value, NULL);
     }
     return Normalized(value, k[i].value);
+}
+
+mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnVec4 result = mtwnSampleTrackWork(track, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

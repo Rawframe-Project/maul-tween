@@ -13,6 +13,7 @@
 #include "context_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
+#include "work.h"
 
 #include "maul-tween/path.h"
 
@@ -173,7 +174,7 @@ void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* gr
 static double ChildTime(const mtwnTiming* timing, double local, bool backwards, bool* forwards)
 {
     mtwnTimingResult result;
-    mtwnComputeTiming(timing, local, backwards, &result);
+    mtwnComputeTimingWork(timing, local, backwards, &result);
     if (forwards != NULL)
     {
         *forwards = result.forwards;
@@ -212,7 +213,7 @@ static double TrackProgress(const mtwnClipNode* node, double local, bool backwar
         return (double)NAN;
     }
     mtwnTimingResult result;
-    mtwnComputeTiming(&node->timing, local, backwards, &result);
+    mtwnComputeTimingWork(&node->timing, local, backwards, &result);
     *iterationOut = result.iteration;
     return result.transformedProgress;
 }
@@ -285,11 +286,11 @@ static mtwnVec4 Unrounded(const mtwnTrack* track, double progress)
 {
     if (track->kind != mtwn_valueInteger)
     {
-        return mtwnSampleTrack(track, progress);
+        return mtwnSampleTrackWork(track, progress);
     }
     mtwnTrack scalar = *track;
     scalar.kind = mtwn_valueScalar;
-    return mtwnSampleTrack(&scalar, progress);
+    return mtwnSampleTrackWork(&scalar, progress);
 }
 
 // A clip track's velocity left lazy: the parent's time a moment ago, and

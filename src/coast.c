@@ -6,6 +6,8 @@
 
 #include "coast.h"
 
+#include "work.h"
+
 #include <math.h>
 
 // The bounded decay a channel that hands over runs: its bound on the
@@ -30,14 +32,14 @@ void mtwnCoastAt(const mtwnPlayerSlot* slot, uint8_t i, double start, double bou
     if (slot->lands)
     {
         mtwnDecay own = {slot->rates[i]};
-        mtwnSampleDecay(&own, start, velocity, seconds, positionOut, velocityOut);
+        mtwnSampleDecayWork(&own, start, velocity, seconds, positionOut, velocityOut);
         return;
     }
     if (((slot->crosses | slot->past) & (1u << i)) != 0)
     {
         mtwnBoundedDecay bounded = mtwnCoastBounds(slot, i, bound, velocity);
-        mtwnSampleBoundedDecay(&bounded, start, velocity, seconds, positionOut, velocityOut);
+        mtwnSampleBoundedDecayWork(&bounded, start, velocity, seconds, positionOut, velocityOut);
         return;
     }
-    mtwnSampleDecay(&slot->decay, start, velocity, seconds, positionOut, velocityOut);
+    mtwnSampleDecayWork(&slot->decay, start, velocity, seconds, positionOut, velocityOut);
 }

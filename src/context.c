@@ -7,6 +7,7 @@
 
 #include "allocator.h"
 #include "context_internal.h"
+#include "fpenv.h"
 #include "invariant.h"
 #include "reserved_internal.h"
 
@@ -209,7 +210,8 @@ static mtwnPool MakePool(unsigned char* slots, uint32_t stride, uint32_t capacit
     return (mtwnPool){slots, stride, capacity, 0, 0};
 }
 
-mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut)
+static MTWN_NOINLINE mtwnResult mtwnCreateContextWork(const mtwnContextDef* def,
+                                                      mtwnContext** contextOut)
 {
     if (contextOut == NULL)
     {
@@ -253,6 +255,14 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     SetGroups(context, block, &layout);
     *contextOut = context;
     return mtwn_success;
+}
+
+mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnCreateContextWork(def, contextOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 static bool SameAllocator(const mtwnAllocator* a, const mtwnAllocator* b)
@@ -355,7 +365,8 @@ static mtwnResult RunGrowContext(mtwnContext** contextInOut, const mtwnContextDe
     return mtwn_success;
 }
 
-mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+static MTWN_NOINLINE mtwnResult mtwnGrowContextWork(mtwnContext** contextInOut,
+                                                    const mtwnContextDef* def)
 {
     // The context moves: what it was enters, what it is leaves.
     if (!mtwnEnter(contextInOut == NULL ? NULL : *contextInOut))
@@ -364,6 +375,14 @@ mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def
     }
     mtwnResult result = RunGrowContext(contextInOut, def);
     mtwnLeave(contextInOut == NULL ? NULL : *contextInOut);
+    return result;
+}
+
+mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnGrowContextWork(contextInOut, def);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -414,7 +433,7 @@ static mtwnResult RunContextSetReducedMotion(mtwnContext* context, bool reduced)
     return mtwn_success;
 }
 
-mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
+static MTWN_NOINLINE mtwnResult mtwnContext_SetReducedMotionWork(mtwnContext* context, bool reduced)
 {
     if (!mtwnEnter(context))
     {
@@ -422,6 +441,14 @@ mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
     }
     mtwnResult result = RunContextSetReducedMotion(context, reduced);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnContext_SetReducedMotionWork(context, reduced);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 

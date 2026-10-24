@@ -17,6 +17,7 @@
 #include "fpenv.h"
 #include "reserved_internal.h"
 #include "spring_internal.h"
+#include "work.h"
 
 #include <math.h>
 
@@ -133,15 +134,15 @@ static MTWN_NOINLINE double CoastTime(const mtwnTransitionDef* def, const mtwnPl
     if (out->lands)
     {
         mtwnDecay own = {out->rates[i]};
-        return mtwnDecayStopTime(&own, v, def->restSpeed);
+        return mtwnDecayStopTimeWork(&own, v, def->restSpeed);
     }
     if (((out->crosses | out->past) & (1u << i)) != 0)
     {
         mtwnBoundedDecay bounded = mtwnCoastBounds(out, i, Line(out->kind, (&out->to.x)[i]), v);
-        return mtwnBoundedDecayStopTime(&bounded, Line(out->kind, (&out->from.x)[i]), v,
-                                        def->restOffset, def->restSpeed);
+        return mtwnBoundedDecayStopTimeWork(&bounded, Line(out->kind, (&out->from.x)[i]), v,
+                                            def->restOffset, def->restSpeed);
     }
-    return mtwnDecayStopTime(&out->decay, v, def->restSpeed);
+    return mtwnDecayStopTimeWork(&out->decay, v, def->restSpeed);
 }
 
 // The time after the delay a spring or decay ends, and a decay's end.
@@ -155,8 +156,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     uint8_t channels = mtwnKindChannels(out->kind);
     if (def->spec == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
     {
-        out->endTime = mtwnSpringSettlingTime(&out->spring, -1.0, out->velocity[0], def->restOffset,
-                                              def->restSpeed);
+        out->endTime = mtwnSpringSettlingTimeWork(&out->spring, -1.0, out->velocity[0],
+                                                  def->restOffset, def->restSpeed);
         return;
     }
     double end = 0.0;
@@ -166,8 +167,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     {
         double time =
             def->spec == mtwn_transitionSpring
-                ? mtwnSpringSettlingTime(&out->spring, (double)from[i] - (double)to[i],
-                                         out->velocity[i], def->restOffset, def->restSpeed)
+                ? mtwnSpringSettlingTimeWork(&out->spring, (double)from[i] - (double)to[i],
+                                             out->velocity[i], def->restOffset, def->restSpeed)
                 : CoastTime(def, out, i);
         end = time > end ? time : end;
     }
@@ -185,8 +186,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
             continue;
         }
         double position = 0.0;
-        mtwnSampleDecay(&out->decay, Line(out->kind, from[i]), out->velocity[i], end, &position,
-                        NULL);
+        mtwnSampleDecayWork(&out->decay, Line(out->kind, from[i]), out->velocity[i], end, &position,
+                            NULL);
         position = scale ? mtwnExp(position) : position;
         position = out->kind == mtwn_valueInteger ? round(position) : position;
         // A number held within the floats as every sample is,
@@ -227,7 +228,7 @@ static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* ou
     bool past = start < lo || start > hi;
     bool below = past ? start < lo : rest < lo;
     if (!past && !((rest < lo || rest > hi) &&
-                   isfinite(mtwnDecayCrossingTime(&def->decay, start, v, below ? lo : hi))))
+                   isfinite(mtwnDecayCrossingTimeWork(&def->decay, start, v, below ? lo : hi))))
     {
         return true;
     }
@@ -255,8 +256,8 @@ static bool Coast(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
         if (out->kind == mtwn_valueAngle)
         {
             // Landing on the value moved by the method's turns.
-            out->to.x =
-                (float)mtwnMixAngle((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
+            out->to.x = (float)mtwnMixAngleWork((double)out->from.x, (double)out->to.x,
+                                                def->angleMethod, 1.0);
         }
     }
     else if (!def->bounded)
@@ -319,7 +320,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     {
         // The end moved by the method's turns, once.
         out->to.x =
-            (float)mtwnMixAngle((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
+            (float)mtwnMixAngleWork((double)out->from.x, (double)out->to.x, def->angleMethod, 1.0);
     }
     out->crosses = 0;
     out->past = 0;
@@ -332,14 +333,14 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     switch (target->kind)
     {
     case mtwn_valueColor:
-        return mtwnMakeColorMix(ToColor(out->from), ToColor(out->to), def->colorSpace,
-                                def->hueMethod, &out->mix.color);
+        return mtwnMakeColorMixWork(ToColor(out->from), ToColor(out->to), def->colorSpace,
+                                    def->hueMethod, &out->mix.color);
     case mtwn_valueRotation:
-        return mtwnMakeRotationMix(ToQuat(out->from), ToQuat(out->to), def->rotationPath,
-                                   &out->mix.rotation);
+        return mtwnMakeRotationMixWork(ToQuat(out->from), ToQuat(out->to), def->rotationPath,
+                                       &out->mix.rotation);
     case mtwn_valueScale:
         // A decay's end rounded to float may leave a scale's range.
-        return mtwnMakeScaleMix((double)out->from.x, (double)out->to.x, &out->mix.scale);
+        return mtwnMakeScaleMixWork((double)out->from.x, (double)out->to.x, &out->mix.scale);
     default:
         return mtwn_success;
     }
@@ -442,14 +443,13 @@ static mtwnResult RunStartTransition(mtwnContext* context, const mtwnTransitionD
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
-    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = StartWorker(context, def, playerOut);
-    mtwnFloatEnvLeave(env);
     return result;
 }
 
-mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                               mtwnPlayerId* playerOut)
+static MTWN_NOINLINE mtwnResult mtwnStartTransitionWork(mtwnContext* context,
+                                                        const mtwnTransitionDef* def,
+                                                        mtwnPlayerId* playerOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (playerOut != NULL)
@@ -465,6 +465,15 @@ mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* de
     return result;
 }
 
+mtwnResult mtwnStartTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                               mtwnPlayerId* playerOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnStartTransitionWork(context, def, playerOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
 // The distance from a value to an end, both accepted, in the kind's own
 // measure.
 static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtwnVec4 from,
@@ -477,7 +486,7 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     case mtwn_valueDiscrete:
         return mtwn_errorInvalid;
     case mtwn_valueAngle:
-        *distanceOut = fabs(mtwnMixAngle(a[0], b[0], def->angleMethod, 1.0) - a[0]);
+        *distanceOut = fabs(mtwnMixAngleWork(a[0], b[0], def->angleMethod, 1.0) - a[0]);
         return mtwn_success;
     case mtwn_valueScale:
         *distanceOut = fabs(mtwnLog(b[0]) - mtwnLog(a[0]));
@@ -486,13 +495,14 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     {
         // The mix's angle is between the quaternions, half the turn.
         mtwnRotationMix mix;
-        mtwnResult made = mtwnMakeRotationMix(ToQuat(from), ToQuat(to), def->rotationPath, &mix);
+        mtwnResult made =
+            mtwnMakeRotationMixWork(ToQuat(from), ToQuat(to), def->rotationPath, &mix);
         *distanceOut = made == mtwn_success ? 2.0 * mix.angle : 0.0;
         return made;
     }
     case mtwn_valueColor:
-        if (mtwnColorToSpace(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
-            mtwnColorToSpace(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
+        if (mtwnColorToSpaceWork(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
+            mtwnColorToSpaceWork(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
         {
             return mtwn_errorInvalid;
         }
@@ -538,11 +548,9 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
         return mtwn_errorStale;
     }
     mtwnVec4 end = {0};
-    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = mtwnAcceptValue(target->kind, def->value, &end)
                             ? Distance(def, target->kind, target->value, end, distanceOut)
                             : mtwn_errorInvalid;
-    mtwnFloatEnvLeave(env);
     if (result != mtwn_success)
     {
         *distanceOut = 0.0;
@@ -551,8 +559,9 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
     return result;
 }
 
-mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                                 double* distanceOut)
+static MTWN_NOINLINE mtwnResult mtwnMeasureTransitionWork(mtwnContext* context,
+                                                          const mtwnTransitionDef* def,
+                                                          double* distanceOut)
 {
     if (!mtwnEnter(context))
     {
@@ -560,6 +569,15 @@ mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* 
     }
     mtwnResult result = RunMeasureTransition(context, def, distanceOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                 double* distanceOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMeasureTransitionWork(context, def, distanceOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 

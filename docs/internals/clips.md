@@ -4,7 +4,7 @@ A clip is built once and read many times. This page explains why it is built nod
 
 ## Built, then finished
 
-A clip's storage is one block sized by its def (nodes, keyframes, slots), allocated when the clip is made and counted against the context's clip storage ([`src/clip.c`](../../src/clip.c)). Nodes are added one at a time and `mtwnClip_Finish` makes the clip immutable. Only then is it played or read, so:
+A clip's storage is one block sized by its def (nodes, keyframes, slots), allocated when the clip is made and counted against the context's clip storage ([`src/clip.c`](../../src/clip.c)). Nodes are added one at a time and `mtwnClip_Finish` makes the clip immutable. Only then is it played or read ([`src/clip_read.c`](../../src/clip_read.c)), so:
 
 - a finished clip's tracks can be sampled from any thread while it lives, with no lock, since nothing writes them;
 - every node's numbers (start, end, active duration) are worked out once, when it is added or when the clip is finished, never per frame;

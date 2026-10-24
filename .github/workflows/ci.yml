@@ -32,17 +32,17 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@3183452ff90d98f476162bd88260ed5b36a99506 # v0.0.14
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
     permissions:
       pull-requests: read
 
   docs:
-    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@3183452ff90d98f476162bd88260ed5b36a99506 # v0.0.14
+    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
     permissions:
       contents: read
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@3183452ff90d98f476162bd88260ed5b36a99506 # v0.0.14
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
     permissions:
       contents: read
 
@@ -72,6 +72,7 @@ jobs:
         run: |
           python3 tools/check_source.py
           python3 tools/check_modules.py
+          python3 tools/check_float_env.py
           python3 tools/check_docs.py
           python3 tools/check_lengths.py
           python3 tools/check_guide.py
@@ -120,7 +121,7 @@ jobs:
           - { preset: linux-arm64-gcc-14, runner: ubuntu-24.04-arm }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@3183452ff90d98f476162bd88260ed5b36a99506 # v0.0.14
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
     permissions:
       contents: read
     with:
@@ -134,7 +135,7 @@ jobs:
   nightly:
     needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@3183452ff90d98f476162bd88260ed5b36a99506 # v0.0.14
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
     permissions:
       contents: read
     with:

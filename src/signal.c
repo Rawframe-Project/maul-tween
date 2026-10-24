@@ -10,6 +10,7 @@
 // repeats exactly on every platform.
 
 #include "elementary.h"
+#include "fpenv.h"
 #include "mix_internal.h"
 
 #include "generated/math_constants.h"
@@ -21,7 +22,7 @@
 // The largest 1D gradient noise from gradients in [-1, 1) is under 1/2.
 static const double s_noiseScale = 2.0;
 
-int64_t mtwnMixInteger(int64_t from, int64_t to, double progress)
+static MTWN_NOINLINE int64_t mtwnMixIntegerWork(int64_t from, int64_t to, double progress)
 {
     if (progress == 0.0)
     {
@@ -44,9 +45,25 @@ int64_t mtwnMixInteger(int64_t from, int64_t to, double progress)
     return (int64_t)value;
 }
 
-uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress)
+int64_t mtwnMixInteger(int64_t from, int64_t to, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    int64_t result = mtwnMixIntegerWork(from, to, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE uint32_t mtwnMixDiscreteWork(uint32_t from, uint32_t to, double progress)
 {
     return progress < 0.5 ? from : to;
+}
+
+uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    uint32_t result = mtwnMixDiscreteWork(from, to, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 static bool IsPositive(double value)
@@ -69,7 +86,8 @@ static double Envelope(double seconds, double duration, double exponent)
     return mtwnPow(1.0 - seconds / duration, exponent);
 }
 
-mtwnResult mtwnMakePunch(double frequency, double duration, double exponent, mtwnPunch* punchOut)
+static MTWN_NOINLINE mtwnResult mtwnMakePunchWork(double frequency, double duration,
+                                                  double exponent, mtwnPunch* punchOut)
 {
     if (punchOut == NULL || !IsPositive(frequency) || !IsPositive(duration) ||
         !IsPositive(exponent))
@@ -80,7 +98,15 @@ mtwnResult mtwnMakePunch(double frequency, double duration, double exponent, mtw
     return mtwn_success;
 }
 
-double mtwnSamplePunch(const mtwnPunch* punch, double seconds)
+mtwnResult mtwnMakePunch(double frequency, double duration, double exponent, mtwnPunch* punchOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakePunchWork(frequency, duration, exponent, punchOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE double mtwnSamplePunchWork(const mtwnPunch* punch, double seconds)
 {
     double envelope = Envelope(seconds, punch->duration, punch->exponent);
     if (envelope == 0.0)
@@ -99,8 +125,17 @@ double mtwnSamplePunch(const mtwnPunch* punch, double seconds)
     return sine * envelope;
 }
 
-mtwnResult mtwnMakeShake(double frequency, double duration, double exponent, uint64_t seed,
-                         mtwnShake* shakeOut)
+double mtwnSamplePunch(const mtwnPunch* punch, double seconds)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnSamplePunchWork(punch, seconds);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMakeShakeWork(double frequency, double duration,
+                                                  double exponent, uint64_t seed,
+                                                  mtwnShake* shakeOut)
 {
     if (shakeOut == NULL || !IsPositive(frequency) || !IsPositive(duration) ||
         !IsPositive(exponent) || !(frequency * duration < s_shakePoints))
@@ -109,6 +144,15 @@ mtwnResult mtwnMakeShake(double frequency, double duration, double exponent, uin
     }
     *shakeOut = (mtwnShake){frequency, duration, exponent, seed};
     return mtwn_success;
+}
+
+mtwnResult mtwnMakeShake(double frequency, double duration, double exponent, uint64_t seed,
+                         mtwnShake* shakeOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeShakeWork(frequency, duration, exponent, seed, shakeOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // The gradient in [-1, 1) at a lattice index of a channel: SplitMix64's
@@ -135,7 +179,8 @@ static double Noise(const mtwnShake* shake, uint32_t channel, double x)
     return s_noiseScale * (left + fade * (right - left));
 }
 
-double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
+static MTWN_NOINLINE double mtwnSampleShakeWork(const mtwnShake* shake, uint32_t channel,
+                                                double seconds)
 {
     double envelope = Envelope(seconds, shake->duration, shake->exponent);
     if (envelope == 0.0)
@@ -145,8 +190,25 @@ double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
     return Noise(shake, channel, shake->frequency * seconds) * envelope;
 }
 
-double mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds)
+double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnSampleShakeWork(shake, channel, seconds);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE double mtwnShakeNoiseWork(const mtwnShake* shake, uint32_t channel,
+                                               double seconds)
 {
     double x = shake->frequency * seconds;
     return x >= 0.0 && x < s_shakePoints ? Noise(shake, channel, x) : 0.0;
+}
+
+double mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnShakeNoiseWork(shake, channel, seconds);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

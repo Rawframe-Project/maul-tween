@@ -7,6 +7,7 @@
 // and give the same result in any floating-point environment.
 
 #include "context_internal.h"
+#include "fpenv.h"
 
 #include <string.h>
 
@@ -97,8 +98,8 @@ static mtwnResult RunCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwn
     return mtwn_success;
 }
 
-mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
-                            mtwnTargetId* targetOut)
+static MTWN_NOINLINE mtwnResult mtwnCreateTargetWork(mtwnContext* context, mtwnValueKind kind,
+                                                     mtwnVec4 value, mtwnTargetId* targetOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (targetOut != NULL)
@@ -111,6 +112,15 @@ mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 v
     }
     mtwnResult result = RunCreateTarget(context, kind, value, targetOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwnVec4 value,
+                            mtwnTargetId* targetOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnCreateTargetWork(context, kind, value, targetOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -150,7 +160,7 @@ static mtwnResult RunDestroyTarget(mtwnContext* context, mtwnTargetId target)
     return mtwn_success;
 }
 
-mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
+static MTWN_NOINLINE mtwnResult mtwnDestroyTargetWork(mtwnContext* context, mtwnTargetId target)
 {
     if (!mtwnEnter(context))
     {
@@ -158,6 +168,14 @@ mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
     }
     mtwnResult result = RunDestroyTarget(context, target);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnDestroyTarget(mtwnContext* context, mtwnTargetId target)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnDestroyTargetWork(context, target);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -208,7 +226,8 @@ static mtwnResult RunTargetSetBase(mtwnContext* context, mtwnTargetId target, mt
     return mtwn_success;
 }
 
-mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec4 value)
+static MTWN_NOINLINE mtwnResult mtwnTarget_SetBaseWork(mtwnContext* context, mtwnTargetId target,
+                                                       mtwnVec4 value)
 {
     if (!mtwnEnter(context))
     {
@@ -216,6 +235,14 @@ mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec
     }
     mtwnResult result = RunTargetSetBase(context, target, value);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnTarget_SetBase(mtwnContext* context, mtwnTargetId target, mtwnVec4 value)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnTarget_SetBaseWork(context, target, value);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -239,7 +266,8 @@ static mtwnResult RunTargetGetValue(mtwnContext* context, mtwnTargetId target, m
     return resolved;
 }
 
-mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut)
+static MTWN_NOINLINE mtwnResult mtwnTarget_GetValueWork(mtwnContext* context, mtwnTargetId target,
+                                                        mtwnVec4* valueOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (valueOut != NULL)
@@ -252,6 +280,14 @@ mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVe
     }
     mtwnResult result = RunTargetGetValue(context, target, valueOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnTarget_GetValue(mtwnContext* context, mtwnTargetId target, mtwnVec4* valueOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnTarget_GetValueWork(context, target, valueOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -279,7 +315,8 @@ static mtwnResult RunTargetGetState(mtwnContext* context, mtwnTargetId target,
     return resolved;
 }
 
-mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTargetState* stateOut)
+static MTWN_NOINLINE mtwnResult mtwnTarget_GetStateWork(mtwnContext* context, mtwnTargetId target,
+                                                        mtwnTargetState* stateOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (stateOut != NULL)
@@ -292,6 +329,14 @@ mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTa
     }
     mtwnResult result = RunTargetGetState(context, target, stateOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnTarget_GetState(mtwnContext* context, mtwnTargetId target, mtwnTargetState* stateOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnTarget_GetStateWork(context, target, stateOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -322,8 +367,9 @@ static mtwnResult RunReadTargets(mtwnContext* context, const mtwnTargetId* targe
     return result;
 }
 
-mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count,
-                           mtwnVec4* valuesOut)
+static MTWN_NOINLINE mtwnResult mtwnReadTargetsWork(mtwnContext* context,
+                                                    const mtwnTargetId* targets, uint32_t count,
+                                                    mtwnVec4* valuesOut)
 {
     if (!mtwnEnter(context))
     {
@@ -331,6 +377,15 @@ mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, ui
     }
     mtwnResult result = RunReadTargets(context, targets, count, valuesOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count,
+                           mtwnVec4* valuesOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnReadTargetsWork(context, targets, count, valuesOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 

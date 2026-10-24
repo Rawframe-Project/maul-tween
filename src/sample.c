@@ -12,6 +12,9 @@
 
 #include "maul-tween/sample.h"
 
+#include "fpenv.h"
+#include "work.h"
+
 #include <math.h>
 
 enum
@@ -29,7 +32,8 @@ enum
 
 static const double s_narrowest = 0x1.0p-24;
 
-mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* valuesOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleEasingWork(const mtwnEasing* easing, uint32_t count,
+                                                     float* valuesOut)
 {
     if (easing == NULL || valuesOut == NULL || count < 2)
     {
@@ -38,9 +42,17 @@ mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* val
     double last = (double)(count - 1);
     for (uint32_t i = 0; i < count; ++i)
     {
-        valuesOut[i] = (float)mtwnEase(easing, (double)i / last, false);
+        valuesOut[i] = (float)mtwnEaseWork(easing, (double)i / last, false);
     }
     return mtwn_success;
+}
+
+mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* valuesOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnSampleEasingWork(easing, count, valuesOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // A point of the curve.
@@ -62,7 +74,7 @@ static int WorstProbe(const mtwnEasing* easing, Point a, Point b, double toleran
         double share = (double)k / (double)(s_probes + 1);
         double x = a.x + width * share;
         double chord = a.y + (b.y - a.y) * share;
-        double miss = fabs(mtwnEase(easing, x, false) - chord);
+        double miss = fabs(mtwnEaseWork(easing, x, false) - chord);
         if (miss > worst)
         {
             worst = miss;
@@ -79,12 +91,13 @@ static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe
 {
     probe = probe < s_firstSplit ? s_firstSplit : (probe > s_lastSplit ? s_lastSplit : probe);
     split->x = start.x + (next.x - start.x) * ((double)probe / (double)(s_probes + 1));
-    split->y = mtwnEase(easing, split->x, false);
+    split->y = mtwnEaseWork(easing, split->x, false);
     return isfinite(split->y);
 }
 
-mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
-                               mtwnLinearPoint* pointsOut, uint32_t capacity, uint32_t* countOut)
+static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing, double tolerance,
+                                                        mtwnLinearPoint* pointsOut,
+                                                        uint32_t capacity, uint32_t* countOut)
 {
     if (easing == NULL || countOut == NULL || (pointsOut == NULL && capacity > 0) ||
         easing->kind == mtwn_easingSteps || !isfinite(tolerance) || tolerance <= 0.0)
@@ -93,8 +106,8 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
     }
     Point stack[s_stackDepth];
     int depth = 0;
-    Point start = {0.0, mtwnEase(easing, 0.0, false)};
-    Point end = {1.0, mtwnEase(easing, 1.0, false)};
+    Point start = {0.0, mtwnEaseWork(easing, 0.0, false)};
+    Point end = {1.0, mtwnEaseWork(easing, 1.0, false)};
     if (!isfinite(start.y) || !isfinite(end.y))
     {
         return mtwn_errorInvalid;
@@ -140,4 +153,13 @@ mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
     }
     *countOut = count;
     return count <= capacity ? mtwn_success : mtwn_errorCapacity;
+}
+
+mtwnResult mtwnFitLinearEasing(const mtwnEasing* easing, double tolerance,
+                               mtwnLinearPoint* pointsOut, uint32_t capacity, uint32_t* countOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnFitLinearEasingWork(easing, tolerance, pointsOut, capacity, countOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

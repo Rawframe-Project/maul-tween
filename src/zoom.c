@@ -18,6 +18,8 @@
 // of the above as d goes to 0.
 
 #include "elementary.h"
+#include "fpenv.h"
+#include "work.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -70,7 +72,8 @@ static bool IsView(mtwnZoomView v)
     return isfinite(v.x) && isfinite(v.y) && isfinite(v.width) && v.width > 0.0;
 }
 
-mtwnResult mtwnMakeZoomMix(mtwnZoomView from, mtwnZoomView to, double rho, mtwnZoomMix* mixOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeZoomMixWork(mtwnZoomView from, mtwnZoomView to, double rho,
+                                                    mtwnZoomMix* mixOut)
 {
     if (mixOut == NULL || !IsView(from) || !IsView(to) || !isfinite(rho) || !(rho > 0.0))
     {
@@ -117,7 +120,15 @@ mtwnResult mtwnMakeZoomMix(mtwnZoomView from, mtwnZoomView to, double rho, mtwnZ
     return mtwn_success;
 }
 
-mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress)
+mtwnResult mtwnMakeZoomMix(mtwnZoomView from, mtwnZoomView to, double rho, mtwnZoomMix* mixOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeZoomMixWork(from, to, rho, mixOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnZoomView mtwnMixZoomWork(const mtwnZoomMix* mix, double progress)
 {
     if (progress == 0.0)
     {
@@ -132,7 +143,7 @@ mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress)
     if (mix->panScale == 0.0)
     {
         // Equal centres: the width geometric, the centre where it is.
-        return (mtwnZoomView){a->x, a->y, mtwnMixScale(&mix->widths, progress)};
+        return (mtwnZoomView){a->x, a->y, mtwnMixScaleWork(&mix->widths, progress)};
     }
     double along = mix->rho * progress * mix->length;
     double c = Cosh(along + mix->r0);
@@ -141,7 +152,23 @@ mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress)
                           a->width * (mix->coshR0 / c)};
 }
 
-double mtwnZoomLength(const mtwnZoomMix* mix)
+mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnZoomView result = mtwnMixZoomWork(mix, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE double mtwnZoomLengthWork(const mtwnZoomMix* mix)
 {
     return mix->length;
+}
+
+double mtwnZoomLength(const mtwnZoomMix* mix)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnZoomLengthWork(mix);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

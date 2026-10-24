@@ -8,6 +8,7 @@
 // in a jump; the offsets follow GSAP's tapers.
 
 #include "fpenv.h"
+#include "work.h"
 
 #include "maul-tween/easing.h"
 
@@ -43,13 +44,14 @@ static MTWN_NOINLINE mtwnLinearPoint Point(const mtwnRoughDef* def, uint32_t k, 
     bool zigZag = (def->flags & mtwn_roughZigZag) != 0;
     double x = ((double)k + (zigZag ? 0.5 : u)) / m;
     double side = zigZag ? (double)((k & 1u) == 0) : v;
-    double y =
-        mtwnEase(&def->shape, x, false) + def->strength * Taper(def->taper, x) * (2.0 * side - 1.0);
+    double y = mtwnEaseWork(&def->shape, x, false) +
+               def->strength * Taper(def->taper, x) * (2.0 * side - 1.0);
     return (mtwnLinearPoint){x, y};
 }
 
-mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def, mtwnLinearPoint* points, uint32_t count,
-                               mtwnEasing* easingOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeRoughEasingWork(const mtwnRoughDef* def,
+                                                        mtwnLinearPoint* points, uint32_t count,
+                                                        mtwnEasing* easingOut)
 {
     if (def == NULL || points == NULL || easingOut == NULL || count < 2 ||
         !(def->strength >= 0.0 && isfinite(def->strength)) || def->taper > mtwn_roughTaperBoth ||
@@ -81,5 +83,14 @@ mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def, mtwnLinearPoint* points,
     }
     points[0] = (mtwnLinearPoint){0.0, 0.0};
     points[count - 1] = (mtwnLinearPoint){1.0, 1.0};
-    return mtwnMakeLinearEasing(points, count, easingOut);
+    return mtwnMakeLinearEasingWork(points, count, easingOut);
+}
+
+mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def, mtwnLinearPoint* points, uint32_t count,
+                               mtwnEasing* easingOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeRoughEasingWork(def, points, count, easingOut);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

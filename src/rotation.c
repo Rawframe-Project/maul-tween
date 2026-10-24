@@ -12,7 +12,9 @@
 // so it is not normalized again.
 
 #include "elementary.h"
+#include "fpenv.h"
 #include "mix_internal.h"
+#include "work.h"
 
 #include "generated/math_constants.h"
 #include "maul-tween/interpolate.h"
@@ -67,7 +69,8 @@ static double TurnedDifference(double difference, mtwnAngleMethod method)
     }
 }
 
-double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress)
+MTWN_NOINLINE double mtwnMixAngleWork(double from, double to, mtwnAngleMethod method,
+                                      double progress)
 {
     double difference = to - from;
     double turned = TurnedDifference(difference, method);
@@ -75,6 +78,14 @@ double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progr
     double turns = floor((turned - difference) / s_turn + 0.5);
     double end = to + turns * s_turn;
     return mtwnMix(from, end, progress);
+}
+
+double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    double result = mtwnMixAngleWork(from, to, method, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // sin(x) / x.
@@ -106,8 +117,8 @@ static bool Normalize(mtwnQuat q, double out[4])
     return true;
 }
 
-mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to, mtwnRotationPath path,
-                               mtwnRotationMix* mixOut)
+MTWN_NOINLINE mtwnResult mtwnMakeRotationMixWork(mtwnQuat from, mtwnQuat to, mtwnRotationPath path,
+                                                 mtwnRotationMix* mixOut)
 {
     mtwnRotationMix mix;
     if (mixOut == NULL || path > mtwn_rotationLongest || !Normalize(from, mix.from) ||
@@ -154,7 +165,16 @@ mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to, mtwnRotationPath path
     return mtwn_success;
 }
 
-mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
+mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to, mtwnRotationPath path,
+                               mtwnRotationMix* mixOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnMakeRotationMixWork(from, to, path, mixOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+MTWN_NOINLINE mtwnQuat mtwnMixRotationWork(const mtwnRotationMix* mix, double progress)
 {
     if (progress == 0.0)
     {
@@ -171,7 +191,7 @@ mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
     {
         // Whole turns of a phase this far out hold no angle: the rotation
         // at the progress less them, once (a NaN goes on as before).
-        return mtwnMixRotation(mix, (isinf(phase) ? 0.0 : fmod(phase, s_turn)) / theta);
+        return mtwnMixRotationWork(mix, (isinf(phase) ? 0.0 : fmod(phase, s_turn)) / theta);
     }
     double keep = 1.0 - progress;
     double denominator = Sinc(theta);
@@ -183,4 +203,12 @@ mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
         q[i] = a * mix->from[i] + b * mix->to[i];
     }
     return (mtwnQuat){(float)q[0], (float)q[1], (float)q[2], (float)q[3]};
+}
+
+mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnQuat result = mtwnMixRotationWork(mix, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
 }

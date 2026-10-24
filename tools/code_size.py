@@ -37,9 +37,10 @@ PARTS = [
     ("clips", ["clip.h", "player.h", "event.h"]),
 ]
 
-# Each part's budget in bytes, about 6% over its size when it was set.
+# Each part's budget in bytes, about 6% over its size when it was set;
+# the curves' moved by what the float environment's wrappers cost (#22).
 BUDGETS = {
-    "curves": 27000,
+    "curves": 27900,
     "values": 60000,
     "transitions": 63000,
     "clips": 152000,
@@ -58,7 +59,10 @@ RELEASED = {
     "everything": 160985,
 }
 GROWTH = 0.10
-RAISED = {}
+RAISED = {
+    "curves": "every public call that computes enters the float environment through a "
+    "wrapper of its own (#22), 0.8 kB here with -fno-math-errno",
+}
 
 
 def check_ceilings():
