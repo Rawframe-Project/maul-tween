@@ -6,6 +6,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.1.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.1.0...v0.1.1) (2026-10-24)
+
+
+### Fixed
+
+* **math:** enter the float environment in every public computing call ([#24](https://github.com/Rawframe-Project/maul-tween/issues/24)) ([b597f96](https://github.com/Rawframe-Project/maul-tween/commit/b597f969ae68554668952f807bdd88a5b921f645)), closes [#22](https://github.com/Rawframe-Project/maul-tween/issues/22)
+
 ## [0.1.0](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.1.0) (2026-10-24)
 
 ### Added
