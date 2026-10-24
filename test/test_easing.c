@@ -14,6 +14,7 @@
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
+#include <string.h>
 
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
@@ -497,6 +498,82 @@ static void TestLinearRunEnd(void)
           "the run's end input kept");
 }
 
+static bool SameBits(double a, double b)
+{
+    uint64_t x = 0;
+    uint64_t y = 0;
+    memcpy(&x, &a, sizeof x);
+    memcpy(&y, &b, sizeof y);
+    return x == y;
+}
+
+// mtwnEaseCubicBezier against mtwnEase, bit for bit: CSS's keywords and
+// curves with control points at the corners, overshooting and flat, in
+// every mode, at progress through 0 to 1 and past both ends; the linear
+// easing as its progress, and NaN for every other kind.
+static void TestCubicBezierSampler(void)
+{
+    static const double s_curves[][4] = {
+        {0.25, 0.1, 0.25, 1.0}, {0.42, 0.0, 1.0, 1.0},   {0.0, 0.0, 0.58, 1.0},
+        {0.0, 0.0, 1.0, 1.0},   {0.68, -0.6, 0.32, 1.6}, {0.0, 1.0, 1.0, 0.0},
+        {1.0, 0.0, 0.0, 1.0},   {0.5, 0.5, 0.5, 0.5},    {0.0, -2.0, 1.0, 3.0},
+        {1.0, 1.0, 1.0, 1.0},   {0.0, 0.0, 0.0, 0.0},    {0.3, 1e-9, 0.7, 1.0 - 1e-9},
+    };
+    static const double s_edges[] = {
+        -1e300,        -2.0,          -0.5, -0x1p-1074,    -0.0, 0.0, 0x1p-1074, 0.5 - 0x1p-54, 0.5,
+        0.5 + 0x1p-53, 1.0 - 0x1p-53, 1.0,  1.0 + 0x1p-52, 1.5,  3.0, 1e300};
+    uint32_t compared = 0;
+    uint32_t same = 0;
+    for (size_t c = 0; c < sizeof s_curves / sizeof s_curves[0]; ++c)
+    {
+        mtwnEasing easing;
+        CHECK(mtwnMakeCubicBezier(s_curves[c][0], s_curves[c][1], s_curves[c][2], s_curves[c][3],
+                                  &easing) == mtwn_success,
+              "a cubic bezier");
+        for (int mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
+        {
+            CHECK(mtwnSetEaseMode(&easing, (mtwnEaseMode)mode) == mtwn_success, "its mode");
+            for (int i = -200; i <= 1200; ++i)
+            {
+                double p = (double)i / 1000.0;
+                same += SameBits(mtwnEaseCubicBezier(&easing, p), mtwnEase(&easing, p, false));
+                same += SameBits(mtwnEaseCubicBezier(&easing, p), mtwnEase(&easing, p, true));
+                compared += 2;
+            }
+            for (size_t e = 0; e < sizeof s_edges / sizeof s_edges[0]; ++e)
+            {
+                double p = s_edges[e];
+                same += SameBits(mtwnEaseCubicBezier(&easing, p), mtwnEase(&easing, p, false));
+                compared += 1;
+            }
+        }
+    }
+    CHECK(compared == 12u * 4u * (2u * 1401u + 16u) && same == compared,
+          "every cubic bezier in every mode, as mtwnEase gives it");
+    for (int k = mtwn_cssLinear; k <= mtwn_cssEaseInOut; ++k)
+    {
+        mtwnEasing keyword;
+        CHECK(mtwnMakeCssEasing((mtwnCssKeyword)k, &keyword) == mtwn_success, "a keyword");
+        CHECK(SameBits(mtwnEaseCubicBezier(&keyword, 0.3), mtwnEase(&keyword, 0.3, false)) &&
+                  SameBits(mtwnEaseCubicBezier(&keyword, -0.25), mtwnEase(&keyword, -0.25, false)),
+              "CSS's keywords as mtwnEase gives them");
+    }
+    mtwnEasing linear = mtwnLinearEasing();
+    CHECK(SameBits(mtwnEaseCubicBezier(&linear, 0.3), 0.3) &&
+              SameBits(mtwnEaseCubicBezier(&linear, -2.5), mtwnEase(&linear, -2.5, false)),
+          "the linear easing, its progress");
+    mtwnEasing others[4];
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &others[0]) == mtwn_success &&
+              mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeOut, &others[1]) == mtwn_success &&
+              mtwnMakeSteps(4, mtwn_jumpEnd, &others[2]) == mtwn_success &&
+              mtwnMakeCssEasing(mtwn_cssStepStart, &others[3]) == mtwn_success,
+          "easings of other kinds");
+    for (int k = 0; k < 4; ++k)
+    {
+        CHECK(isnan(mtwnEaseCubicBezier(&others[k], 0.5)), "another kind is NaN");
+    }
+}
+
 int main(void)
 {
     TestElasticZero();
@@ -509,5 +586,6 @@ int main(void)
     TestModesAreReflections();
     TestHostEasing();
     TestRefusals();
+    TestCubicBezierSampler();
     return s_failures == 0 ? 0 : 1;
 }

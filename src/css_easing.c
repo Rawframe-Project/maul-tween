@@ -6,6 +6,9 @@
 // inside a bracket every step narrows, bisecting whenever a step would
 // leave it or the slope is not positive; the stop
 // on a tolerance is a comparison, so results are the same everywhere.
+// mtwnEaseCubicBezier is here, apart from mtwnEase's dispatch over every
+// kind, so a program that samples only cubic beziers links none of the
+// other curves.
 
 #include "css_easing.h"
 
@@ -98,6 +101,42 @@ double mtwnSampleCubicBezier(const double control[4], double x)
         t = (slope > 0.0 && next >= low && next <= high) ? next : 0.5 * (low + high);
     }
     return Evaluate(&ys, t);
+}
+
+// mtwnEase's in and out curves of a cubic bezier, by the same arithmetic.
+static double BezierIn(const double control[4], double x)
+{
+    return mtwnSampleCubicBezier(control, x);
+}
+
+static double BezierOut(const double control[4], double x)
+{
+    return 1.0 - mtwnSampleCubicBezier(control, 1.0 - x);
+}
+
+double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress)
+{
+    if (easing->kind == mtwn_easingLinear)
+    {
+        return progress;
+    }
+    if (easing->kind != mtwn_easingCubicBezier)
+    {
+        return (double)NAN;
+    }
+    const double* c = easing->parameters;
+    double p = progress;
+    switch (easing->mode)
+    {
+    case mtwn_easeIn:
+        return BezierIn(c, p);
+    case mtwn_easeOut:
+        return BezierOut(c, p);
+    case mtwn_easeInOut:
+        return p < 0.5 ? 0.5 * BezierIn(c, 2.0 * p) : 0.5 + 0.5 * BezierOut(c, 2.0 * p - 1.0);
+    default:
+        return p < 0.5 ? 0.5 * BezierOut(c, 2.0 * p) : 0.5 + 0.5 * BezierIn(c, 2.0 * p - 1.0);
+    }
 }
 
 double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool before)
