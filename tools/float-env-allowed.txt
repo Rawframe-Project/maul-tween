@@ -22,6 +22,7 @@ reports a stored count, flag, identity, name or the version, computing no float:
     mtwnContext_GetMemoryBytes
     mtwnContext_IsReducedMotion
     mtwnContext_GetPlayingOnCount
+    mtwnTarget_IsValid
 
 frees the context's memory through the host's allocator, computing no float:
     mtwnDestroyContext

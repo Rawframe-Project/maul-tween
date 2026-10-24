@@ -32,7 +32,7 @@ work: fpenv
 pool: invariant
 context_internal: crossing invariant pool runs
 context: allocator context_internal invariant pool reserved_internal fpenv
-target: context_internal pool
+target: context_internal pool fpenv
 transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal work
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
 path: elementary fpenv path_internal path_length bounds_internal reserved_internal work

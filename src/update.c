@@ -228,13 +228,10 @@ mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
     {
         return target->velocity;
     }
-    uint64_t env = mtwnFloatEnvEnter();
     // A clip's track's only once a clip's player exists, so its part is
     // there to compute it.
-    mtwnVec4 velocity = lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
-                                                 : context->clipUpdate->velocity(context, target);
-    mtwnFloatEnvLeave(env);
-    return velocity;
+    return lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
+                                    : context->clipUpdate->velocity(context, target);
 }
 
 double mtwnEasedProgress(const mtwnContext* context, uint32_t player)
