@@ -61,5 +61,11 @@ host's clock, with the same results on every platform.
   an underdamped spring sampled that far into its oscillation, an
   elastic easing of a very short period, and an OkLCh color mix, a
   sine easing or a slerp extrapolated that far.
-- Only the context def carries the ABI version; the other defs carry
-  only their cookie, and the version holds the whole release before 1.0.
+- Breaking against the withdrawn 1.0 releases: `mtwnGetClipBytes` now
+  takes the context as its first argument; the transition, clip, clip
+  track, clip timeline and player defs lose their `version` field, the
+  transition def's value methods move after `target`, the player def's
+  `bindingCount` before `bindings`, the clip track def's `keyframeCount`
+  after `slot`, and the player, clip track and timeline defs' reserved
+  bytes grow. Only the context def carries the ABI version, which holds
+  the whole release before 1.0.
