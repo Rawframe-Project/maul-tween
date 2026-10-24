@@ -102,7 +102,15 @@ static void TestDefRefusals(void)
     def.version = MTWN_ABI_VERSION & 0x7FFFFFFFu;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorVersion,
           "the version without its top bit");
-    CHECK(MTWN_ABI_VERSION == 0x80000001u, "0.0.1 stamps 0x80000001");
+    // The family's encoding of whatever release the headers name: the top
+    // bit, the major in bits 16 to 30, and below them the minor and patch
+    // in 8 bits each before 1.0, the minor alone from 1.0.
+    uint32_t low = MTWN_VERSION_MAJOR == 0 ? (MTWN_VERSION_MINOR << 8) | MTWN_VERSION_PATCH
+                                           : MTWN_VERSION_MINOR;
+    CHECK((MTWN_ABI_VERSION >> 31) == 1u &&
+              ((MTWN_ABI_VERSION >> 16) & 0x7FFFu) == MTWN_VERSION_MAJOR &&
+              (MTWN_ABI_VERSION & 0xFFFFu) == low,
+          "the stamp encodes the headers' version");
     def = mtwnDefaultContextDef();
     def.allocator.alloc = CountAlloc;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "an allocator of one function");
