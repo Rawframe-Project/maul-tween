@@ -16,8 +16,8 @@
 // each clip in both kinds of frame, to the same time, crosses
 // the same points as many times each way.
 
-#include "context_internal.h"
 #include "test_harness.h"
+#include "test_hooks.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/easing.h"
@@ -150,7 +150,7 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
     def.eventCapacity = 1024;
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
-    context->countEvery = countEvery;
+    mtwnTestSetCountEvery(context, countEvery);
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");

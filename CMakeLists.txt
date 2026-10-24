@@ -81,6 +81,12 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/event.c
     src/sweep.c
     src/elementary_float.c)
+# The tests' hooks (src/test_hooks.h), for the white-box suites and the
+# fuzz targets, which build only against the static library: a shared one
+# holds none of them.
+if(NOT MAUL_TWEEN_BUILD_SHARED)
+    target_sources(maul-tween PRIVATE src/test_hooks.c)
+endif()
 maul_configure_library(maul-tween)
 # The exactly rounded functions the library takes from libm
 # (tools/libm-allowed.txt).
@@ -163,7 +169,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(refusals)
     maul_add_test(determinism)
     maul_add_test(guide)
-    maul_add_test(invariants WHITEBOX)
+    maul_add_test(invariants)
     maul_add_test(math WHITEBOX)
     maul_add_test(math_float WHITEBOX)
     maul_add_header_tests()
@@ -194,6 +200,17 @@ if(MAUL_TWEEN_BUILD_TESTS)
                          -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -DGENERATOR=${CMAKE_GENERATOR}
                          -DC_COMPILER=${CMAKE_C_COMPILER} -P ${PROJECT_SOURCE_DIR}/cmake/PackageTest.cmake)
         set_tests_properties(package PROPERTIES LABELS package)
+    endif()
+    # A shared build exports the public functions and nothing else: the
+    # tests' hooks and every internal function stay hidden.
+    if(MAUL_TWEEN_BUILD_SHARED AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(Python3 COMPONENTS Interpreter)
+        if(Python3_FOUND)
+            add_test(NAME exports COMMAND Python3::Interpreter
+                                          ${PROJECT_SOURCE_DIR}/tools/check_exports.py
+                                          $<TARGET_FILE:${PROJECT_NAME}>)
+            set_tests_properties(exports PROPERTIES LABELS exports)
+        endif()
     endif()
 endif()
 

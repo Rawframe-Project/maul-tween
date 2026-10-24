@@ -9,6 +9,8 @@
 // x87 control word alone, and the library's arithmetic follows MXCSR. A
 // test plays a host that runs its threads with flush-to-zero and rounding
 // toward zero, and checks every call leaves the setting as it found it.
+// The MSVC paths are built by the clang-cl cell on x64; no CI cell builds
+// MSVC for ARM64, so its _ReadStatusReg path is untried.
 
 #ifndef MAUL_TWEEN_TEST_FENV_H
 #define MAUL_TWEEN_TEST_FENV_H

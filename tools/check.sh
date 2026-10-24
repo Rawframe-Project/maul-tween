@@ -67,6 +67,7 @@ preset() {
 # suite (shared code, the context, the build).
 labels_for() {
     case "$1" in
+    tools/check_exports.py) echo exports ;;
     *.md | LICENSE | .github/* | tools/check_*.py | tools/build_docs.py | tools/gen_api.py | tools/code_size.py) ;;
     docs/user/* | test/test_guide.c) echo guide ;;
     src/base.c | include/maul-tween/base.h | test/test_base.c) echo base ;;
