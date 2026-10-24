@@ -331,8 +331,8 @@ static float ShownAt(World* w, double seconds, double rate)
 
 // A clip's numbers past the floats' range, by each path that sums or eases
 // past it: a segment's back out of 100, an endless incremental repeat, two
-// players adding (infinite values and velocities before). Each frame
-// finite, the value held at the largest float.
+// players adding. Each frame finite, no value or velocity infinite, the
+// value held at the largest float.
 static void TestNumbersPastFloats(void)
 {
     for (int path = 0; path < 3; ++path)
@@ -691,9 +691,8 @@ static void TestCommitLastComponent(void)
 }
 
 // A finish holds the player at its end exactly, whatever the rate and the
-// time: a start rebased by end / rate could round the time just short of
-// the end, leaving it running until the next update (found by the
-// randomized invariants).
+// time: a start rebased by end / rate can round the time just short of
+// the end, which would leave it running until the next update.
 static void TestFinishExact(void)
 {
     int wrong = 0;

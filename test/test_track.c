@@ -359,8 +359,7 @@ static void TestRotationZero(void)
 }
 
 // A curved rotation extrapolated so far its cubic overflows: still a unit
-// rotation, along the overflowing components (found by the values' fuzz,
-// NaN before).
+// rotation, along the overflowing components, not NaN.
 static void TestRotationFarOut(void)
 {
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);

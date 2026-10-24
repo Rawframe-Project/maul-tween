@@ -253,8 +253,8 @@ static double ScanTime(void)
 // The iteration starts a local time has reached never fall as it grows,
 // over every double within 40 of each iteration's start and end, for 400
 // timings with repeat delays and either rate: a search for a crossing
-// halves on the count, and one that fell again an ulp later made where it
-// ended depend on where it began (found by the sweep's fuzz). The count's
+// halves on the count, and one that fell again an ulp later would make
+// where it ends depend on where it began. The count's
 // position rounded as the timing model's does: a quotient rounded up past
 // an iteration's start, or a progress rounded to its end.
 // A whole iteration start whose cycles' quotient rounds below it (339

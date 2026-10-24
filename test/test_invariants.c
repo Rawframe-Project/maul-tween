@@ -195,7 +195,7 @@ static double Grid(void)
 // and end and of the active interval's ends, for 3,000 timings, most with
 // repeat delays. The quotient by the cycle and the progress in it round:
 // one rounded up past an iteration's start, or a progress rounded to its
-// end, each stepped back an iteration (found by the sweep's fuzz); and a
+// end, each stepped back an iteration; and a
 // negative rate's scaled time rounded to the whole an ulp after its start,
 // where an iteration past the last showed its start.
 static void TestPositionNeverStepsBack(void)

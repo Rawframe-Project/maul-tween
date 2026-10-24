@@ -176,7 +176,7 @@ static void TestFitCounts(void)
           "the count grows as the tolerance shrinks");
     // A tolerance below the curve's rounding is never met: every segment
     // would go down to 2^-24, about 10^8 points; the fit stops at its
-    // limit (found by the values' fuzz, minutes of work before).
+    // limit instead of working for minutes.
     count = 7;
     CHECK(mtwnFitLinearEasing(&ease, 1e-300, NULL, 0, &count) == mtwn_errorLimit && count == 0,
           "an unmeetable tolerance stops at the limit");

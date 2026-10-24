@@ -100,7 +100,7 @@ static void TestPunch(void)
     CHECK(mtwnMakePunch(1.0, 1.0, (double)NAN, &punch) == mtwn_errorInvalid, "NaN exponent");
     CHECK(mtwnMakePunch(1.0, 1.0, 1.0, NULL) == mtwn_errorInvalid, "null out");
     // A punch over a very long span: its sine is of the cycles' fraction,
-    // in range however far in (found by the values' fuzz).
+    // in range however far in.
     CHECK(mtwnMakePunch(8.0, 1e300, 1.5, &punch) == mtwn_success, "a punch over 1e300 s");
     double deep = mtwnSamplePunch(&punch, 2.5e299 + 0.03125);
     CHECK(fabs(deep) <= 1.0, "a factor deep into it");

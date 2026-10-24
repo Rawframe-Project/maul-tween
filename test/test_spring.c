@@ -204,14 +204,13 @@ static void TestEndsOfTime(void)
               rest.velocityFromOffset == 0.0 && rest.velocityFromVelocity == 0.0,
           "at rest at infinity");
     // Far past where its envelope underflows, at rest too, though the
-    // phase there is beyond the sine's range (found by the values' fuzz).
+    // phase there is beyond the sine's range.
     mtwnSpringMotion far = mtwnSpringMotionAt(&spring, 1e300);
     CHECK(far.offsetFromOffset == 0.0 && far.offsetFromVelocity == 0.0 &&
               far.velocityFromOffset == 0.0 && far.velocityFromVelocity == 0.0,
           "at rest at 1e300 s");
     // A spring stiff past where any time has a phase: its motion stays
-    // bounded, the sine of a phase that holds no angle (found by the
-    // values' fuzz, -inf and NaN before).
+    // bounded and not NaN, the sine of a phase that holds no angle.
     mtwnSpring stiff;
     CHECK(mtwnMakeSpringFromFrequency(1e148, 1e-149, &stiff) == mtwn_success, "a stiff spring");
     bool bounded = true;
@@ -549,11 +548,10 @@ static void TestSettlingTimesAreTheBounds(void)
     CHECK(wrong == 0, "a start within both but rising is settled only if its peak is");
 }
 
-// Starts whose bounds the search met at their edges (found by fuzz_values
-// with the bounded decay): a critical spring whose
-// velocity bound peaks at a time that rounds to nearly 0, where Newton
-// once started on a slope of 0; and starts whose bounds overflow, once
-// bounded by infinity, which never ended them.
+// Starts whose bounds meet the search at its edges: a critical spring
+// whose velocity bound peaks at a time that rounds to nearly 0, where
+// Newton must not start on its slope of 0; and starts whose bounds
+// overflow, which still settle at their true time.
 static void TestSettlingAtTheEdges(void)
 {
     static const SettleCase flat = {1.0 / 3.0, 1.0, 0x1.56e1fc2f8f359p-997, 0x1.443418p+9};
@@ -575,9 +573,9 @@ static void TestSettlingAtTheEdges(void)
     CHECK(isfinite(scaled) && scaled > 0.0 && fabs(settle - scaled) <= 1e-12 * scaled,
           "overflowing bounds settle when the start divided down does");
     // Overflowing a coefficient at, below and above critical damping, and
-    // at it two products with opposite signs (the first two, found by the
-    // values' fuzz); slow springs whose coefficients are finite but whose
-    // bounds overflow on the way; and the largest velocity.
+    // at it two products with opposite signs; slow springs whose
+    // coefficients are finite but whose bounds overflow on the way; and the
+    // largest velocity.
     static const SettleCase overflowing[] = {
         {1e4, 1.0, 1e300, 1.0},
         {1e4, 1.0, 1e300, -1e305},

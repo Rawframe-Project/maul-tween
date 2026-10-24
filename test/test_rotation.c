@@ -248,8 +248,7 @@ static void TestHalfTurns(void)
 }
 
 // A slerp extrapolated so far that its phase holds no angle, or
-// overflows: still a unit rotation (found by the values' fuzz, NaN
-// before).
+// overflows: still a unit rotation, not NaN.
 static void TestFarExtrapolation(void)
 {
     mtwnRotationMix mix;

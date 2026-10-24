@@ -655,9 +655,9 @@ static double WorstShare(const float controls[2][4], double extra)
     return worst / (double)total;
 }
 
-// The share near 0.6 here once came 1.6e-7 off, the length found by
-// summing each Newton step's length drifting from the length measured
-// afresh (found comparing builds over random paths).
+// A share near 0.6 of these handles lands at its place: a length summed
+// from each Newton step's would drift 1.6e-7 from the length measured
+// afresh.
 static void TestSpeedDrift(void)
 {
     static const float controls[2][4] = {
@@ -689,8 +689,8 @@ static void TestBisected(void)
 // A line drawn as a Bezier with both handles on its end, 100 (1 - u)^3:
 // the speed falls to 0 there as (1 - u)^2, and its rounding keeps the
 // length's two orders apart at any width; at constant speed a share 2^-40
-// from the end measured that span until its stack filled, about 2^32 rule
-// pairs (found by the values' fuzz). The rule pairs are bounded now.
+// from the end would measure that span until its stack filled, about 2^32
+// rule pairs, so the rule pairs are bounded.
 static void TestStillEnds(void)
 {
     mtwnKeyframe keys[2] = {Key(0.0, 0.0f, 100.0f, mtwn_segmentBezier),
@@ -721,8 +721,8 @@ static void TestStillEnds(void)
 
 // Coincident keyframes hold still at constant speed too, extended past
 // the path: a Catmull-Rom from a point to itself measures 1.6e-23 by its
-// end tangents, and extended by its parameter took the path's millionth
-// before its start to 1e33 (found by fuzz_values).
+// end tangents, and extended by its parameter would take the path's
+// millionth before its start to 1e33.
 static void TestCoincidentStart(void)
 {
     mtwnKeyframe keys[3] = {Key(0.0, 34.1156f, 34.1156f, mtwn_segmentCatmullRom),
