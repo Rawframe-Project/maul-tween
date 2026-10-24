@@ -4,14 +4,19 @@ Releases are made by release-please from the conventional commit titles on `main
 
 ## Steps
 
-1. release-please keeps a draft pull request titled `chore: release X.Y.Z` open. It moves the version between the markers in `include/maul-tween/base.h`, where CMake reads it, updates `.release-please-manifest.json`, and adds an entry to `CHANGELOG.md` from the `feat`, `fix` and `perf` titles.
-2. Rewrite that entry in user language before merging: what changed for someone using the library, grouped as Added, Changed, Fixed, Removed and Security. Leave out refactors, tests, CI and documentation. Say what a caller must change for a breaking change, and name every change of results (any bit of a value, velocity or event record), since hosts may replay or compare frames across versions.
-3. Check that the `required` CI job passed on the release pull request, including the code size budgets and the web size report, and that the last nightly run on `main` passed.
-4. Mark the pull request ready and merge it. release-please tags the merge commit and publishes the GitHub release with the changelog entry as its notes. The Pages workflow publishes the documentation from `main`.
-5. The `assets` job of `.github/workflows/release.yml` then attaches the source archive `maul-tween-X.Y.Z.tar.gz` (the tagged tree, generated sources and oracle tables included), its `SHA256SUMS`, an SPDX SBOM and a build provenance attestation. Check that they are on the release; a user verifies a download with `sha256sum -c SHA256SUMS` and `gh attestation verify maul-tween-X.Y.Z.tar.gz -R Rawframe-Project/maul-tween`.
+1. release-please keeps a draft pull request titled `chore: release X.Y.Z` open. It moves the version between the markers in `include/maul-tween/base.h`, where CMake reads it, updates `.release-please-manifest.json`, and adds an entry to `CHANGELOG.md` from the `feat`, `fix` and `perf` titles and the `BREAKING CHANGE:` footers.
+2. Rewrite that entry in user language: what changed for someone using the library, grouped as Added, Changed, Fixed, Removed and Security.
+   - A breaking change comes first under Changed, prefixed **Breaking:**, and says what a caller must change.
+   - Name every change of results (any bit of a value, velocity or event record), since hosts may replay or compare frames across versions.
+   - User documentation (the README and `docs/user/`) gets one short line under Changed when it changes what a user can find or do.
+   - Leave out refactors, tests, CI, and the internals and operations documentation.
+3. Put the same entry in the pull request's body, in place of the notes between release-please's `---` lines: release-please publishes the GitHub release notes from the body, not from `CHANGELOG.md`. release-please rewrites both whenever anything else lands on `main`, so the curation is the last change before the merge, and nothing else merges to `main` until the release is published.
+4. Check that the `required` CI job passed on the release pull request, including the code size budgets and the web size report, that the last nightly run on `main` passed, and that the tag `vX.Y.Z` does not exist yet (`git ls-remote --tags origin vX.Y.Z` prints nothing).
+5. Mark the pull request ready and merge it. release-please tags the merge commit and publishes the GitHub release with the body's notes. The Pages workflow publishes the documentation from `main`.
+6. The `assets` job of `.github/workflows/release.yml` then attaches the source archive `maul-tween-X.Y.Z.tar.gz` (the tagged tree, generated sources and oracle tables included), its `SHA256SUMS`, an SPDX SBOM and a build provenance attestation. Check that they are on the release; a user verifies a download with `sha256sum -c SHA256SUMS` and `gh attestation verify maul-tween-X.Y.Z.tar.gz -R Rawframe-Project/maul-tween`.
 
 ## Notes
 
-- A change of results is never a patch release.
+- A change of results is never a patch release. A pull request that gives existing inputs a different result, or breaks the API or ABI, carries `!` in its title and a `BREAKING CHANGE:` footer naming what a host sees, whatever its type.
 - The shared family files must match their canonical copies in the organization's `.github` repository before a release.
 - A library that pins this one moves its pin in a pull request of its own.
