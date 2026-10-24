@@ -198,8 +198,7 @@ static void TestColors(void)
     CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success,
           "a last keyframe's kind not read");
     // Keyframes 1e-300 apart jump, as at one offset: extended before them
-    // by their width, the mix's progress was -1.5e300, a NaN color (from
-    // fuzz_values).
+    // by their width, the mix's progress would be -1.5e300, a NaN color.
     mtwnKeyframe close[3] = {Key(0.0, (mtwnVec4){0, 0, 0, 0.5f}, mtwn_segmentLinear),
                              Key(1e-300, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
                              Key(1.0, (mtwnVec4){0.5f, 0.5f, 0.2f, 0.3f}, mtwn_segmentLinear)};
@@ -359,8 +358,7 @@ static void TestRotationZero(void)
 }
 
 // A curved rotation extrapolated so far its cubic overflows: still a unit
-// rotation, along the overflowing components (found by the values' fuzz,
-// NaN before).
+// rotation, along the overflowing components, not NaN.
 static void TestRotationFarOut(void)
 {
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
@@ -524,7 +522,7 @@ static void TestScales(void)
     CHECK(mtwnMakeTrack(&def, last, 2, NULL, NULL, &track) == mtwn_success,
           "a last keyframe's out handle not read");
     // Extended far past its ends, a scale stays a positive float where
-    // its logarithm's line leaves a float's range (from fuzz_values).
+    // its logarithm's line leaves a float's range.
     def.alpha = 0.0;
     mtwnKeyframe falls[3] = {Key(0.0, Scale(1000.0f), mtwn_segmentLinear),
                              Key(0.01, Scale(1.0f), mtwn_segmentLinear),

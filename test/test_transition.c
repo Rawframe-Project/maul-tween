@@ -215,8 +215,8 @@ static void TestKinds(void)
 }
 
 // A scale eased past the floats' range: its logarithm overshoots so far
-// that both samples its speed is taken from are infinite (from fuzz_api,
-// a NaN velocity before). Held at the largest float, it is still.
+// that both samples its speed is taken from are infinite. Held at the
+// largest float, it is still, its velocity 0 and not NaN.
 static void TestScaleOvershootPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -239,8 +239,8 @@ static void TestScaleOvershootPastFloats(void)
 }
 
 // Numbers eased past the floats' range: a back out of 100 takes 0 to 3e38
-// near 4e39 (infinite values and velocities before). Each channel is held
-// at the nearest finite float, and still while held there.
+// near 4e39. Each channel is held at the nearest finite float, no value
+// or velocity infinite, and still while held there.
 static void TestNumbersPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);

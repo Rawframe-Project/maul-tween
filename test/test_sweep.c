@@ -273,8 +273,8 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
 static void TestLeftOutChangesNothing(bool wide)
 {
     // Seeds 1 to 600, then widened clips whose count fell an ulp past an
-    // iteration's start beside a repeat delay, so that a search from a
-    // guess ended two ulps from one without (found by a fuzz of 4,000).
+    // iteration's start beside a repeat delay, where a search from a guess
+    // can end two ulps from one without.
     static const uint64_t hard[] = {2799, 3372};
     s_wide = wide;
     uint32_t differ = 0;

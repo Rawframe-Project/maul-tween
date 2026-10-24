@@ -253,8 +253,8 @@ static double ScanTime(void)
 // The iteration starts a local time has reached never fall as it grows,
 // over every double within 40 of each iteration's start and end, for 400
 // timings with repeat delays and either rate: a search for a crossing
-// halves on the count, and one that fell again an ulp later made where it
-// ended depend on where it began (found by the sweep's fuzz). The count's
+// halves on the count, and one that fell again an ulp later would make
+// where it ends depend on where it began. The count's
 // position rounded as the timing model's does: a quotient rounded up past
 // an iteration's start, or a progress rounded to its end.
 // A whole iteration start whose cycles' quotient rounds below it (339
@@ -265,8 +265,8 @@ static void TestStartBelowItsQuotient(void)
     // A child of such a level starts at its own start, not at the end
     // of an iteration before the first: a mark late in it is crossed
     // once reached, not 1e-15 s into the level (an active time that
-    // small is lost in the position, which then held the end of
-    // iteration 338: the old count recorded the mark there).
+    // small is lost in the position, which would hold the end of
+    // iteration 338, and a count from it would record the mark there).
     mtwnLevel level[1];
     memset(level, 0, sizeof level);
     level[0].timing = Timing(0.1, 3.0);

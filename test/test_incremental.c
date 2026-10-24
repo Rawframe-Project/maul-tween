@@ -276,7 +276,7 @@ static void TestRefused(void)
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_errorInvalid,
           "nor a discrete value");
     // Endless iterations of no duration pass at once, to an infinite
-    // iteration no value moves on by (found by the API's fuzz).
+    // iteration no value moves on by.
     track = Incremental(mtwn_valueScalar, keys, HUGE_VAL);
     track.timing.duration = 0.0;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_errorInvalid,

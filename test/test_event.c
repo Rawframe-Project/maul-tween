@@ -601,9 +601,8 @@ static void NestedTracks(World* w, mtwnNode tracks[NESTED_TRACKS])
 }
 
 // A track in a repeating timeline in another: the record of one crossing
-// has one iteration, first and last alike. Searched apart, the last could
-// land a double before the first, in the iteration before (found by the
-// determinism scenario's hash).
+// has one iteration, first and last alike. Searched apart, the last can
+// land a double before the first, in the iteration before.
 static void TestOneCrossingIterations(void)
 {
     World w = MakeWorld(64);
@@ -650,10 +649,9 @@ static double EdgeIteration(const mtwnEvent* e, const mtwnNode tracks[NESTED_TRA
 
 // A start or end record has the node's iteration at its active start or
 // end, at every crossing, played in short frames and in frames of 0.7 s,
-// which cross each several times. Where the inner timeline repeated, the
-// iteration was looked up on its far side: an end there had the first,
-// and a start crossed backwards there the second (found by the
-// determinism scenario's hash).
+// which cross each several times. Where the inner timeline repeats, the
+// iteration is not looked up on its far side, where an end would have
+// the first and a start crossed backwards the second.
 static void TestEdgeIterations(void)
 {
     static const double frames[2] = {0.0113, 0.7};

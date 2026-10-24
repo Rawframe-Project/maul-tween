@@ -466,8 +466,7 @@ static void TestRefusals(void)
               mtwnEase(&easing, 0.5, false) == 0.125,
           "back with no overshoot is the cubic");
     // An overshoot from 2^53, where s + 1 rounds to s: still on 0 and 1,
-    // and finite between (found by the values' fuzz, NaN and infinite
-    // before).
+    // and finite between.
     bool lands = true;
     for (int mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
     {
