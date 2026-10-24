@@ -153,19 +153,17 @@ static void TestSpringAndDecay(void)
     mtwnDestroyContext(w.context);
 }
 
-// A spring whose settling bound overflows (a stiffness of 1e300 times an
-// offset of 3e38) has no end time and never ends by itself. Ended by
+// An undamped spring has no end time and never ends by itself. Ended by
 // reduced motion, its end record gives the time it had run.
 static void TestEndless(void)
 {
     World w = MakeWorld();
-    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){-3e38f, 0, 0, 0}, &w.target) ==
-              mtwn_success,
-          "a target far below its end");
+    CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &w.target) == mtwn_success,
+          "a target below its end");
     Update(&w, 1.0);
     mtwnTransitionDef spring = Eased(1.0f, 0.0, 0.0);
     spring.spec = mtwn_transitionSpring;
-    CHECK(mtwnMakeSpring(1e300, 1e150, 1.0, &spring.spring) == mtwn_success, "a stiff spring");
+    CHECK(mtwnMakeSpring(100.0, 0.0, 1.0, &spring.spring) == mtwn_success, "an undamped spring");
     mtwnPlayerId id = Transition(&w, spring);
     Update(&w, 1.5);
     CHECK(mtwnPlayer_IsValid(w.context, id), "running");
@@ -181,9 +179,8 @@ static void TestEndless(void)
     mtwnDestroyContext(w.context);
     // Ended in its delay, it ran none.
     World d = MakeWorld();
-    CHECK(mtwnCreateTarget(d.context, mtwn_valueScalar, (mtwnVec4){-3e38f, 0, 0, 0}, &d.target) ==
-              mtwn_success,
-          "a target far below its end");
+    CHECK(mtwnCreateTarget(d.context, mtwn_valueScalar, (mtwnVec4){0}, &d.target) == mtwn_success,
+          "a target below its end");
     Update(&d, 1.0);
     spring.delay = 1.0;
     id = Transition(&d, spring);
