@@ -215,17 +215,7 @@ if(MAUL_TWEEN_BUILD_TESTS)
                          -DC_COMPILER=${CMAKE_C_COMPILER} -P ${PROJECT_SOURCE_DIR}/cmake/PackageTest.cmake)
         set_tests_properties(package PROPERTIES LABELS package)
     endif()
-    # A shared build exports the public functions and nothing else: the
-    # tests' hooks and every internal function stay hidden.
-    if(MAUL_TWEEN_BUILD_SHARED AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        find_package(Python3 COMPONENTS Interpreter)
-        if(Python3_FOUND)
-            add_test(NAME exports COMMAND Python3::Interpreter
-                                          ${PROJECT_SOURCE_DIR}/tools/check_exports.py
-                                          $<TARGET_FILE:${PROJECT_NAME}>)
-            set_tests_properties(exports PROPERTIES LABELS exports)
-        endif()
-    endif()
+    maul_add_exports_test()
 endif()
 
 # The fuzz targets, each run as fuzz_<name> <corpus dir>: test/fuzz_api.c
