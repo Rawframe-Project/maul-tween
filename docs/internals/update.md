@@ -30,6 +30,16 @@ When a player's staging runs out, its state is put back as it was and it plays i
 
 A target that one player alone writes, with no transition on it, is composed in that player's group, which shortened the serial rest several times. Transitions, and targets several players write, are composed on the calling thread, which bounds the speed-up.
 
+On one worker, the task functions running each group in place, an update through groups costs at most 2% more than the same update without them, counted in instructions on the bench's `--count` layouts of 1,000 clip players of four tracks (GCC 14, Release, the difference of 2,000 updates and none):
+
+| Layout | Without groups | With groups | More |
+|---|---|---|---|
+| `step`: one clip, every player in step | 1,764,548 | 1,793,270 | 1.6% |
+| `spread`: one clip, every player at its own time | 5,880,232 | 5,957,858 | 1.3% |
+| `clips`: a clip each | 5,871,983 | 5,954,597 | 1.4% |
+
+What is left is the staging itself: a group stages each player's records and track results and marks and resets its own targets, and the serial pass then queues and composes them. Without groups the player writes them where they go. In step, where the serial pass shares nearly all the rest, this is the largest part of the difference. Removing it would mean composing in place, which only a target one player alone writes allows.
+
 ## Players in step
 
 A crowd started together plays one clip at the same time and rate, and would sample it identically many times. Each work (the serial one and each group's) notes the clip and the time of the last player it advanced; only a player near that note compares its keys:
@@ -37,7 +47,7 @@ A crowd started together plays one clip at the same time and rate, and would sam
 - the sample's: the clip by index and generation, the time, the rate and the direction;
 - the sweep's: the clip, the swept time and the time reached, the rate, the host's times, whether it starts from no time, whether it turns, the sign of its rate.
 
-When the results for a key are kept, the player takes them: each bound track's value and timing results, with its own binding's weight and composite, and the records with its own id. Only the second player in step keeps its results, worked out again from the node times its sample left, so a player out of step pays only for the note. A clip of more than 128 nodes, a sweep of more than 64 records, and a track the keeping player left unbound but this one binds are worked out as before. The sharing's memory is `sharedNodeCapacity` and `sharedRecordCapacity` in each work.
+When the results for a key are kept, the player takes them: each bound track's value and timing results, with its own binding's weight and composite, and the records with its own id. Only the second player in step keeps its results, worked out again from the node times its sample left, so a player out of step pays only for the note. A clip of more than 128 nodes, a sweep of more than 64 records, and a track the keeping player left unbound but this one binds are worked out as before. The sharing's memory is `sharedNodeCapacity` and `sharedRecordCapacity` in each work. Before the groups start, the first group's first three players run on the calling thread, by which a crowd in step has its sample and sweep kept, and every other group starts from a copy of that sharing. A crowd split over 16 groups is then worked out once, as in the serial pass, rather than once a group; a work's sharing is valid for whichever player comes next, so the copy changes no result.
 
 ## Reduced motion
 

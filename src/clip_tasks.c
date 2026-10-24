@@ -5,7 +5,8 @@
 // an update's serial pass, the clips' players in creation order are split
 // into up to MTWN_GROUPS groups, which the host runs on any thread. Each
 // group advances its players in its own scratch, staging their records and
-// track results; a player writes only its own state. The serial pass then
+// track results; a player writes only its own state. The first group's
+// first players run before the others, which start from their sharing. The serial pass then
 // takes each player in creation order, between the transitions, and
 // queues its records and composes its results into its targets: what a
 // serial update makes, bit for bit, whatever the host's split.
@@ -13,12 +14,21 @@
 #include "context_internal.h"
 #include "fpenv.h"
 
+#include <string.h>
+
 typedef struct GroupTask
 {
     mtwnContext* context;
     double before;
     double now;
+    // The first group's players run before the groups, and whether its
+    // staging ran out in them.
+    uint32_t seeded;
+    bool seedFull;
 } GroupTask;
+
+// The players the first group runs before the others to seed them.
+static const uint32_t s_seedPlayers = 3;
 
 // A group's players: [first, end) of the staged order.
 static void GroupRange(uint32_t count, uint32_t group, uint32_t* first, uint32_t* end)
@@ -44,63 +54,118 @@ static bool Fits(const mtwnContext* context, const mtwnWork* work, const mtwnCli
            work->changeCount + 2u * (uint64_t)play->bindingCount <= work->changeCapacity;
 }
 
-// Advances a group's players, staging what they make; their alone targets
+// Advances a group's player, staging what it makes; its alone targets
 // are marked, written and shown their bases here. One whose clip has more
 // nodes than a group keeps times for and other players is left to the
-// serial pass, as is one
-// with alone targets that might not fit, and one whose staging ran out,
-// put back as it was, and every one after it.
-static MTWN_NOINLINE void RunGroup(const GroupTask* task, uint32_t group)
+// serial pass, as is one with alone targets that might not fit, and one
+// whose staging ran out, put back as it was, and every one after it
+// (full).
+static void RunStaged(const GroupTask* task, uint32_t group, uint32_t i, bool* full)
 {
     mtwnContext* context = task->context;
     mtwnWork* work = &context->works[group];
+    mtwnStaged* staged = &context->staged[i];
+    mtwnClipPlay* play = &mtwnPlayerAt(context, staged->player)->play;
+    staged->group = (uint8_t)group;
+    staged->recordStart = work->recordCount;
+    staged->trackStart = work->trackCount;
+    staged->changeStart = work->changeCount;
+    staged->done = false;
+    uint32_t layered = 0;
+    bool unfit =
+        mtwnMarkUnwrittenOf(context, play, true, &layered) > 0 && !Fits(context, work, play);
+    staged->layered = layered > 0;
+    *full = *full || unfit;
+    // The group keeps times for MTWN_GROUP_NODES nodes; a clip of one
+    // player uses its own (mtwnTimesFor), however many.
+    const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
+    staged->serial = *full || (clip->nodeCount > MTWN_GROUP_NODES && clip->users != 1u);
+    if (!staged->serial)
+    {
+        mtwnClipPlay was = *play;
+        uint64_t dropped = work->dropped;
+        work->overflow = false;
+        staged->done =
+            mtwnAdvanceClipPlayer(context, work, staged->player, task->before, task->now);
+        if (work->overflow)
+        {
+            *play = was;
+            work->recordCount = staged->recordStart;
+            work->trackCount = staged->trackStart;
+            work->dropped = dropped;
+            staged->serial = true;
+            *full = true;
+        }
+    }
+    staged->resetStart = work->changeCount;
+    if (!staged->serial)
+    {
+        mtwnResetAlone(context, play, work);
+    }
+    staged->recordEnd = work->recordCount;
+    staged->trackEnd = work->trackCount;
+    staged->changeEnd = work->changeCount;
+}
+
+static MTWN_NOINLINE void RunGroup(const GroupTask* task, uint32_t group)
+{
     uint32_t first = 0;
     uint32_t end = 0;
-    GroupRange(context->stagedCount, group, &first, &end);
-    bool full = false;
-    for (uint32_t i = first; i < end; ++i)
+    GroupRange(task->context->stagedCount, group, &first, &end);
+    // The first group goes on after the players it ran to seed the others.
+    bool full = group == 0 && task->seedFull;
+    for (uint32_t i = group == 0 ? task->seeded : first; i < end; ++i)
     {
-        mtwnStaged* staged = &context->staged[i];
-        mtwnClipPlay* play = &mtwnPlayerAt(context, staged->player)->play;
-        staged->group = (uint8_t)group;
-        staged->recordStart = work->recordCount;
-        staged->trackStart = work->trackCount;
-        staged->changeStart = work->changeCount;
-        staged->done = false;
-        uint32_t layered = 0;
-        bool unfit =
-            mtwnMarkUnwrittenOf(context, play, true, &layered) > 0 && !Fits(context, work, play);
-        staged->layered = layered > 0;
-        full = full || unfit;
-        // The group keeps times for MTWN_GROUP_NODES nodes; a clip of one
-        // player uses its own (mtwnTimesFor), however many.
-        const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-        staged->serial = full || (clip->nodeCount > MTWN_GROUP_NODES && clip->users != 1u);
-        if (!staged->serial)
-        {
-            mtwnClipPlay was = *play;
-            uint64_t dropped = work->dropped;
-            work->overflow = false;
-            staged->done =
-                mtwnAdvanceClipPlayer(context, work, staged->player, task->before, task->now);
-            if (work->overflow)
-            {
-                *play = was;
-                work->recordCount = staged->recordStart;
-                work->trackCount = staged->trackStart;
-                work->dropped = dropped;
-                staged->serial = true;
-                full = true;
-            }
-        }
-        staged->resetStart = work->changeCount;
-        if (!staged->serial)
-        {
-            mtwnResetAlone(context, play, work);
-        }
-        staged->recordEnd = work->recordCount;
-        staged->trackEnd = work->trackCount;
-        staged->changeEnd = work->changeCount;
+        RunStaged(task, group, i, &full);
+    }
+}
+
+// A work's sharing as another's, in its own tracks and records.
+static void CopySharing(const mtwnContext* context, mtwnSharing* to, const mtwnSharing* from)
+{
+    mtwnSharedTrack* tracks = to->tracks;
+    mtwnSharedRecord* records = to->records;
+    *to = *from;
+    to->tracks = tracks;
+    to->records = records;
+    // What is not kept is not read before it is worked out again.
+    // Kept tracks are the clip's nodes, at most the capacity; ones kept in
+    // an earlier update for a clip since destroyed are never read, its
+    // generation passed.
+    if (from->sampleKept)
+    {
+        uint32_t nodes = mtwnClipAt(context, from->sampleClip.index1)->nodeCount;
+        nodes = nodes < from->trackCapacity ? nodes : from->trackCapacity;
+        memcpy(tracks, from->tracks, sizeof *tracks * nodes);
+    }
+    if (from->sweepKept && from->recordCount > 0)
+    {
+        memcpy(records, from->records, sizeof *records * from->recordCount);
+    }
+}
+
+// Runs the first group's first players here, before the groups, and
+// gives every group the sharing they leave: by the third in step a
+// clip's sample and sweep are kept, so the first players of the other
+// groups take them as the serial pass's do, rather than each group
+// working them out again. A work's sharing is valid for whichever
+// player comes next, so the copy changes no result.
+static void Seed(GroupTask* task, uint32_t groups)
+{
+    mtwnContext* context = task->context;
+    uint32_t first = 0;
+    uint32_t end = 0;
+    GroupRange(context->stagedCount, 0, &first, &end);
+    uint32_t seeded = end - first < s_seedPlayers ? end - first : s_seedPlayers;
+    for (uint32_t i = first; i < first + seeded; ++i)
+    {
+        RunStaged(task, 0, i, &task->seedFull);
+    }
+    task->seeded = first + seeded;
+    const mtwnSharing* sharing = &context->works[0].sharing;
+    for (uint32_t g = 1; (sharing->sampleKept || sharing->sweepKept) && g < groups; ++g)
+    {
+        CopySharing(context, &context->works[g].sharing, sharing);
     }
 }
 
@@ -154,9 +219,10 @@ void mtwnRunClipGroups(mtwnContext* context, double before, double now)
     // or they work it out again (read only while they run).
     context->aloneFresh = context->aloneEpoch == context->writersEpoch;
     context->aloneEpoch = context->writersEpoch;
-    GroupTask task = {context, before, now};
+    GroupTask task = {context, before, now, 0, false};
     const mtwnContextDef* def = &context->def;
     int32_t groups = (int32_t)(count < MTWN_GROUPS ? count : MTWN_GROUPS);
+    Seed(&task, (uint32_t)groups);
     void* handle = def->enqueueTask(RunGroups, groups, 1, &task, def->userTaskContext);
     if (handle != NULL)
     {
