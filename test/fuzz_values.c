@@ -688,8 +688,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 
 #ifndef MTWN_FUZZING
 // The random inputs after the seeds: a fit's, at its limit, costs a
-// thousand times the rest, so the fit's replay takes 10 of them and the
-// nightly run (`test_fuzz_fit dense`) 50.
+// thousand times the rest, so the fit's replay takes 10 of them and its
+// dense test (`test_fuzz_fit dense`) 50.
 #ifdef MTWN_FUZZ_FIT
 #include "generated/fuzz_seeds_fit.h"
 enum

@@ -124,7 +124,7 @@ static Wide SegmentLength(const mtwnPath* timed, double a, double b, uint8_t cha
 }
 
 // Each segment's measured length within 1e-10 relative of its length
-// found again, on 4 random paths, and 20 in the nightly run
+// found again, on 4 random paths, and 20 in the dense test
 // (`test_path_length dense`): measured on 1,000 the worst was 1.8e-12
 // (the reference here, on fewer panels, adds up to 1.7e-11 where a
 // segment's speed has a cusp).

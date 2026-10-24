@@ -708,8 +708,8 @@ static void TestOracle(int part, int parts)
 // delay, at rate 1, forwards): the levels below it count the same without
 // it, and the searches find the same times, before 0 too; one below with
 // something before its start, a negative delay, is not passed. Over a
-// number of random trials: 400 in the exact cases, 2,000 in the nightly
-// run (`test_crossing passed`).
+// number of random trials: 400 in the exact cases, 2,000 in the dense
+// test (`test_crossing passed`).
 static void TestPassedLevels(int trials)
 {
     Seed(1u << 20);

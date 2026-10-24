@@ -36,20 +36,24 @@ typedef struct Case
     double ratio;
     // The largest error allowed, each entry of the motion scaled to 1.
     double bound;
-    // Integrated only in the nightly run (`test_spring dense`): its
+    // Integrated only in the dense test (`test_spring dense`): its
     // fastest rate takes the most steps.
     bool dense;
 } Case;
 
 // An undamped spring turns the double rounding of 2 pi f into phase,
-// 56 radians of it by 3 seconds at 3 Hz.
+// 56 radians of it by 3 seconds at 3 Hz. At 0.05 Hz a ratio of 50 has
+// the slow rate whose closed form cancels, as at 0.5 Hz, in a tenth of
+// the steps. A ratio of 1.01 crosses from the series to the closed form
+// within the samples, where the closed form would cancel early.
 static const Case s_cases[] = {
     {1.0, 0.5, 3e-16, false},      {2.0, 0.1, 8e-16, false},      {1.5, 1.0, 3e-16, false},
     {1.0, 0.999999, 3e-16, false}, {1.0, 1.000001, 4e-16, false}, {1.0, 3.0, 4e-16, false},
     {0.5, 50.0, 4e-16, true},      {3.0, 0.0, 1.2e-14, false},    {10.0, 0.05, 1.5e-15, true},
+    {0.05, 50.0, 3e-16, false},    {1.0, 1.01, 3e-16, false},
 };
 
-// Whether this run is the nightly one, which integrates every case and
+// Whether this run is the dense test, which integrates every case and
 // samples the settling ten times as finely.
 static bool s_dense = false;
 

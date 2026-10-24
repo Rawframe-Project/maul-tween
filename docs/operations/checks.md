@@ -38,15 +38,20 @@ Only the `build` cells restore a ccache. The jobs outside `cpp.yml` do not, sinc
 
 Each suite in `test/` is one executable, registered with CTest under its name and labeled with it; the fuzz targets' replays are `fuzz_api`, `fuzz_values` and `fuzz_fit`, the samples are labeled `samples`, the package test `package`, and `exports`, in Linux shared builds, checks that the library exports the public functions and nothing else. No test reports itself skipped; a test preset that finds no test fails, and so does a CI cell where a test is skipped or not run.
 
-The large random scenes and the dense sweeps carry the label `nightly` as well as their suite's, and the pull request presets leave them out:
+The large random scenes carry the label `nightly` as well as their suite's, and the pull request presets leave them out:
 
-- `clip_tasks_twins` and `sweep_twins` play random scripts on twin contexts (serial and on tasks, shortcuts on and off). `clip_tasks_twins` also runs every seed of the groups on real threads.
+- `clip_tasks_twins` and `sweep_twins` play random scripts on twin contexts (serial and on tasks, shortcuts on and off).
 - `clip_step_crowd` runs the bench's crowd of players in step with the sharing on and off.
-- `crossing_oracle_0` to `_2` take every one of the crossing oracle's 3,000 trials, and `crossing_passed` takes all 2,000 trials of the passed levels.
-- `easing_dense`, `spring_dense` and `path_length_dense` sweep ten times as finely, integrate every spring, and measure 20 random paths.
-- `fuzz_fit_dense` replays 50 random fits.
+- `crossing_oracle_0` to `_2` take every one of the crossing oracle's 3,000 trials.
 
-The pull request check runs each suite's fixed cases with sweeps a unit test can afford, a thirtieth of the oracle's trials and a fifth of the passed levels' trials. The fuzz job compares the serial, tasked and record-counting contexts on every input.
+A suite's dense sweeps carry the label `dense`. Every cell runs them, the WebAssembly job and ThreadSanitizer included, except `linux-clang-20-asan`, the pull request's slowest; the nightly run takes them under AddressSanitizer:
+
+- `easing_dense`, `spring_dense` and `path_length_dense` sweep ten times as finely, integrate every spring, and measure 20 random paths.
+- `crossing_passed` takes all 2,000 trials of the passed levels.
+- `fuzz_fit_dense` replays 50 random fits.
+- `clip_tasks_threads` runs every seed of the groups on real threads.
+
+The AddressSanitizer cell and `tools/check.sh changed` run each suite's fixed cases with sweeps a unit test can afford, a thirtieth of the oracle's trials and a fifth of the passed levels' trials. The fuzz job compares the serial, tasked and record-counting contexts on every input.
 
 ## Budgets
 

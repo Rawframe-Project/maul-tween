@@ -906,7 +906,7 @@ static void TestOneTimeOrder(void)
 // Groups on threads over clips at the deepest chain: each group's levels
 // hold the whole chain at once, next to the next group's, which a layout
 // a few levels short overlaps (a race the thread sanitizer reports).
-// One seed here, two in the nightly run.
+// One seed here, two in `test_clip_tasks threads`.
 static void TestDeepThreads(uint64_t last)
 {
     s_threaded = true;
@@ -929,7 +929,7 @@ static void TestDeepThreads(uint64_t last)
 }
 
 // Two seeds here, the second with a first update of 240 players; four in
-// the nightly run.
+// `test_clip_tasks threads`.
 static void TestThreads(uint64_t first)
 {
     s_threaded = true;
@@ -1373,21 +1373,27 @@ static void TestLayeredFit(void)
 }
 
 // With no argument, the fixed cases; with "twins", the random scripts on
-// twin contexts, the nightly run's.
+// twin contexts, the nightly run's; with "threads", every seed of the
+// groups on real threads, the dense test's.
 int main(int argc, char** argv)
 {
     bool twins = argc == 2 && strcmp(argv[1], "twins") == 0;
-    if (argc > 2 || (argc == 2 && !twins))
+    bool threads = argc == 2 && strcmp(argv[1], "threads") == 0;
+    if (argc > 2 || (argc == 2 && !twins && !threads))
     {
-        printf("usage: test_clip_tasks [twins]\n");
+        printf("usage: test_clip_tasks [twins | threads]\n");
         return 2;
+    }
+    if (threads)
+    {
+        TestThreads(41);
+        TestDeepThreads(52);
+        return s_failures == 0 ? 0 : 1;
     }
     if (twins)
     {
         TestTwins();
         TestReplayOff();
-        TestThreads(41);
-        TestDeepThreads(52);
         return s_failures == 0 ? 0 : 1;
     }
     TestWriters();
