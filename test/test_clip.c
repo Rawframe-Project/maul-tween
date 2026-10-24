@@ -7,11 +7,11 @@
 // layer, positions resolved to start times, the states a clip passes, and
 // the same bits under a host's flush-to-zero.
 
-#include "context_internal.h"
-#include "fpenv.h"
+#include "test_fenv.h"
 #include "test_harness.h"
 
 #include "maul-tween/clip.h"
+#include "maul-tween/player.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -86,16 +86,18 @@ static void TestStorage(void)
     mtwnClipId a;
     mtwnClipId b;
     mtwnClipId c;
+    uint64_t before = counter.live;
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success && counter.allocations == 2,
           "one block for the clip");
-    uint64_t one = context->clipStorageUsed;
-    CHECK(one > 0 && one == mtwnClipAt(context, a.index1)->blockBytes, "counted");
+    uint64_t one = 0;
+    CHECK(mtwnGetClipBytes(context, &def, &one) == mtwn_success && one > 0 &&
+              counter.live - before >= one,
+          "its block holds what the def takes");
     CHECK(mtwnCreateClip(context, &def, &b) == mtwn_success, "a second");
     CHECK(mtwnCreateClip(context, &def, &c) == mtwn_errorLimit && c.index1 == 0,
           "the pool of clips full");
-    CHECK(mtwnDestroyClip(context, a) == mtwn_success && counter.frees == 1 &&
-              context->clipStorageUsed == one,
-          "destroyed, its storage back");
+    CHECK(mtwnDestroyClip(context, a) == mtwn_success && counter.frees == 1,
+          "destroyed, its block freed");
     CHECK(!mtwnClip_IsValid(context, a) && mtwnClip_IsValid(context, b), "stale and alive");
     CHECK(mtwnDestroyClip(context, a) == mtwn_errorStale, "a stale destroy");
     mtwnDestroyContext(context);
@@ -112,9 +114,11 @@ static void TestStorage(void)
     // Two that fill it to the byte both fit.
     context = Make(&counter, 4, 2 * one);
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success &&
-              mtwnCreateClip(context, &def, &b) == mtwn_success &&
-              context->clipStorageUsed == 2 * one,
+              mtwnCreateClip(context, &def, &b) == mtwn_success,
           "the storage filled exactly");
+    CHECK(mtwnDestroyClip(context, a) == mtwn_success &&
+              mtwnCreateClip(context, &def, &c) == mtwn_success,
+          "a destroyed clip's storage back for another");
     mtwnDestroyContext(context);
     // A failed allocation gives its slot back; a used clip is busy.
     counter = (Counter){0};
@@ -124,10 +128,18 @@ static void TestStorage(void)
           "the allocator fails");
     counter.fail = false;
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "the only slot still free");
-    mtwnClipAt(context, a.index1)->users = 1;
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = a;
+    playerDef.keep = true;
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnClip_Finish(context, a) == mtwn_success &&
+              mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success,
+          "a player of it");
     CHECK(mtwnDestroyClip(context, a) == mtwn_errorBusy && mtwnClip_IsValid(context, a),
           "a clip a player uses is busy");
-    mtwnClipAt(context, a.index1)->users = 0;
+    CHECK(mtwnDestroyPlayer(context, player) == mtwn_success &&
+              mtwnDestroyClip(context, a) == mtwn_success,
+          "and free to go with its player gone");
     mtwnDestroyContext(context);
 }
 
@@ -507,17 +519,6 @@ static void TestTimelines(void)
     CHECK(mtwnClip_GetNode(context, clip, MTWN_ROOT_NODE, &info) == mtwn_success &&
               info.end == 4.0 && info.kind == mtwn_nodeTimeline && info.timing.duration == 4.0,
           "the root");
-    // The children in the order they were added.
-    const mtwnClipSlot* slot = mtwnClipAt(context, clip.index1);
-    uint32_t order[16];
-    uint32_t n = 0;
-    for (uint32_t child = slot->nodes[t - 1].firstChild; child != 0 && n < 16;
-         child = slot->nodes[child - 1].nextSibling)
-    {
-        order[n++] = child;
-    }
-    CHECK(n == 5 && order[0] == a && order[1] == c && order[2] == otherLabel && order[4] == mark,
-          "children chained in the order added");
     mtwnDestroyContext(context);
 }
 
@@ -754,16 +755,8 @@ static void TestSlowEndless(void)
     mtwnDestroyContext(context);
 }
 
-#if defined(__x86_64__) || defined(_M_X64)
-static const uint64_t s_hostSetting = 0x1f80u | (1u << 15) | (1u << 6) | (3u << 13);
-#elif defined(__aarch64__) || defined(_M_ARM64)
-static const uint64_t s_hostSetting = (1ull << 24) | (3ull << 22);
-#else
-static const uint64_t s_hostSetting = 0;
-#endif
-
 // A curved track's lengths and samples, hashed, under a host setting.
-static uint64_t Scenario(uint64_t host, int* restoredOut)
+static uint64_t Scenario(TestFloatSetting host, int* restoredOut)
 {
     Counter counter = {0};
     mtwnContext* context = Make(&counter, 4, 1 << 20);
@@ -781,19 +774,39 @@ static uint64_t Scenario(uint64_t host, int* restoredOut)
     def.keyframes = keys;
     def.keyframeCount = 4;
     def.constantSpeed = true;
-    uint64_t saved = mtwnFloatControlRead();
-    mtwnFloatControlWrite(host);
+    TestFloatSetting saved = TestFloatGet();
+    TestFloatSet(host);
     mtwnNode node;
     int restored = mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success &&
-                   mtwnFloatControlRead() == host;
-    mtwnFloatControlWrite(saved);
+                   TestFloatSame(TestFloatGet(), host);
+    TestFloatSet(saved);
+    // The lengths measured under the host's setting, as the finished
+    // clip's track reports them, and its samples at constant speed.
     uint64_t hash = 0xcbf29ce484222325u;
-    const mtwnClipSlot* slot = mtwnClipAt(context, clip.index1);
-    unsigned char bytes[4 * sizeof(double)];
-    memcpy(bytes, slot->lengths, sizeof bytes);
-    for (size_t b = 0; b < sizeof bytes; ++b)
+    mtwnClipTrack track;
+    bool read = mtwnClip_Finish(context, clip) == mtwn_success &&
+                mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success;
+    CHECK(read, "the finished clip's track");
+    // The lengths the track reports, and its samples.
+    for (uint32_t k = 0; read && track.track.path.lengths != NULL && k < track.track.path.count;
+         ++k)
     {
-        hash = (hash ^ bytes[b]) * 0x100000001b3u;
+        unsigned char bytes[sizeof(double)];
+        memcpy(bytes, &track.track.path.lengths[k], sizeof bytes);
+        for (size_t b = 0; b < sizeof bytes; ++b)
+        {
+            hash = (hash ^ bytes[b]) * 0x100000001b3u;
+        }
+    }
+    for (uint32_t k = 0; read && k <= 16; ++k)
+    {
+        mtwnVec4 sample = mtwnSampleTrack(&track.track, 0.0625 * (double)k);
+        unsigned char bytes[sizeof sample];
+        memcpy(bytes, &sample, sizeof bytes);
+        for (size_t b = 0; b < sizeof bytes; ++b)
+        {
+            hash = (hash ^ bytes[b]) * 0x100000001b3u;
+        }
     }
     mtwnDestroyContext(context);
     *restoredOut = restored;
@@ -803,11 +816,10 @@ static uint64_t Scenario(uint64_t host, int* restoredOut)
 static void TestFloatEnvironment(void)
 {
     int restored = 0;
-    uint64_t plain = Scenario(mtwnFloatControlRead(), &restored);
+    uint64_t plain = Scenario(TestFloatGet(), &restored);
     CHECK(restored, "the default kept");
     int hostileRestored = 0;
-    uint64_t hostile =
-        Scenario(s_hostSetting == 0 ? mtwnFloatControlRead() : s_hostSetting, &hostileRestored);
+    uint64_t hostile = Scenario(TestFloatHostile(), &hostileRestored);
     CHECK(hostileRestored, "the host's setting left as it was");
     CHECK(plain == hostile, "the same lengths under flush-to-zero and rounding toward zero");
 }
@@ -841,7 +853,8 @@ static void TestLimitEdges(void)
           "two taking the last fit");
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
     mtwnClipNodeInfo info;
-    uint32_t nodes = mtwnClipAt(context, clip.index1)->nodeCount;
+    // The last node is the last added: the root, then two tracks.
+    uint32_t nodes = node;
     CHECK(mtwnClip_GetNode(context, clip, 0, &info) == mtwn_errorInvalid &&
               mtwnClip_GetNode(context, clip, nodes + 1, &info) == mtwn_errorInvalid &&
               mtwnClip_GetNode(context, clip, nodes, &info) == mtwn_success,
@@ -875,7 +888,22 @@ static void TestDefaults(void)
         made = made && mtwnCreateClip(context, &clipDef, &clip) == mtwn_success;
     }
     CHECK(made, "every clip slot filled with a default clip");
-    CHECK(context->clipStorageUsed == bytes * def.clipCapacity, "each counted as said");
+    // Each counts what mtwnGetClipBytes says: a byte less storage than
+    // all of them refuses the last.
+    mtwnContextDef tight = def;
+    tight.clipStorageBytes = bytes * def.clipCapacity - 1;
+    mtwnContext* short_ = NULL;
+    CHECK(mtwnCreateContext(&tight, &short_) == mtwn_success, "a context a byte short");
+    uint32_t fitted = 0;
+    mtwnClipId clip;
+    while (fitted < def.clipCapacity && mtwnCreateClip(short_, &clipDef, &clip) == mtwn_success)
+    {
+        ++fitted;
+    }
+    CHECK(fitted == def.clipCapacity - 1 &&
+              mtwnCreateClip(short_, &clipDef, &clip) == mtwn_errorLimit,
+          "each counted as said");
+    mtwnDestroyContext(short_);
     // Bigger defs take more; bad defs are refused, each a misuse, and no
     // def is read without a context.
     clipDef.keyframeCapacity *= 2;

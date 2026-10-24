@@ -7,7 +7,7 @@
 // reached, the commit at the end, the changed report, refusals, and the
 // same bits under a host's flush-to-zero and rounding toward zero.
 
-#include "fpenv.h"
+#include "test_fenv.h"
 #include "test_harness.h"
 
 #include "maul-tween/context.h"
@@ -950,19 +950,9 @@ static void TestUpdateReport(void)
     mtwnDestroyContext(context);
 }
 
-#if defined(__x86_64__) || defined(_M_X64)
-// Flush-to-zero, denormals-are-zero, round toward zero, exceptions masked.
-static const uint64_t s_hostSetting = 0x1f80u | (1u << 15) | (1u << 6) | (3u << 13);
-#elif defined(__aarch64__) || defined(_M_ARM64)
-// Flush-to-zero and round toward zero.
-static const uint64_t s_hostSetting = (1ull << 24) | (3ull << 22);
-#else
-static const uint64_t s_hostSetting = 0;
-#endif
-
 // A scenario's every value, hashed by FNV-1a over their bits; the host's
 // control register is checked after every call.
-static uint64_t Scenario(uint64_t host, int* restoredOut)
+static uint64_t Scenario(TestFloatSetting host, int* restoredOut)
 {
     uint64_t hash = 0xcbf29ce484222325u;
     mtwnContext* context = Make(8, 8);
@@ -988,19 +978,19 @@ static uint64_t Scenario(uint64_t host, int* restoredOut)
         defs[i].duration = 0.8;
         defs[i].colorSpace = mtwn_colorOklch;
     }
-    uint64_t saved = mtwnFloatControlRead();
+    TestFloatSetting saved = TestFloatGet();
     int restored = 1;
-    mtwnFloatControlWrite(host);
+    TestFloatSet(host);
     for (int i = 0; i < 4; ++i)
     {
         mtwnPlayerId id;
         restored &= mtwnStartTransition(context, &defs[i], &id) == mtwn_success &&
-                    mtwnFloatControlRead() == host;
+                    TestFloatSame(TestFloatGet(), host);
     }
     for (int k = 0; k <= 60; ++k)
     {
         restored &= mtwnUpdate(context, (uint64_t)k * 16666667u, NULL, 0, NULL) == mtwn_success &&
-                    mtwnFloatControlRead() == host;
+                    TestFloatSame(TestFloatGet(), host);
         for (int i = 0; i < 4; ++i)
         {
             mtwnTargetState state;
@@ -1014,7 +1004,7 @@ static uint64_t Scenario(uint64_t host, int* restoredOut)
             }
         }
     }
-    mtwnFloatControlWrite(saved);
+    TestFloatSet(saved);
     mtwnDestroyContext(context);
     *restoredOut = restored;
     return hash;
@@ -1023,11 +1013,10 @@ static uint64_t Scenario(uint64_t host, int* restoredOut)
 static void TestFloatEnvironment(void)
 {
     int restored = 0;
-    uint64_t host = mtwnFloatControlRead();
-    uint64_t plain = Scenario(host, &restored);
+    uint64_t plain = Scenario(TestFloatGet(), &restored);
     CHECK(restored, "the default environment kept");
     int hostileRestored = 0;
-    uint64_t hostile = Scenario(s_hostSetting == 0 ? host : s_hostSetting, &hostileRestored);
+    uint64_t hostile = Scenario(TestFloatHostile(), &hostileRestored);
     CHECK(hostileRestored, "the host's flush-to-zero and rounding left as it set them");
     CHECK(plain == hostile, "the same bits under the host's flush-to-zero and rounding");
 }
