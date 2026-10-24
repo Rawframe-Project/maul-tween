@@ -6,7 +6,7 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
-## [0.0.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.0.1)
+## [0.0.1](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.0.1) (2026-10-24)
 
 The first release: easing, springs, tweens and timelines driven by the
 host's clock, with the same results on every platform.
