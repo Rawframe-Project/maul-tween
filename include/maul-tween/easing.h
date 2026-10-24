@@ -399,6 +399,24 @@ extern "C"
     /// Safe from any thread.
     MTWN_API double mtwnEase(const mtwnEasing* easing, double progress, bool before);
 
+    /// Samples a cubic bezier easing as mtwnEase does, to the bit, in each
+    /// mode, reaching none of the other curves. With link-time optimization
+    /// or unused sections dropped, a program that samples cubic beziers
+    /// only through it links none of mtwnEase's dispatch, Penner's curves
+    /// or the spring easing; without either, the makers and
+    /// mtwnSetEaseMode bring them along.
+    ///
+    /// @param easing    An easing made by mtwnMakeCubicBezier or
+    ///                  mtwnMakeCssEasing, its mode set by mtwnSetEaseMode,
+    ///                  or the linear easing.
+    /// @param progress  The progress, finite; outside 0 to 1 the curve
+    ///                  follows CSS Easing Level 2.
+    /// @return mtwnEase(easing, progress, false); the progress for the
+    ///         linear easing; NaN for an easing of any other kind.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MTWN_API double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress);
+
 #ifdef __cplusplus
 }
 #endif

@@ -40,6 +40,7 @@ Every kind takes the same four modes: in (the curve as defined), out (`1 - f(1 -
 - The last argument of `mtwnEase` is the timing's before flag: in the before phase, `steps()` landing exactly on a step takes the step below, as CSS says. Pass `false` when sampling a curve on its own.
 - `linear()` canonicalizes its points in place as CSS does (missing inputs spread, decreasing inputs raised), so the array is rewritten; an input of NaN is a stop given without a percentage.
 - A host function is called from every thread that samples the easing, so it must be safe there, and it never calls the context sampling it.
+- `mtwnEaseCubicBezier` samples a cubic bezier, or the linear easing, as `mtwnEase` does, to the bit, without its dispatch over every kind, which keeps every curve linked. A program that samples only cubic beziers through it is smaller: with GCC 14, `-Os`, link-time optimization and unused sections dropped, one sample of `cubic-bezier()` links 2.3 kB of code on x86-64 against 9.0 kB through `mtwnEase`. Given an easing of another kind it returns NaN.
 - `mtwnIsEasingMonotonic` tells whether an easing never decreases, which a timeline's easing must. Back, elastic, bounce, springs and host functions are never monotonic for it.
 
 ## Rough easings
