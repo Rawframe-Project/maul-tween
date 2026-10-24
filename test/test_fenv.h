@@ -2,11 +2,13 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // A host's floating-point setting for the tests, set and read without the
-// library's own code: the rounding mode through <fenv.h>, and flush-to-
-// zero (with denormals-are-zero on x86) through each architecture's
-// control register. A test plays a host that runs its threads with flush-
-// to-zero and rounding toward zero, and checks every call leaves the
-// setting as it found it.
+// library's own code: the rounding mode through <fenv.h>, and the control
+// register's own rounding and flush-to-zero bits (MXCSR's rounding,
+// flush-to-zero and denormals-are-zero on x86, FPCR's RMode and FZ on
+// AArch64), read from the register itself: on x86 <fenv.h> may report the
+// x87 control word alone, and the library's arithmetic follows MXCSR. A
+// test plays a host that runs its threads with flush-to-zero and rounding
+// toward zero, and checks every call leaves the setting as it found it.
 
 #ifndef MAUL_TWEEN_TEST_FENV_H
 #define MAUL_TWEEN_TEST_FENV_H
@@ -23,17 +25,22 @@
 
 typedef struct TestFloatSetting
 {
+    // As <fenv.h> reports it.
     int rounding;
-    bool flush;
+    // The register's rounding and flush bits, the rest masked off.
+    uint64_t control;
 } TestFloatSetting;
 
-// MXCSR's flush-to-zero and denormals-are-zero bits; FPCR's FZ.
+// MXCSR's flush-to-zero and denormals-are-zero bits and its rounding
+// field; FPCR's FZ and RMode. Toward zero is 3 in either field.
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-#define TEST_FLUSH_BITS ((1u << 15) | (1u << 6))
-#define TEST_HAS_FLUSH  1
+#define TEST_FLUSH_BITS    ((1u << 15) | (1u << 6))
+#define TEST_ROUNDING_BITS (3u << 13)
+#define TEST_HAS_FLUSH     1
 #elif defined(__aarch64__) || defined(_M_ARM64)
-#define TEST_FLUSH_BITS (1ull << 24)
-#define TEST_HAS_FLUSH  1
+#define TEST_FLUSH_BITS    (1ull << 24)
+#define TEST_ROUNDING_BITS (3ull << 22)
+#define TEST_HAS_FLUSH     1
 #else
 #define TEST_HAS_FLUSH 0
 #endif
@@ -76,31 +83,32 @@ static inline void TestControlWrite(uint64_t value)
 // The thread's setting as it is.
 static inline TestFloatSetting TestFloatGet(void)
 {
-    TestFloatSetting setting = {fegetround(), false};
+    TestFloatSetting setting = {fegetround(), 0};
 #if TEST_HAS_FLUSH
-    setting.flush = (TestControlRead() & TEST_FLUSH_BITS) == TEST_FLUSH_BITS;
+    setting.control = TestControlRead() & (TEST_FLUSH_BITS | TEST_ROUNDING_BITS);
 #endif
     return setting;
 }
 
-// Sets the thread's rounding mode and flush-to-zero.
+// Sets the thread's rounding mode, then the register's rounding and flush
+// bits, leaving its others as they are.
 static inline void TestFloatSet(TestFloatSetting setting)
 {
     (void)fesetround(setting.rounding);
 #if TEST_HAS_FLUSH
-    uint64_t control = TestControlRead();
-    TestControlWrite(setting.flush ? control | TEST_FLUSH_BITS
-                                   : control & ~(uint64_t)TEST_FLUSH_BITS);
+    uint64_t mask = TEST_FLUSH_BITS | TEST_ROUNDING_BITS;
+    TestControlWrite((TestControlRead() & ~mask) | (setting.control & mask));
 #endif
 }
 
 static inline bool TestFloatSame(TestFloatSetting a, TestFloatSetting b)
 {
-    return a.rounding == b.rounding && a.flush == b.flush;
+    return a.rounding == b.rounding && a.control == b.control;
 }
 
 // The hostile host: flush-to-zero and rounding toward zero where the
-// platform takes them, else the setting as it is.
+// platform takes them, in <fenv.h> and in the register, else the setting
+// as it is.
 static inline TestFloatSetting TestFloatHostile(void)
 {
     TestFloatSetting setting = TestFloatGet();
@@ -112,7 +120,9 @@ static inline TestFloatSetting TestFloatHostile(void)
     }
     (void)fesetround(saved);
 #endif
-    setting.flush = TEST_HAS_FLUSH != 0;
+#if TEST_HAS_FLUSH
+    setting.control = TEST_FLUSH_BITS | TEST_ROUNDING_BITS;
+#endif
     return setting;
 }
 
