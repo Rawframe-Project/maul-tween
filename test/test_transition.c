@@ -788,9 +788,6 @@ static void TestMeasure(void)
               mtwnMeasureTransition(NULL, &def, &d) == mtwn_errorInvalid,
           "no cookie, no def, no context");
     def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
-    def.version += 1u;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorVersion, "another version");
-    def.version -= 1u;
     CHECK(mtwnMeasureTransition(context, &def, NULL) == mtwn_errorInvalid, "nowhere to put it");
     CHECK(mtwnTargetAt(context, red.index1)->header.link == 0 &&
               State(context, red).value.x == 1.0f,
@@ -878,9 +875,6 @@ static void TestRefusals(void)
     def.cookie = 0;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid && id.index1 == 0,
           "no cookie");
-    def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
-    def.version = MTWN_ABI_VERSION + 1;
-    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorVersion, "another version");
     def = Linear(x, (mtwnVec4){NAN, 0, 0, 0}, 1.0);
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a NaN end");
     def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, -1.0);
@@ -891,7 +885,7 @@ static void TestRefusals(void)
     def = Linear((mtwnTargetId){9, 1}, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorStale, "a stale target");
     uint64_t misuse = mtwnGetContextMisuse(context);
-    CHECK(misuse == 8, "each refusal with a context counted");
+    CHECK(misuse == 7, "each refusal with a context counted");
     def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     mtwnPlayerId first = Start(context, &def);
     def.target = y;

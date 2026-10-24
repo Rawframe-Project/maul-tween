@@ -75,33 +75,28 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
     return result;
 }
 
-// Whether a clip def is one of this version with counts in range.
+// Whether a clip def has its cookie and counts in range.
 static mtwnResult CheckClipDef(const mtwnClipDef* def)
 {
     if (def->cookie != MTWN_CLIP_DEF_COOKIE)
     {
         return mtwn_errorInvalid;
     }
-    if (def->version != MTWN_ABI_VERSION)
-    {
-        return mtwn_errorVersion;
-    }
     bool counts = IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) &&
                   IsCount(def->slotCapacity) && def->reserved == 0;
     return counts ? mtwn_success : mtwn_errorInvalid;
 }
 
-mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut)
+static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
 {
-    if (def == NULL || bytesOut == NULL)
+    if (context == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *bytesOut = 0;
-    mtwnResult checked = CheckClipDef(def);
+    mtwnResult checked = def == NULL || bytesOut == NULL ? mtwn_errorInvalid : CheckClipDef(def);
     if (checked != mtwn_success)
     {
-        return checked;
+        return Misuse(context, checked);
     }
     // Counts within MTWN_MAX_COUNT never overflow the plan; a size past
     // what this platform can allocate is still the size.
@@ -109,6 +104,22 @@ mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut)
     (void)PlanClip(def, &layout);
     *bytesOut = layout.bytes;
     return mtwn_success;
+}
+
+mtwnResult mtwnGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
+{
+    // Cleared first, so a busy or missing context's failure clears it too.
+    if (bytesOut != NULL)
+    {
+        *bytesOut = 0;
+    }
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorState;
+    }
+    mtwnResult result = RunGetClipBytes(context, def, bytesOut);
+    mtwnLeave(context);
+    return result;
 }
 
 static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mtwnClipId* clipOut)
@@ -519,10 +530,10 @@ static MTWN_NOINLINE mtwnResult AddInstantWorker(mtwnClipSlot* clip, mtwnNodeKin
 }
 
 // The checks every add shares: the clip alive and not finished, the def
-// given with its cookie and version. Returns the clip, or NULL with the
-// refusal, counted, in resultOut.
+// given with its cookie. Returns the clip, or NULL with the refusal,
+// counted, in resultOut.
 static mtwnClipSlot* Adding(mtwnContext* context, mtwnClipId clip, bool given, bool cookie,
-                            uint32_t version, mtwnNode* nodeOut, mtwnResult* resultOut)
+                            mtwnNode* nodeOut, mtwnResult* resultOut)
 {
     if (nodeOut != NULL)
     {
@@ -537,10 +548,6 @@ static mtwnClipSlot* Adding(mtwnContext* context, mtwnClipId clip, bool given, b
     else if (!given || nodeOut == NULL || !cookie)
     {
         result = mtwn_errorInvalid;
-    }
-    else if (version != MTWN_ABI_VERSION)
-    {
-        result = mtwn_errorVersion;
     }
     else if (slot->finished)
     {
@@ -565,9 +572,8 @@ static mtwnResult RunClipAddTrack(mtwnContext* context, mtwnClipId clip,
     }
     mtwnResult result = mtwn_success;
     bool given = def != NULL;
-    mtwnClipSlot* slot =
-        Adding(context, clip, given, given && def->cookie == MTWN_CLIP_TRACK_DEF_COOKIE,
-               given ? def->version : 0, nodeOut, &result);
+    mtwnClipSlot* slot = Adding(
+        context, clip, given, given && def->cookie == MTWN_CLIP_TRACK_DEF_COOKIE, nodeOut, &result);
     if (slot == NULL)
     {
         return result;
@@ -606,8 +612,8 @@ static mtwnResult RunClipAddTimeline(mtwnContext* context, mtwnClipId clip,
     mtwnResult result = mtwn_success;
     bool given = def != NULL;
     mtwnClipSlot* slot =
-        Adding(context, clip, given, given && def->cookie == MTWN_CLIP_TIMELINE_DEF_COOKIE,
-               given ? def->version : 0, nodeOut, &result);
+        Adding(context, clip, given, given && def->cookie == MTWN_CLIP_TIMELINE_DEF_COOKIE, nodeOut,
+               &result);
     if (slot == NULL)
     {
         return result;
@@ -646,7 +652,7 @@ static mtwnResult AddInstant(mtwnContext* context, mtwnClipId clip, mtwnNodeKind
     }
     // No def to check: these take their arguments directly.
     mtwnResult result = mtwn_success;
-    mtwnClipSlot* slot = Adding(context, clip, true, true, MTWN_ABI_VERSION, nodeOut, &result);
+    mtwnClipSlot* slot = Adding(context, clip, true, true, nodeOut, &result);
     if (slot == NULL)
     {
         return result;

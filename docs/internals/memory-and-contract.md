@@ -8,7 +8,7 @@ The context def names every capacity: targets, players (transitions included), c
 
 A game knows its budget, and a pool that grows in the middle of a frame stalls it or fails where no one checks. When the host does outgrow a context, `mtwnGrowContext` grows it at a moment the host chooses: it allocates one new block, moves every pool with its free list (ids stay valid, freed slots reused in the same order as before), the bindings, the queued records in order and the changed list, frees the old block and writes the new address. Clips' storage does not move. On a refusal or an allocation failure nothing changes.
 
-The defaults are sized together: a clip def for a small clip (16 nodes, 32 keyframes, 8 slots, about 13 KB), and a context def holding 16 such clips in 208 KiB of clip storage, 1024 targets, 256 players, 256 events and 1024 bindings. `mtwnGetClipBytes` gives the clip storage a clip def takes.
+The defaults are sized together: a clip def for a small clip (16 nodes, 32 keyframes, 8 slots, about 13 KB), and a context def holding 16 such clips in 208 KiB of clip storage, 1024 targets, 256 players, 256 events and 1024 bindings. `mtwnGetClipBytes` gives the clip storage a clip def takes; it takes the context, so every def but the context's is read under a context that passed the version check.
 
 A target is 64 bytes: a kind and its base value, current value and velocity, four floats each. Values are stored as given and checked by their bits, so creating and setting a target do no floating-point arithmetic.
 
@@ -20,7 +20,7 @@ Targets, players and clips are named by a 1-based index and a generation from 1 
 
 ## Defs and versions
 
-Every def opens with a cookie and a version, stamped by its inline default function from the headers the program includes, and creation refuses another version before it reads anything else. A def not made by its default function fails the cookie. Starting from the default is what lets a def grow: a field added later is set by the new default, and a program built against old headers is refused rather than misread.
+Every def opens with a cookie, set by its inline default function; a def not made by it fails the cookie. The context def, the root every other object lives under, also carries `MTWN_ABI_VERSION`, stamped by its default from the headers the program includes: `mtwnCreateContext` and `mtwnGrowContext` check the cookie first and the version second, before they read anything else. The other defs are taken by a context that already passed, so they carry only their cookie. The version is the whole release before 1.0 and the major and minor version from 1.0 on, with the top bit set so a zeroed value never matches. Starting from the default is what lets a def grow: a field added later is set by the new default, and a program built against old headers is refused rather than misread.
 
 ## Reserved bytes
 
@@ -47,7 +47,7 @@ The host's code that the library runs (a host easing, the allocator, the task sy
 
 ## ABI
 
-The headers are the common subset of C17, C23 and C++17. Every public struct's layout is ABI, and a struct a def holds grows only through the def's version. While the major version is 0, any release may change the API and the ABI; the version a def carries refuses a mismatch instead of misreading it.
+The headers are the common subset of C17, C23 and C++17. Every public struct's layout is ABI, and a def or a struct it holds grows only with a new ABI version. While the major version is 0, any release may change the API and the ABI; the version the context def carries refuses a mismatch instead of misreading it, and the other defs make objects only inside a context.
 
 ## Traps
 

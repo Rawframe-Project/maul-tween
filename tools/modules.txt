@@ -28,9 +28,9 @@ stagger_internal:
 timing_internal:
 allocator:
 fpenv:
-pool:
+pool: invariant
 context_internal: crossing pool runs
-context: allocator context_internal pool reserved_internal
+context: allocator context_internal invariant pool reserved_internal
 target: context_internal pool
 transition: bounds_internal coast context_internal easing_internal elementary fpenv pool reserved_internal spring_internal
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal
@@ -39,13 +39,13 @@ path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length
 clip: allocator context_internal fpenv pool reserved_internal
-runs:
+runs: invariant
 player: context_internal fpenv invariant pool reserved_internal runs
 player_slot: context_internal pool runs
 clip_sample: compose context_internal elementary fpenv pool runs bounds_internal
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal
 compose: elementary bounds_internal
-crossing: timing_internal
-event: context_internal pool
+crossing: invariant timing_internal
+event: context_internal invariant pool
 sweep: context_internal crossing pool runs

@@ -248,12 +248,12 @@ static mtwnClipDef ClipDef(void)
     return def;
 }
 
-// The clip storage one of them takes.
-static uint64_t ClipBytes(void)
+// The clip storage one of them takes in a context.
+static uint64_t ClipBytes(mtwnContext* context)
 {
     mtwnClipDef def = ClipDef();
     uint64_t bytes = 0;
-    Check(mtwnGetClipBytes(&def, &bytes), "a clip's bytes");
+    Check(mtwnGetClipBytes(context, &def, &bytes), "a clip's bytes");
     return bytes;
 }
 
@@ -293,9 +293,15 @@ static mtwnContext* MakeContext(uint32_t targets, uint32_t players, uint32_t cli
     def.clipCapacity = clips;
     def.bindingCapacity = bindings;
     def.eventCapacity = s_quiet ? 0u : 1u;
-    def.clipStorageBytes = (uint64_t)clips * ClipBytes();
+    def.clipStorageBytes = 0;
     mtwnContext* context = NULL;
     Check(mtwnCreateContext(&def, &context), "a context");
+    if (clips > 0)
+    {
+        // Grown to hold its clips, as a host sizes its clip storage.
+        def.clipStorageBytes = (uint64_t)clips * ClipBytes(context);
+        Check(mtwnGrowContext(&context, &def), "a context grown for its clips");
+    }
     return context;
 }
 

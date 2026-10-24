@@ -17,14 +17,33 @@ extern "C"
 {
 #endif
 
-// The library version. CMake reads it from here.
-#define MTWN_VERSION_MAJOR 1
+// The library version. CMake reads it from here, and release-please
+// moves it between the markers.
+// x-release-please-start-major
+#define MTWN_VERSION_MAJOR 0
+// x-release-please-end
+// x-release-please-start-minor
 #define MTWN_VERSION_MINOR 0
-#define MTWN_VERSION_PATCH 4
+// x-release-please-end
+// x-release-please-start-patch
+#define MTWN_VERSION_PATCH 1
+// x-release-please-end
 
-// The major and minor version in one number: a def built against
-// headers of another major or minor version is refused.
-#define MTWN_ABI_VERSION (((uint32_t)MTWN_VERSION_MAJOR << 16) | (uint32_t)MTWN_VERSION_MINOR)
+// The binary interface the headers describe, which the context def carries:
+// the whole version before 1.0, where any release may break it, and the major
+// and minor version from 1.0 on. The top bit is always set, so a zeroed value,
+// or a small one written by hand, never matches.
+#define MTWN_ABI_VERSION                                                                           \
+    (UINT32_C(0x80000000) | ((uint32_t)MTWN_VERSION_MAJOR << 16) |                                 \
+     (MTWN_VERSION_MAJOR == 0                                                                      \
+          ? (((uint32_t)MTWN_VERSION_MINOR << 8) | (uint32_t)MTWN_VERSION_PATCH)                   \
+          : (uint32_t)MTWN_VERSION_MINOR))
+#if MTWN_VERSION_MAJOR > 0x7FFF || MTWN_VERSION_MINOR > 0xFFFF
+#error "MTWN_VERSION_MAJOR or MTWN_VERSION_MINOR does not fit MTWN_ABI_VERSION"
+#endif
+#if MTWN_VERSION_MAJOR == 0 && (MTWN_VERSION_MINOR > 0xFF || MTWN_VERSION_PATCH > 0xFF)
+#error "before 1.0, MTWN_VERSION_MINOR and MTWN_VERSION_PATCH must fit 8 bits each"
+#endif
 
 // MTWN_API marks the public functions: dllexport or dllimport in a
 // shared Windows build (maul_tween_EXPORTS is defined while building

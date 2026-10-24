@@ -80,16 +80,15 @@ extern "C"
     {
         // Set by mtwnDefaultPlayerDef; checked by mtwnCreatePlayer.
         uint32_t cookie;
-        // The headers' MTWN_ABI_VERSION.
-        uint32_t version;
         // A finished clip.
         mtwnClipId clip;
+        // The number of bindings.
+        uint32_t bindingCount;
         // Its slots' targets, copied; each slot at most once and used by the
         // clip's tracks, each target alive and of the slot's kind, each
         // composite known and weight in [0, 1]; a slot left out plays on
         // nothing.
         const mtwnBinding* bindings;
-        uint32_t bindingCount;
         // Whether it plays at once, starting at the next update.
         bool play;
         // Whether it is kept when it finishes; otherwise it commits what it
@@ -100,7 +99,7 @@ extern "C"
         // finish at once if their end is finite.
         bool essential;
         // 0: a call refuses another value.
-        uint8_t reserved;
+        uint8_t reserved[5];
         // The playback rate, at most MTWN_RATE_LIMIT in size; negative
         // plays backwards, 0 holds.
         double rate;
@@ -119,8 +118,7 @@ extern "C"
 #define MTWN_RATE_LIMIT 1048576.0
 
     /// Makes a player def: no clip, no bindings, playing at once at rate 1
-    /// and full weight, freed when it ends. Built in the program, so it carries the version of
-    /// the headers the program includes.
+    /// and full weight, freed when it ends.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -133,7 +131,6 @@ extern "C"
     mtwnPlayerDef def = {0};
 #endif
         def.cookie = MTWN_PLAYER_DEF_COOKIE;
-        def.version = MTWN_ABI_VERSION;
         def.play = true;
         def.rate = 1.0;
         def.weight = 1.0;
@@ -181,7 +178,7 @@ extern "C"
     /// @param playerOut  Receives the player's id, or the null id on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie, a rate NaN or above MTWN_RATE_LIMIT in size, a weight outside
-    ///         [0, 1], a binding outside the above; mtwn_errorVersion for a def of another version;
+    ///         [0, 1], a binding outside the above;
     ///         mtwn_errorStale for a clip that is not alive; mtwn_errorState
     ///         for one not finished; mtwn_errorLimit when the context holds
     ///         its capacity of players or of bindings.

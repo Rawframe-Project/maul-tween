@@ -526,13 +526,6 @@ static void TestBindings(void)
     CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorStale, "a destroyed clip");
     def.cookie = 0;
     CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorInvalid, "no cookie");
-    def = mtwnDefaultPlayerDef();
-    def.clip = open;
-    def.version = MTWN_ABI_VERSION + 1u;
-    uint64_t misuse = mtwnGetContextMisuse(f.context);
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorVersion &&
-              mtwnGetContextMisuse(f.context) == misuse + 1,
-          "another version, a misuse");
     mtwnDestroyContext(f.context);
 }
 

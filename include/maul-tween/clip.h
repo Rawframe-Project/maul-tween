@@ -85,8 +85,6 @@ extern "C"
     {
         // Set by mtwnDefaultClipDef; checked by mtwnCreateClip.
         uint32_t cookie;
-        // The headers' MTWN_ABI_VERSION.
-        uint32_t version;
         // Nodes besides the root (tracks, timelines, labels, marks),
         // keyframes and binding slots, each up to MTWN_MAX_COUNT.
         uint32_t nodeCapacity;
@@ -100,9 +98,7 @@ extern "C"
 #define MTWN_CLIP_DEF_COOKIE 0x50494C43u
 
     /// Makes a clip def for a small clip: 16 nodes, 32 keyframes, 8 slots,
-    /// about 13 KB of clip storage (mtwnGetClipBytes says how much). Built
-    /// in the program, so it carries the version of the headers the
-    /// program includes.
+    /// about 13 KB of clip storage (mtwnGetClipBytes says how much).
     ///
     /// @return The def.
     /// @par Thread safety
@@ -115,7 +111,6 @@ extern "C"
     mtwnClipDef def = {0};
 #endif
         def.cookie = MTWN_CLIP_DEF_COOKIE;
-        def.version = MTWN_ABI_VERSION;
         def.nodeCapacity = 16;
         def.keyframeCapacity = 32;
         def.slotCapacity = 8;
@@ -128,13 +123,13 @@ extern "C"
     {
         // Set by mtwnDefaultClipTrackDef; checked by mtwnClip_AddTrack.
         uint32_t cookie;
-        // The headers' MTWN_ABI_VERSION.
-        uint32_t version;
         // The timeline it is added to.
         mtwnNode parent;
         // The binding slot it writes, below the clip's slot capacity; a slot
         // keeps one value kind.
         uint32_t slot;
+        // The number of keyframes.
+        uint32_t keyframeCount;
         mtwnPosition position;
         // The kind and its choices.
         mtwnTrackDef track;
@@ -142,7 +137,6 @@ extern "C"
         mtwnTiming timing;
         // The keyframes, copied into the clip.
         const mtwnKeyframe* keyframes;
-        uint32_t keyframeCount;
         // Whether it travels at constant speed (numbers, vectors, angles,
         // integers).
         bool constantSpeed;
@@ -154,7 +148,7 @@ extern "C"
         // iterations of no duration, which pass at once.
         bool incremental;
         // 0: a call refuses another value.
-        uint8_t reserved[2];
+        uint8_t reserved[6];
     } mtwnClipTrackDef;
 
 // The cookie mtwnDefaultClipTrackDef sets and mtwnClip_AddTrack checks.
@@ -162,8 +156,7 @@ extern "C"
 
     /// Makes a clip track def: on the root at time 0, slot 0, a scalar
     /// track (mtwnDefaultTrackDef), Web Animations' default timing with a
-    /// duration of 1 second, no keyframes. Built in the program, so it
-    /// carries the version of the headers the program includes.
+    /// duration of 1 second, no keyframes.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -176,7 +169,6 @@ extern "C"
     mtwnClipTrackDef def = {0};
 #endif
         def.cookie = MTWN_CLIP_TRACK_DEF_COOKIE;
-        def.version = MTWN_ABI_VERSION;
         def.parent = MTWN_ROOT_NODE;
         def.track = mtwnDefaultTrackDef(mtwn_valueScalar);
         def.timing = mtwnDefaultTiming();
@@ -190,8 +182,6 @@ extern "C"
         // Set by mtwnDefaultClipTimelineDef; checked by
         // mtwnClip_AddTimeline.
         uint32_t cookie;
-        // The headers' MTWN_ABI_VERSION.
-        uint32_t version;
         // The timeline it is added to.
         mtwnNode parent;
         // Whether its iteration duration is its latest child's end, kept as
@@ -199,7 +189,7 @@ extern "C"
         // timeline endless); otherwise the timing's duration, which clips.
         bool autoDuration;
         // 0: a call refuses another value.
-        uint8_t reserved[3];
+        uint8_t reserved[7];
         mtwnPosition position;
         // Its timing; its easing must be monotonic.
         mtwnTiming timing;
@@ -210,9 +200,7 @@ extern "C"
 #define MTWN_CLIP_TIMELINE_DEF_COOKIE 0x454E4C54u
 
     /// Makes a clip timeline def: on the root at time 0, lasting to its
-    /// latest child's end, Web Animations' default timing. Built in the
-    /// program, so it carries the version of the headers the program
-    /// includes.
+    /// latest child's end, Web Animations' default timing.
     ///
     /// @return The def.
     /// @par Thread safety
@@ -225,7 +213,6 @@ extern "C"
     mtwnClipTimelineDef def = {0};
 #endif
         def.cookie = MTWN_CLIP_TIMELINE_DEF_COOKIE;
-        def.version = MTWN_ABI_VERSION;
         def.parent = MTWN_ROOT_NODE;
         def.autoDuration = true;
         def.timing = mtwnDefaultTiming();
@@ -261,17 +248,21 @@ extern "C"
         uint32_t slot;
     } mtwnClipTrack;
 
-    /// Gives the clip storage a clip of a def takes, so a host can size its
-    /// context's clipStorageBytes for the clips it makes.
+    /// Gives the clip storage a clip of a def takes, so a host can grow its
+    /// context's clipStorageBytes (mtwnGrowContext) for the clips it makes.
+    /// It takes the context so that the def is read only by a library whose
+    /// ABI the context's def has matched.
     ///
+    /// @param context     The context.
     /// @param def         The clip's def.
-    /// @param bytesOut    Receives the bytes; unchanged on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a def
+    /// @param bytesOut    Receives the bytes; 0 on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie or a capacity past MTWN_MAX_COUNT;
-    ///         mtwn_errorVersion for a def of another version.
+    ///         mtwn_errorState while the context is busy.
     /// @par Thread safety
-    /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(const mtwnClipDef* def, uint64_t* bytesOut);
+    /// Safe from any thread; the context is used by one thread at a time.
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(mtwnContext* context,
+                                                        const mtwnClipDef* def, uint64_t* bytesOut);
 
     /// Makes a clip: allocates its storage in one block, counted against the
     /// context's clip storage. Its root timeline, node 1, lasts as long as
@@ -282,8 +273,7 @@ extern "C"
     /// @param clipOut  Receives the clip's id, or the null id on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie or a capacity past MTWN_MAX_COUNT;
-    ///         mtwn_errorVersion for a def of another major or minor
-    ///         version; mtwn_errorLimit when the context holds its capacity
+    ///         mtwn_errorLimit when the context holds its capacity
     ///         of clips or the storage would pass its clip storage;
     ///         mtwn_errorCapacity when the allocator fails.
     /// @par Thread safety
@@ -326,9 +316,8 @@ extern "C"
     ///                 the def is read, so given the def's own parent it
     ///                 makes that parent 0, which is refused.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie or outside the above; mtwn_errorVersion
-    ///         for a def of another version; mtwn_errorStale for a clip that
-    ///         is not alive; mtwn_errorState for a finished clip;
+    ///         without its cookie or outside the above; mtwn_errorStale for a
+    ///         clip that is not alive; mtwn_errorState for a finished clip;
     ///         mtwn_errorLimit when the clip holds its capacity of nodes or
     ///         keyframes.
     /// @par Thread safety

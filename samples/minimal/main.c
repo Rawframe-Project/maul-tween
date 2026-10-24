@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Uses the installed library as a consumer would, in C17: it checks that
-// the linked library is the version it was compiled against, eases a
+// the linked library has the ABI it was compiled against, eases a
 // value to its end over half a second of host time and checks it lands
 // there exactly.
 
@@ -17,10 +17,13 @@
 int main(void)
 {
     mtwnVersion version = mtwnGetVersion();
-    if (version.major != MTWN_VERSION_MAJOR || version.minor != MTWN_VERSION_MINOR)
+    // Before 1.0 any release may change the ABI, so the whole version must
+    // match; from 1.0 on, the major and minor version.
+    if (version.major != MTWN_VERSION_MAJOR || version.minor != MTWN_VERSION_MINOR ||
+        (MTWN_VERSION_MAJOR == 0 && version.patch != MTWN_VERSION_PATCH))
     {
-        printf("FAIL: linked %u.%u, compiled against %d.%d\n", version.major, version.minor,
-               MTWN_VERSION_MAJOR, MTWN_VERSION_MINOR);
+        printf("FAIL: linked %u.%u.%u, compiled against %d.%d.%d\n", version.major, version.minor,
+               version.patch, MTWN_VERSION_MAJOR, MTWN_VERSION_MINOR, MTWN_VERSION_PATCH);
         return 1;
     }
     mtwnContextDef def = mtwnDefaultContextDef();

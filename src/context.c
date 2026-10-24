@@ -7,6 +7,7 @@
 
 #include "allocator.h"
 #include "context_internal.h"
+#include "invariant.h"
 #include "reserved_internal.h"
 
 #include <stdckdint.h>
@@ -197,6 +198,10 @@ static void SetGroups(mtwnContext* context, unsigned char* block, const Layout* 
         work->trackCapacity = tracks;
         SetSharing(work, def, block, layout, 1u + g);
     }
+    // Each group's levels hold the deepest clip's, apart from the next
+    // group's and from the node times after them.
+    MTWN_ASSERT((unsigned char*)(context->works[MTWN_GROUPS - 1u].levels + MTWN_MAX_CLIP_DEPTH +
+                                 2u) <= block + layout->groupTimes);
 }
 
 static mtwnPool MakePool(unsigned char* slots, uint32_t stride, uint32_t capacity)

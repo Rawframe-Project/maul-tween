@@ -442,11 +442,6 @@ static mtwnResult RunStartTransition(mtwnContext* context, const mtwnTransitionD
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
-    if (def->version != MTWN_ABI_VERSION)
-    {
-        mtwnCountMisuse(context);
-        return mtwn_errorVersion;
-    }
     mtwnFloatEnv env;
     mtwnFloatEnvEnter(&env);
     mtwnResult result = StartWorker(context, def, playerOut);
@@ -530,11 +525,6 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
     {
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
-    }
-    if (def->version != MTWN_ABI_VERSION)
-    {
-        mtwnCountMisuse(context);
-        return mtwn_errorVersion;
     }
     if (!mtwnEasingClear(&def->easing) || def->spring.reserved != 0)
     {

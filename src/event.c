@@ -9,6 +9,7 @@
 #include "maul-tween/event.h"
 
 #include "context_internal.h"
+#include "invariant.h"
 
 void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
 {
@@ -24,6 +25,7 @@ void mtwnPushEvent(mtwnContext* context, const mtwnEvent* event, double along)
         ++context->droppedSinceRead;
         return;
     }
+    MTWN_ASSERT(context->eventCount < capacity && context->eventHead < capacity);
     uint32_t at = (context->eventHead + context->eventCount) % capacity;
     context->events[at] = *event;
     context->eventAlong[at] = along;
