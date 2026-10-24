@@ -1,0 +1,3 @@
+# The public functions that need not enter the library's floating-point
+# environment (tools/check_float_env.py): each listed under the reason,
+# true of every name under it, that it computes no float.
