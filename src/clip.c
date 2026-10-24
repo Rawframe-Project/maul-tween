@@ -579,9 +579,7 @@ static mtwnResult RunClipAddTrack(mtwnContext* context, mtwnClipId clip,
     {
         return result;
     }
-    uint64_t env = mtwnFloatEnvEnter();
     result = AddTrackWorker(slot, def, nodeOut);
-    mtwnFloatEnvLeave(env);
     return Counted(context, result);
 }
 
@@ -618,9 +616,7 @@ static mtwnResult RunClipAddTimeline(mtwnContext* context, mtwnClipId clip,
     {
         return result;
     }
-    uint64_t env = mtwnFloatEnvEnter();
     result = AddTimelineWorker(slot, def, nodeOut);
-    mtwnFloatEnvLeave(env);
     return Counted(context, result);
 }
 
@@ -656,9 +652,7 @@ static mtwnResult AddInstant(mtwnContext* context, mtwnClipId clip, mtwnNodeKind
     {
         return result;
     }
-    uint64_t env = mtwnFloatEnvEnter();
     result = AddInstantWorker(slot, kind, parent, position, key, nodeOut);
-    mtwnFloatEnvLeave(env);
     return Counted(context, result);
 }
 
@@ -789,9 +783,7 @@ static mtwnResult RunClipFinish(mtwnContext* context, mtwnClipId clip)
     {
         return Misuse(context, mtwn_errorState);
     }
-    uint64_t env = mtwnFloatEnvEnter();
     FinishWorker(slot);
-    mtwnFloatEnvLeave(env);
     return mtwn_success;
 }
 

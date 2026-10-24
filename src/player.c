@@ -583,13 +583,12 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = CreateWorker(context, def, playerOut);
-    mtwnFloatEnvLeave(env);
     return result;
 }
 
-mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut)
+static MTWN_NOINLINE mtwnResult mtwnCreatePlayerWork(mtwnContext* context, const mtwnPlayerDef* def,
+                                                     mtwnPlayerId* playerOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (playerOut != NULL)
@@ -602,6 +601,14 @@ mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwn
     }
     mtwnResult result = RunCreatePlayer(context, def, playerOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnCreatePlayerWork(context, def, playerOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -643,7 +650,7 @@ static mtwnResult RunDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     return mtwn_success;
 }
 
-mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
+static MTWN_NOINLINE mtwnResult mtwnDestroyPlayerWork(mtwnContext* context, mtwnPlayerId player)
 {
     if (!mtwnEnter(context))
     {
@@ -651,6 +658,14 @@ mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     }
     mtwnResult result = RunDestroyPlayer(context, player);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnDestroyPlayerWork(context, player);
+    mtwnFloatEnvLeave(env);
     return result;
 }
 
@@ -837,9 +852,7 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
-    mtwnFloatEnvLeave(env);
     return result == mtwn_success ? result : Misuse(context, result);
 }
 
@@ -856,59 +869,153 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
     return result;
 }
 
-mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player)
+static MTWN_NOINLINE mtwnResult mtwnPlayer_PlayWork(mtwnContext* context, mtwnPlayerId player)
 {
     return Apply(context, player, s_play, 0.0, 0);
 }
 
-mtwnResult mtwnPlayer_Pause(mtwnContext* context, mtwnPlayerId player)
+mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_PlayWork(context, player);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_PauseWork(mtwnContext* context, mtwnPlayerId player)
 {
     return Apply(context, player, s_pause, 0.0, 0);
 }
 
-mtwnResult mtwnPlayer_Reverse(mtwnContext* context, mtwnPlayerId player)
+mtwnResult mtwnPlayer_Pause(mtwnContext* context, mtwnPlayerId player)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_PauseWork(context, player);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_ReverseWork(mtwnContext* context, mtwnPlayerId player)
 {
     return Apply(context, player, s_reverse, 0.0, 0);
 }
 
-mtwnResult mtwnPlayer_Finish(mtwnContext* context, mtwnPlayerId player)
+mtwnResult mtwnPlayer_Reverse(mtwnContext* context, mtwnPlayerId player)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_ReverseWork(context, player);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_FinishWork(mtwnContext* context, mtwnPlayerId player)
 {
     return Apply(context, player, s_finish, 0.0, 0);
 }
 
-mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player)
+mtwnResult mtwnPlayer_Finish(mtwnContext* context, mtwnPlayerId player)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_FinishWork(context, player);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_CancelWork(mtwnContext* context, mtwnPlayerId player)
 {
     return Apply(context, player, s_cancel, 0.0, 0);
 }
 
-mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player, double seconds)
+mtwnResult mtwnPlayer_Cancel(mtwnContext* context, mtwnPlayerId player)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_CancelWork(context, player);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_SeekWork(mtwnContext* context, mtwnPlayerId player,
+                                                    double seconds)
 {
     return Apply(context, player, s_seek, seconds, 0);
 }
 
-mtwnResult mtwnPlayer_Sweep(mtwnContext* context, mtwnPlayerId player, double seconds)
+mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player, double seconds)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_SeekWork(context, player, seconds);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_SweepWork(mtwnContext* context, mtwnPlayerId player,
+                                                     double seconds)
 {
     return Apply(context, player, s_sweep, seconds, 0);
 }
 
-mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context, mtwnPlayerId player, double progress)
+mtwnResult mtwnPlayer_Sweep(mtwnContext* context, mtwnPlayerId player, double seconds)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_SweepWork(context, player, seconds);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_SeekProgressWork(mtwnContext* context,
+                                                            mtwnPlayerId player, double progress)
 {
     return Apply(context, player, s_seekProgress, progress, 0);
 }
 
-mtwnResult mtwnPlayer_SeekLabel(mtwnContext* context, mtwnPlayerId player, uint32_t key)
+mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context, mtwnPlayerId player, double progress)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_SeekProgressWork(context, player, progress);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_SeekLabelWork(mtwnContext* context, mtwnPlayerId player,
+                                                         uint32_t key)
 {
     return Apply(context, player, s_seekLabel, 0.0, key);
 }
 
-mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate)
+mtwnResult mtwnPlayer_SeekLabel(mtwnContext* context, mtwnPlayerId player, uint32_t key)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_SeekLabelWork(context, player, key);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_SetRateWork(mtwnContext* context, mtwnPlayerId player,
+                                                       double rate)
 {
     return Apply(context, player, s_setRate, rate, 0);
 }
 
-mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight)
+mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double rate)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_SetRateWork(context, player, rate);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPlayer_SetWeightWork(mtwnContext* context, mtwnPlayerId player,
+                                                         double weight)
 {
     return Apply(context, player, s_setWeight, weight, 0);
+}
+
+mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_SetWeightWork(context, player, weight);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
@@ -944,7 +1051,8 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
     return mtwn_success;
 }
 
-mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)
+static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mtwnPlayerId player,
+                                                        mtwnPlayerState* stateOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (stateOut != NULL)
@@ -957,5 +1065,13 @@ mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPl
     }
     mtwnResult result = RunPlayerGetState(context, player, stateOut);
     mtwnLeave(context);
+    return result;
+}
+
+mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPlayer_GetStateWork(context, player, stateOut);
+    mtwnFloatEnvLeave(env);
     return result;
 }
