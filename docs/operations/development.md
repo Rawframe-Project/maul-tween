@@ -98,7 +98,7 @@ Always pass `-max_total_time`, and stop what you started. A crash becomes a test
 - **A red CI cell.** A failed test cell uploads its ctest logs as `logs-<preset>` for a week (`gh run download <run> -n logs-<preset>`); a fuzz job that finds something uploads `fuzz-<target>`, its log and the crashing input. The same preset reproduces it here: `cmake --preset <preset> && cmake --build --preset <preset> && ctest --preset <preset> -R '^<suite>$' --output-on-failure`.
 - **A fuzz finding.** The fuzz target run on the one input replays it and stops: `./out/fuzz/fuzz_values <input>`. `-minimize_crash=1 -max_total_time=60` shrinks it before it goes into `test/fuzz_regressions/<target>/`.
 - **A broken assertion.** `MTWN_ASSERT` traps where the check fails; `gdb -batch -ex run -ex bt --args out/<preset>/test_<suite>` prints the stack.
-- **Bits that differ under a host's floating-point setting.** `test_hosts` names the case (`easings: bits differ`); the case's calls are the ones to look at, each run under all eight settings.
+- **Bits that differ under a host's floating-point setting.** `test_hosts` names the case (`easings: bits differ`); the case's calls are the ones to look at, each run under every rounding mode the platform has, with the flush bits off and on where it has them (eight settings on x86 and AArch64).
 - **A moved determinism hash.** `test_determinism` holds one hash for its whole scenario and names no part. Given any argument, it prints the hash it got, so the change that moved it is found by building commits and comparing.
 - **The i686 preset on a host without 32-bit C libraries.** It runs in the CI image of `ci.yml`'s pin, on a copy of the tree:
 
@@ -109,7 +109,7 @@ Always pass `-max_total_time`, and stop what you started. A crash becomes a test
   ```
 
 - **ThreadSanitizer in docker.** Where docker's seccomp blocks `personality(ADDR_NO_RANDOMIZE)`, TSan does not start in the image: run the `linux-clang-20-tsan` preset on the host, or add `--security-opt seccomp=unconfined`.
-- **A part over its code budget.** `tools/code_size.py --map PART` shows which object files link it in.
+- **A part over its code budget.** `python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --map PART` shows which object files link it in.
 
 ## Shared family files
 
