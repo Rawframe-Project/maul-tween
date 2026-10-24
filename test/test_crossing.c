@@ -265,8 +265,8 @@ static void TestStartBelowItsQuotient(void)
     // A child of such a level starts at its own start, not at the end
     // of an iteration before the first: a mark late in it is crossed
     // once reached, not 1e-15 s into the level (an active time that
-    // small is lost in the position, which then held the end of
-    // iteration 338: the old count recorded the mark there).
+    // small is lost in the position, which would hold the end of
+    // iteration 338, and a count from it would record the mark there).
     mtwnLevel level[1];
     memset(level, 0, sizeof level);
     level[0].timing = Timing(0.1, 3.0);

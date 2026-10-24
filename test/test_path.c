@@ -431,8 +431,8 @@ static Wide Variation(const Wide p[4], Wide u)
 
 // One channel: a number's Bezier has its total variation for a length,
 // exactly; quadrature misses the kink each turn puts in |x'| (a point
-// 1.1e-4 of the length off on the first here before it was measured
-// so). At constant speed each share of that length is at its place.
+// 1.1e-4 of the length off on the first here, measured that way). At
+// constant speed each share of that length is at its place.
 // With more channels the same number moves along a line, channel c
 // taking it times 2^-c (exact in float), its length the variation times
 // the line's own, sqrt(sum of 4^-c); a turn back puts the same kink in

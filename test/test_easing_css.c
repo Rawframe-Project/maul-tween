@@ -282,8 +282,8 @@ static void TestLinearCanonicalization(void)
     CHECK(mtwnEase(&easing, 0.6, false) == 0.8 && mtwnEase(&easing, 0.3, false) == 0.25,
           "the jump takes the later point");
     // Outputs of opposite signs near the double range: their difference
-    // overflows, the value between them does not (-inf at the second
-    // point before).
+    // overflows, the value between them does not: no -inf at the second
+    // point.
     mtwnLinearPoint wide[] = {{0.0, 1e308}, {1.0, -1e308}};
     CHECK(mtwnMakeLinearEasing(wide, 2, &easing) == mtwn_success, "a wide linear()");
     CHECK(mtwnEase(&easing, 1.0, false) == -1e308 && mtwnEase(&easing, 0.0, false) == 1e308 &&
