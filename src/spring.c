@@ -524,12 +524,15 @@ bool mtwnValidSpringEasing(const mtwnEasing* easing)
     // rate at most twice its fast); its offset from its velocity within 1:
     // the raw value within bound, and over the range finite (a bound that
     // is not finite, or a range of 0 or NaN, leaves a ratio that is not).
+    // Twice the fast rate's square may pass the doubles, which leaves every
+    // finite squared frequency within it, but not an infinite one.
     double bound = 4.0 + 3.0 * fast + 2.0 * fabs(parameter[s_easingVelocity]);
     double range = fabs(parameter[s_easingRange]);
     return easing->count <= s_overdamped && decay >= 0.0 &&
            (oscillates ? damped > 0.0 && damped <= s_largestEasingDamped : damped >= 0.0) &&
-           parameter[s_easingSquared] >= 0.0 && parameter[s_easingSquared] <= 2.0 * fast * fast &&
-           range <= DBL_MAX && bound / range <= DBL_MAX;
+           parameter[s_easingSquared] >= 0.0 && parameter[s_easingSquared] <= DBL_MAX &&
+           parameter[s_easingSquared] <= 2.0 * fast * fast && range <= DBL_MAX &&
+           bound / range <= DBL_MAX;
 }
 
 // Whether two doubles have the same bits: a sign of zero or a NaN no

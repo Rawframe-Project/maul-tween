@@ -861,6 +861,33 @@ static void TestForgedSpringEasings(void)
                          "could pass the doubles refused");
 }
 
+// A forged overdamped spring easing whose fast rate's square passes the
+// doubles: a squared frequency of DBL_MAX, within twice that square, is
+// taken and eases finite; an infinite one, which the square's overflow
+// let through, is refused.
+static void TestForgedSquaredPastDoubles(void)
+{
+    mtwnSpring over;
+    mtwnEasing o = mtwnLinearEasing();
+    CHECK(mtwnMakeSpringFromFrequency(2.0, 2.0, &over) == mtwn_success &&
+              mtwnMakeSpringEasing(&over, 1.0, 0.0, mtwn_easeIn, &o) == mtwn_success,
+          "an overdamped spring easing");
+    mtwnEasing e = o;
+    e.parameters[0] = 0x1p1000;
+    e.parameters[1] = 0.0;
+    e.parameters[2] = DBL_MAX;
+    const double progress[] = {0x1p-1074, 0x1p-40, 0.1, 0.5, 1.0, 2.5};
+    int wrong = 0;
+    for (size_t i = 0; i < sizeof progress / sizeof progress[0]; ++i)
+    {
+        double eased = (double)NAN;
+        wrong += mtwnEase(&e, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
+    }
+    CHECK(wrong == 0, "a squared frequency of DBL_MAX, the fast rate 2^1000: taken, finite");
+    e.parameters[2] = (double)INFINITY;
+    CHECK(EaseRefuses(&e), "an infinite squared frequency refused");
+}
+
 // The makers' ranges at their ends: a stiffness of 0
 // is refused, a bounce of 1 (no damping) taken, a spring easing in every
 // mode taken.
@@ -919,6 +946,7 @@ int main(int argc, char** argv)
         return 2;
     }
     TestRangeEnds();
+    TestForgedSquaredPastDoubles();
     TestAgainstIntegration();
     TestMakersAgree();
     TestRegimesMeet();
