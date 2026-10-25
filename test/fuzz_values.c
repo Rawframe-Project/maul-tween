@@ -650,15 +650,16 @@ static void CheckMonotone(const Bytes* in, const mtwnKeyframe* keys, uint32_t co
 
 // A path and a track as a host that changed their arrays after making
 // them leaves them: rounds of bytes written over the keyframes and the
-// lengths, from a generator seeded by the section's own input so it
-// consumes no more, the structs (their count, channels and pointers)
-// kept, and so the pointers a host gives an easing (its function, its
-// context, linear()'s points), which no call can check. Each sample,
+// lengths and the keyframes' linear() points, from a generator seeded by
+// the section's own input so it consumes no more, the structs (their
+// count, channels and pointers) kept, and so what a host gives an easing
+// to reference (its function, its context, linear()'s points and their
+// count), which no call can check. Each sample,
 // direction and angle then refuses or gives some value; neither reads
 // past the arrays nor is undefined, which the sanitizers check.
 static void Tampered(const Bytes* in, size_t from, mtwnKeyframe* keys, uint32_t count,
                      double* lengths, const mtwnPath* path, double* trackLengths,
-                     const mtwnTrack* track)
+                     const mtwnTrack* track, mtwnLinearPoint* points, size_t pointBytes)
 {
     uint64_t state = 0x9E3779B97F4A7C15u;
     for (size_t i = from; i < in->at; ++i)
@@ -671,14 +672,19 @@ static void Tampered(const Bytes* in, size_t from, mtwnKeyframe* keys, uint32_t 
         {
             state = state * 6364136223846793005u + 1442695040888963407u;
             uint64_t bits = state >> 11;
-            uint32_t where = (uint32_t)(bits % 3);
+            uint32_t where = (uint32_t)(bits % 4);
             uint8_t byte = (uint8_t)(bits >> 8);
-            if (where == 0 || (where == 1 && path == NULL) || (where == 2 && track == NULL))
+            if (where == 3)
+            {
+                ((uint8_t*)points)[(bits >> 16) % pointBytes] = byte;
+            }
+            else if (where == 0 || (where == 1 && path == NULL) || (where == 2 && track == NULL))
             {
                 size_t at = (bits >> 16) % (count * sizeof *keys);
                 size_t within = at % sizeof *keys;
                 size_t pointers = offsetof(mtwnKeyframe, easing) + offsetof(mtwnEasing, function);
-                size_t past = offsetof(mtwnKeyframe, easing) + offsetof(mtwnEasing, count);
+                size_t past =
+                    offsetof(mtwnKeyframe, easing) + offsetof(mtwnEasing, count) + sizeof(uint32_t);
                 if (within < pointers || within >= past)
                 {
                     ((uint8_t*)keys)[at] = byte;
@@ -726,6 +732,18 @@ static void Paths(Bytes* in)
         keys[k].out = Vec(in, 100.0, 0.0, 0.0);
         keys[k].easing = mtwnLinearEasing();
         keys[k].kind = (mtwnSegmentKind)Below(in, 5);
+    }
+    // Every other keyframe eased by linear() over points of its own, set
+    // without drawing, so the tampering changes points a sample reads.
+    mtwnLinearPoint points[6][4];
+    for (uint32_t k = 1; k < count; k += 2)
+    {
+        const mtwnLinearPoint shape[4] = {{0.0, 0.0}, {0.25, 0.4}, {0.75, 0.7}, {1.0, 1.0}};
+        memcpy(points[k], shape, sizeof shape);
+        if (mtwnMakeLinearEasing(points[k], 4, &keys[k].easing) != mtwn_success)
+        {
+            Fail("a linear() easing", 0.0);
+        }
     }
     double lengths[6];
     mtwnPath path;
@@ -804,7 +822,7 @@ static void Paths(Bytes* in)
     if (made || tracked)
     {
         Tampered(in, from, keys, count, lengths, made ? &path : NULL, trackLengths,
-                 tracked ? &track : NULL);
+                 tracked ? &track : NULL, &points[0][0], sizeof points);
     }
 }
 

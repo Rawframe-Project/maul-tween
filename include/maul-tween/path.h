@@ -65,9 +65,10 @@ extern "C"
     // segment it reads unless that segment's kind is known (at constant
     // speed, not a step) and, timed by its keyframes, its easing is a
     // maker's. Keyframes or lengths changed otherwise give an unspecified
-    // value, perhaps not finite, but no read outside the arrays; an
-    // easing's own pointers (a host function, its context, linear()'s
-    // points) stay the host's, as everywhere.
+    // value, perhaps not finite, but no read outside the arrays; what an
+    // easing references (a host function, its context, linear()'s points
+    // and their count) stays the host's, as everywhere, and changing it is
+    // the host's error, as changing the keyframes pointer is.
     typedef struct mtwnPath
     {
         const mtwnKeyframe* keyframes;
