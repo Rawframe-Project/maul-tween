@@ -213,6 +213,47 @@ static void TestExamples(void)
           "an infinite iteration takes no repeat delay");
 }
 
+// Finite fields whose active duration or cycle a double cannot hold: the
+// timing steps would meet infinity less infinity, a NaN iteration. Refused
+// whichever way the node plays; an endless timing still plays forwards.
+static void TestOverflowingTimings(void)
+{
+    struct
+    {
+        double iterations;
+        double duration;
+        double repeatDelay;
+        double rate;
+        const char* name;
+    } refused[] = {
+        {1e308, 1.0, 0.0, -0.5, "backwards, iterations over the rate overflowing"},
+        {1.0, 1e300, 0.0, -1e-300, "backwards, a duration over a tiny rate overflowing"},
+        {1.0, 1e300, 0.0, 1e-300, "forwards, a duration over a tiny rate overflowing"},
+        {1e300, 1e300, 0.0, 1.0, "forwards, iterations times duration overflowing"},
+        {1e300, 1.0, 1e300, 1.0, "the repeat delays overflowing"},
+        {0.0, 1e308, 1e308, 1.0, "an iteration and its repeat delay overflowing"},
+        {0.0, 1e308, 1e308, -1.0, "the same backwards"},
+    };
+    for (size_t i = 0; i < sizeof refused / sizeof refused[0]; ++i)
+    {
+        mtwnTiming timing = mtwnDefaultTiming();
+        timing.iterations = refused[i].iterations;
+        timing.duration = refused[i].duration;
+        timing.repeatDelay = refused[i].repeatDelay;
+        timing.playbackRate = refused[i].rate;
+        CHECK(mtwnValidateTiming(&timing) == mtwn_errorInvalid, refused[i].name);
+    }
+    mtwnTiming timing = mtwnDefaultTiming();
+    timing.iterations = 1e300;
+    timing.duration = 1.0;
+    timing.repeatDelay = 1.0;
+    timing.playbackRate = -0.5;
+    CHECK(mtwnValidateTiming(&timing) == mtwn_success, "4e300 s, within a double, backwards");
+    timing.duration = HUGE_VAL;
+    timing.playbackRate = 1e-300;
+    CHECK(mtwnValidateTiming(&timing) == mtwn_success, "an endless iteration, forwards");
+}
+
 static void TestValidation(void)
 {
     mtwnTiming timing = mtwnDefaultTiming();
@@ -249,6 +290,7 @@ static void TestValidation(void)
     CHECK(mtwnValidateTiming(&timing) == mtwn_errorInvalid, "backwards with no end");
     timing.duration = 0.0;
     CHECK(mtwnValidateTiming(&timing) == mtwn_success, "backwards, infinitely many of nothing");
+    TestOverflowingTimings();
     timing = mtwnDefaultTiming();
     timing.fill = 4;
     CHECK(mtwnValidateTiming(&timing) == mtwn_errorInvalid, "a fill");

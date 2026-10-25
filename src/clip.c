@@ -294,21 +294,19 @@ static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition p
 }
 
 // A node's end in its parent, from its start and timing.
-static double EndOf(double start, const mtwnTiming* timing, double* activeOut)
+static double EndOf(double start, const mtwnTiming* timing)
 {
     mtwnTimingResult result;
     mtwnComputeTimingWork(timing, 0.0, false, &result);
-    if (activeOut != NULL)
-    {
-        *activeOut = result.activeDuration;
-    }
     return start + result.endTime;
 }
 
 // Carries a child's end up its ancestors: each timeline's children end
 // rises to it, and a timeline lasting as long as its children moves its
-// own end. False, with nothing written, when a timeline played backwards
-// would become infinitely long, which leaves it no end to start from.
+// own end. False, with nothing written, when the duration a timeline
+// would take makes its timing one mtwnValidateTiming refuses: played
+// backwards and infinitely long, which leaves it no end to start from, or
+// with an active duration or a cycle past a double.
 static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
 {
     while (parent != 0)
@@ -324,12 +322,11 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
             return true;
         }
         mtwnTiming timing = mtwnClipTimelineTiming(timeline, childrenEnd);
-        double active = 0.0;
-        end = EndOf(timeline->start, &timing, &active);
-        if (timing.playbackRate < 0.0 && !isfinite(active))
+        if (mtwnValidateTimingWork(&timing) != mtwn_success)
         {
             return false;
         }
+        end = EndOf(timeline->start, &timing);
         if (write)
         {
             timeline->end = end;
@@ -442,7 +439,7 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     }
     node.timing = def->timing;
     node.start = StartOf(clip, def->parent, def->position);
-    node.end = EndOf(node.start, &def->timing, NULL);
+    node.end = EndOf(node.start, &def->timing);
     node.parent = def->parent;
     node.slot = def->slot;
     node.kind = mtwn_nodeTrack;
@@ -482,7 +479,7 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
         return mtwn_errorLimit;
     }
     node.start = StartOf(clip, def->parent, def->position);
-    node.end = EndOf(node.start, &resolved, NULL);
+    node.end = EndOf(node.start, &resolved);
     node.parent = def->parent;
     node.kind = mtwn_nodeTimeline;
     if (!Raise(clip, def->parent, node.end, false))

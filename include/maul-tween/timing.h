@@ -133,9 +133,12 @@ extern "C"
 
     /// Checks a timing: delays finite, iteration start finite and from 0,
     /// iterations and duration from 0 (infinity allowed, NaN not), repeat
-    /// delay finite and from 0, playback rate finite and not 0 (negative
-    /// only with a finite active duration, whose end a backward play
-    /// starts from), every enumeration known.
+    /// delay finite and from 0, playback rate finite and not 0, every
+    /// enumeration known. The active duration must be finite, unless the
+    /// iterations or the duration are infinite and the rate is positive:
+    /// a backward play starts from the active interval's end, and finite
+    /// fields whose active duration overflows a double are refused. With
+    /// a repeat delay, the duration plus the repeat delay must be finite.
     ///
     /// @param timing  The timing.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
