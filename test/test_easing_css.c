@@ -422,6 +422,36 @@ static void TestCssCurvesFinite(void)
               EaseAt(&easing, 1e308, false) == 1e308 * (4.0 / 5.0) &&
               EaseAt(&easing, -1e308, false) == -1e308 * (4.0 / 5.0),
           "steps whose count overflows the progress: steps of 1 / jumps");
+    CHECK(mtwnMakeSteps(2, mtwn_jumpNone, &easing) == mtwn_success &&
+              EaseAt(&easing, -DBL_MAX, false) == -DBL_MAX &&
+              EaseAt(&easing, DBL_MAX, false) == DBL_MAX,
+          "steps longer than 1 past the doubles saturate");
+    // Far enough out that a mode's 2p or 2p - 1 overflows: every CSS curve
+    // still finite, in every mode, ease-in's flat tangent at 0 included.
+    mtwnLinearPoint points[3] = {{0.0, 0.0}, {0.5, 0.8}, {1.0, 1.0}};
+    mtwnEasing curves[5];
+    CHECK(mtwnMakeCssEasing(mtwn_cssEaseIn, &curves[0]) == mtwn_success &&
+              mtwnMakeCssEasing(mtwn_cssEaseOut, &curves[1]) == mtwn_success &&
+              mtwnMakeSteps(2, mtwn_jumpNone, &curves[2]) == mtwn_success &&
+              mtwnMakeSteps(3, mtwn_jumpBoth, &curves[3]) == mtwn_success &&
+              mtwnMakeLinearEasing(points, 3, &curves[4]) == mtwn_success,
+          "CSS curves");
+    const double far[4] = {-DBL_MAX, -0x1.8p1023, 0x1.8p1023, DBL_MAX};
+    int finite = 0;
+    for (int k = 0; k < 5; ++k)
+    {
+        for (int mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
+        {
+            mtwnEasing e = curves[k];
+            CHECK(mtwnSetEaseMode(&e, (mtwnEaseMode)mode) == mtwn_success, "a mode");
+            for (int i = 0; i < 4; ++i)
+            {
+                finite += isfinite(EaseAt(&e, far[i], false)) && isfinite(EaseAt(&e, far[i], true));
+                finite += k > 1 || isfinite(EaseBezierAt(&e, far[i]));
+            }
+        }
+    }
+    CHECK(finite == 5 * 4 * 4 * 2, "finite in every mode, both samplers");
 }
 
 int main(void)

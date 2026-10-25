@@ -58,6 +58,21 @@ static double Saturated(double value)
     return isinf(value) ? copysign(DBL_MAX, value) : value;
 }
 
+// An end tangent's value from (0, 0) or (1, 1), a slope times a distance
+// from there: saturated, and a flat one's at an infinite distance (where
+// a mode's 2p overflowed) still its end.
+static double FromZero(double slope, double distance)
+{
+    double moved = slope * distance;
+    return isnan(moved) ? 0.0 : Saturated(moved);
+}
+
+static double FromOne(double slope, double distance)
+{
+    double moved = slope * distance;
+    return isnan(moved) ? 1.0 : Saturated(1.0 + moved);
+}
+
 bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2)
 {
     return x1 >= 0.0 && x1 <= 1.0 && x2 >= 0.0 && x2 <= 1.0 && fabs(y1) <= MTWN_LARGEST_BEZIER_Y &&
@@ -79,18 +94,18 @@ double mtwnSampleCubicBezier(const double control[4], double x)
         // The tangent through P0 and P1, else P0 and P2, else flat at 0.
         if (x1 > 0.0)
         {
-            return Saturated(y1 / x1 * x);
+            return FromZero(y1 / x1, x);
         }
-        return x2 > 0.0 ? Saturated(y2 / x2 * x) : 0.0;
+        return x2 > 0.0 ? FromZero(y2 / x2, x) : 0.0;
     }
     if (x > 1.0)
     {
         // The tangent through P2 and P3, else P1 and P3, else flat at 1.
         if (x2 < 1.0)
         {
-            return Saturated(1.0 + (y2 - 1.0) / (x2 - 1.0) * (x - 1.0));
+            return FromOne((y2 - 1.0) / (x2 - 1.0), x - 1.0);
         }
-        return x1 < 1.0 ? Saturated(1.0 + (y1 - 1.0) / (x1 - 1.0) * (x - 1.0)) : 1.0;
+        return x1 < 1.0 ? FromOne((y1 - 1.0) / (x1 - 1.0), x - 1.0) : 1.0;
     }
     Cubic xs = MakeCubic(x1, x2);
     Cubic ys = MakeCubic(y1, y2);
@@ -204,8 +219,10 @@ double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool
     if (isinf(scaled))
     {
         // So far past the ends that x is an integer and the floor and the
-        // jump at it vanish beside it: x steps of 1 / jumps each.
-        return x * (steps / StepJumps(steps, position));
+        // jump at it vanish beside it: x steps of 1 / jumps each, saturated
+        // where that passes the doubles too (jump-none's steps are longer
+        // than 1, and a mode's 2p may have overflowed).
+        return Saturated(x * (steps / StepJumps(steps, position)));
     }
     double step = floor(scaled);
     if (position == mtwn_jumpStart || position == mtwn_jumpBoth)

@@ -136,6 +136,9 @@ static void CheckEach(const Bytes* in, const char* what, const double* values, i
 static const double s_progress[] = {-1.5, -0.25,         0.0, 0x1p-40, 0.1, 0.5,
                                     0.75, 1.0 - 0x1p-40, 1.0, 1.25,    2.5};
 
+// And for an easing, progress so far out that a mode's 2p overflows.
+static const double s_farProgress[] = {-DBL_MAX, -0x1.8p1023, 0x1.8p1023, DBL_MAX};
+
 // The fit's tolerance (fuzz_fit's alone). A fit costs about as many
 // points as the curve needs, so an even draw of the tolerance spent the
 // target's time on a few fits near the limit (19 inputs a second): most
@@ -182,6 +185,16 @@ static double AnyDouble(Bytes* in)
     return value;
 }
 
+// A forged easing at a progress: refused, or finite.
+static void ForgedAt(const mtwnEasing* e, double progress)
+{
+    double eased = 0.0;
+    if (mtwnEase(e, progress, false, &eased) == mtwn_success && !isfinite(eased))
+    {
+        Fail("a forged easing taken and not finite", eased);
+    }
+}
+
 // A made easing with one field a host wrote: refused, or finite at every
 // progress. Not for linear() or a host function, whose points and
 // function the host owns.
@@ -211,11 +224,11 @@ static void Forged(Bytes* in, const mtwnEasing* made)
     }
     for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
     {
-        double eased = 0.0;
-        if (mtwnEase(&e, s_progress[i], false, &eased) == mtwn_success && !isfinite(eased))
-        {
-            Fail("a forged easing taken and not finite", eased);
-        }
+        ForgedAt(&e, s_progress[i]);
+    }
+    for (size_t i = 0; i < sizeof s_farProgress / sizeof s_farProgress[0]; ++i)
+    {
+        ForgedAt(&e, s_farProgress[i]);
     }
 }
 
@@ -304,6 +317,11 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     {
         (void)Eased(&e, s_progress[i], false);
         (void)Eased(&e, s_progress[i], true);
+    }
+    for (size_t i = 0; i < sizeof s_farProgress / sizeof s_farProgress[0]; ++i)
+    {
+        (void)Eased(&e, s_farProgress[i], false);
+        (void)Eased(&e, s_farProgress[i], true);
     }
     if (ends && in->ordinary && (Eased(&e, 0.0, false) != 0.0 || Eased(&e, 1.0, false) != 1.0))
     {
