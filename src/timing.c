@@ -27,6 +27,8 @@ mtwnTiming mtwnDefaultTiming(void)
     return timing;
 }
 
+static double ActiveDuration(const mtwnTiming* timing);
+
 MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing)
 {
     if (timing == NULL)
@@ -42,12 +44,23 @@ MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing)
         timing->alternateEasing <= mtwn_alternateRepeatsShape &&
         mtwnReservedClear(timing->reserved, sizeof timing->reserved) &&
         mtwnEasingClear(&timing->easing);
-    // A node played backwards starts from its active interval's end, which
-    // must exist.
-    if (valid && timing->playbackRate < 0.0)
+    // An active duration and an end time a double holds: endless only when
+    // the iterations or the duration are, making the active duration
+    // infinite (not 0, when the other is 0), and the node plays forwards, since
+    // one played backwards starts from its active interval's end, which must
+    // exist. Finite fields whose product, repeat delays, rate or delays
+    // would overflow them are refused (an active interval's end past a
+    // double puts the end time past it too), as is an iteration whose
+    // repeat delay would overflow its cycle: the timing steps would meet
+    // infinity less infinity.
+    if (valid)
     {
-        valid = isfinite(timing->iterations * timing->duration) || timing->iterations == 0.0 ||
-                timing->duration == 0.0;
+        bool endless = isinf(timing->iterations) || isinf(timing->duration);
+        double active = ActiveDuration(timing);
+        bool ends = isfinite(active) && timing->delay + active + timing->endDelay < HUGE_VAL;
+        valid = ends || (endless && isinf(active) && timing->playbackRate > 0.0);
+        valid = valid &&
+                (!mtwnHasRepeatDelay(timing) || isfinite(timing->duration + timing->repeatDelay));
     }
     return valid ? mtwn_success : mtwn_errorInvalid;
 }

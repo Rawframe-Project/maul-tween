@@ -755,6 +755,62 @@ static void TestSlowEndless(void)
     mtwnDestroyContext(context);
 }
 
+// A timeline lasting as long as its children takes a timing its def
+// would be refused with: a child that would give it a cycle or an active
+// duration past a double is refused, and leaves it as it was.
+static void TestOverflowingChildren(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = true;
+    group.timing.repeatDelay = 1e308;
+    group.timing.iterations = 2.0;
+    mtwnNode repeating;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &repeating) == mtwn_success,
+          "repeating with a long delay, lasting as its children");
+    group.timing.repeatDelay = 0.0;
+    group.timing.iterations = 1e300;
+    mtwnNode many;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &many) == mtwn_success,
+          "1e300 iterations, lasting as its children");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1e308;
+    track.parent = repeating;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "1e308 s and a 1e308 s delay: a cycle past a double");
+    track.timing.duration = 1e300;
+    track.parent = many;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "1e300 iterations of 1e300 s: an active duration past a double");
+    track.timing.duration = 1.0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "1e300 iterations of 1 s");
+    group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = true;
+    group.timing.delay = 1e308;
+    mtwnNode late;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &late) == mtwn_success,
+          "a 1e308 s delay, lasting as its children");
+    track.timing.duration = 1e308;
+    track.parent = late;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "a 1e308 s child after it: an end past a double");
+    mtwnClipNodeInfo info;
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+              mtwnClip_GetNode(context, clip, repeating, &info) == mtwn_success &&
+              info.timing.duration == 0.0,
+          "the refused child left it lasting 0");
+    mtwnDestroyContext(context);
+}
+
 // A curved track's lengths and samples, hashed, under a host setting.
 static uint64_t Scenario(TestFloatSetting host, int* restoredOut)
 {
@@ -945,6 +1001,7 @@ int main(void)
     TestDepth();
     TestTimelineRefusals();
     TestSlowEndless();
+    TestOverflowingChildren();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;
 }
