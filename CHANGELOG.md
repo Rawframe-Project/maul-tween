@@ -6,6 +6,47 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.5.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.4.0...v0.5.0) (2026-10-25)
+
+### Changed
+
+- **Breaking: easings are checked wherever a call takes one.**
+  `mtwnEase`, `mtwnEaseCubicBezier` and `mtwnIsEasingMonotonic` return
+  an `mtwnResult` and give their results through pointers, unchanged on
+  refusal. They, `mtwnSetEaseMode`, `mtwnSampleEasing`,
+  `mtwnFitLinearEasing`, `mtwnMakeRoughEasing` (its shape) and a
+  transition's start and measure refuse an easing whose fields are not
+  as its maker sets them. `mtwnEase` and `mtwnEaseCubicBezier` refuse a
+  progress that is not finite, and `mtwnEaseCubicBezier` refuses an
+  easing of another kind instead of returning NaN. Results for every
+  input still taken are unchanged, but for the fixes below. A sample
+  through `mtwnEase` costs about 2 to 12 ns more; a transition checks
+  its easing once, at start.
+  This is the second part of
+  [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+  ([#64](https://github.com/Rawframe-Project/maul-tween/pull/64)).
+- **Breaking: makers refuse easings that could not stay finite.**
+  `mtwnMakeElasticEasing` refuses an amplitude past 512, and a period
+  below 2^-10, after an amplitude below 1 has stretched it.
+  `mtwnMakeCubicBezier` refuses a y past 2^1000 in magnitude.
+  `mtwnMakeSpringEasing` refuses a spring that oscillates more than
+  once in 2^-10 of the duration, and one whose eased progress could pass
+  the doubles' range
+  ([#64](https://github.com/Rawframe-Project/maul-tween/pull/64)).
+
+### Fixed
+
+- CSS curves are finite for every finite progress, in every mode. Where
+  a cubic bezier's end tangent, a `linear()` extension or a step far
+  past its end gave infinity or NaN, it now gives the largest finite
+  double of its sign, or a flat tangent's end. `linear()` with inputs
+  spanning more than the doubles interpolates instead of giving its
+  first output. The free `linear()` sampler is finite for any finite
+  points, so points the host changes after making the easing give an
+  unspecified but finite value. Every result that was already finite
+  keeps its bits
+  ([#64](https://github.com/Rawframe-Project/maul-tween/pull/64)).
+
 ## [0.4.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.3.0...v0.4.0) (2026-10-25)
 
 ### Changed
