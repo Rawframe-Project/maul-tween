@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.4.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.3.0...v0.4.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **spring:** mtwnSpringMotionAt, mtwnSampleSpring, mtwnSpringSettlingTime, mtwnSampleDecay, mtwnDecayStopTime, mtwnDecayCrossingTime, mtwnSampleBoundedDecay and mtwnBoundedDecayStopTime return an mtwnResult and give their results through pointers, unchanged on refusal. A tolerance or stop speed not above 0, which gave infinity, is now refused. New refusals cover a start that is not finite, a time below 0 or NaN, and a spring, decay or bounded decay no maker produced. mtwnMakeBoundedDecay now refuses a decay or spring no maker produced, and a spring transition refuses a spring whose derived fields or regime differ from what its frequency and ratio make. Results for every input still taken are unchanged.
+
+### Fixed
+
+* **spring:** validate springs and decays wherever a call takes one ([#62](https://github.com/Rawframe-Project/maul-tween/issues/62)) ([50d69f7](https://github.com/Rawframe-Project/maul-tween/commit/50d69f7a94deddf7baa7e8403361d962cae5966c)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+
 ## [0.3.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.1...v0.3.0) (2026-10-25)
 
 ### Changed
