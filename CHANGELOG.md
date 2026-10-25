@@ -8,16 +8,34 @@ refused with `mtwn_errorVersion`.
 
 ## [0.7.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.6.0...v0.7.0) (2026-10-25)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **spring:** mtwnMakeSpringEasing refuses, with mtwn_errorInvalid, a spring whose natural frequency in radians a second times the duration reaches 2^512 (about 1.34e154), whose squared frequency would not be finite; it used to make such an overdamped or critical easing. mtwnEase and every call taking an easing refuse a spring easing whose squared frequency is infinite.
-* **path:** mtwnSamplePath(path, progress, valueOut, tangentOut), mtwnPathDirection(path, progress, directionOut), mtwnPathAngle(path, progress, angleOut) and mtwnSampleTrack(track, progress, valueOut) return mtwnResult. mtwnPathAngle gives its angle through the new angleOut, and mtwnSampleTrack its value through the new valueOut; every output is unchanged on refusal. Each refuses with mtwn_errorInvalid a null struct or out, a progress that is not finite, a path or track whose fields no maker gives, and the segment it reads unless its kind is known (at constant speed, not a step) and, timed by its keyframes, its easing is a maker's. Results for every input still taken are unchanged.
-
-### Fixed
-
-* **path:** validate paths and tracks wherever a call takes one ([#70](https://github.com/Rawframe-Project/maul-tween/issues/70)) ([3a3b1de](https://github.com/Rawframe-Project/maul-tween/commit/3a3b1de6ceb9ef83ad10f95deb0f62830187cc4d)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
-* **spring:** refuse a spring easing whose squared frequency is infinite ([#73](https://github.com/Rawframe-Project/maul-tween/issues/73)) ([9ea5f99](https://github.com/Rawframe-Project/maul-tween/commit/9ea5f9969268d801484a7bbf59b46389f87570ec)), closes [#71](https://github.com/Rawframe-Project/maul-tween/issues/71)
+- **Breaking: paths and tracks are checked where they are sampled.**
+  `mtwnSamplePath`, `mtwnPathDirection`, `mtwnPathAngle` and
+  `mtwnSampleTrack` return `mtwnResult`, and every output is unchanged
+  on refusal: `mtwnPathAngle` gives its angle through the new
+  `angleOut`, and `mtwnSampleTrack` its value through the new
+  `valueOut`. Each refuses with `mtwn_errorInvalid` a null struct or
+  output, a progress that is not finite, a path or track whose fields
+  no maker gives, and the segment it reads unless its kind is known (at
+  constant speed, not a step) and, when its keyframes time it, its
+  easing is a maker's. Keyframes or lengths the host changes after
+  making give an unspecified value, but nothing is read outside their
+  arrays, and at constant speed a keyframe changed to NaN no longer
+  makes one sample cost about 600,000 evaluations. A sample costs 1 to
+  13 ns more. Results for every input still taken are unchanged. This
+  is the path and track part of
+  [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+  ([#70](https://github.com/Rawframe-Project/maul-tween/pull/70)).
+- **Breaking: a spring easing whose squared frequency is infinite is
+  refused.** `mtwnMakeSpringEasing` refuses with `mtwn_errorInvalid` a
+  spring whose natural frequency, in radians a second, times the
+  duration reaches 2^512 (about 1.34e154); it used to make such an
+  overdamped or critical easing, and an overdamped one could ease NaN.
+  `mtwnEase` and every call taking an easing refuse a spring easing
+  whose squared frequency is infinite. Every easing still made gives
+  the same bits
+  ([#73](https://github.com/Rawframe-Project/maul-tween/pull/73)).
 
 ## [0.6.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.5.0...v0.6.0) (2026-10-25)
 
