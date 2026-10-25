@@ -27,6 +27,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -647,8 +648,71 @@ static void CheckMonotone(const Bytes* in, const mtwnKeyframe* keys, uint32_t co
     }
 }
 
+// A path and a track as a host that changed their arrays after making
+// them leaves them: rounds of bytes written over the keyframes and the
+// lengths, from a generator seeded by the section's own input so it
+// consumes no more, the structs (their count, channels and pointers)
+// kept, and so the pointers a host gives an easing (its function, its
+// context, linear()'s points), which no call can check. Each sample,
+// direction and angle then refuses or gives some value; neither reads
+// past the arrays nor is undefined, which the sanitizers check.
+static void Tampered(const Bytes* in, size_t from, mtwnKeyframe* keys, uint32_t count,
+                     double* lengths, const mtwnPath* path, double* trackLengths,
+                     const mtwnTrack* track)
+{
+    uint64_t state = 0x9E3779B97F4A7C15u;
+    for (size_t i = from; i < in->at; ++i)
+    {
+        state = (state ^ in->data[i]) * 0x100000001B3u;
+    }
+    for (int round = 0; round < 4; ++round)
+    {
+        for (int write = 0; write < 12; ++write)
+        {
+            state = state * 6364136223846793005u + 1442695040888963407u;
+            uint64_t bits = state >> 11;
+            uint32_t where = (uint32_t)(bits % 3);
+            uint8_t byte = (uint8_t)(bits >> 8);
+            if (where == 0 || (where == 1 && path == NULL) || (where == 2 && track == NULL))
+            {
+                size_t at = (bits >> 16) % (count * sizeof *keys);
+                size_t within = at % sizeof *keys;
+                size_t pointers = offsetof(mtwnKeyframe, easing) + offsetof(mtwnEasing, function);
+                size_t past = offsetof(mtwnKeyframe, easing) + offsetof(mtwnEasing, count);
+                if (within < pointers || within >= past)
+                {
+                    ((uint8_t*)keys)[at] = byte;
+                }
+            }
+            else
+            {
+                double* tampered = where == 1 ? lengths : trackLengths;
+                ((uint8_t*)tampered)[(bits >> 16) % (count * sizeof *tampered)] = byte;
+            }
+        }
+        for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
+        {
+            double value[4];
+            double tangent[4];
+            double angle = 0.0;
+            mtwnVec4 v = {0};
+            if (path != NULL)
+            {
+                (void)mtwnSamplePath(path, s_progress[i], value, tangent);
+                (void)mtwnPathDirection(path, s_progress[i], value);
+                (void)mtwnPathAngle(path, s_progress[i], &angle);
+            }
+            if (track != NULL)
+            {
+                (void)mtwnSampleTrack(track, s_progress[i], &v);
+            }
+        }
+    }
+}
+
 static void Paths(Bytes* in)
 {
+    size_t from = in->at;
     in->ordinary = true;
     in->finite = true;
     mtwnKeyframe keys[6];
@@ -665,16 +729,22 @@ static void Paths(Bytes* in)
     }
     double lengths[6];
     mtwnPath path;
+    bool made = false;
     uint8_t channels = (uint8_t)(1 + Below(in, 4));
     bool even = Below(in, 2) == 0;
     if (mtwnMakePath(keys, count, channels, Param(in, 1.0), even ? lengths : NULL, &path) ==
         mtwn_success)
     {
+        made = true;
         for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
         {
             double value[4];
             double tangent[4];
-            mtwnSamplePath(&path, s_progress[i], value, tangent);
+            if (mtwnSamplePath(&path, s_progress[i], value, tangent) != mtwn_success)
+            {
+                Fail("a path's sample refused", s_progress[i]);
+                continue;
+            }
             CheckEach(in, "a path's value", value, 4);
             CheckEach(in, "a path's tangent", tangent, 4);
             if (!even)
@@ -682,8 +752,11 @@ static void Paths(Bytes* in)
                 CheckMonotone(in, keys, count, channels, s_progress[i], value);
             }
             // Its direction is a unit vector wherever the path is finite.
-            double direction[4];
-            mtwnPathDirection(&path, s_progress[i], direction);
+            double direction[4] = {0};
+            if (mtwnPathDirection(&path, s_progress[i], direction) != mtwn_success)
+            {
+                Fail("a path's direction refused", s_progress[i]);
+            }
             double norm = 0.0;
             for (int c = 0; c < 4; ++c)
             {
@@ -711,15 +784,27 @@ static void Paths(Bytes* in)
     double trackLengths[6];
     mtwnSegmentMix mixes[6];
     mtwnTrack track;
+    bool tracked = false;
     if (mtwnMakeTrack(&def, keys, count, Below(in, 2) == 0 ? trackLengths : NULL, mixes, &track) ==
         mtwn_success)
     {
+        tracked = true;
         for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
         {
-            mtwnVec4 v = mtwnSampleTrack(&track, s_progress[i]);
+            mtwnVec4 v = {0};
+            if (mtwnSampleTrack(&track, s_progress[i], &v) != mtwn_success)
+            {
+                Fail("a track's sample refused", s_progress[i]);
+                continue;
+            }
             CheckEach(in, "a track's value",
                       (const double[]){(double)v.x, (double)v.y, (double)v.z, (double)v.w}, 4);
         }
+    }
+    if (made || tracked)
+    {
+        Tampered(in, from, keys, count, lengths, made ? &path : NULL, trackLengths,
+                 tracked ? &track : NULL);
     }
 }
 

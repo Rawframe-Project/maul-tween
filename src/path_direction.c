@@ -12,6 +12,7 @@
 #include "fpenv.h"
 #include "path_internal.h"
 #include "path_length.h"
+#include "valid.h"
 
 #include "maul-tween/path.h"
 
@@ -109,24 +110,49 @@ static MTWN_NOINLINE void mtwnPathDirectionWork(const mtwnPath* path, double pro
     memcpy(directionOut, along, sizeof along);
 }
 
-void mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4])
+// Whether a direction or an angle may be taken: the path and the segment
+// it reads as a maker gives them, the progress finite.
+static bool Takes(const mtwnPath* path, double progress)
 {
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnPathDirectionWork(path, progress, directionOut);
-    mtwnFloatEnvLeave(env);
+    return mtwnValidPath(path) && mtwnPathReadsValid(path, progress);
 }
 
-static MTWN_NOINLINE double mtwnPathAngleWork(const mtwnPath* path, double progress)
+static MTWN_NOINLINE mtwnResult mtwnPathDirectionChecked(const mtwnPath* path, double progress,
+                                                         double directionOut[4])
 {
+    if (directionOut == NULL || !Takes(path, progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnPathDirectionWork(path, progress, directionOut);
+    return mtwn_success;
+}
+
+mtwnResult mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4])
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnPathDirectionChecked(path, progress, directionOut);
+    mtwnFloatEnvLeave(env);
+    return result;
+}
+
+static MTWN_NOINLINE mtwnResult mtwnPathAngleChecked(const mtwnPath* path, double progress,
+                                                     double* angleOut)
+{
+    if (angleOut == NULL || !Takes(path, progress))
+    {
+        return mtwn_errorInvalid;
+    }
     double direction[4];
     mtwnPathDirectionWork(path, progress, direction);
-    return mtwnAtan2(direction[1], direction[0]);
+    *angleOut = mtwnAtan2(direction[1], direction[0]);
+    return mtwn_success;
 }
 
-double mtwnPathAngle(const mtwnPath* path, double progress)
+mtwnResult mtwnPathAngle(const mtwnPath* path, double progress, double* angleOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnPathAngleWork(path, progress);
+    mtwnResult result = mtwnPathAngleChecked(path, progress, angleOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

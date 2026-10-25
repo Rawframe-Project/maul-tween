@@ -400,33 +400,45 @@ static double Eased(const mtwnPath* path, uint32_t i, double progress)
 }
 
 // The segment a progress falls in and the parameter within it.
+// The segment a progress falls in: by its share of the length at constant
+// speed, else by the offsets.
+static uint32_t SegmentAt(const mtwnPath* path, double progress)
+{
+    if (path->lengths != NULL)
+    {
+        return FindSegment(path, progress * path->lengths[path->count - 1], true);
+    }
+    return FindSegment(path, progress, false);
+}
+
+// The parameter within segment i, the one a progress falls in, and its
+// cubic.
+static double LocateIn(const mtwnPath* path, uint32_t i, double progress, mtwnCubic* cubic,
+                       uint32_t* lengths)
+{
+    SegmentCubic(path, i, cubic);
+    if (path->lengths == NULL)
+    {
+        return Eased(path, i, progress);
+    }
+    double total = path->lengths[path->count - 1];
+    double distance = progress * total;
+    double length = path->lengths[i + 1] - path->lengths[i];
+    // A segment within the total's rounding of none holds still, as one of
+    // none: extended by its parameter, a length of 1e-23 took a millionth
+    // of the path before it to 1e33.
+    return length > total * 0x1p-52 ? mtwnParameterAt(cubic, path->channels,
+                                                      distance - path->lengths[i], length, lengths)
+                                    : 1.0;
+}
+
+// The segment a progress falls in and the parameter within it.
 static void Locate(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
                    mtwnCubic* cubic, uint32_t* lengths)
 {
-    uint32_t i = 0;
-    double u = 0.0;
-    if (path->lengths != NULL)
-    {
-        double total = path->lengths[path->count - 1];
-        double distance = progress * total;
-        i = FindSegment(path, distance, true);
-        SegmentCubic(path, i, cubic);
-        double length = path->lengths[i + 1] - path->lengths[i];
-        // A segment within the total's rounding of none holds still, as one
-        // of none: extended by its parameter, a length of 1e-23 took a
-        // millionth of the path before it to 1e33.
-        u = length > total * 0x1p-52 ? mtwnParameterAt(cubic, path->channels,
-                                                       distance - path->lengths[i], length, lengths)
-                                     : 1.0;
-    }
-    else
-    {
-        i = FindSegment(path, progress, false);
-        SegmentCubic(path, i, cubic);
-        u = Eased(path, i, progress);
-    }
+    uint32_t i = SegmentAt(path, progress);
+    *uOut = LocateIn(path, i, progress, cubic, lengths);
     *segmentOut = i;
-    *uOut = u;
 }
 
 // A linear segment's value and tangent, as Evaluate gives them for its
@@ -450,23 +462,46 @@ static void SampleLinear(const mtwnPath* path, uint32_t i, double u, double valu
     }
 }
 
-void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueOut[4],
-                            double tangentOut[4], uint32_t* lengths)
+MTWN_NOINLINE bool mtwnValidPath(const mtwnPath* path)
 {
-    if (path->lengths == NULL)
+    return path != NULL && path->keyframes != NULL && path->count >= 2 && path->channels >= 1 &&
+           path->channels <= 4 && path->alpha >= 0.0 && path->alpha <= 1.0 &&
+           path->logarithmic <= 1 && (path->logarithmic == 0 || path->channels == 1) &&
+           mtwnReservedClear(path->reserved, sizeof path->reserved) &&
+           (path->lengths == NULL ||
+            (path->lengths[0] == 0.0 && isfinite(path->lengths[path->count - 1])));
+}
+
+// Whether a sample may read segment i: its kind known and, timed by its
+// keyframes, its easing a maker's; at constant speed not a step, which has
+// no length to travel.
+static bool Reads(const mtwnPath* path, uint32_t i)
+{
+    const mtwnKeyframe* k = &path->keyframes[i];
+    if (path->lengths != NULL)
     {
-        // A linear segment needs no cubic.
-        uint32_t s = FindSegment(path, progress, false);
-        if (path->keyframes[s].kind == mtwn_segmentLinear)
-        {
-            SampleLinear(path, s, Eased(path, s, progress), valueOut, tangentOut);
-            return;
-        }
+        return k->kind <= mtwn_segmentMonotone && k->kind != mtwn_segmentStep;
+    }
+    return k->kind <= mtwn_segmentMonotone && mtwnValidEasing(&k->easing);
+}
+
+bool mtwnPathReadsValid(const mtwnPath* path, double progress)
+{
+    return isfinite(progress) && Reads(path, SegmentAt(path, progress));
+}
+
+// A path's sample in segment i, the one a progress falls in.
+static void SampleIn(const mtwnPath* path, uint32_t i, double progress, double valueOut[4],
+                     double tangentOut[4], uint32_t* lengths)
+{
+    // Timed by its keyframes, a linear segment needs no cubic.
+    if (path->lengths == NULL && path->keyframes[i].kind == mtwn_segmentLinear)
+    {
+        SampleLinear(path, i, Eased(path, i, progress), valueOut, tangentOut);
+        return;
     }
     mtwnCubic cubic;
-    uint32_t i = 0;
-    double u = 0.0;
-    Locate(path, progress, &i, &u, &cubic, lengths);
+    double u = LocateIn(path, i, progress, &cubic, lengths);
     double end[4];
     LoadOf(path, path->keyframes[i + 1].value, end);
     Evaluate(&cubic, end, u, path->channels, valueOut, tangentOut);
@@ -480,17 +515,42 @@ void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueO
     }
 }
 
-static MTWN_NOINLINE void mtwnSamplePathWork(const mtwnPath* path, double progress,
-                                             double valueOut[4], double tangentOut[4])
+void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueOut[4],
+                            double tangentOut[4], uint32_t* lengths)
 {
-    mtwnSamplePathCounting(path, progress, valueOut, tangentOut, NULL);
+    SampleIn(path, SegmentAt(path, progress), progress, valueOut, tangentOut, lengths);
 }
 
-void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4], double tangentOut[4])
+static MTWN_NOINLINE mtwnResult mtwnSamplePathChecked(const mtwnPath* path, double progress,
+                                                      double valueOut[4], double tangentOut[4])
+{
+    if (valueOut == NULL || !mtwnValidPath(path) || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    uint32_t i = SegmentAt(path, progress);
+    if (!Reads(path, i))
+    {
+        return mtwn_errorInvalid;
+    }
+    double value[4];
+    double tangent[4];
+    SampleIn(path, i, progress, value, tangentOut != NULL ? tangent : NULL, NULL);
+    memcpy(valueOut, value, sizeof value);
+    if (tangentOut != NULL)
+    {
+        memcpy(tangentOut, tangent, sizeof tangent);
+    }
+    return mtwn_success;
+}
+
+mtwnResult mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4],
+                          double tangentOut[4])
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnSamplePathWork(path, progress, valueOut, tangentOut);
+    mtwnResult result = mtwnSamplePathChecked(path, progress, valueOut, tangentOut);
     mtwnFloatEnvLeave(env);
+    return result;
 }
 
 void mtwnLocatePath(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
@@ -764,13 +824,14 @@ static mtwnVec4 SampleScale(const mtwnPath* path, uint32_t i, double u, const mt
     return (mtwnVec4){mtwnScaleFloat(scale), 0.0f, 0.0f, 0.0f};
 }
 
-MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress)
+// A track's sample in segment i, the one a progress falls in.
+static mtwnVec4 TrackIn(const mtwnTrack* track, uint32_t i, double progress)
 {
     const mtwnPath* path = &track->path;
     double value[4];
     if (IsNumberKind(track->kind))
     {
-        mtwnSamplePathWork(path, progress, value, NULL);
+        SampleIn(path, i, progress, value, NULL, NULL);
         if (track->kind == mtwn_valueInteger)
         {
             value[0] = round(value[0]);
@@ -778,9 +839,7 @@ MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progre
         return ToVec4(value);
     }
     mtwnCubic cubic;
-    uint32_t i = 0;
-    double u = 0.0;
-    Locate(path, progress, &i, &u, &cubic, NULL);
+    double u = LocateIn(path, i, progress, &cubic, NULL);
     const mtwnKeyframe* k = path->keyframes;
     mtwnSegmentKind kind = k[i].kind;
     mtwnVec4 held = u >= 1.0 ? k[i + 1].value : k[i].value;
@@ -821,10 +880,46 @@ MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progre
     return Normalized(value, k[i].value);
 }
 
-mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress)
+MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress)
+{
+    return TrackIn(track, SegmentAt(&track->path, progress), progress);
+}
+
+MTWN_NOINLINE bool mtwnValidTrack(const mtwnTrack* track)
+{
+    if (track == NULL || track->kind > mtwn_valueScale || !mtwnValidPath(&track->path) ||
+        !mtwnReservedClear(track->reserved, sizeof track->reserved))
+    {
+        return false;
+    }
+    const mtwnPath* path = &track->path;
+    bool mixed = track->kind == mtwn_valueColor || track->kind == mtwn_valueRotation;
+    bool measured = IsNumberKind(track->kind) || track->kind == mtwn_valueScale;
+    return path->channels == s_kindChannels[track->kind] &&
+           path->logarithmic == (track->kind == mtwn_valueScale) &&
+           (track->mixes != NULL) == mixed && (path->lengths == NULL || measured);
+}
+
+static MTWN_NOINLINE mtwnResult mtwnSampleTrackChecked(const mtwnTrack* track, double progress,
+                                                       mtwnVec4* valueOut)
+{
+    if (valueOut == NULL || !mtwnValidTrack(track) || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    uint32_t i = SegmentAt(&track->path, progress);
+    if (!Reads(&track->path, i))
+    {
+        return mtwn_errorInvalid;
+    }
+    *valueOut = TrackIn(track, i, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnSampleTrack(const mtwnTrack* track, double progress, mtwnVec4* valueOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnVec4 result = mtwnSampleTrackWork(track, progress);
+    mtwnResult result = mtwnSampleTrackChecked(track, progress, valueOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

@@ -268,12 +268,12 @@ static void TestTracks(void)
     int same = 1;
     for (int k = 0; k <= 50; ++k)
     {
-        mtwnVec4 a = mtwnSampleTrack(&track.track, k / 50.0);
-        mtwnVec4 b = mtwnSampleTrack(&direct, k / 50.0);
+        mtwnVec4 a = SampleTrack(&track.track, k / 50.0);
+        mtwnVec4 b = SampleTrack(&direct, k / 50.0);
         same &= memcmp(&a, &b, sizeof a) == 0;
     }
     CHECK(same, "the clip's track samples as the values layer's");
-    mtwnVec4 half = mtwnSampleTrack(&track.track, 0.5);
+    mtwnVec4 half = SampleTrack(&track.track, 0.5);
     CHECK(fabs((double)half.x - (350 + 40) * pi / 180) <= 1e-5,
           "at constant speed: half of 80 degrees, not the keyframe at 0.5");
     CHECK(mtwnClip_GetTrack(context, clip, MTWN_ROOT_NODE, &track) == mtwn_errorInvalid,
@@ -373,7 +373,7 @@ static void TestRefusals(void)
     {
         mtwnClipTrack track;
         intact &= mtwnClip_GetTrack(context, clip, filled[i], &track) == mtwn_success &&
-                  mtwnSampleTrack(&track.track, 1.0).x == (float)(i + 1);
+                  SampleTrack(&track.track, 1.0).x == (float)(i + 1);
     }
     CHECK(intact, "every track intact, the storage holding them all");
     keys[1].value.x = 1.0f;
@@ -862,7 +862,7 @@ static uint64_t Scenario(TestFloatSetting host, int* restoredOut)
     }
     for (uint32_t k = 0; read && k <= 16; ++k)
     {
-        mtwnVec4 sample = mtwnSampleTrack(&track.track, 0.0625 * (double)k);
+        mtwnVec4 sample = SampleTrack(&track.track, 0.0625 * (double)k);
         unsigned char bytes[sizeof sample];
         memcpy(bytes, &sample, sizeof bytes);
         for (size_t b = 0; b < sizeof bytes; ++b)
@@ -1043,8 +1043,8 @@ static void TestLinearPointsCopied(void)
     int same = 0;
     for (int k = 0; k <= 20; ++k)
     {
-        mtwnVec4 a = mtwnSampleTrack(&track.track, k / 20.0);
-        mtwnVec4 b = mtwnSampleTrack(&direct, k / 20.0);
+        mtwnVec4 a = SampleTrack(&track.track, k / 20.0);
+        mtwnVec4 b = SampleTrack(&direct, k / 20.0);
         double eased = EaseAt(&track.timing.easing, k / 20.0, false);
         same += memcmp(&a, &b, sizeof a) == 0 && eased == EaseAt(&easings[3], k / 20.0, false);
     }

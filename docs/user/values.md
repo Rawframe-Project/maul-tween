@@ -64,11 +64,11 @@ mtwnZoomView view = mtwnMixZoom(&flight, 0.5);
 
 ## Paths
 
-A path runs through two or more keyframes, each a value at an offset from 0 to 1 and the segment that starts there, with that segment's easing. Segments are linear, step, cubic Bezier (through the keyframe's `out` control and the next one's `in`), Catmull-Rom (centripetal by default: no cusps or loops within a segment) or monotone. `mtwnMakePath` references the keyframes, which must outlive the path; given a lengths array, it measures the arc length and the path travels at constant speed, the offsets and easings no longer timing it.
+A path runs through two or more keyframes, each a value at an offset from 0 to 1 and the segment that starts there, with that segment's easing. Segments are linear, step, cubic Bezier (through the keyframe's `out` control and the next one's `in`), Catmull-Rom (centripetal by default: no cusps or loops within a segment) or monotone. `mtwnMakePath` references the keyframes, which must outlive the path and not change; given a lengths array, it measures the arc length and the path travels at constant speed, the offsets and easings no longer timing it. `mtwnSamplePath` gives the value, and the tangent if asked, through pointers and returns a status: it refuses a progress that is not finite, a path whose own fields no maker gives, and the segment it reads unless that segment's kind is known (at constant speed, not a step) and, timed by its keyframes, its easing is a maker's. Keyframes or lengths changed otherwise after making give an unspecified value, perhaps not finite, but nothing is read outside the arrays; a keyframe easing's own pointers (a host function, its context, `linear()`'s points) stay the host's, as every easing's do.
 
 A Catmull-Rom curve is a point's path, smooth in space. A monotone one is a value's path over time, as curve editors' clamped tangents are: each channel stays between its keyframes, flat where it turns, its speed continuous across keyframes however far apart.
 
-Something moving along a path turns with it: `mtwnPathDirection` gives the unit direction as CSS's `offset-rotate: auto` and SVG's rules take it, holds and cusps included, and `mtwnPathAngle` its angle in the plane, the same bits on every platform.
+Something moving along a path turns with it: `mtwnPathDirection` gives the unit direction as CSS's `offset-rotate: auto` and SVG's rules take it, holds and cusps included, and `mtwnPathAngle` its angle in the plane, the same bits on every platform. Both refuse what a sample refuses.
 
 A curve editor's key has handles in time as well as in value (Blender's F-curve handles, Unity's weighted tangents). Its segment is a Bezier through the handles' values, timed by a cubic-bezier easing of the handles' times as shares of the span, with y controls 1/3 and 2/3 so the easing gives the curve's own parameter. A handle reaching past the span is shortened along itself first, as Blender does. The handles of a key at 0 s and value 0 and one at 2 s and value 10, at (0.5 s, 6) and (1.2 s, 10):
 
@@ -87,7 +87,7 @@ A segment's channels share its easing, so handles timed apart per channel are on
 
 ## Tracks
 
-A track gives any value kind its keyframes (`mtwnMakeTrack` from an `mtwnTrackDef`, `mtwnSampleTrack`): numbers and vectors are their path; integers round it; discrete values step at an eased 1/2; angles unwrap by their method; colors mix linear segments in their space; rotations slerp linear segments and take Bezier and Catmull-Rom per component, normalized; scales are a path over their logarithms. Clips copy their keyframes and make their tracks themselves, so a host makes tracks directly only to sample them on its own.
+A track gives any value kind its keyframes (`mtwnMakeTrack` from an `mtwnTrackDef`, `mtwnSampleTrack`): numbers and vectors are their path; integers round it; discrete values step at an eased 1/2; angles unwrap by their method; colors mix linear segments in their space; rotations slerp linear segments and take Bezier and Catmull-Rom per component, normalized; scales are a path over their logarithms. `mtwnSampleTrack` gives the value through a pointer and refuses as a path's sample does, and a track whose own fields no maker gives. Clips copy their keyframes and make their tracks themselves, so a host makes tracks directly only to sample them on its own.
 
 ## Not obvious
 

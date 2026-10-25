@@ -11,6 +11,7 @@
 #include "test_harness.h"
 
 #include "maul-tween/easing.h"
+#include "maul-tween/path.h"
 #include "maul-tween/spring.h"
 
 #include <math.h>
@@ -103,6 +104,31 @@ static inline bool IsMonotonicEasing(const mtwnEasing* easing)
     bool monotonic = false;
     CHECK(mtwnIsEasingMonotonic(easing, &monotonic) == mtwn_success, "an easing's monotonicity");
     return monotonic;
+}
+
+static inline void SamplePath(const mtwnPath* path, double progress, double valueOut[4],
+                              double tangentOut[4])
+{
+    CHECK(mtwnSamplePath(path, progress, valueOut, tangentOut) == mtwn_success, "a path's sample");
+}
+
+static inline void PathDirection(const mtwnPath* path, double progress, double directionOut[4])
+{
+    CHECK(mtwnPathDirection(path, progress, directionOut) == mtwn_success, "a path's direction");
+}
+
+static inline double PathAngle(const mtwnPath* path, double progress)
+{
+    double angle = (double)NAN;
+    CHECK(mtwnPathAngle(path, progress, &angle) == mtwn_success, "a path's angle");
+    return angle;
+}
+
+static inline mtwnVec4 SampleTrack(const mtwnTrack* track, double progress)
+{
+    mtwnVec4 value = {NAN, NAN, NAN, NAN};
+    CHECK(mtwnSampleTrack(track, progress, &value) == mtwn_success, "a track's sample");
+    return value;
 }
 
 #endif

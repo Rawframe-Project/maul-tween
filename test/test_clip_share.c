@@ -10,6 +10,7 @@
 // rates of 0 and -0 each get what they get alone.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/event.h"
@@ -84,7 +85,7 @@ static float Expected(mtwnContext* context, mtwnClipId clip, mtwnNode node, doub
     {
         return 0.0f;
     }
-    return mtwnSampleTrack(&track.track, result.transformedProgress).x;
+    return SampleTrack(&track.track, result.transformedProgress).x;
 }
 
 static void TestDiffering(void)

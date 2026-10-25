@@ -9,6 +9,7 @@
 // transition started on the target inherits it.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/player.h"
@@ -93,7 +94,7 @@ static float Sample(const Scene* s, double t)
     CHECK(mtwnClip_GetTrack(s->context, s->clip, s->track, &track) == mtwn_success, "the track");
     mtwnTimingResult result;
     mtwnComputeTiming(&track.timing, t - track.start, false, &result);
-    return mtwnSampleTrack(&track.track, result.transformedProgress).x;
+    return SampleTrack(&track.track, result.transformedProgress).x;
 }
 
 // Its velocity at a clip time, moving at a rate: its change over the last
