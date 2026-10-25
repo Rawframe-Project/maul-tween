@@ -18,11 +18,12 @@ refused with `mtwn_errorVersion`.
   results through pointers, unchanged on refusal. They refuse a spring,
   decay or bounded decay no maker produced, a start that is not finite,
   a time below 0 or NaN, and a tolerance or stop speed not above 0,
-  which used to give infinity. `mtwnMakeBoundedDecay` refuses a decay or
-  spring no maker produced, and a spring transition refuses a spring
+  which used to give infinity. `mtwnMakeBoundedDecay` and
+  `mtwnMakeSpringEasing` refuse a decay or spring no maker produced,
+  and spring transitions and bounded decay transitions refuse a spring
   whose derived fields or regime differ from what its frequency and
   ratio make. Results for every input still taken are unchanged. A
-  sample costs a few nanoseconds more (about 5 ns for a spring, 2 to
+  sample costs a few nanoseconds more (5 to 8 ns for a spring, 2 to
   4 ns for a decay, 15 to 21 ns for a bounded decay); a transition
   checks once, at start. This is the first part of
   [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
