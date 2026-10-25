@@ -439,6 +439,9 @@ static inline void mtwnMarkChanged(mtwnContext* context, uint32_t index1)
     mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
     if ((slot->header.flags & MTWN_TARGET_CHANGED) == 0)
     {
+        // Each target is on the list once, so it never holds more than
+        // the targets.
+        MTWN_ASSERT(context->changedCount < context->targets.capacity);
         slot->header.flags |= MTWN_TARGET_CHANGED;
         context->changed[context->changedCount++] = index1;
     }
@@ -741,6 +744,7 @@ static inline void mtwnAddWriter(mtwnContext* context, mtwnTargetSlot* slot, boo
 static inline void mtwnLinkTarget(mtwnContext* context, mtwnTargetSlot* slot, uint32_t link)
 {
     bool was = mtwnLayered(slot);
+    MTWN_ASSERT(!was || context->layeredTargets > 0);
     ++context->writersEpoch;
     slot->header.link = link;
     context->layeredTargets =
