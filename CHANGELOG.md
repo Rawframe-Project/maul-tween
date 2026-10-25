@@ -6,6 +6,33 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.3.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.1...v0.3.0) (2026-10-25)
+
+### Changed
+
+- **Breaking:** `mtwnValidateTiming` refuses timings whose active
+  duration, end time or iteration cycle would overflow a double, and so
+  do `mtwnClip_AddTrack` and `mtwnClip_AddTimeline`, which check a
+  node's timing, with `mtwn_errorInvalid`. `timing.h` already promised
+  that a negative rate needs a finite active duration, whose end a
+  backward play starts from. 0.2.1 checked only iterations times
+  duration, so it accepted backward timings whose repeat delays or small
+  rate overflowed the active duration, and those gave NaN iterations.
+  Newly refused: finite iterations and duration whose active duration
+  overflows, played forwards, which became endless; an end time (delay
+  plus active duration plus end delay) past a double, which became
+  endless the same way; a duration plus repeat delay past a double,
+  whose iterations came out NaN; and a child that would give a timeline
+  lasting as long as its children such a timing, which leaves the clip
+  as it was. Endless timings played forwards stay valid: infinite
+  iterations or an infinite duration with a positive rate. Infinitely
+  many iterations of nothing, or none of an infinite duration, last 0
+  and are checked as finite ones are. Keep a timing's sums within a
+  double; every timing within one validates and computes as before.
+- Code is larger where `timing.h` links: values 60,185 bytes (from
+  59,673), clips 151,836 (151,388), and the whole library 169,666
+  (169,218), as `tools/code_size.py` measures them.
+
 ## [0.2.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.0...v0.2.1) (2026-10-25)
 
 ### Fixed
