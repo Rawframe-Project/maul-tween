@@ -861,6 +861,60 @@ static void TestForgedSpringEasings(void)
                          "could pass the doubles refused");
 }
 
+// A forged overdamped spring easing whose fast rate's square passes the
+// doubles: a squared frequency of DBL_MAX, within twice that square, is
+// taken and eases finite; an infinite one, which the square's overflow
+// let through, is refused.
+static void TestForgedSquaredPastDoubles(void)
+{
+    mtwnSpring over;
+    mtwnEasing o = mtwnLinearEasing();
+    CHECK(mtwnMakeSpringFromFrequency(2.0, 2.0, &over) == mtwn_success &&
+              mtwnMakeSpringEasing(&over, 1.0, 0.0, mtwn_easeIn, &o) == mtwn_success,
+          "an overdamped spring easing");
+    mtwnEasing e = o;
+    e.parameters[0] = 0x1p1000;
+    e.parameters[1] = 0.0;
+    e.parameters[2] = DBL_MAX;
+    const double progress[] = {0x1p-1074, 0x1p-40, 0.1, 0.5, 1.0, 2.5};
+    int wrong = 0;
+    for (size_t i = 0; i < sizeof progress / sizeof progress[0]; ++i)
+    {
+        double eased = (double)NAN;
+        wrong += mtwnEase(&e, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
+    }
+    CHECK(wrong == 0, "a squared frequency of DBL_MAX, the fast rate 2^1000: taken, finite");
+    e.parameters[2] = (double)INFINITY;
+    CHECK(EaseRefuses(&e), "an infinite squared frequency refused");
+}
+
+// A spring easing whose natural frequency times the duration reaches
+// 2^512 has a squared frequency past the doubles, refused as the spring
+// maker refuses its own: a critical spring of frequency 1 over the largest
+// double below 2^512 is made and eases finite, over 2^512 refused.
+static void TestLongestSpringEasing(void)
+{
+    mtwnSpring critical;
+    CHECK(mtwnMakeSpring(1.0, 2.0, 1.0, &critical) == mtwn_success, "a critical spring of 1");
+    mtwnEasing easing = mtwnLinearEasing();
+    CHECK(mtwnMakeSpringEasing(&critical, 0x1.fffffffffffffp511, 0.0, mtwn_easeIn, &easing) ==
+              mtwn_success,
+          "the longest duration below 2^512 made");
+    const double progress[] = {0x1p-1074, 0x1p-600, 0x1p-40, 0.5, 1.0, 2.5};
+    int wrong = 0;
+    for (size_t i = 0; i < sizeof progress / sizeof progress[0]; ++i)
+    {
+        double eased = (double)NAN;
+        wrong += mtwnEase(&easing, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
+    }
+    CHECK(wrong == 0, "and eased finite");
+    mtwnEasing kept = easing;
+    CHECK(mtwnMakeSpringEasing(&critical, 0x1p512, 0.0, mtwn_easeIn, &easing) ==
+                  mtwn_errorInvalid &&
+              memcmp(&kept, &easing, sizeof kept) == 0,
+          "2^512 refused, the out unchanged");
+}
+
 // The makers' ranges at their ends: a stiffness of 0
 // is refused, a bounce of 1 (no damping) taken, a spring easing in every
 // mode taken.
@@ -919,6 +973,8 @@ int main(int argc, char** argv)
         return 2;
     }
     TestRangeEnds();
+    TestForgedSquaredPastDoubles();
+    TestLongestSpringEasing();
     TestAgainstIntegration();
     TestMakersAgree();
     TestRegimesMeet();
