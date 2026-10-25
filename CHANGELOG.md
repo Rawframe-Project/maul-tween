@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.5.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.4.0...v0.5.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **easing:** mtwnEase, mtwnEaseCubicBezier and mtwnIsEasingMonotonic return an mtwnResult and give their results through pointers, unchanged on refusal. They, mtwnSetEaseMode, mtwnSampleEasing, mtwnFitLinearEasing, mtwnMakeRoughEasing (its shape) and a transition's start and measure refuse an easing whose fields are not as its maker sets them. mtwnEase and mtwnEaseCubicBezier refuse a progress that is not finite, and mtwnEaseCubicBezier refuses an easing of another kind instead of returning NaN. mtwnMakeElasticEasing refuses an amplitude past 512 and a period, once stretched, below 2^-10. mtwnMakeCubicBezier refuses a y past 2^1000 in magnitude. mtwnMakeSpringEasing refuses a spring oscillating more than once in 2^-10 of the duration, and one whose eased progress could pass the doubles' range. CSS curves whose values were infinite or NaN outside 0 to 1, in any mode, now give the largest finite double of their sign, or a flat tangent's end. linear() with inputs spanning more than the doubles interpolates instead of giving its first output. Steps far past their ends are finite. Results for every other input are unchanged.
+
+### Fixed
+
+* **easing:** validate easings wherever a call takes one ([#64](https://github.com/Rawframe-Project/maul-tween/issues/64)) ([e1ab43d](https://github.com/Rawframe-Project/maul-tween/commit/e1ab43d1fc1091aa800302ce9a9150ff23156eff)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+
 ## [0.4.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.3.0...v0.4.0) (2026-10-25)
 
 ### Changed
