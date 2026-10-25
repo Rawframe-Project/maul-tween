@@ -39,8 +39,9 @@ refused with `mtwn_errorVersion`.
 - On 32-bit x86 the library is built with SSE2 math
   (`-msse2 -mfpmath=sse`), so it needs a processor with SSE2, and every
   build now leaves trapping math at the compiler's default, from the
-  family's compiler flags. The GCC builds, 64-bit and 32-bit x86, pass every
-  suite unchanged, the determinism hash and the oracle tables included
+  family's compiler flags. The GCC builds, 64-bit and 32-bit x86, pass
+  every suite unchanged, the determinism hash and the oracle tables
+  included
   ([#67](https://github.com/Rawframe-Project/maul-tween/pull/67)).
 
 ## [0.5.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.4.0...v0.5.0) (2026-10-25)
