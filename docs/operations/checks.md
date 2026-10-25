@@ -9,7 +9,7 @@ What verifies a change, locally and in CI, and the time each may take.
 | Tier | Runs | Budget |
 |---|---|---|
 | `changed` | The source, module, length, API documentation and snippet rules, the organization's documentation check, `clang-format` on the changed C files, and the `linux-clang-20-asan` preset (assertions on) with the CTest labels the changed files reach. | under 2 minutes |
-| `pr` | Every rule on every file, the generators and oracles with `--check`, clang-tidy, the `linux-gcc-14` preset, the code size budgets, the `linux-clang-20-asan` preset, and 10 seconds of fuzzing per target. | under 10 minutes |
+| `pr` | Every rule on every file, the generators and oracles with `--check`, clang-tidy twice (below), the `linux-gcc-14` preset, the code size budgets, the `linux-clang-20-asan` preset, and 10 seconds of fuzzing per target. | under 10 minutes |
 | `full` | Also 60 seconds per fuzz target and every other Linux preset: ThreadSanitizer, the shared library with the package test, 32-bit x86, Clang Release, and `linux-clang-20-nightly`, which runs the nightly scenes too. | under 20 minutes |
 
 Run `changed` before every push. On the shared development machine, run `pr` and `full` through the workspace's heavy-job wrapper.
@@ -23,7 +23,7 @@ Run `changed` before every push. On the shared development machine, run `pr` and
 | `changes` | Whether a pull request changes anything beyond documentation; when it does not, the build jobs are skipped. |
 | `docs` | The organization's documentation check: allowed files, the em dash, record numbers, page sizes, links. |
 | `zizmor` | The workflows: injection, persisted credentials, permissions, unpinned actions. |
-| `checks` | `clang-format`, the family's source rules, the module graph, lengths, API documentation, documentation snippets, that the documentation site builds, that the Python generators and oracles reproduce `src/generated/` and `test/generated/`, clang-tidy, and each part's code size against its budget. It runs on documentation changes too. |
+| `checks` | `clang-format`, the family's source rules, the module graph, lengths, API documentation, documentation snippets, that the documentation site builds, that the Python generators and oracles reproduce `src/generated/` and `test/generated/`, clang-tidy twice (below), and each part's code size against its budget. It runs on documentation changes too. |
 | `build` | One call of the organization's `cpp.yml` per preset: GCC 14 (which builds every part: the library, every test, the samples and the bench) and Clang 20 in Release, Clang with AddressSanitizer and UBSan (each test repeated up to three times on a pull request, so a flaky one fails before it merges), Clang with ThreadSanitizer, the shared library with the package test, 32-bit x86 with SSE2, AArch64 on an Arm runner, macOS and `clang-cl` on Windows. All build with warnings as errors and leave out the tests labeled `nightly`. ccache is restored on every run and saved only from `main`. |
 | `nightly` | On `main` and at night only: the `linux-clang-20-nightly` preset, every test with the large random scenes. |
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
@@ -31,6 +31,11 @@ Run `changed` before every push. On the shared development machine, run `pr` and
 | `web` | The library and its tests under Emscripten and Node, and the size of the static library. The image has no Emscripten, so this job uses the runner and the emsdk action. |
 
 `pr-title.yml` checks that the pull request title is a conventional commit with a scope from `AGENTS.md`, and `pr-gate.yml` closes a pull request from outside the organization unless it closes an issue labeled `accepted`. `codeql.yml` runs CodeQL on every pull request and on `main`, building with GCC 14 (an advanced setup, since the default one builds with the runner's GCC 13). `pages.yml` publishes the documentation site from `main`. `scorecard.yml` grades the repository's security practices weekly for the README badge, and Dependabot proposes updates of the pinned actions once a week in one pull request.
+
+clang-tidy runs twice in `checks` and in the `pr` tier, both times on the `linux-clang-20` preset. The first run is in Release, where `NDEBUG` compiles every `MTWN_ASSERT` to a `sizeof`; the second is in Debug, with the assertions live. Each run hides findings the other shows:
+
+- A value read only by an assertion is a dead store once the assertion compiles out. Branch on the value instead.
+- A live assertion's condition counts toward its function's cognitive complexity. Move a compound condition into a predicate.
 
 Only the `build` cells restore a ccache. The jobs outside `cpp.yml` do not, since a cache would cost more than it saves. The fuzz targets and the size build compile in 1 to 3 seconds, while restoring and saving a cache takes 1 to 5 seconds a step. clang-tidy itself never goes through a compiler cache. `web`'s build of about 50 seconds is mostly linking, `wasm-opt` for each test, which ccache does not cache. `msvc-headers` compiles a few headers, and its runner has no ccache. CodeQL must never build through ccache: a cache hit skips the compiler, so CodeQL's tracer would not see that code.
 

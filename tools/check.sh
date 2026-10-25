@@ -12,7 +12,8 @@
 #                            push.
 #   tools/check.sh pr        what the pull request check runs on this
 #                            machine: every rule, the generators and oracles,
-#                            clang-tidy, the code size budgets, the
+#                            clang-tidy with the assertions compiled out and
+#                            live, the code size budgets, the
 #                            linux-gcc-14 and linux-clang-20-asan presets, and
 #                            a short fuzzing pass.
 #   tools/check.sh full      also every other Linux preset (ThreadSanitizer,
@@ -177,10 +178,16 @@ python3 tools/oracle/timing_oracle.py --check
 python3 tools/oracle/exact_oracle.py --check
 python3 tools/oracle/zoom_oracle.py --check
 
-step "clang-tidy"
-configure tidy -DCMAKE_C_COMPILER=clang-20 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_TWEEN_BUILD_TESTS=OFF \
-    -DMAUL_TWEEN_BUILD_BENCH=OFF -DMAUL_TWEEN_BUILD_SAMPLES=OFF
-git ls-files 'src/*.c' | xargs -P "$jobs" -n 1 clang-tidy-20 -p "$out/check-tidy" --quiet --warnings-as-errors='*' 2>/dev/null
+# As CI's checks job: on the Release preset, where the assertions compile
+# out, and with them live. Each hides findings the other shows.
+for build in Release Debug; do
+    step "clang-tidy, $build"
+    cmake --preset linux-clang-20 -B "$out/check-tidy-$build" -DCMAKE_BUILD_TYPE=$build \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_TWEEN_BUILD_TESTS=OFF \
+        -DMAUL_TWEEN_BUILD_BENCH=OFF -DMAUL_TWEEN_BUILD_SAMPLES=OFF >"$out/check-tidy-$build.log"
+    git ls-files 'src/*.c' | xargs -P "$jobs" -n 1 clang-tidy-20 -p "$out/check-tidy-$build" --quiet \
+        --warnings-as-errors='*' 2>/dev/null
+done
 
 preset linux-gcc-14
 
