@@ -10,6 +10,7 @@
 
 #include "test_harness.h"
 
+#include "maul-tween/easing.h"
 #include "maul-tween/spring.h"
 
 #include <math.h>
@@ -81,6 +82,27 @@ static inline double BoundedDecayStopTime(const mtwnBoundedDecay* bounded, doubl
                                    &seconds) == mtwn_success,
           "a bounded decay's stop time");
     return seconds;
+}
+
+static inline double EaseAt(const mtwnEasing* easing, double progress, bool before)
+{
+    double eased = (double)NAN;
+    CHECK(mtwnEase(easing, progress, before, &eased) == mtwn_success, "an easing's sample");
+    return eased;
+}
+
+static inline double EaseBezierAt(const mtwnEasing* easing, double progress)
+{
+    double eased = (double)NAN;
+    CHECK(mtwnEaseCubicBezier(easing, progress, &eased) == mtwn_success, "a cubic bezier's sample");
+    return eased;
+}
+
+static inline bool IsMonotonicEasing(const mtwnEasing* easing)
+{
+    bool monotonic = false;
+    CHECK(mtwnIsEasingMonotonic(easing, &monotonic) == mtwn_success, "an easing's monotonicity");
+    return monotonic;
 }
 
 #endif

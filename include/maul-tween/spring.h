@@ -155,7 +155,12 @@ extern "C"
     /// duration and divided by its value at the duration, so it is exactly
     /// 0 at 0 and 1 at 1; a spring settled by then is changed by the
     /// distance it had left. For CSS linear() (mtwnFitLinearEasing) and for
-    /// tracks timed by duration.
+    /// tracks timed by duration. An underdamped spring oscillating faster
+    /// than once in 2^-10 of the duration is refused, as an elastic's period
+    /// is: a fit of MTWN_MAX_FIT_POINTS points could not follow it. So is
+    /// one whose eased progress could pass the doubles' range, as a spring
+    /// almost back at its start at the duration has, divided by its value
+    /// there.
     ///
     /// @param spring     A spring made by this library.
     /// @param duration   Seconds, finite and above 0.
@@ -165,8 +170,8 @@ extern "C"
     /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
     ///         spring no maker produced, an unknown mode, a duration or
-    ///         velocity outside the above, or a spring back at its start at
-    ///         the duration.
+    ///         velocity outside the above, a spring back at its start at
+    ///         the duration, or one of the two above.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring,

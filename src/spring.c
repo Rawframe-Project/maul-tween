@@ -23,6 +23,7 @@
 
 #include "generated/math_constants.h"
 
+#include <float.h>
 #include <math.h>
 #include <string.h>
 
@@ -451,6 +452,10 @@ enum
     s_easingRange = 4,
 };
 
+// The spring easing's fastest oscillation, in radians a unit of progress:
+// a period of 2^-10, as the elastic's shortest (src/easing.c).
+static const double s_largestEasingDamped = 4.0 * MTWN_PIO2_HI * 0x1.0p10;
+
 // The spring in progress time an easing holds, and its unnormalized
 // value, 1 plus its offset, at p.
 static double SpringEasingRaw(const double* parameters, uint32_t regime, double p)
@@ -480,21 +485,14 @@ static MTWN_NOINLINE mtwnResult mtwnMakeSpringEasingWork(const mtwnSpring* sprin
     easing.parameters[s_easingSquared] = frequency * frequency;
     easing.parameters[s_easingVelocity] = velocity * duration;
     easing.count = spring->regime;
-    double range = SpringEasingRaw(easing.parameters, spring->regime, 1.0);
-    for (int i = 0; i < 4; ++i)
-    {
-        if (!isfinite(easing.parameters[i]))
-        {
-            return mtwn_errorInvalid;
-        }
-    }
     // A spring that has not moved by the duration, or is back where it
-    // started, has no range to normalize by.
-    if (!isfinite(range) || range == 0.0)
+    // started, has no range to normalize by; the checks refuse it, and a
+    // scaled parameter that is not finite.
+    easing.parameters[s_easingRange] = SpringEasingRaw(easing.parameters, spring->regime, 1.0);
+    if (!mtwnValidSpringEasing(&easing))
     {
         return mtwn_errorInvalid;
     }
-    easing.parameters[s_easingRange] = range;
     *easingOut = easing;
     return mtwn_success;
 }
@@ -512,6 +510,26 @@ double mtwnSampleSpringEasing(const mtwnEasing* easing, double p)
 {
     return SpringEasingRaw(easing->parameters, easing->count, p) /
            easing->parameters[s_easingRange];
+}
+
+bool mtwnValidSpringEasing(const mtwnEasing* easing)
+{
+    const double* parameter = easing->parameters;
+    double decay = parameter[s_easingDecay];
+    double damped = parameter[s_easingDamped];
+    double fast = decay + damped;
+    bool oscillates = easing->count == s_underdamped;
+    // With these, over progress 0 to 1 the motion's offset from its offset
+    // is within 1 + 1/e of 0 underdamped, and 3 fast overdamped (its slow
+    // rate at most twice its fast); its offset from its velocity within 1:
+    // the raw value within bound, and over the range finite (a bound that
+    // is not finite, or a range of 0 or NaN, leaves a ratio that is not).
+    double bound = 4.0 + 3.0 * fast + 2.0 * fabs(parameter[s_easingVelocity]);
+    double range = fabs(parameter[s_easingRange]);
+    return easing->count <= s_overdamped && decay >= 0.0 &&
+           (oscillates ? damped > 0.0 && damped <= s_largestEasingDamped : damped >= 0.0) &&
+           parameter[s_easingSquared] >= 0.0 && parameter[s_easingSquared] <= 2.0 * fast * fast &&
+           range <= DBL_MAX && bound / range <= DBL_MAX;
 }
 
 // Whether two doubles have the same bits: a sign of zero or a NaN no

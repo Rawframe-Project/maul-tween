@@ -8,6 +8,7 @@
 // in a jump; the offsets follow GSAP's tapers.
 
 #include "fpenv.h"
+#include "valid.h"
 #include "work.h"
 
 #include "maul-tween/easing.h"
@@ -53,9 +54,9 @@ static MTWN_NOINLINE mtwnResult mtwnMakeRoughEasingWork(const mtwnRoughDef* def,
                                                         mtwnLinearPoint* points, uint32_t count,
                                                         mtwnEasing* easingOut)
 {
-    if (def == NULL || points == NULL || easingOut == NULL || count < 2 ||
-        !(def->strength >= 0.0 && isfinite(def->strength)) || def->taper > mtwn_roughTaperBoth ||
-        (def->flags & ~s_roughFlags) != 0)
+    if (def == NULL || !mtwnValidEasing(&def->shape) || points == NULL || easingOut == NULL ||
+        count < 2 || !(def->strength >= 0.0 && isfinite(def->strength)) ||
+        def->taper > mtwn_roughTaperBoth || (def->flags & ~s_roughFlags) != 0)
     {
         return mtwn_errorInvalid;
     }

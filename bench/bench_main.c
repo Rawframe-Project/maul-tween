@@ -366,7 +366,9 @@ static double EaseNs(const mtwnEasing* easing)
     double start = Seconds();
     for (uint32_t i = 0; i < SAMPLES; ++i)
     {
-        sum += mtwnEase(easing, (double)i * (1.0 / SAMPLES), false);
+        double eased = 0.0;
+        mtwnResult sampled = mtwnEase(easing, (double)i * (1.0 / SAMPLES), false, &eased);
+        sum += sampled == mtwn_success ? eased : (double)NAN;
     }
     double took = Seconds() - start;
     s_sink = sum;

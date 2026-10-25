@@ -112,13 +112,13 @@ static void TestDelayAndEasing(void)
     CHECK(State(context, x).value.x == 1.0f && State(context, x).velocity.x == 0.0f,
           "the start holds through the delay");
     Update(context, s_second / 2 + s_second);
-    double eased = mtwnEase(&def.easing, 0.5, false);
+    double eased = EaseAt(&def.easing, 0.5, false);
     CHECK(State(context, x).value.x == (float)(0.5 * 1.0 + 0.5 * 3.0) ||
               State(context, x).value.x == (float)((1.0 - eased) * 1.0 + eased * 3.0),
           "CSS's ease at the middle");
     CHECK(State(context, x).value.x == (float)((1.0 - eased) * 1.0 + eased * 3.0), "exactly");
     // The velocity is the curve's over its last millisecond.
-    double before = mtwnEase(&def.easing, (1.0 - 0.001) / 2.0, false);
+    double before = EaseAt(&def.easing, (1.0 - 0.001) / 2.0, false);
     float expected =
         (float)((((1.0 - eased) + eased * 3.0) - ((1.0 - before) + before * 3.0)) / 0.001);
     CHECK(fabsf(State(context, x).velocity.x - expected) <= 1e-4f * fabsf(expected),
@@ -847,6 +847,13 @@ static void TestSpecRefusals(void)
     def.spring = (mtwnSpring){{0.0}, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spring not made");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.spec = mtwn_transitionEasing;
+    def.easing.parameters[0] = -0.5;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
+          "an easing no maker produced");
+    double distance = 0.0;
+    CHECK(mtwnMeasureTransition(context, &def, &distance) == mtwn_errorInvalid, "nor measured");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.spring.parameters[4] = nextafter(def.spring.parameters[4], 0.0);
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
           "a spring a bit off what its frequency and ratio make");
@@ -1144,7 +1151,7 @@ static void TestPowerModes(void)
                       "an update");
                 mtwnTargetState state;
                 CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success, "read");
-                double expected = mtwnEase(&def.easing, k / 16.0, false);
+                double expected = EaseAt(&def.easing, k / 16.0, false);
                 wrong += fabs((double)state.value.x - expected) <= 1e-6 ? 0u : 1u;
             }
             now += 2 * s_second;
@@ -1532,7 +1539,7 @@ static void TestReversalOvershoot(void)
     mtwnEasing backOut;
     CHECK(mtwnMakeBackEasing(mtwn_easeOut, 1.70158, &backOut) == mtwn_success, "a back out");
     (void)Toward(context, x, 1.0f, 1.0, &backOut, true);
-    CHECK(mtwnEase(&backOut, 0.75, false) > 1.0, "past 1 three quarters in");
+    CHECK(EaseAt(&backOut, 0.75, false) > 1.0, "past 1 three quarters in");
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success,
           "three quarters in");
@@ -1596,7 +1603,7 @@ static void TestReversalEdges(void)
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "a quarter in, below the start");
-    double p = mtwnEase(&backIn, 0.25, false);
+    double p = EaseAt(&backIn, 0.25, false);
     back = Toward(context, x, 0.0f, 1.0, &backIn, true);
     // The way back lasts -p seconds, to the nanosecond either side.
     uint64_t start = s_second / 4;

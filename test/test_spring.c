@@ -717,17 +717,17 @@ static void TestSpringEasings(void)
             double p = (double)k / 1000.0;
             double offset = 0.0;
             SampleSpring(&spring, -1.0, ec->velocity, p * ec->duration, &offset, NULL);
-            double error = fabs(mtwnEase(&easing, p, false) - (1.0 + offset) / (1.0 + end));
+            double error = fabs(EaseAt(&easing, p, false) - (1.0 + offset) / (1.0 + end));
             worst = error > worst ? error : worst;
         }
         for (int m = 0; m < 4; ++m)
         {
             wrong += mtwnSetEaseMode(&easing, modes[m]) != mtwn_success;
-            wrong += mtwnEase(&easing, 0.0, false) != 0.0 || mtwnEase(&easing, 1.0, false) != 1.0;
-            wrong += m >= 2 && mtwnEase(&easing, 0.5, false) != 0.5;
-            wrong += mtwnEase(&easing, -0.5, true) != 0.0 || mtwnEase(&easing, 2.0, false) != 1.0;
+            wrong += EaseAt(&easing, 0.0, false) != 0.0 || EaseAt(&easing, 1.0, false) != 1.0;
+            wrong += m >= 2 && EaseAt(&easing, 0.5, false) != 0.5;
+            wrong += EaseAt(&easing, -0.5, true) != 0.0 || EaseAt(&easing, 2.0, false) != 1.0;
         }
-        wrong += mtwnIsEasingMonotonic(&easing);
+        wrong += IsMonotonicEasing(&easing);
     }
     CHECK(wrong == 0, "a spring easing lands exactly on 0 and 1 in every mode, clamped outside");
     CHECK(worst <= 1e-14, "and is the spring from -1 over its duration, normalized");
@@ -749,7 +749,7 @@ static void TestSpringEasingFitsLinear(void)
     for (int k = 0; k <= 100000; ++k)
     {
         double p = (double)k / 100000.0;
-        double error = fabs(mtwnEase(&fitted, p, false) - mtwnEase(&easing, p, false));
+        double error = fabs(EaseAt(&fitted, p, false) - EaseAt(&easing, p, false));
         worst = error > worst ? error : worst;
     }
     if (!(worst <= 1e-3))
@@ -789,6 +789,76 @@ static void TestSpringEasingRefusals(void)
     CHECK(mtwnMakeSpringEasing(&spring, 1.0, HUGE_VAL, mtwn_easeIn, &easing) == mtwn_errorInvalid,
           "an infinite velocity");
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
+    mtwnSpring fast;
+    mtwnEasing edge = mtwnLinearEasing();
+    CHECK(mtwnMakeSpringFromFrequency(1000.0, 0.0, &fast) == mtwn_success &&
+              mtwnMakeSpringEasing(&fast, 1.0001, 0.0, mtwn_easeIn, &edge) == mtwn_success &&
+              mtwnMakeSpringEasing(&fast, 1.1001, 0.0, mtwn_easeIn, &edge) == mtwn_errorInvalid,
+          "1,000 oscillations over the duration taken, 1,100 refused");
+    CHECK(mtwnMakeSpringEasing(&spring, 1.0, 1e308, mtwn_easeIn, &edge) == mtwn_errorInvalid,
+          "a velocity whose eased progress could pass the doubles refused");
+}
+
+// Whether mtwnEase refuses a spring easing, its output as it was.
+static bool EaseRefuses(const mtwnEasing* easing)
+{
+    double eased = 7.0;
+    return mtwnEase(easing, 0.5, false, &eased) == mtwn_errorInvalid && eased == 7.0;
+}
+
+// A spring easing with a field written as its maker never writes it.
+static void TestForgedSpringEasings(void)
+{
+    mtwnSpring under;
+    mtwnSpring over;
+    mtwnEasing u = mtwnLinearEasing();
+    mtwnEasing o = u;
+    CHECK(mtwnMakeSpringFromFrequency(2.0, 0.3, &under) == mtwn_success &&
+              mtwnMakeSpringFromFrequency(2.0, 2.0, &over) == mtwn_success &&
+              mtwnMakeSpringEasing(&under, 1.0, 0.5, mtwn_easeIn, &u) == mtwn_success &&
+              mtwnMakeSpringEasing(&over, 1.0, 0.5, mtwn_easeIn, &o) == mtwn_success,
+          "spring easings");
+    CHECK(!EaseRefuses(&u) && !EaseRefuses(&o), "as made, taken");
+    mtwnEasing e = u;
+    e.count = 2;
+    int refused = EaseRefuses(&e);
+    e = u;
+    e.parameters[0] = -1.0;
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[1] = 0.0;
+    e.parameters[2] = e.parameters[0] * e.parameters[0];
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[1] = 0x1.0p13;
+    refused += EaseRefuses(&e);
+    e = o;
+    e.parameters[1] = -1.0;
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[2] = -1.0;
+    refused += EaseRefuses(&e);
+    e = o;
+    double fastRate = o.parameters[0] + o.parameters[1];
+    e.parameters[2] = 2.5 * fastRate * fastRate;
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[3] = 1e308;
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[4] = 0.0;
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[4] = HUGE_VAL;
+    refused += EaseRefuses(&e);
+    e = u;
+    e.parameters[4] = 1e-310;
+    refused += EaseRefuses(&e);
+    CHECK(refused == 11, "another regime; a negative decay; an underdamped one without its "
+                         "damped rate, or with it past one oscillation in 2^-10; a negative "
+                         "damped rate; a negative squared frequency, or one past twice the "
+                         "fast rate's square; a velocity or a range whose eased progress "
+                         "could pass the doubles refused");
 }
 
 // The makers' ranges at their ends: a stiffness of 0
@@ -861,6 +931,7 @@ int main(int argc, char** argv)
     TestSpringEasings();
     TestSpringEasingFitsLinear();
     TestSpringEasingRefusals();
+    TestForgedSpringEasings();
     TestSlowSprings();
     return s_failures == 0 ? 0 : 1;
 }
