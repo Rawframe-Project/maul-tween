@@ -314,6 +314,8 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
     while (parent != 0)
     {
         mtwnClipNode* timeline = &clip->nodes[parent - 1];
+        // Only a timeline is a parent.
+        MTWN_ASSERT(timeline->kind == mtwn_nodeTimeline);
         double childrenEnd = end > timeline->childrenEnd ? end : timeline->childrenEnd;
         if (write)
         {
@@ -348,7 +350,11 @@ static bool HasRoom(const mtwnClipSlot* clip)
 // Puts a prepared node into the clip, last among its parent's children.
 static uint32_t Attach(mtwnClipSlot* clip, const mtwnClipNode* node)
 {
+    // HasRoom held: the nodes hold the root and nodeCapacity more.
+    MTWN_ASSERT(clip->nodeCount <= clip->def.nodeCapacity);
     uint32_t index1 = ++clip->nodeCount;
+    // Its parent, a timeline the caller checked, comes before it.
+    MTWN_ASSERT(node->parent >= 1 && node->parent < index1);
     clip->nodes[index1 - 1] = *node;
     mtwnClipNode* parent = &clip->nodes[node->parent - 1];
     if (parent->lastChild != 0)
@@ -363,7 +369,9 @@ static uint32_t Attach(mtwnClipSlot* clip, const mtwnClipNode* node)
     if (node->kind == mtwn_nodeTrack || node->kind == mtwn_nodeTimeline)
     {
         parent->previous = index1;
-        Raise(clip, node->parent, node->end, true);
+        // Its caller raised the same end without writing, which succeeded.
+        bool raised = Raise(clip, node->parent, node->end, true);
+        MTWN_ASSERT(raised);
     }
     return index1;
 }

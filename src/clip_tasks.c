@@ -30,6 +30,17 @@ typedef struct GroupTask
 // The players the first group runs before the others to seed them.
 static const uint32_t s_seedPlayers = 3;
 
+// Whether a player's staging lies within its group's work, in the order
+// it was made: its records, its results, and its changes before and after
+// its resets. Only an assertion calls it.
+[[maybe_unused]] static inline bool StagedWithin(const mtwnStaged* staged, const mtwnWork* work)
+{
+    return staged->recordStart <= staged->recordEnd && staged->recordEnd <= work->recordCapacity &&
+           staged->trackStart <= staged->trackEnd && staged->trackEnd <= work->trackCapacity &&
+           staged->changeStart <= staged->resetStart && staged->resetStart <= staged->changeEnd &&
+           staged->changeEnd <= work->changeCapacity;
+}
+
 // A group's players: [first, end) of the staged order.
 static void GroupRange(uint32_t count, uint32_t group, uint32_t* first, uint32_t* end)
 {
@@ -89,6 +100,9 @@ static void RunStaged(const GroupTask* task, uint32_t group, uint32_t i, bool* f
             mtwnAdvanceClipPlayer(context, work, staged->player, task->before, task->now);
         if (work->overflow)
         {
+            // Only a player with no alone target can run out (Fits held
+            // room for the rest), so it staged no change to undo.
+            MTWN_ASSERT(work->changeCount == staged->changeStart);
             *play = was;
             work->recordCount = staged->recordStart;
             work->trackCount = staged->trackStart;
@@ -105,6 +119,7 @@ static void RunStaged(const GroupTask* task, uint32_t group, uint32_t i, bool* f
     staged->recordEnd = work->recordCount;
     staged->trackEnd = work->trackCount;
     staged->changeEnd = work->changeCount;
+    MTWN_ASSERT(StagedWithin(staged, work));
 }
 
 static MTWN_NOINLINE void RunGroup(const GroupTask* task, uint32_t group)
@@ -214,6 +229,7 @@ void mtwnRunClipGroups(mtwnContext* context, double before, double now)
         const mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
         if (slot->type == MTWN_PLAYER_CLIP)
         {
+            MTWN_ASSERT(count < context->def.playerCapacity);
             context->staged[count++].player = index1;
             mtwnPlayerAt(context, index1)->play.stagedAt = count;
         }
@@ -251,8 +267,9 @@ bool mtwnApplyStaged(mtwnContext* context, uint32_t player, double before, doubl
 {
     // The serial pass meets the clips' players in the creation order the
     // staging was made in, so the next is this player.
+    MTWN_ASSERT(context->stagedNext < context->stagedCount &&
+                context->staged[context->stagedNext].player == player);
     mtwnStaged* staged = &context->staged[context->stagedNext++];
-    (void)player;
     if (staged->serial)
     {
         ++context->serialAdvances;
@@ -279,6 +296,8 @@ bool mtwnApplyStaged(mtwnContext* context, uint32_t player, double before, doubl
     {
         context->changed[context->changedCount++] = work->changes[k];
     }
+    // Every change it staged before its resets is on the list, once.
+    MTWN_ASSERT(k == staged->resetStart && context->changedCount <= context->targets.capacity);
     return staged->done;
 }
 
@@ -305,10 +324,14 @@ void mtwnResetEveryStaged(mtwnContext* context)
             context->changed[context->changedCount++] = work->changes[k];
         }
     }
+    MTWN_ASSERT(context->changedCount <= context->targets.capacity);
 }
 
 void mtwnResetStaged(mtwnContext* context, const mtwnClipPlay* play)
 {
+    // Every clip's player was staged when the groups ran: at 1 and up.
+    MTWN_ASSERT(context->stagedCount == 0 ||
+                (play->stagedAt >= 1 && play->stagedAt <= context->stagedCount));
     const mtwnStaged* staged =
         context->stagedCount > 0 ? &context->staged[play->stagedAt - 1u] : NULL;
     if (staged == NULL || staged->serial)
@@ -338,6 +361,9 @@ void mtwnResetStaged(mtwnContext* context, const mtwnClipPlay* play)
             mtwnWriteTarget(context, target, mtwnTargetAt(context, target)->base, (mtwnVec4){0});
         }
     }
+    // Its group staged its resets' changes in binding order, at most one
+    // for each alone target, so every one was matched and put on the list.
+    MTWN_ASSERT(k == staged->changeEnd);
 }
 
 void mtwnEndClipGroups(mtwnContext* context)
