@@ -8,10 +8,16 @@ refused with `mtwn_errorVersion`.
 
 ## [0.2.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.0...v0.2.1) (2026-10-25)
 
-
 ### Fixed
 
-* **context:** report a transition's velocity over a clip's lazy write ([#50](https://github.com/Rawframe-Project/maul-tween/issues/50)) ([9a9ae45](https://github.com/Rawframe-Project/maul-tween/commit/9a9ae45b25856841d0b5cc457f94bba3bbf9b4b9)), closes [#49](https://github.com/Rawframe-Project/maul-tween/issues/49)
+- A target that a clip's track wrote at full weight and an eased
+  transition of numbers then wrote over in the same update reported a
+  wrong velocity, hundreds of times too large: the track's, worked out
+  against the transition's value. `mtwnTarget_GetState`, a transition
+  started on the target (such as a spring taking its velocity) and a
+  clip layer composed over it now get the transition's velocity. The
+  value was always right
+  ([#50](https://github.com/Rawframe-Project/maul-tween/pull/50)).
 
 ## [0.2.0](https://github.com/Rawframe-Project/maul-tween/releases/tag/v0.2.0) (2026-10-24)
 
