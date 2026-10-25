@@ -208,12 +208,18 @@ static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double
 // The seconds after its delay a transition has run at the host's time.
 static double Elapsed(const mtwnPlayerSlot* slot, uint64_t timeNs)
 {
+    // Its start is the time of the first update it saw, and updates never
+    // go back.
+    MTWN_ASSERT(timeNs >= slot->startNs);
     return (double)(timeNs - slot->startNs) / 1e9 - slot->delay;
 }
 
 static MTWN_NOINLINE mtwnVec4 LazyVelocity(const mtwnContext* context, uint32_t index1)
 {
     const mtwnPlayerSlot* slot = mtwnPlayerAt(context, mtwnTargetAt(context, index1)->header.link);
+    // Only WriteEased leaves a velocity lazy, and a transition's end
+    // settles it before the link goes.
+    MTWN_ASSERT(slot->type == MTWN_PLAYER_TRANSITION && IsEasedNumbers(slot));
     double t = Elapsed(slot, context->lastTimeNs);
     double value[4];
     EasedValue(slot, t, value);
@@ -228,8 +234,12 @@ mtwnVec4 mtwnTargetVelocity(const mtwnContext* context, uint32_t index1)
     {
         return target->velocity;
     }
+    // One writer's lazy velocity at a time: every write clears both flags,
+    // then WriteEased or a clip's lazy write sets its own.
+    MTWN_ASSERT(lazy != (MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY));
     // A clip's track's only once a clip's player exists, so its part is
     // there to compute it.
+    MTWN_ASSERT(lazy == MTWN_TARGET_LAZY || context->clipUpdate != NULL);
     return lazy == MTWN_TARGET_LAZY ? LazyVelocity(context, index1)
                                     : context->clipUpdate->velocity(context, target);
 }
@@ -266,6 +276,7 @@ void mtwnWriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 value, mtwn
 // to be computed when read.
 static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_t target, double t)
 {
+    MTWN_ASSERT(IsEasedNumbers(slot));
     double now[4];
     EasedValue(slot, t, now);
     if (slot->kind == mtwn_valueInteger)
@@ -425,8 +436,12 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
         uint32_t later = slot->later;
+        MTWN_ASSERT(slot->type == MTWN_PLAYER_TRANSITION || context->clipUpdate != NULL);
         if (slot->type == MTWN_PLAYER_TRANSITION)
         {
+            // A transition and its target link to each other.
+            MTWN_ASSERT(slot->header.link != 0 &&
+                        mtwnTargetAt(context, slot->header.link)->header.link == index1);
             Advance(context, index1, timeNs);
         }
         else if (context->clipUpdate != NULL)
@@ -463,6 +478,8 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     {
         uint32_t index1 = context->changed[i];
         mtwnTargetSlot* target = mtwnTargetAt(context, index1);
+        // On the list once: its flag is still set, cleared only here.
+        MTWN_ASSERT((target->header.flags & MTWN_TARGET_CHANGED) != 0);
         target->header.flags &= (uint8_t)~MTWN_TARGET_CHANGED;
         if (i < changedCapacity)
         {
