@@ -65,8 +65,8 @@
       "inherits": ["linux", "gcc"],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_C_FLAGS": "-m32 -msse2 -mfpmath=sse",
-        "CMAKE_CXX_FLAGS": "-m32 -msse2 -mfpmath=sse"
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32"
       }
     },
     {
