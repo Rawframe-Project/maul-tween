@@ -6,6 +6,29 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.4.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.3.0...v0.4.0) (2026-10-25)
+
+### Changed
+
+- **Breaking: springs and decays are checked wherever a call takes
+  one.** `mtwnSpringMotionAt`, `mtwnSampleSpring`,
+  `mtwnSpringSettlingTime`, `mtwnSampleDecay`, `mtwnDecayStopTime`,
+  `mtwnDecayCrossingTime`, `mtwnSampleBoundedDecay` and
+  `mtwnBoundedDecayStopTime` return an `mtwnResult` and give their
+  results through pointers, unchanged on refusal. They refuse a spring,
+  decay or bounded decay no maker produced, a start that is not finite,
+  a time below 0 or NaN, and a tolerance or stop speed not above 0,
+  which used to give infinity. `mtwnMakeBoundedDecay` and
+  `mtwnMakeSpringEasing` refuse a decay or spring no maker produced,
+  and spring transitions and bounded decay transitions refuse a spring
+  whose derived fields or regime differ from what its frequency and
+  ratio make. Results for every input still taken are unchanged. A
+  sample costs a few nanoseconds more (5 to 8 ns for a spring, 2 to
+  4 ns for a decay, 15 to 21 ns for a bounded decay); a transition
+  checks once, at start. This is the first part of
+  [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+  ([#62](https://github.com/Rawframe-Project/maul-tween/pull/62)).
+
 ## [0.3.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.1...v0.3.0) (2026-10-25)
 
 ### Changed
