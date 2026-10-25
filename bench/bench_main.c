@@ -203,13 +203,19 @@ static double SampleValues(const Values* v, int which, uint32_t n)
         double p = ((double)i + 0.5) / (double)n;
         if (which <= VALUE_OKLCH)
         {
-            mtwnColor c = mtwnMixColor(&v->colors[which], p);
-            sum += (double)c.red + (double)c.green + (double)c.blue;
+            mtwnColor c = {0};
+            if (mtwnMixColor(&v->colors[which], p, &c) == mtwn_success)
+            {
+                sum += (double)c.red + (double)c.green + (double)c.blue;
+            }
         }
         else if (which == VALUE_SLERP)
         {
-            mtwnQuat q = mtwnMixRotation(&v->rotation, p);
-            sum += (double)q.x + (double)q.w;
+            mtwnQuat q = {0};
+            if (mtwnMixRotation(&v->rotation, p, &q) == mtwn_success)
+            {
+                sum += (double)q.x + (double)q.w;
+            }
         }
         else if (which == VALUE_PATH)
         {

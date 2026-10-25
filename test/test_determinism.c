@@ -528,7 +528,7 @@ static void HashValues(void)
         CHECK(mtwnMakeScaleMix(scales[s][0], scales[s][1], &mix) == mtwn_success, "a scale mix");
         for (uint32_t k = 0; k < SAMPLES; ++k)
         {
-            HashDouble(mtwnMixScale(&mix, Progress(k)));
+            HashDouble(MixScale(&mix, Progress(k)));
         }
     }
     static const mtwnZoomView views[4] = {
@@ -540,10 +540,10 @@ static void HashValues(void)
         {
             mtwnZoomMix mix;
             CHECK(mtwnMakeZoomMix(views[v], views[v + 1], rhos[r], &mix) == mtwn_success, "a zoom");
-            HashDouble(mtwnZoomLength(&mix));
+            HashDouble(ZoomLength(&mix));
             for (uint32_t k = 0; k < SAMPLES; ++k)
             {
-                mtwnZoomView view = mtwnMixZoom(&mix, Progress(k));
+                mtwnZoomView view = MixZoom(&mix, Progress(k));
                 HashDouble(view.x);
                 HashDouble(view.y);
                 HashDouble(view.width);
@@ -733,7 +733,7 @@ static void HashEdges(void)
     static const double across[6] = {0.5066, 0.5068, -0.5066, -0.5068, 1.5, -0.0};
     for (uint32_t a = 0; a < 6; ++a)
     {
-        HashDouble(mtwnMixScale(&wide, across[a]));
+        HashDouble(MixScale(&wide, across[a]));
     }
     // An undamped spring of 2 Hz turns 4 pi a second, so its phase passes
     // 2^52, where it holds no angle, between 3.58e14 and 3.59e14 seconds;

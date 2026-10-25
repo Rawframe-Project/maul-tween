@@ -175,7 +175,7 @@ static void TestColors(void)
     CHECK(mtwnMakeColorMix((mtwnColor){1, 0, 0, 1}, (mtwnColor){0, 0, 1, 1}, mtwn_colorOklab,
                            mtwn_hueShorter, &mix) == mtwn_success,
           "a mix");
-    mtwnColor want = mtwnMixColor(&mix, 0.5);
+    mtwnColor want = MixColor(&mix, 0.5);
     mtwnVec4 got = SampleTrack(&track, 0.25);
     CHECK(got.x == want.red && got.y == want.green && got.z == want.blue && got.w == want.alpha,
           "mixed in Oklab per segment");
@@ -233,7 +233,7 @@ static void TestRotations(void)
     CHECK(mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
                               mtwn_rotationShortest, &turn) == mtwn_success,
           "a mix");
-    mtwnQuat q = mtwnMixRotation(&turn, 0.4);
+    mtwnQuat q = MixRotation(&turn, 0.4);
     mtwnVec4 got = SampleTrack(&track, 0.2);
     CHECK(got.x == q.x && got.y == q.y && got.z == q.z && got.w == q.w, "slerp per segment");
     CHECK(Same(SampleTrack(&track, 0.7), b), "a step holds");
@@ -687,6 +687,41 @@ static void TestAnglesFarOut(void)
     CHECK(isfinite(half.x) && half.x < -1e37f, "its segment drawn toward it");
 }
 
+// A track's mixes are the host's, as its keyframes are: a sample checks the
+// mix of the segment it reads, a color's unless the segment steps and a
+// rotation's where it is linear, and no other.
+static void TestMixChecks(void)
+{
+    mtwnKeyframe colors[3] = {Key(0.0, (mtwnVec4){1, 0, 0, 1}, mtwn_segmentLinear),
+                              Key(0.5, (mtwnVec4){0, 0, 1, 1}, mtwn_segmentStep),
+                              Key(1.0, (mtwnVec4){0, 1, 0, 0.5f}, mtwn_segmentLinear)};
+    mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueColor);
+    mtwnSegmentMix mixes[2];
+    mtwnTrack track;
+    CHECK(mtwnMakeTrack(&def, colors, 3, NULL, mixes, &track) == mtwn_success, "a color track");
+    mixes[0].color.space = 9;
+    mixes[1].color.space = 9;
+    mtwnVec4 v = {0};
+    CHECK(TrackRefused(&track, 0.25) && mtwnSampleTrack(&track, 0.75, &v) == mtwn_success,
+          "a forged color mix refused where it is read, not where a step holds");
+
+    mtwnVec4 a = About(0, 0, 1, 0.0);
+    mtwnVec4 b = About(0, 0, 1, 1.0);
+    mtwnVec4 c = About(0, 1, 0, 2.0);
+    mtwnKeyframe turns[4] = {Key(0.0, a, mtwn_segmentLinear), Key(0.3, b, mtwn_segmentStep),
+                             Key(0.6, c, mtwn_segmentCatmullRom), Key(1.0, a, mtwn_segmentLinear)};
+    def = mtwnDefaultTrackDef(mtwn_valueRotation);
+    mtwnSegmentMix spins[3];
+    CHECK(mtwnMakeTrack(&def, turns, 4, NULL, spins, &track) == mtwn_success, "a rotation track");
+    for (int i = 0; i < 3; ++i)
+    {
+        spins[i].rotation.angle = -1.0;
+    }
+    CHECK(TrackRefused(&track, 0.1) && mtwnSampleTrack(&track, 0.45, &v) == mtwn_success &&
+              mtwnSampleTrack(&track, 0.8, &v) == mtwn_success,
+          "a forged rotation mix refused where it is read, not where a step or a spline is");
+}
+
 int main(void)
 {
     TestRotationZero();
@@ -703,5 +738,6 @@ int main(void)
     TestRefusals();
     TestSampleRefusals();
     TestScales();
+    TestMixChecks();
     return s_failures == 0 ? 0 : 1;
 }

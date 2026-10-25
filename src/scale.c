@@ -9,6 +9,7 @@
 
 #include "elementary.h"
 #include "fpenv.h"
+#include "valid.h"
 #include "work.h"
 
 #include "maul-tween/interpolate.h"
@@ -54,10 +55,32 @@ MTWN_NOINLINE double mtwnMixScaleWork(const mtwnScaleMix* mix, double progress)
                                        : mtwnExp(mix->logFrom + exponent);
 }
 
-double mtwnMixScale(const mtwnScaleMix* mix, double progress)
+static bool IsScale(double scale)
+{
+    return isfinite(scale) && scale > 0.0;
+}
+
+MTWN_NOINLINE bool mtwnValidScaleMix(const mtwnScaleMix* mix)
+{
+    return mix != NULL && IsScale(mix->from) && IsScale(mix->to) && isfinite(mix->logFrom) &&
+           isfinite(mix->logRatio);
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMixScaleChecked(const mtwnScaleMix* mix, double progress,
+                                                    double* scaleOut)
+{
+    if (scaleOut == NULL || !mtwnValidScaleMix(mix) || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *scaleOut = mtwnMixScaleWork(mix, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMixScale(const mtwnScaleMix* mix, double progress, double* scaleOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnMixScaleWork(mix, progress);
+    mtwnResult result = mtwnMixScaleChecked(mix, progress, scaleOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

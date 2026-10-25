@@ -78,7 +78,7 @@ static uint64_t Work(void)
             double speed = 0.0;
             SampleSpring(&s_shared.spring, -1.0, 0.0, p, &offset, &speed);
             hash = Mix(Mix(hash, offset), speed);
-            mtwnColor color = mtwnMixColor(&s_shared.mix, p);
+            mtwnColor color = MixColor(&s_shared.mix, p);
             hash = Mix(Mix(Mix(hash, (double)color.red), (double)color.green), (double)color.blue);
             mtwnTimingResult timed;
             mtwnComputeTiming(&s_shared.track.timing, p * 2.0, false, &timed);

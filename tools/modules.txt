@@ -13,14 +13,14 @@ spring_easing:
 valid:
 spring: elementary spring_easing valid fpenv work
 decay: elementary fpenv valid work
-color: bounds_internal elementary mix_internal fpenv work
-rotation: elementary mix_internal fpenv work
-scale: elementary fpenv work
+color: bounds_internal elementary mix_internal fpenv reserved_internal valid work
+rotation: bounds_internal elementary mix_internal fpenv valid work
+scale: elementary fpenv valid work
 bounds_internal:
 mix_internal:
 reserved_internal:
 invariant:
-zoom: elementary fpenv work
+zoom: elementary fpenv valid work
 signal: elementary mix_internal fpenv valid
 timing: reserved_internal timing_internal valid work fpenv
 stagger: reserved_internal stagger_internal valid work fpenv

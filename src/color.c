@@ -12,6 +12,8 @@
 #include "elementary.h"
 #include "fpenv.h"
 #include "mix_internal.h"
+#include "reserved_internal.h"
+#include "valid.h"
 #include "work.h"
 
 #include "generated/color_matrices.h"
@@ -220,6 +222,24 @@ mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, 
     return result;
 }
 
+// A mix's end in its space: finite coordinates, premultiplied or not,
+// its alpha its color's, and an OkLCh hue within the two turns the
+// fix-ups reach from a hue of 0 to a turn.
+static MTWN_NOINLINE bool IsEnd(const double end[4], mtwnColor color, mtwnColorSpace space)
+{
+    return isfinite(end[0]) && isfinite(end[1]) && isfinite(end[2]) &&
+           end[3] == (double)color.alpha &&
+           (space != mtwn_colorOklch || (end[2] >= 0.0 && end[2] <= 2.0 * s_turn));
+}
+
+MTWN_NOINLINE bool mtwnValidColorMix(const mtwnColorMix* mix)
+{
+    return mix != NULL && IsSpace(mix->space) &&
+           mtwnReservedClear(mix->reserved, sizeof mix->reserved) && IsColor(mix->fromColor) &&
+           IsColor(mix->toColor) && IsEnd(mix->from, mix->fromColor, mix->space) &&
+           IsEnd(mix->to, mix->toColor, mix->space);
+}
+
 MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progress)
 {
     if (progress == 0.0)
@@ -248,10 +268,21 @@ MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progres
     return FromSpace(at, mix->space);
 }
 
-mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress)
+static MTWN_NOINLINE mtwnResult mtwnMixColorChecked(const mtwnColorMix* mix, double progress,
+                                                    mtwnColor* colorOut)
+{
+    if (colorOut == NULL || !mtwnValidColorMix(mix) || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *colorOut = mtwnMixColorWork(mix, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMixColor(const mtwnColorMix* mix, double progress, mtwnColor* colorOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnColor result = mtwnMixColorWork(mix, progress);
+    mtwnResult result = mtwnMixColorChecked(mix, progress, colorOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

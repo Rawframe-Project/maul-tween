@@ -1,6 +1,6 @@
 # Values and paths
 
-`interpolate.h` interpolates every kind of value a target can hold, and `path.h` makes curves through keyframes. Like the easings, they are plain values made once by a function that checks them and sampled with nothing to check.
+`interpolate.h` interpolates every kind of value a target can hold, and `path.h` makes curves through keyframes. Like the easings, they are plain values made once by a function that checks them, and sampled by calls that check them again, by cheaper means, and return a status.
 
 ## Value kinds
 
@@ -25,7 +25,8 @@ mtwnColor red = {1.0f, 0.0f, 0.0f, 1.0f};
 mtwnColor blue = {0.0f, 0.0f, 1.0f, 1.0f};
 mtwnColorMix mix;
 mtwnResult made = mtwnMakeColorMix(red, blue, mtwn_colorOklch, mtwn_hueShorter, &mix);
-mtwnColor between = mtwnMixColor(&mix, 0.5); // half way, in OkLCh
+mtwnColor between;
+mtwnResult mixed = mtwnMixColor(&mix, 0.5, &between); // half way, in OkLCh
 ```
 
 A gray's hue in OkLCh is powerless and takes the other color's, as CSS says, so a fade from white to red does not sweep through the hues. Past progress 0 to 1 alpha is clamped and the channels are not. `mtwnColorToSpace` and `mtwnColorFromSpace` convert one color, for a host that springs or blends in a space itself.
@@ -45,7 +46,8 @@ A scale (a zoom factor, a size from 1 to 100) mixed linearly seems to slow down,
 ```c
 mtwnScaleMix zoom;
 mtwnResult made = mtwnMakeScaleMix(1.0, 100.0, &zoom);
-double half = mtwnMixScale(&zoom, 0.5); // 10, not 50.5
+double half = 0.0;
+mtwnResult mixed = mtwnMixScale(&zoom, 0.5, &half); // 10, not 50.5
 ```
 
 To move a view (a centre and the width it shows) where both the centre and the zoom change, van Wijk and Nuij's path zooms out as far as the pan needs and back in, so the eye can follow. Its length gives a duration that suits it:
@@ -55,12 +57,19 @@ mtwnZoomView from = {0.0, 0.0, 1.0};
 mtwnZoomView to = {50.0, 20.0, 2.0};
 mtwnZoomMix flight;
 mtwnResult made = mtwnMakeZoomMix(from, to, 1.42, &flight);
-double seconds = mtwnZoomLength(&flight) * 1.42 / sqrt(2.0); // d3's pace
+double length = 0.0;
+mtwnResult measured = mtwnZoomLength(&flight, &length);
+double seconds = length * 1.42 / sqrt(2.0); // d3's pace
 // Halfway it is wider than both ends.
-mtwnZoomView view = mtwnMixZoom(&flight, 0.5);
+mtwnZoomView view;
+mtwnResult mixed = mtwnMixZoom(&flight, 0.5, &view);
 ```
 
-`rho` trades zoom against pan: the paper's measured `sqrt(2)` is d3's default, 1.42 Mapbox's.
+`rho` trades zoom against pan: the paper's measured `sqrt(2)` is d3's default, 1.42 Mapbox's. Past its ends the path goes on, its width going to 0 as its centre settles on a point.
+
+## Checking a mix
+
+`mtwnMixColor`, `mtwnMixRotation`, `mtwnMixScale`, `mtwnMixZoom` and `mtwnZoomLength` give their result through a pointer and return a status. Each refuses a null pointer, a progress that is not finite, and a mix whose fields are outside their ranges, leaving the output as it was. A mix's fields are the library's, but the host holds it and could write anything there, so each call checks the ranges. It does not make the mix again, which would cost as much as the sample. A mix that passes the check gives no undefined behavior and no NaN; it is not promised to equal what a maker would give. A color or rotation is finite, held within the floats as a target holds it; a scale or zoom reaches infinity or 0 only past the doubles' range, as a maker's mix does. A track checks the mix of the segment it samples the same way.
 
 ## Paths
 
