@@ -1,6 +1,6 @@
 # Easing
 
-`easing.h` maps a timing's progress, from 0 to 1, onto eased progress. An `mtwnEasing` is a plain value: a maker checks its parameters and returns a status, and `mtwnEase` samples it, giving the eased progress through a pointer and its own status. It may be copied freely; what it references (a host function's context, the points of `linear()`) stays the host's and must outlive every copy.
+`easing.h` maps a timing's progress, from 0 to 1, onto eased progress. An `mtwnEasing` is a plain value: a maker checks its parameters and returns a status, and `mtwnEase` samples it, giving the eased progress through a pointer and its own status. It may be copied freely; what it references stays the host's: a host function's context must outlive every copy, and the points of `linear()` every copy the host keeps, since a transition or a clip copies the points in when it takes the easing.
 
 ## Making and sampling
 
