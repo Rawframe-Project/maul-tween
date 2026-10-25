@@ -374,9 +374,73 @@ static void TestNoRecords(void)
     mtwnDestroyContext(loud);
 }
 
+// Twin contexts each run two transitions eased by linear(), one grown
+// mid-transition to more players and more points for each: its copies of
+// the points move to the new block at the new stride, and every value
+// after is the other's to the bit, though the host's points are gone.
+static void TestGrowLinearPoints(void)
+{
+    Budget budget = {0};
+    mtwnContextDef def = Small(&budget);
+    mtwnContext* twins[2] = {NULL, NULL};
+    mtwnTargetId targets[2][2];
+    mtwnLinearPoint points[2][5] = {{{0.0, 0.0}, {0.2, 0.5}, {0.5, 0.6}, {0.8, 1.1}, {1.0, 1.0}},
+                                    {{0.0, 0.0}, {0.1, -0.2}, {0.4, 0.3}, {0.9, 0.95}, {1.0, 1.0}}};
+    mtwnEasing easings[2];
+    CHECK(mtwnMakeLinearEasing(points[0], 5, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearEasing(points[1], 5, &easings[1]) == mtwn_success,
+          "two linear() easings");
+    for (int k = 0; k < 2; ++k)
+    {
+        CHECK(mtwnCreateContext(&def, &twins[k]) == mtwn_success, "a twin");
+        for (int t = 0; t < 2; ++t)
+        {
+            CHECK(mtwnCreateTarget(twins[k], mtwn_valueScalar, (mtwnVec4){0}, &targets[k][t]) ==
+                      mtwn_success,
+                  "a target");
+            mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+            transition.target = targets[k][t];
+            transition.value = (mtwnVec4){100.0f, 0, 0, 0};
+            transition.duration = 1.0;
+            transition.easing = easings[t];
+            mtwnPlayerId id;
+            CHECK(mtwnStartTransition(twins[k], &transition, &id) == mtwn_success,
+                  "a transition eased by linear()");
+        }
+        Update(twins[k], 0.0);
+        Update(twins[k], 0.3);
+    }
+    mtwnContextDef wider = def;
+    wider.playerCapacity = 8;
+    wider.pointsPerTransition = def.pointsPerTransition + 32;
+    mtwnContextDef narrower = def;
+    narrower.pointsPerTransition = def.pointsPerTransition - 1;
+    CHECK(mtwnGrowContext(&twins[1], &narrower) == mtwn_errorInvalid,
+          "fewer points for each transition refused");
+    CHECK(mtwnGrowContext(&twins[1], &wider) == mtwn_success, "grown mid-transition");
+    memset(points, 0xFF, sizeof points);
+    int same = 0;
+    for (int step = 4; step <= 11; ++step)
+    {
+        Update(twins[0], step * 0.1);
+        Update(twins[1], step * 0.1);
+        for (int t = 0; t < 2; ++t)
+        {
+            float a = ValueOf(twins[0], targets[0][t]);
+            float b = ValueOf(twins[1], targets[1][t]);
+            same += memcmp(&a, &b, sizeof a) == 0 && isfinite(a);
+        }
+    }
+    CHECK(same == 16, "the grown twin samples its moved copies identically");
+    mtwnDestroyContext(twins[0]);
+    mtwnDestroyContext(twins[1]);
+    CHECK(budget.held == 0 && budget.blocks == 0, "everything freed");
+}
+
 int main(void)
 {
     TestNoRecords();
+    TestGrowLinearPoints();
     TestGrowSome();
     TestGrow();
     TestGrowFreeSlots();

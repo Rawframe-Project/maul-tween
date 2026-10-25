@@ -1617,8 +1617,100 @@ static void TestReversalEdges(void)
     mtwnDestroyContext(context);
 }
 
+static float XOf(mtwnContext* context, mtwnTargetId target)
+{
+    mtwnVec4 value = {0};
+    CHECK(mtwnTarget_GetValue(context, target, &value) == mtwn_success, "a value");
+    return value.x;
+}
+
+// A transition copies its linear() easing's points into the context as it
+// starts: the host may then change or drop its own, and it eases as the
+// easing did when started, to the bit. One with more points than the
+// context's per transition, or none for a context of 0, is refused with
+// mtwn_errorLimit, and one whose points the host changed out of their
+// canonical order with mtwn_errorInvalid, counted; either changes nothing.
+static void TestLinearPointsCopied(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.pointsPerTransition = 4;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "made");
+    mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    mtwnLinearPoint points[5] = {{0.0, 0.0}, {0.3, 0.7}, {0.6, 0.4}, {1.0, 1.0}, {1.0, 1.0}};
+    mtwnLinearPoint kept[4];
+    memcpy(kept, points, sizeof kept);
+    mtwnEasing easing;
+    mtwnEasing reference;
+    CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success &&
+              mtwnMakeLinearEasing(kept, 4, &reference) == mtwn_success,
+          "a linear() easing and a copy of it");
+    mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+    transition.target = x;
+    transition.value = (mtwnVec4){10.0f, 0, 0, 0};
+    transition.duration = 1.0;
+    transition.easing = easing;
+    mtwnPlayerId id;
+    CHECK(mtwnStartTransition(context, &transition, &id) == mtwn_success, "started");
+    Update(context, 0);
+    points[1] = (mtwnLinearPoint){(double)NAN, (double)NAN};
+    int same = 0;
+    for (int i = 1; i <= 9; ++i)
+    {
+        Update(context, (uint64_t)i * 100000000u);
+        float expected = (float)(10.0 * EaseAt(&reference, (double)i / 10.0, false));
+        same += XOf(context, x) == expected;
+    }
+    CHECK(same == 9, "eased by the copy, the host's points changed");
+    uint64_t misuse = mtwnGetContextMisuse(context);
+    mtwnEasing longer;
+    mtwnLinearPoint five[5] = {{0.0, 0.0}, {0.2, 0.1}, {0.4, 0.5}, {0.7, 0.8}, {1.0, 1.0}};
+    CHECK(mtwnMakeLinearEasing(five, 5, &longer) == mtwn_success, "five points");
+    transition.easing = longer;
+    mtwnPlayerId refused;
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorLimit &&
+              mtwnGetContextMisuse(context) == misuse && mtwnPlayer_IsValid(context, id),
+          "more points than a transition holds: refused, not misuse, the running one kept");
+    mtwnLinearPoint swapped[4] = {{0.0, 0.0}, {0.5, 0.2}, {0.25, 0.6}, {1.0, 1.0}};
+    mtwnEasing changed;
+    CHECK(mtwnMakeLinearEasing(swapped, 4, &changed) == mtwn_success, "canonical points");
+    swapped[2].input = 0.25;
+    swapped[1].input = 0.5;
+    transition.easing = changed;
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorInvalid &&
+              mtwnGetContextMisuse(context) == misuse + 1 && mtwnPlayer_IsValid(context, id),
+          "points the host put out of order: refused as misuse, the running one kept");
+    swapped[1].input = 0.25;
+    swapped[2].input = (double)NAN;
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorInvalid,
+          "an input the host made NaN refused");
+    swapped[2].input = 0.5;
+    swapped[3].input = HUGE_VAL;
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorInvalid,
+          "the last input made infinite, still in order, refused");
+    swapped[3].input = 1.0;
+    swapped[2].input = 0.5;
+    swapped[2].output = HUGE_VAL;
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorInvalid,
+          "an output the host made infinite refused");
+    mtwnDestroyContext(context);
+    def.pointsPerTransition = 0;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "no points");
+    x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
+    transition.target = x;
+    transition.easing = reference;
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorLimit,
+          "a context of 0 points takes no linear() easing");
+    transition.easing = easing;
+    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &transition.easing) == mtwn_success &&
+              mtwnStartTransition(context, &transition, &refused) == mtwn_success,
+          "and every other kind");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
+    TestLinearPointsCopied();
     TestReversal();
     TestPowerModes();
     TestSlowSpring();

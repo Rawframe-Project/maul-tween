@@ -8,8 +8,6 @@
 #ifndef MAUL_TWEEN_SRC_RESERVED_INTERNAL_H
 #define MAUL_TWEEN_SRC_RESERVED_INTERNAL_H
 
-#include "maul-tween/easing.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -23,12 +21,6 @@ static inline bool mtwnReservedClear(const uint8_t* bytes, size_t size)
         any |= bytes[i];
     }
     return any == 0;
-}
-
-// Whether an easing taken in has its reserved byte 0.
-static inline bool mtwnEasingClear(const mtwnEasing* easing)
-{
-    return easing->reserved == 0;
 }
 
 #endif

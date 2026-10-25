@@ -36,6 +36,14 @@ double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool
 // points, and for any finite points, sorted or not, a finite value.
 double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, double x);
 
+// Whether count points are canonical, as mtwnMakeLinearEasing leaves
+// them: inputs and outputs finite, inputs in order.
+bool mtwnCanonicalLinearPoints(const mtwnLinearPoint* points, uint32_t count);
+
+// Copies a linear() easing's points to `to`, which holds them, and points
+// the easing at the copy.
+void mtwnCopyLinearPoints(mtwnEasing* easing, mtwnLinearPoint* to);
+
 // Validates count points (at least 2, finite outputs, inputs finite or
 // NaN) and canonicalizes them in place as CSS does: true, or false with
 // the points untouched.

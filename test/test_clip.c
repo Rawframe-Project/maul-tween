@@ -9,9 +9,11 @@
 
 #include "test_fenv.h"
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/player.h"
+#include "maul-tween/target.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -297,6 +299,10 @@ static void TestRefusals(void)
     clipDef = mtwnDefaultClipDef();
     clipDef.keyframeCapacity = MTWN_MAX_COUNT + 1;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "a capacity too large");
+    clipDef = mtwnDefaultClipDef();
+    clipDef.pointCapacity = MTWN_MAX_COUNT + 1;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid,
+          "a point capacity too large");
     clipDef = mtwnDefaultClipDef();
     clipDef.nodeCapacity = 1;
     clipDef.keyframeCapacity = 3;
@@ -939,8 +945,8 @@ static void TestDefaults(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
     CHECK(mtwnGetClipBytes(context, &clipDef, &bytes) == mtwn_success && bytes > 0 &&
-              bytes <= 13312,
-          "a default clip within 13 KiB");
+              bytes <= 14336,
+          "a default clip within 14 KiB");
     bool made = true;
     for (uint32_t i = 0; i < def.clipCapacity; ++i)
     {
@@ -987,8 +993,174 @@ static void TestDefaults(void)
     mtwnDestroyContext(context);
 }
 
+// A clip copies the linear() points of a track's timing and keyframes as
+// they are added, within its point capacity: the host may then change or
+// drop its own, and the clip samples as the easings did when added, to the
+// bit. Points past the capacity are refused with mtwn_errorLimit, points
+// the host put out of order with mtwn_errorInvalid, and a timeline's
+// easing must not decrease in the points the clip keeps.
+static void TestLinearPointsCopied(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 3, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.pointCapacity = 8;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnLinearPoint segment[3] = {{0.0, 0.0}, {0.4, 0.8}, {1.0, 1.0}};
+    mtwnLinearPoint timing[3] = {{0.0, 0.0}, {0.5, 0.2}, {1.0, 1.0}};
+    mtwnLinearPoint keptSegment[3];
+    mtwnLinearPoint keptTiming[3];
+    memcpy(keptSegment, segment, sizeof segment);
+    memcpy(keptTiming, timing, sizeof timing);
+    mtwnEasing easings[4];
+    CHECK(mtwnMakeLinearEasing(segment, 3, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearEasing(timing, 3, &easings[1]) == mtwn_success &&
+              mtwnMakeLinearEasing(keptSegment, 3, &easings[2]) == mtwn_success &&
+              mtwnMakeLinearEasing(keptTiming, 3, &easings[3]) == mtwn_success,
+          "linear() easings and copies of them");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 10.0f)};
+    keys[0].easing = easings[0];
+    mtwnKeyframe given[2];
+    memcpy(given, keys, sizeof keys);
+    given[0].easing = easings[2];
+    mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
+    def.keyframes = keys;
+    def.keyframeCount = 2;
+    def.timing.duration = 1.0;
+    def.timing.easing = easings[1];
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success,
+          "a track eased by linear() in its timing and its segment");
+    memset(segment, 0xFF, sizeof segment);
+    memset(timing, 0xFF, sizeof timing);
+    mtwnClipTrack track;
+    mtwnTrack direct;
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+              mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success &&
+              mtwnMakeTrack(&def.track, given, 2, NULL, NULL, &direct) == mtwn_success,
+          "read, and the same track made from the copies");
+    int same = 0;
+    for (int k = 0; k <= 20; ++k)
+    {
+        mtwnVec4 a = mtwnSampleTrack(&track.track, k / 20.0);
+        mtwnVec4 b = mtwnSampleTrack(&direct, k / 20.0);
+        double eased = EaseAt(&track.timing.easing, k / 20.0, false);
+        same += memcmp(&a, &b, sizeof a) == 0 && eased == EaseAt(&easings[3], k / 20.0, false);
+    }
+    CHECK(same == 21, "sampled by the clip's copies, the host's points gone");
+    mtwnClipId small;
+    clipDef.pointCapacity = 5;
+    CHECK(mtwnCreateClip(context, &clipDef, &small) == mtwn_success, "a clip of 5 points");
+    def.timing.easing = easings[3];
+    keys[0].easing = easings[2];
+    uint64_t misuse = mtwnGetContextMisuse(context);
+    CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_errorLimit && node == 0 &&
+              mtwnGetContextMisuse(context) == misuse,
+          "6 points past 5 refused, not misuse");
+    keptTiming[1].input = 1.5;
+    CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_errorInvalid &&
+              mtwnGetContextMisuse(context) == misuse + 1,
+          "points the host put out of order refused as misuse");
+    keptTiming[1].input = 0.5;
+    def.timing.easing = mtwnLinearEasing();
+    CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_success,
+          "3 points fit, the clip unchanged by the refusals");
+    mtwnClipTimelineDef timeline = mtwnDefaultClipTimelineDef();
+    timeline.timing.easing = easings[3];
+    keptTiming[1].output = -0.5;
+    CHECK(mtwnClip_AddTimeline(context, small, &timeline, &node) == mtwn_errorInvalid,
+          "a timeline whose points the host made decrease refused");
+    keptTiming[1].output = 0.2;
+    CHECK(mtwnClip_AddTimeline(context, small, &timeline, &node) == mtwn_errorLimit,
+          "a timeline's points past what is left refused");
+    // A timeline's copies are kept: a track added after takes the points
+    // after them.
+    mtwnClipId third;
+    clipDef.pointCapacity = 6;
+    CHECK(mtwnCreateClip(context, &clipDef, &third) == mtwn_success, "a clip of 6 points");
+    mtwnNode group;
+    CHECK(mtwnClip_AddTimeline(context, third, &timeline, &group) == mtwn_success, "a timeline");
+    def.timing.easing = mtwnLinearEasing();
+    keys[0].easing = easings[2];
+    keptSegment[1].output = 0.25;
+    mtwnEasing other;
+    CHECK(mtwnMakeLinearEasing(keptSegment, 3, &other) == mtwn_success, "other points");
+    keys[0].easing = other;
+    CHECK(mtwnClip_AddTrack(context, third, &def, &node) == mtwn_success &&
+              mtwnClip_Finish(context, third) == mtwn_success,
+          "a track after it");
+    mtwnClipNodeInfo info;
+    CHECK(mtwnClip_GetNode(context, third, group, &info) == mtwn_success &&
+              EaseAt(&info.timing.easing, 0.5, false) == EaseAt(&easings[3], 0.5, false),
+          "the timeline eases by its own copy still");
+    mtwnDestroyContext(context);
+}
+
+// Plays a clip of one track per linear() timing easing, each on its own
+// slot and target, the tracks alike but for those easings; returns the
+// last target's value at 0.3 seconds.
+static float LastEasedBy(const mtwnEasing* easings, uint32_t count)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnBinding bindings[2];
+    mtwnTargetId target = {0, 0};
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 10.0f)};
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.slot = i;
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = 1.0;
+        track.timing.easing = easings[i];
+        mtwnNode node;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success &&
+                  mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+              "a track");
+        bindings[i] = mtwnBind(i, target);
+    }
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = clip;
+    playerDef.bindings = bindings;
+    playerDef.bindingCount = count;
+    mtwnPlayerId player;
+    mtwnVec4 value = {0};
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+              mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnUpdate(context, 300000000u, NULL, 0, NULL) == mtwn_success &&
+              mtwnTarget_GetValue(context, target, &value) == mtwn_success,
+          "played");
+    mtwnDestroyContext(context);
+    return value.x;
+}
+
+// Tracks alike but for their linear() timing easings' points do not share
+// one timing's results: each eases by its own copy.
+static void TestLinearPointsNotShared(void)
+{
+    mtwnLinearPoint first[3] = {{0.0, 0.0}, {0.5, 0.1}, {1.0, 1.0}};
+    mtwnLinearPoint second[3] = {{0.0, 0.0}, {0.5, 0.9}, {1.0, 1.0}};
+    mtwnEasing easings[2];
+    CHECK(mtwnMakeLinearEasing(first, 3, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearEasing(second, 3, &easings[1]) == mtwn_success,
+          "two easings of as many points");
+    float alone = LastEasedBy(&easings[1], 1);
+    float after = LastEasedBy(easings, 2);
+    CHECK(memcmp(&alone, &after, sizeof alone) == 0 && alone > 5.0f,
+          "the second track eased by its own points");
+}
+
 int main(void)
 {
+    TestLinearPointsCopied();
+    TestLinearPointsNotShared();
     TestLimitEdges();
     TestDefaults();
     TestStorage();

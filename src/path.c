@@ -21,6 +21,7 @@
 #include "path_internal.h"
 #include "path_length.h"
 #include "reserved_internal.h"
+#include "valid.h"
 #include "work.h"
 
 #include <math.h>
@@ -316,7 +317,7 @@ static bool IsValid(const mtwnKeyframe* keyframes, uint32_t count, uint8_t chann
             k->kind > mtwn_segmentMonotone || !IsFinite4(k->value, channels) ||
             !IsFinite4(k->in, channels) || !IsFinite4(k->out, channels) ||
             (constantSpeed && segment && k->kind == mtwn_segmentStep) ||
-            !mtwnReservedClear(k->reserved, sizeof k->reserved) || !mtwnEasingClear(&k->easing))
+            !mtwnReservedClear(k->reserved, sizeof k->reserved) || !mtwnValidEasing(&k->easing))
         {
             return false;
         }

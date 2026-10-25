@@ -22,8 +22,8 @@ reserved_internal:
 invariant:
 zoom: elementary fpenv work
 signal: elementary mix_internal fpenv
-timing: reserved_internal timing_internal work fpenv
-stagger: reserved_internal stagger_internal work fpenv
+timing: reserved_internal timing_internal valid work fpenv
+stagger: reserved_internal stagger_internal valid work fpenv
 stagger_internal:
 timing_internal:
 allocator: fpenv
@@ -33,13 +33,13 @@ pool: invariant
 context_internal: crossing invariant pool runs
 context: allocator context_internal invariant pool reserved_internal fpenv
 target: context_internal pool fpenv
-transition: bounds_internal coast context_internal easing_internal elementary fpenv pool valid work
+transition: bounds_internal coast context_internal css_easing easing_internal elementary fpenv pool valid work
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
-path: elementary fpenv path_internal path_length bounds_internal reserved_internal work
+path: elementary fpenv path_internal path_length bounds_internal reserved_internal valid work
 path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length fpenv
-clip: allocator clip_internal context_internal fpenv pool reserved_internal work
+clip: allocator clip_internal context_internal css_easing fpenv pool reserved_internal valid work
 clip_internal: context_internal
 clip_read: clip_internal context_internal fpenv
 runs: invariant

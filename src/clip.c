@@ -10,8 +10,10 @@
 #include "allocator.h"
 #include "clip_internal.h"
 #include "context_internal.h"
+#include "css_easing.h"
 #include "fpenv.h"
 #include "reserved_internal.h"
+#include "valid.h"
 #include "work.h"
 
 #include <math.h>
@@ -25,6 +27,7 @@ typedef struct ClipLayout
 {
     uint64_t nodes;
     uint64_t keyframes;
+    uint64_t points;
     uint64_t lengths;
     uint64_t mixes;
     uint64_t slots;
@@ -52,6 +55,7 @@ static bool PlanClip(const mtwnClipDef* def, ClipLayout* layout)
     bool placed =
         Place(&end, (uint64_t)def->nodeCapacity + 1, sizeof(mtwnClipNode), &layout->nodes) &&
         Place(&end, def->keyframeCapacity, sizeof(mtwnKeyframe), &layout->keyframes) &&
+        Place(&end, def->pointCapacity, sizeof(mtwnLinearPoint), &layout->points) &&
         Place(&end, def->keyframeCapacity, sizeof(double), &layout->lengths) &&
         Place(&end, def->keyframeCapacity, sizeof(mtwnSegmentMix), &layout->mixes) &&
         Place(&end, def->slotCapacity, sizeof(uint8_t), &layout->slots) &&
@@ -80,7 +84,7 @@ static mtwnResult CheckClipDef(const mtwnClipDef* def)
         return mtwn_errorInvalid;
     }
     bool counts = IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) &&
-                  IsCount(def->slotCapacity) && def->reserved == 0;
+                  IsCount(def->slotCapacity) && IsCount(def->pointCapacity) && def->reserved == 0;
     return counts ? mtwn_success : mtwn_errorInvalid;
 }
 
@@ -170,6 +174,7 @@ static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mt
     slot->blockBytes = layout.bytes;
     slot->nodes = (mtwnClipNode*)(block + layout.nodes);
     slot->keyframes = (mtwnKeyframe*)(block + layout.keyframes);
+    slot->points = (mtwnLinearPoint*)(block + layout.points);
     slot->lengths = (double*)(block + layout.lengths);
     slot->mixes = (mtwnSegmentMix*)(block + layout.mixes);
     slot->slotKinds = block + layout.slots;
@@ -400,6 +405,56 @@ static mtwnVec4 Turn(mtwnVec4 first, mtwnVec4 last)
     return (mtwnVec4){(float)(x / norm), (float)(y / norm), (float)(z / norm), (float)(w / norm)};
 }
 
+// The points an easing taken in has for the clip to copy.
+static uint32_t PointsOf(const mtwnEasing* easing)
+{
+    return easing->kind == mtwn_easingLinearPoints ? easing->count : 0;
+}
+
+// Copies the linear() points of a node's timing easing and of its
+// keyframes' easings into the clip after those it holds, pointing the
+// easings at the copies, so the host's may change once added; the count
+// it then holds in countOut, for the caller to keep once the node is.
+// mtwn_errorInvalid when the host changed points from what their maker
+// left, mtwn_errorLimit when they do not fit; the easings valid.
+static mtwnResult CopyPoints(mtwnClipSlot* clip, mtwnEasing* timing, mtwnKeyframe* keyframes,
+                             uint32_t keyframeCount, uint32_t* countOut)
+{
+    uint64_t needed = PointsOf(timing);
+    bool canonical = mtwnCanonicalLinearPoints(timing->points, PointsOf(timing));
+    for (uint32_t i = 0; i < keyframeCount; ++i)
+    {
+        const mtwnEasing* easing = &keyframes[i].easing;
+        needed += PointsOf(easing);
+        canonical = canonical && mtwnCanonicalLinearPoints(easing->points, PointsOf(easing));
+    }
+    if (!canonical)
+    {
+        return mtwn_errorInvalid;
+    }
+    if (needed > clip->def.pointCapacity - clip->pointCount)
+    {
+        return mtwn_errorLimit;
+    }
+    uint32_t at = clip->pointCount;
+    if (PointsOf(timing) > 0)
+    {
+        mtwnCopyLinearPoints(timing, &clip->points[at]);
+        at += timing->count;
+    }
+    for (uint32_t i = 0; i < keyframeCount; ++i)
+    {
+        mtwnEasing* easing = &keyframes[i].easing;
+        if (PointsOf(easing) > 0)
+        {
+            mtwnCopyLinearPoints(easing, &clip->points[at]);
+            at += easing->count;
+        }
+    }
+    *countOut = at;
+    return mtwn_success;
+}
+
 // What the def asks of the clip, before anything in the clip changes.
 static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* def)
 {
@@ -449,6 +504,13 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
         return made;
     }
     node.timing = def->timing;
+    uint32_t points = 0;
+    mtwnResult copied =
+        CopyPoints(clip, &node.timing.easing, keyframes, def->keyframeCount, &points);
+    if (copied != mtwn_success)
+    {
+        return copied;
+    }
     node.start = StartOf(clip, def->parent, def->position);
     node.end = EndOf(node.start, &def->timing);
     node.parent = def->parent;
@@ -465,6 +527,7 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     }
     *nodeOut = Attach(clip, &node);
     clip->keyframeCount += def->keyframeCount;
+    clip->pointCount = points;
     clip->slotKinds[def->slot] = (uint8_t)(def->track.kind + 1);
     clip->slotCount = def->slot + 1 > clip->slotCount ? def->slot + 1 : clip->slotCount;
     return mtwn_success;
@@ -489,6 +552,12 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     {
         return mtwn_errorLimit;
     }
+    uint32_t points = 0;
+    mtwnResult copied = CopyPoints(clip, &node.timing.easing, NULL, 0, &points);
+    if (copied != mtwn_success)
+    {
+        return copied;
+    }
     node.start = StartOf(clip, def->parent, def->position);
     node.end = EndOf(node.start, &resolved);
     node.parent = def->parent;
@@ -498,6 +567,7 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
         return mtwn_errorInvalid;
     }
     *nodeOut = Attach(clip, &node);
+    clip->pointCount = points;
     return mtwn_success;
 }
 
@@ -737,14 +807,20 @@ mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode pare
 }
 
 // Whether two timings give the same results for the same inputs: every
-// field the same, doubles as bits. A host easing is never the same, as
-// nothing says calling it fewer times is allowed.
+// field the same, doubles as bits, linear() points by their values. A host easing is never the
+// same, as nothing says calling it fewer times is allowed.
 static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
 {
     const mtwnEasing* e = &a->easing;
     const mtwnEasing* f = &b->easing;
     bool easing = e->kind != mtwn_easingHost && e->kind == f->kind && e->mode == f->mode &&
-                  e->position == f->position && e->count == f->count && e->points == f->points;
+                  e->position == f->position && e->count == f->count;
+    // A linear() easing's points are each node's own copy.
+    for (uint32_t i = 0; easing && i < PointsOf(e); ++i)
+    {
+        easing = mtwnSameBits(e->points[i].input, f->points[i].input) &&
+                 mtwnSameBits(e->points[i].output, f->points[i].output);
+    }
     for (int k = 0; k < 5; ++k)
     {
         easing = easing && mtwnSameBits(e->parameters[k], f->parameters[k]);

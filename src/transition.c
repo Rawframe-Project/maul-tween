@@ -12,6 +12,7 @@
 #include "bounds_internal.h"
 #include "coast.h"
 #include "context_internal.h"
+#include "css_easing.h"
 #include "easing_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
@@ -406,6 +407,20 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
         mtwnCountMisuse(context);
         return result;
     }
+    // A linear() easing's points are copied into the slot's own, so the
+    // host's may change once it starts: refused here, changing nothing, if
+    // the host changed them from what its maker left or they do not fit.
+    bool copies =
+        prepared.spec == mtwn_transitionEasing && prepared.easing.kind == mtwn_easingLinearPoints;
+    if (copies && !mtwnCanonicalLinearPoints(prepared.easing.points, prepared.easing.count))
+    {
+        mtwnCountMisuse(context);
+        return mtwn_errorInvalid;
+    }
+    if (copies && prepared.easing.count > context->def.pointsPerTransition)
+    {
+        return mtwn_errorLimit;
+    }
     Reverse(context, def, target, &prepared);
     // The transition it replaces frees its slot first.
     if (target->header.link != 0)
@@ -425,6 +440,10 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     }
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     MTWN_ASSERT(slot->type == MTWN_PLAYER_TRANSITION);
+    if (copies)
+    {
+        mtwnCopyLinearPoints(&prepared.easing, mtwnTransitionPointsAt(context, index1));
+    }
     prepared.header = slot->header;
     prepared.type = slot->type;
 
