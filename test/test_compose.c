@@ -344,6 +344,79 @@ static void TestPastFloats(void)
     mtwnDestroyContext(w.context);
 }
 
+// What reads the target after an eased transition of numbers wrote over a
+// clip's track left lazy in the same update: nothing (0), a spring started
+// from its velocity (1), or an add layer composed over it (2). From
+// `under`, the track is first, from 1 to 101 over 10 s; otherwise the
+// target's base is the value the track gives at 1 s.
+static mtwnTargetState EasedOverTrack(bool under, float base, int reader)
+{
+    World w = MakeWorld(under ? 1.0f : base);
+    if (under)
+    {
+        Layer(&w, Clip(&w, 1.0f, 101.0f, mtwn_fillNone), mtwn_compositeReplace, 1.0f, false);
+    }
+    Update(&w, 0.0);
+    Update(&w, 1.0);
+    mtwnTransitionDef move = mtwnDefaultTransitionDef();
+    move.target = w.target;
+    move.value = (mtwnVec4){1000.0f, 0, 0, 0};
+    move.duration = 2.0;
+    move.easing = mtwnLinearEasing();
+    mtwnPlayerId eased;
+    CHECK(mtwnStartTransition(w.context, &move, &eased) == mtwn_success, "eased to 1000");
+    Update(&w, 1.5);
+    Update(&w, 2.0);
+    if (reader == 1)
+    {
+        mtwnTransitionDef settle = mtwnDefaultTransitionDef();
+        settle.target = w.target;
+        settle.value = (mtwnVec4){500.0f, 0, 0, 0};
+        settle.spec = mtwn_transitionSpring;
+        mtwnPlayerId spring;
+        CHECK(mtwnStartTransition(w.context, &settle, &spring) == mtwn_success,
+              "a spring from its velocity");
+        Update(&w, 2.25);
+    }
+    else if (reader == 2)
+    {
+        Layer(&w, Clip(&w, 0.0f, 10.0f, mtwn_fillNone), mtwn_compositeAdd, 1.0f, false);
+        Update(&w, 2.25);
+        Update(&w, 2.5);
+    }
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(w.context, w.target, &state) == mtwn_success, "read");
+    mtwnDestroyContext(w.context);
+    return state;
+}
+
+// A transition written over a clip's track in one update is what the
+// target holds: its velocity is the transition's, not the track's left
+// lazy, for every reader. A twin with no track under it, from the same
+// value, gives the same bits.
+static void TestEasedOverLazyTrack(void)
+{
+    World probe = MakeWorld(1.0f);
+    Layer(&probe, Clip(&probe, 1.0f, 101.0f, mtwn_fillNone), mtwn_compositeReplace, 1.0f, false);
+    Update(&probe, 0.0);
+    Update(&probe, 1.0);
+    float base = Value(&probe);
+    mtwnDestroyContext(probe.context);
+    static const char* const s_readers[3] = {"read", "a spring started from it",
+                                             "an add layer over it"};
+    for (int reader = 0; reader < 3; ++reader)
+    {
+        mtwnTargetState over = EasedOverTrack(true, base, reader);
+        mtwnTargetState alone = EasedOverTrack(false, base, reader);
+        CHECK(memcmp(&over.value, &alone.value, sizeof over.value) == 0 &&
+                  memcmp(&over.velocity, &alone.velocity, sizeof over.velocity) == 0,
+              s_readers[reader]);
+    }
+    // Linear from 11 to 1000 over 2 s.
+    mtwnTargetState read = EasedOverTrack(true, base, 0);
+    CHECK(fabs((double)read.velocity.x - 494.5) <= 0.1, "989 over 2 s");
+}
+
 int main(void)
 {
     TestKinds();
@@ -351,5 +424,6 @@ int main(void)
     TestCommitAndRefusals();
     TestScales();
     TestPastFloats();
+    TestEasedOverLazyTrack();
     return s_failures == 0 ? 0 : 1;
 }
