@@ -369,9 +369,12 @@ static uint32_t Attach(mtwnClipSlot* clip, const mtwnClipNode* node)
     if (node->kind == mtwn_nodeTrack || node->kind == mtwn_nodeTimeline)
     {
         parent->previous = index1;
-        // Its caller raised the same end without writing, which succeeded.
-        bool raised = Raise(clip, node->parent, node->end, true);
-        MTWN_ASSERT(raised);
+        if (!Raise(clip, node->parent, node->end, true))
+        {
+            // Its caller raised the same end without writing, which
+            // succeeded, so writing it cannot fail.
+            MTWN_ASSERT(false);
+        }
     }
     return index1;
 }
