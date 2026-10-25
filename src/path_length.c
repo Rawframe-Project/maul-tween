@@ -297,7 +297,10 @@ double mtwnArcLength(const mtwnCubic* cubic, uint8_t channels, const mtwnMinima*
         double coarse = 0.0;
         Kronrod(cubic, channels, lo, hi, &fine, &coarse);
         rules += 1;
-        bool agreed = fabs(fine - coarse) <= s_lengthTolerance * fine;
+        // A length not finite agrees: no split makes it finite. A path's
+        // own keyframes, floats, give none; ones a host changed to NaN would
+        // otherwise split to the cap in every length.
+        bool agreed = !(fabs(fine - coarse) > s_lengthTolerance * fine);
         if (agreed || hi - lo <= narrowest || top + 2 > s_stackSize || rules >= s_mostRules)
         {
             total += fine;
@@ -335,7 +338,8 @@ double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, 
     for (int step = 0; step < s_newtonSteps; ++step)
     {
         double error = at - target;
-        if (fabs(error) <= s_inverseTolerance * total)
+        // An error not finite ends it too, as no step can mend it.
+        if (!(fabs(error) > s_inverseTolerance * total))
         {
             break;
         }

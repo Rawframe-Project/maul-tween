@@ -296,9 +296,13 @@ static void Paths(Out* out)
         double value[4] = {0};
         double tangent[4] = {0};
         double direction[4] = {0};
-        mtwnSamplePath(&path, s_progress[i], value, tangent);
-        mtwnPathDirection(&path, s_progress[i], direction);
-        double angle = mtwnPathAngle(&path, s_progress[i]);
+        double angle = 0.0;
+        r = mtwnSamplePath(&path, s_progress[i], value, tangent);
+        PUT(out, r);
+        r = mtwnPathDirection(&path, s_progress[i], direction);
+        PUT(out, r);
+        r = mtwnPathAngle(&path, s_progress[i], &angle);
+        PUT(out, r);
         PUT(out, value);
         PUT(out, tangent);
         PUT(out, direction);
@@ -313,7 +317,9 @@ static void Paths(Out* out)
     PUT(out, r);
     for (int i = 0; i < s_progressCount; ++i)
     {
-        mtwnVec4 v = mtwnSampleTrack(&track, s_progress[i]);
+        mtwnVec4 v = {0};
+        r = mtwnSampleTrack(&track, s_progress[i], &v);
+        PUT(out, r);
         PUT(out, v);
     }
 }
@@ -443,7 +449,9 @@ static void Context(Out* out)
     mtwnClipTrack read;
     r = mtwnClip_GetTrack(context, clip, trackNode, &read);
     PUT(out, r);
-    mtwnVec4 sample = mtwnSampleTrack(&read.track, 0.4);
+    mtwnVec4 sample = {0};
+    r = mtwnSampleTrack(&read.track, 0.4, &sample);
+    PUT(out, r);
     PUT(out, sample);
     mtwnClipNodeInfo info;
     r = mtwnClip_GetNode(context, clip, trackNode, &info);

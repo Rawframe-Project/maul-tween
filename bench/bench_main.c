@@ -213,13 +213,16 @@ static double SampleValues(const Values* v, int which, uint32_t n)
         }
         else if (which == VALUE_PATH)
         {
-            double at[4];
-            mtwnSamplePath(&v->path, p, at, NULL);
-            sum += at[0] + at[1];
+            double at[4] = {0};
+            sum += mtwnSamplePath(&v->path, p, at, NULL) == mtwn_success ? at[0] + at[1] : 0.0;
         }
         else
         {
-            sum += (double)mtwnSampleTrack(which == VALUE_TRACK ? &v->track : &v->monotone, p).x;
+            mtwnVec4 at = {0};
+            sum += mtwnSampleTrack(which == VALUE_TRACK ? &v->track : &v->monotone, p, &at) ==
+                           mtwn_success
+                       ? (double)at.x
+                       : 0.0;
         }
     }
     return sum;

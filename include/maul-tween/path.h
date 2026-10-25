@@ -59,7 +59,16 @@ extern "C"
     } mtwnKeyframe;
 
     // A path over keyframes. Make one with mtwnMakePath; it references the
-    // keyframes and lengths, which must outlive it and not change.
+    // keyframes and lengths, which must outlive it and not change. Its own
+    // fields are the library's: every call taking one refuses a path whose
+    // fields are not as its maker sets them, and a sample refuses the
+    // segment it reads unless that segment's kind is known (at constant
+    // speed, not a step) and, timed by its keyframes, its easing is a
+    // maker's. Keyframes or lengths changed otherwise give an unspecified
+    // value, perhaps not finite, but no read outside the arrays; what an
+    // easing references (a host function, its context, linear()'s points
+    // and their count) stays the host's, as everywhere, and changing it is
+    // the host's error, as changing the keyframes pointer is.
     typedef struct mtwnPath
     {
         const mtwnKeyframe* keyframes;
@@ -109,14 +118,18 @@ extern "C"
     ///
     /// @param path        A path made by this library.
     /// @param progress    The progress, finite.
-    /// @param valueOut    Receives the path's channels, 0 past them.
+    /// @param valueOut    Receives the path's channels, 0 past them;
+    ///                    unchanged on failure.
     /// @param tangentOut  Receives the segment's derivative by its own
     ///                    parameter there, not normalized, for orienting
-    ///                    along the path; may be NULL.
+    ///                    along the path; may be NULL; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null path or valueOut,
+    ///         a path or segment no maker produced, or a progress not
+    ///         finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API void mtwnSamplePath(const mtwnPath* path, double progress, double valueOut[4],
-                                 double tangentOut[4]);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSamplePath(const mtwnPath* path, double progress,
+                                                      double valueOut[4], double tangentOut[4]);
 
     /// Gives a path's direction at a progress, as SVG 2's path
     /// directionality and CSS's offset-rotate: auto take it:
@@ -133,22 +146,29 @@ extern "C"
     ///
     /// @param path          A path made by this library.
     /// @param progress      The progress, finite.
-    /// @param directionOut  Receives the direction.
+    /// @param directionOut  Receives the direction; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid as mtwnSamplePath refuses,
+    ///         or for a null directionOut.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API void mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4]);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnPathDirection(const mtwnPath* path, double progress,
+                                                         double directionOut[4]);
 
-    /// Returns the angle of a path's direction (mtwnPathDirection) in its
+    /// Gives the angle of a path's direction (mtwnPathDirection) in its
     /// first two channels, atan2(y, x) by the library's own arctangent, the
     /// same on every platform: what CSS's offset-rotate: auto turns by.
     /// Reversed, add pi; a fixed turn, add it.
     ///
     /// @param path      A path made by this library.
     /// @param progress  The progress, finite.
-    /// @return Radians, from -pi to pi; 0 or pi for one channel.
+    /// @param angleOut  Receives radians, from -pi to pi; 0 or pi for one
+    ///                  channel; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid as mtwnSamplePath refuses,
+    ///         or for a null angleOut.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnPathAngle(const mtwnPath* path, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnPathAngle(const mtwnPath* path, double progress,
+                                                     double* angleOut);
 
     // A segment's mix, made when a track of colors or rotations is made.
     typedef union mtwnSegmentMix
@@ -201,7 +221,8 @@ extern "C"
 
     // A track: keyframes of one value kind. Make one with mtwnMakeTrack; it
     // references the keyframes, lengths and mixes, which must outlive it
-    // and not change.
+    // and not change. Its fields and its path's are the library's, checked
+    // as a path's are.
     typedef struct mtwnTrack
     {
         mtwnPath path;
@@ -260,12 +281,17 @@ extern "C"
     ///
     /// @param track     A track made by this library.
     /// @param progress  The progress, finite.
-    /// @return The value, the kind's channels used and the rest 0; a number
-    ///         past the floats' range held at the nearest finite float, as
-    ///         a target holds it.
+    /// @param valueOut  Receives the value, the kind's channels used and the
+    ///                  rest 0; a number past the floats' range held at the
+    ///                  nearest finite float, as a target holds it;
+    ///                  unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null track or
+    ///         valueOut, a track or segment no maker produced, or a
+    ///         progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnVec4 mtwnSampleTrack(const mtwnTrack* track, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleTrack(const mtwnTrack* track, double progress,
+                                                       mtwnVec4* valueOut);
 
 #ifdef __cplusplus
 }

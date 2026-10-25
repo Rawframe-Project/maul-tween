@@ -11,6 +11,7 @@
 #define MAUL_TWEEN_SRC_VALID_H
 
 #include "maul-tween/easing.h"
+#include "maul-tween/path.h"
 #include "maul-tween/spring.h"
 
 #include <stdbool.h>
@@ -33,5 +34,14 @@ bool mtwnValidDecay(const mtwnDecay* decay);
 // A bounded decay's decay and spring valid, and its bounds as
 // mtwnMakeBoundedDecay takes them.
 bool mtwnValidBoundedDecay(const mtwnBoundedDecay* bounded);
+
+// A path's own fields as mtwnMakePath and mtwnMakeTrack set them, and with
+// lengths their first 0 and their total finite. The keyframes are the
+// host's and not read: a sample checks the segment it reads
+// (mtwnPathReadsValid).
+bool mtwnValidPath(const mtwnPath* path);
+
+// A track's fields and its path's as mtwnMakeTrack sets them.
+bool mtwnValidTrack(const mtwnTrack* track);
 
 #endif

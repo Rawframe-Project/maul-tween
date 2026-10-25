@@ -5,6 +5,7 @@
 // double, far inside the accuracy the header promises.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
 #include "maul-tween/path.h"
@@ -111,7 +112,7 @@ static Wide SegmentLength(const mtwnPath* timed, double a, double b, uint8_t cha
             Wide u = ((Wide)q + (x + 1) / 2) / panels;
             double v[4];
             double t[4];
-            mtwnSamplePath(timed, a + (double)u * (b - a), v, t);
+            SamplePath(timed, a + (double)u * (b - a), v, t);
             Wide speed = 0;
             for (uint8_t c = 0; c < channels; ++c)
             {

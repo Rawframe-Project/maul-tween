@@ -9,6 +9,7 @@
 // colors refusing them.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/path.h"
 
@@ -95,7 +96,7 @@ static void TestWithin(void)
             for (int j = 1; j < 64 && width > 0x1p-52; ++j)
             {
                 double value[4];
-                mtwnSamplePath(&path, keys[i].offset + width * j / 64.0, value, NULL);
+                SamplePath(&path, keys[i].offset + width * j / 64.0, value, NULL);
                 all = all && Within(keys, i, value, 2);
             }
         }
@@ -109,7 +110,7 @@ static double SlopeAt(const mtwnPath* path, double progress, double width)
 {
     double value[4];
     double tangent[4];
-    mtwnSamplePath(path, progress, value, tangent);
+    SamplePath(path, progress, value, tangent);
     return tangent[0] / width;
 }
 
@@ -152,7 +153,7 @@ static void TestSlopes(void)
                             Key(1.0, 0.0f, 0.0f)};
     CHECK(mtwnMakePath(peak, 4, 1, 0.5, NULL, &path) == mtwn_success, "a plateau");
     double value[4];
-    mtwnSamplePath(&path, 0.45, value, NULL);
+    SamplePath(&path, 0.45, value, NULL);
     CHECK(SlopeAt(&path, 0.3, 0.3) == 0.0 && SlopeAt(&path, 0.6, 0.4) == 0.0 && value[0] == 1.0,
           "flat at the turns, held between them");
     // A flat secant counts as rising, so where it meets a fall the slope
@@ -175,12 +176,12 @@ static void TestSlopes(void)
                               Key(1.0, 3.0f, 0.0f)};
     double lengths[4];
     CHECK(mtwnMakePath(jumped, 4, 1, 0.5, lengths, &path) == mtwn_success, "a jump at speed");
-    mtwnSamplePath(&path, 0.5 * (lengths[1] + lengths[2]) / lengths[3], value, NULL);
+    SamplePath(&path, 0.5 * (lengths[1] + lengths[2]) / lengths[3], value, NULL);
     CHECK(fabs(value[0] - 1.5) < 1e-9, "the jump travelled as its line");
     // Two keyframes: a line.
     mtwnKeyframe two[2] = {Key(0.0, 2.0f, -1.0f), Key(1.0, 4.0f, 3.0f)};
     CHECK(mtwnMakePath(two, 2, 2, 0.5, NULL, &path) == mtwn_success, "two keyframes");
-    mtwnSamplePath(&path, 0.25, value, NULL);
+    SamplePath(&path, 0.25, value, NULL);
     CHECK(value[0] == 2.5 && value[1] == 0.0, "a line");
 }
 
@@ -196,14 +197,14 @@ static void TestTracks(void)
     float last = 0.0f;
     for (int j = 0; j <= 100; ++j)
     {
-        float x = mtwnSampleTrack(&track, j / 100.0).x;
+        float x = SampleTrack(&track, j / 100.0).x;
         within = within && x >= last && x >= 1.0f && x <= 100.0f;
         last = x;
     }
-    CHECK(within && mtwnSampleTrack(&track, 0.2).x == 10.0f, "rising, within, exact at a key");
+    CHECK(within && SampleTrack(&track, 0.2).x == 10.0f, "rising, within, exact at a key");
     double lengths[3];
     CHECK(mtwnMakeTrack(&def, scales, 3, lengths, NULL, &track) == mtwn_success &&
-              mtwnSampleTrack(&track, 1.0).x == 100.0f,
+              SampleTrack(&track, 1.0).x == 100.0f,
           "at constant speed");
     // Colors mix per segment: refused, as Catmull-Rom is.
     mtwnKeyframe colors[2] = {Key(0.0, 0.0f, 0.0f), Key(1.0, 1.0f, 1.0f)};
@@ -246,8 +247,8 @@ static void TestFourChannels(void)
         {
             double a[4];
             double b[4];
-            mtwnSamplePath(&four, k / 100.0, a, NULL);
-            mtwnSamplePath(&path, k / 100.0, b, NULL);
+            SamplePath(&four, k / 100.0, a, NULL);
+            SamplePath(&path, k / 100.0, b, NULL);
             differ += a[c] != b[0];
         }
     }

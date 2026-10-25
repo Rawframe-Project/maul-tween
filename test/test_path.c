@@ -10,6 +10,7 @@
 // again by Simpson's rule.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/path.h"
 
@@ -50,30 +51,30 @@ static void TestLinearAndStep(void)
     CHECK(mtwnMakePath(keys, 3, 2, 0.5, NULL, &path) == mtwn_success, "made");
     double v[4];
     double t[4];
-    mtwnSamplePath(&path, 0.0, v, t);
+    SamplePath(&path, 0.0, v, t);
     CHECK(v[0] == 0.0 && v[1] == 10.0 && v[2] == 0.0 && v[3] == 0.0, "the start; channels past 0");
-    mtwnSamplePath(&path, 0.125, v, t);
+    SamplePath(&path, 0.125, v, t);
     CHECK(v[0] == 2.0 && v[1] == 8.0 && t[0] == 4.0 && t[1] == -4.0, "halfway along a line");
-    mtwnSamplePath(&path, 0.25, v, NULL);
+    SamplePath(&path, 0.25, v, NULL);
     CHECK(v[0] == 4.0 && v[1] == 6.0, "on a keyframe, its value");
-    mtwnSamplePath(&path, 0.9, v, t);
+    SamplePath(&path, 0.9, v, t);
     CHECK(v[0] == 4.0 && t[0] == 0.0, "a step holds");
-    mtwnSamplePath(&path, 1.0, v, NULL);
+    SamplePath(&path, 1.0, v, NULL);
     CHECK(v[0] == 8.0 && v[1] == -2.0, "and gives the last keyframe at 1");
-    mtwnSamplePath(&path, 1.5, v, NULL);
+    SamplePath(&path, 1.5, v, NULL);
     CHECK(v[0] == 8.0 && v[1] == -2.0, "past 1 a last step holds its end");
-    mtwnSamplePath(&path, -0.125, v, NULL);
+    SamplePath(&path, -0.125, v, NULL);
     CHECK(v[0] == -2.0 && v[1] == 12.0, "before 0 the first segment extends");
     // Equal offsets jump: the later keyframe wins at the offset.
     mtwnKeyframe jump[4] = {
         Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear), Key(0.5, 1.0f, 0.0f, mtwn_segmentLinear),
         Key(0.5, 5.0f, 0.0f, mtwn_segmentLinear), Key(1.0, 6.0f, 0.0f, mtwn_segmentLinear)};
     CHECK(mtwnMakePath(jump, 4, 1, 0.5, NULL, &path) == mtwn_success, "a jump");
-    mtwnSamplePath(&path, 0.5, v, NULL);
+    SamplePath(&path, 0.5, v, NULL);
     double below[4];
-    mtwnSamplePath(&path, 0.5 - 1e-12, below, NULL);
+    SamplePath(&path, 0.5 - 1e-12, below, NULL);
     CHECK(v[0] == 5.0 && fabs(below[0] - 1.0) < 1e-9, "the jump at its offset");
-    mtwnSamplePath(&path, 1.5, v, NULL);
+    SamplePath(&path, 1.5, v, NULL);
     CHECK(v[0] == 7.0, "past 1 the last segment extends");
     // Offsets exactly 2^-52 apart jump too: between them the later
     // keyframe's value, not the segment's line across 2^-52.
@@ -82,21 +83,21 @@ static void TestLinearAndStep(void)
     CHECK(mtwnMakePath(jump, 4, 1, 0.5, NULL, &path) == mtwn_success &&
               jump[2].offset - jump[1].offset == 0x1p-52,
           "a jump 2^-52 wide");
-    mtwnSamplePath(&path, 0.5, v, NULL);
+    SamplePath(&path, 0.5, v, NULL);
     CHECK(v[0] == 5.0, "its width's middle at the later keyframe");
     // A segment's easing times it.
     mtwnKeyframe eased[2] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
                              Key(1.0, 1.0f, 0.0f, mtwn_segmentLinear)};
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &eased[0].easing) == mtwn_success, "quad");
     CHECK(mtwnMakePath(eased, 2, 1, 0.5, NULL, &path) == mtwn_success, "eased");
-    mtwnSamplePath(&path, 0.5, v, NULL);
+    SamplePath(&path, 0.5, v, NULL);
     CHECK(v[0] == 0.25, "eased by the segment's easing");
     // The end exactly where start + (end - start) is not it, and the
     // tangent 0 past the path's channels whatever they hold.
     mtwnKeyframe wide[2] = {Key(0.0, 1e30f, NAN, mtwn_segmentLinear),
                             Key(1.0, 1.0f, NAN, mtwn_segmentLinear)};
     CHECK(mtwnMakePath(wide, 2, 1, 0.5, NULL, &path) == mtwn_success, "a wide line");
-    mtwnSamplePath(&path, 1.0, v, t);
+    SamplePath(&path, 1.0, v, t);
     CHECK(v[0] == 1.0, "its end exactly at 1");
     CHECK(v[1] == 0.0 && t[1] == 0.0, "value and tangent 0 past its channel");
 }
@@ -116,7 +117,7 @@ static void TestBezier(void)
         Wide w = 1 - u;
         double v[4];
         double t[4];
-        mtwnSamplePath(&path, (double)u, v, t);
+        SamplePath(&path, (double)u, v, t);
         Wide p[4][2] = {{0, 0}, {1, (Wide)2.5}, {(Wide)2.25, (Wide)-1.5}, {3, 1}};
         for (int c = 0; c < 2; ++c)
         {
@@ -204,7 +205,7 @@ static void TestCatmullRom(void)
                 Wide want[3];
                 Pyramid(q, (Wide)alphas[a], u, want);
                 double v[4];
-                mtwnSamplePath(&path, (double)(((Wide)seg + u) / 5), v, NULL);
+                SamplePath(&path, (double)(((Wide)seg + u) / 5), v, NULL);
                 for (int c = 0; c < 3; ++c)
                 {
                     double e = fabs((double)((Wide)v[c] - want[c]));
@@ -219,8 +220,8 @@ static void TestCatmullRom(void)
             double left[4];
             double right[4];
             double v[4];
-            mtwnSamplePath(&path, (double)i / 5.0 - 1e-13, v, left);
-            mtwnSamplePath(&path, (double)i / 5.0, v, right);
+            SamplePath(&path, (double)i / 5.0 - 1e-13, v, left);
+            SamplePath(&path, (double)i / 5.0, v, right);
             double cross = fabs(left[0] * right[1] - left[1] * right[0]) +
                            fabs(left[1] * right[2] - left[2] * right[1]);
             double scale = sqrt(left[0] * left[0] + left[1] * left[1] + left[2] * left[2]) *
@@ -247,7 +248,7 @@ static void TestCatmullRom(void)
     {
         double v[4];
         double t[4];
-        mtwnSamplePath(&path, k / 100.0, v, t);
+        SamplePath(&path, k / 100.0, v, t);
         finite &= isfinite(v[0]) && isfinite(v[1]) && isfinite(t[0]) && isfinite(t[1]);
         if (k <= 60)
         {
@@ -281,8 +282,8 @@ static void TestCatmullRom(void)
         {
             double a[4];
             double b[4];
-            mtwnSamplePath(&unit, k / 100.0, a, NULL);
-            mtwnSamplePath(&other, k / 100.0, b, NULL);
+            SamplePath(&unit, k / 100.0, a, NULL);
+            SamplePath(&other, k / 100.0, b, NULL);
             for (int c = 0; c < 2; ++c)
             {
                 double e = fabs(b[c] / (double)scales[s] - a[c]);
@@ -356,7 +357,7 @@ static void TestLength(void)
     {
         double share = k / 150.0;
         double v[4];
-        mtwnSamplePath(&path, share, v, NULL);
+        SamplePath(&path, share, v, NULL);
         double s = share * 15.0;
         double want[2] = {s <= 5.0 ? 0.6 * s : 3.0, s <= 5.0 ? 0.8 * s : 4.0 + (s - 5.0)};
         double error = fabs(v[0] - want[0]) + fabs(v[1] - want[1]);
@@ -368,7 +369,7 @@ static void TestLength(void)
     }
     CHECK(worst <= 1e-10, "at constant speed every share of the length at its place");
     double v[4];
-    mtwnSamplePath(&path, 1.0, v, NULL);
+    SamplePath(&path, 1.0, v, NULL);
     CHECK(v[0] == 3.0 && v[1] == 14.0, "the end exactly");
 }
 
@@ -489,7 +490,7 @@ static void CheckLineLength(const float controls[4], uint8_t channels, const cha
             }
         }
         double v[4];
-        mtwnSamplePath(&path, k / 400.0, v, NULL);
+        SamplePath(&path, k / 400.0, v, NULL);
         double error = fabs((double)((Wide)v[0] - BezierAt(p, (lo + hi) / 2)));
         worst = error > worst ? error : worst;
     }
@@ -647,7 +648,7 @@ static double WorstShare(const float controls[2][4], double extra)
         CHECK(fabs((double)((Simpson(p, u, 2048) - target) / total)) <= 1e-13,
               "the reference's parameter found");
         double v[4];
-        mtwnSamplePath(&path, share, v, NULL);
+        SamplePath(&path, share, v, NULL);
         double error = fabs((double)((Wide)v[0] - BezierAt(p[0], u))) +
                        fabs((double)((Wide)v[1] - BezierAt(p[1], u)));
         worst = error > worst ? error : worst;
@@ -710,7 +711,7 @@ static void TestStillEnds(void)
         for (int i = 0; i < 2; ++i)
         {
             double v[4];
-            mtwnSamplePath(&path, shares[i], v, NULL);
+            SamplePath(&path, shares[i], v, NULL);
             double error = fabs(v[1] - 100.0 * (1.0 - shares[i])) + fabs(v[0]);
             worst = error > worst ? error : worst;
         }
@@ -740,7 +741,7 @@ static void TestCoincidentStart(void)
     for (int i = 0; i < 4; ++i)
     {
         double v[4];
-        mtwnSamplePath(&path, before[i], v, NULL);
+        SamplePath(&path, before[i], v, NULL);
         moved += v[0] != (double)keys[0].value.x || v[1] != (double)keys[0].value.y;
     }
     CHECK(moved == 0, "before it, held at the start");
@@ -753,7 +754,7 @@ static void TestCoincidentStart(void)
     CHECK(mtwnMakePath(tiny, 3, 1, 0.5, lengths, &path) == mtwn_success && lengths[1] == 1.0,
           "a segment of 1 before one of 3e38");
     double v[4];
-    mtwnSamplePath(&path, 0.0, v, NULL);
+    SamplePath(&path, 0.0, v, NULL);
     CHECK(v[0] == 0.0, "a jump at its start, to its end");
     // At the bound itself: 0 to 1 before 1 to 2^52, a total of 2^52 of
     // which the first is exactly 2^-52, jumps too.
@@ -763,7 +764,7 @@ static void TestCoincidentStart(void)
     CHECK(mtwnMakePath(bound, 3, 1, 0.5, lengths, &path) == mtwn_success && lengths[1] == 1.0 &&
               lengths[2] == 0x1p52,
           "a segment 2^-52 of the total");
-    mtwnSamplePath(&path, 0.0, v, NULL);
+    SamplePath(&path, 0.0, v, NULL);
     CHECK(v[0] == 1.0, "a jump at the bound, to its end");
 }
 
@@ -785,9 +786,9 @@ static void TestEdges(void)
         mtwnPath path;
         exact &= mtwnMakePath(keys, 3, 2, 0.5, NULL, &path) == mtwn_success;
         double v[4];
-        mtwnSamplePath(&path, 1.0, v, NULL);
+        SamplePath(&path, 1.0, v, NULL);
         exact &= v[0] == (double)1.1f && v[1] == (double)0.13f;
-        mtwnSamplePath(&path, 0.3, v, NULL);
+        SamplePath(&path, 0.3, v, NULL);
         exact &= v[0] == (double)0.3f && v[1] == (double)-0.9f;
     }
     CHECK(exact, "every kind gives its keyframes' values exactly");
@@ -804,7 +805,7 @@ static void TestEdges(void)
     mtwnPath early;
     CHECK(mtwnMakePath(curve, 4, 1, 0.5, NULL, &early) == mtwn_success, "made");
     double at[4];
-    mtwnSamplePath(&early, 0.5, at, NULL);
+    SamplePath(&early, 0.5, at, NULL);
     CHECK(at[0] == (double)p[2], "the end keyframe exactly, not the polynomial's rounding");
     // Two keyframes at 1: the last wins there, no zero-width division.
     mtwnKeyframe end[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
@@ -813,9 +814,9 @@ static void TestEdges(void)
     mtwnPath path;
     CHECK(mtwnMakePath(end, 3, 1, 0.5, NULL, &path) == mtwn_success, "two at 1");
     double v[4];
-    mtwnSamplePath(&path, 1.0, v, NULL);
+    SamplePath(&path, 1.0, v, NULL);
     double half[4];
-    mtwnSamplePath(&path, 0.5, half, NULL);
+    SamplePath(&path, 0.5, half, NULL);
     CHECK(v[0] == 9.0 && half[0] == 2.5, "the last at 1, the line before it");
     // Coincident keyframes at constant speed: a segment of no length.
     mtwnKeyframe still[4] = {
@@ -827,7 +828,7 @@ static void TestEdges(void)
     int finite = 1;
     for (int k = 0; k <= 40; ++k)
     {
-        mtwnSamplePath(&path, k / 40.0, v, NULL);
+        SamplePath(&path, k / 40.0, v, NULL);
         finite &= fabs(v[0] - k / 10.0) <= 1e-12;
     }
     CHECK(finite, "travels through it at constant speed");
@@ -843,7 +844,7 @@ static void TestEdges(void)
     for (int k = 0; k <= 200; ++k)
     {
         double share = k / 200.0;
-        mtwnSamplePath(&path, share, v, NULL);
+        SamplePath(&path, share, v, NULL);
         double e = fabs(v[0] - share);
         worst = e > worst ? e : worst;
     }
@@ -857,7 +858,7 @@ static void TestEdges(void)
     for (int k = 0; k <= 200; ++k)
     {
         double share = k / 200.0;
-        mtwnSamplePath(&path, share, v, NULL);
+        SamplePath(&path, share, v, NULL);
         double e = fabs(v[0] - share);
         worst = e > worst ? e : worst;
     }
@@ -871,7 +872,7 @@ static void TestEdges(void)
     for (int k = 0; k <= 1000; ++k)
     {
         double share = k / 1000.0;
-        mtwnSamplePath(&path, share, v, NULL);
+        SamplePath(&path, share, v, NULL);
         double e = fabs(v[0] - share);
         worst = e > worst ? e : worst;
     }
@@ -882,14 +883,14 @@ static void TestEdges(void)
                             Key(1.0, 3.0f, 0.0f, mtwn_segmentLinear)};
     double tailLengths[3];
     CHECK(mtwnMakePath(tail, 3, 1, 0.5, tailLengths, &path) == mtwn_success, "a still end");
-    mtwnSamplePath(&path, 1.0, v, NULL);
+    SamplePath(&path, 1.0, v, NULL);
     CHECK(v[0] == 3.0, "its end reached, not 0 / 0");
     // Channels past the path's are 0, whatever the keyframes hold there.
     mtwnKeyframe loose[2] = {Key(0.0, 0.0f, NAN, mtwn_segmentCatmullRom),
                              Key(1.0, 1.0f, NAN, mtwn_segmentCatmullRom)};
     CHECK(mtwnMakePath(loose, 2, 1, 0.5, NULL, &path) == mtwn_success, "NaN past the channel");
     double tangent[4];
-    mtwnSamplePath(&path, 0.5, v, tangent);
+    SamplePath(&path, 0.5, v, tangent);
     CHECK(v[0] == 0.5 && v[1] == 0.0 && tangent[1] == 0.0, "read as 0");
 }
 
@@ -937,6 +938,172 @@ static void TestRefusals(void)
     CHECK(mtwnMakePath(keys, 3, 1, 0.5, NULL, &path) == mtwn_errorInvalid, "an unknown kind");
 }
 
+// Whether every call sampling a path refuses it at a progress, leaving
+// its outputs as they were.
+static bool PathRefused(const mtwnPath* path, double progress)
+{
+    double value[4] = {7.0, 7.0, 7.0, 7.0};
+    double tangent[4] = {7.0, 7.0, 7.0, 7.0};
+    double direction[4] = {7.0, 7.0, 7.0, 7.0};
+    double angle = 7.0;
+    bool refused = mtwnSamplePath(path, progress, value, tangent) == mtwn_errorInvalid &&
+                   mtwnPathDirection(path, progress, direction) == mtwn_errorInvalid &&
+                   mtwnPathAngle(path, progress, &angle) == mtwn_errorInvalid && angle == 7.0;
+    for (int c = 0; c < 4; ++c)
+    {
+        refused = refused && value[c] == 7.0 && tangent[c] == 7.0 && direction[c] == 7.0;
+    }
+    return refused;
+}
+
+// Whether every call sampling a path takes it at a progress.
+static bool PathTaken(const mtwnPath* path, double progress)
+{
+    double value[4];
+    double direction[4];
+    double angle = 0.0;
+    return mtwnSamplePath(path, progress, value, NULL) == mtwn_success &&
+           mtwnPathDirection(path, progress, direction) == mtwn_success &&
+           mtwnPathAngle(path, progress, &angle) == mtwn_success;
+}
+
+// A sample refuses a path whose own fields no maker gives, each on its
+// own, and a progress not finite.
+static void TestSampleRefusals(void)
+{
+    mtwnKeyframe keys[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
+                            Key(0.5, 1.0f, 2.0f, mtwn_segmentCatmullRom),
+                            Key(1.0, 3.0f, 0.0f, mtwn_segmentLinear)};
+    double lengths[3];
+    mtwnPath made;
+    CHECK(mtwnMakePath(keys, 3, 2, 0.5, lengths, &made) == mtwn_success, "a path");
+    CHECK(PathTaken(&made, 0.25), "as made");
+    double value[4];
+    double direction[4];
+    double angle = 0.0;
+    CHECK(mtwnSamplePath(NULL, 0.5, value, NULL) == mtwn_errorInvalid &&
+              mtwnSamplePath(&made, 0.5, NULL, NULL) == mtwn_errorInvalid &&
+              mtwnPathDirection(NULL, 0.5, direction) == mtwn_errorInvalid &&
+              mtwnPathDirection(&made, 0.5, NULL) == mtwn_errorInvalid &&
+              mtwnPathAngle(NULL, 0.5, &angle) == mtwn_errorInvalid &&
+              mtwnPathAngle(&made, 0.5, NULL) == mtwn_errorInvalid,
+          "a null path or out");
+    CHECK(PathRefused(&made, (double)NAN) && PathRefused(&made, (double)INFINITY) &&
+              PathRefused(&made, -(double)INFINITY),
+          "a progress not finite");
+    mtwnPath path = made;
+    path.keyframes = NULL;
+    CHECK(PathRefused(&path, 0.5), "no keyframes");
+    path = made;
+    path.count = 1;
+    CHECK(PathRefused(&path, 0.5), "one keyframe");
+    path = made;
+    path.channels = 0;
+    CHECK(PathRefused(&path, 0.5), "no channels");
+    path.channels = 5;
+    CHECK(PathRefused(&path, 0.5), "five channels");
+    path = made;
+    path.alpha = (double)NAN;
+    CHECK(PathRefused(&path, 0.5), "a NaN alpha");
+    path.alpha = -0x1p-1074;
+    CHECK(PathRefused(&path, 0.5), "an alpha below 0");
+    path.alpha = 0x1.0000000000001p0;
+    CHECK(PathRefused(&path, 0.5), "an alpha past 1");
+    path = made;
+    path.logarithmic = 2;
+    CHECK(PathRefused(&path, 0.5), "logarithmic neither 0 nor 1");
+    path.logarithmic = 1;
+    CHECK(PathRefused(&path, 0.5), "logarithmic over two channels");
+    path.channels = 1;
+    CHECK(PathTaken(&path, 0.5), "logarithmic over one, a scale track's");
+    path.logarithmic = 2;
+    CHECK(PathRefused(&path, 0.5), "logarithmic 2 over one channel");
+    for (int i = 0; i < 2; ++i)
+    {
+        path = made;
+        path.reserved[i] = 1;
+        CHECK(PathRefused(&path, 0.5), "a reserved byte set");
+    }
+    lengths[0] = 0x1p-1074;
+    CHECK(PathRefused(&made, 0.5), "lengths not from 0");
+    lengths[0] = 0.0;
+    double total = lengths[2];
+    lengths[2] = (double)INFINITY;
+    CHECK(PathRefused(&made, 0.5), "an infinite total length");
+    lengths[2] = (double)NAN;
+    CHECK(PathRefused(&made, 0.5), "a NaN total length");
+    lengths[2] = total;
+    CHECK(PathTaken(&made, 0.5), "the lengths as measured");
+}
+
+// A sample refuses the segment it reads unless its kind is known and,
+// timed by its keyframes, its easing is a maker's; any other segment's,
+// and an easing at constant speed, which times nothing, it does not read.
+static void TestSegmentRefusals(void)
+{
+    mtwnKeyframe keys[4] = {
+        Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear), Key(0.25, 1.0f, 2.0f, mtwn_segmentBezier),
+        Key(0.75, 2.0f, 1.0f, mtwn_segmentLinear), Key(1.0, 3.0f, 0.0f, mtwn_segmentLinear)};
+    double lengths[4];
+    mtwnPath timed;
+    mtwnPath even;
+    CHECK(mtwnMakePath(keys, 4, 2, 0.5, NULL, &timed) == mtwn_success &&
+              mtwnMakePath(keys, 4, 2, 0.5, lengths, &even) == mtwn_success,
+          "a path timed by its keyframes and one at constant speed");
+    keys[1].kind = mtwn_segmentMonotone + 1;
+    CHECK(PathRefused(&timed, 0.5) && PathRefused(&even, 0.5), "an unknown kind where read");
+    CHECK(PathTaken(&timed, 0.1) && PathTaken(&even, 0.1) && PathTaken(&timed, 0.9),
+          "an unknown kind elsewhere");
+    keys[1].kind = mtwn_segmentStep;
+    CHECK(PathRefused(&even, 0.5) && PathTaken(&timed, 0.5),
+          "a step where read, at constant speed");
+    keys[1].kind = mtwn_segmentBezier;
+    keys[1].easing.mode = 4;
+    CHECK(PathRefused(&timed, 0.5), "an easing no maker gives where read");
+    CHECK(PathTaken(&timed, 0.1) && PathTaken(&timed, 0.9), "such an easing elsewhere");
+    CHECK(PathTaken(&even, 0.5), "such an easing at constant speed");
+    keys[1].easing = mtwnLinearEasing();
+    CHECK(PathTaken(&timed, 0.5) && PathTaken(&even, 0.5), "as made again");
+}
+
+// Lengths a host changed between the ends, out of order or NaN, keep the
+// arc-length search within the segments: every sample lands on a finite
+// point of the path's keyframes or between them.
+static void TestChangedLengths(void)
+{
+    mtwnKeyframe keys[4] = {
+        Key(0.0, 0.0f, 0.0f, mtwn_segmentCatmullRom), Key(0.3, 1.0f, 2.0f, mtwn_segmentCatmullRom),
+        Key(0.6, 2.0f, -1.0f, mtwn_segmentBezier), Key(1.0, 3.0f, 0.0f, mtwn_segmentLinear)};
+    double lengths[4];
+    mtwnPath path;
+    CHECK(mtwnMakePath(keys, 4, 2, 0.5, lengths, &path) == mtwn_success, "a curve");
+    double total = lengths[3];
+    const double changed[][2] = {{(double)NAN, (double)NAN},
+                                 {(double)NAN, 1.0},
+                                 {-1.0, 0.5},
+                                 {total * 4.0, 0.0},
+                                 {(double)INFINITY, -(double)INFINITY},
+                                 {total, total}};
+    int wrong = 0;
+    for (size_t c = 0; c < sizeof changed / sizeof changed[0]; ++c)
+    {
+        lengths[1] = changed[c][0];
+        lengths[2] = changed[c][1];
+        for (int k = -8; k <= 136; ++k)
+        {
+            double value[4];
+            double direction[4];
+            double angle = 0.0;
+            double p = k / 128.0;
+            wrong += mtwnSamplePath(&path, p, value, NULL) != mtwn_success ||
+                     mtwnPathDirection(&path, p, direction) != mtwn_success ||
+                     mtwnPathAngle(&path, p, &angle) != mtwn_success;
+            wrong += (p >= 0.0 && p <= 1.0) && !(isfinite(value[0]) && isfinite(value[1]));
+        }
+    }
+    CHECK(wrong == 0, "lengths out of order or NaN: every sample taken, finite within the path");
+}
+
 // At constant speed a curve sampled past its ends goes on along its end
 // segments, by their parameter, as without constant speed.
 static void TestBeyondAtConstantSpeed(void)
@@ -952,10 +1119,10 @@ static void TestBeyondAtConstantSpeed(void)
     double start[4];
     double before[4];
     double tangent[4];
-    mtwnSamplePath(&path, 1.0, end, tangent);
-    mtwnSamplePath(&path, 1.25, past, tangent);
-    mtwnSamplePath(&path, 0.0, start, tangent);
-    mtwnSamplePath(&path, -0.25, before, tangent);
+    SamplePath(&path, 1.0, end, tangent);
+    SamplePath(&path, 1.25, past, tangent);
+    SamplePath(&path, 0.0, start, tangent);
+    SamplePath(&path, -0.25, before, tangent);
     CHECK(fabs(past[0] - end[0]) > 0.1 &&
               fabs(before[1] - start[1]) + fabs(before[0] - start[0]) > 0.1,
           "past the ends, the curve goes on");
@@ -977,5 +1144,8 @@ int main(void)
     TestCoincidentStart();
     TestEdges();
     TestRefusals();
+    TestSampleRefusals();
+    TestSegmentRefusals();
+    TestChangedLengths();
     return s_failures == 0 ? 0 : 1;
 }

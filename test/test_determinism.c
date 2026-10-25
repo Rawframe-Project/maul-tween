@@ -441,12 +441,12 @@ static void HashPathAt(const mtwnPath* path, double progress)
     double value[4];
     double tangent[4];
     double direction[4];
-    mtwnSamplePath(path, progress, value, tangent);
-    mtwnPathDirection(path, progress, direction);
+    SamplePath(path, progress, value, tangent);
+    PathDirection(path, progress, direction);
     HashDoubles(value, 4);
     HashDoubles(tangent, 4);
     HashDoubles(direction, 4);
-    HashDouble(mtwnPathAngle(path, progress));
+    HashDouble(PathAngle(path, progress));
 }
 
 static void HashPath(const mtwnPath* path)
@@ -513,7 +513,7 @@ static void HashPaths(void)
     HashPath(&track.path);
     for (uint32_t k = 0; k < SAMPLES; ++k)
     {
-        HashFloats(mtwnSampleTrack(&track, Progress(k)));
+        HashFloats(SampleTrack(&track, Progress(k)));
     }
 }
 

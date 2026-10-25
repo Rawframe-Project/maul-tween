@@ -168,7 +168,7 @@ static void TestHandles(void)
         }
         double expected = Bezier3(0.0, 6.0, 10.0, 10.0, 0.5 * (lo + hi));
         double value[4];
-        mtwnSamplePath(&path, time / 2.0, value, NULL);
+        CHECK(mtwnSamplePath(&path, time / 2.0, value, NULL) == mtwn_success, "the curve sampled");
         worst = fmax(worst, fabs(value[0] - expected));
     }
     CHECK(worst < 1e-9, "the editors' curve, solved for its time");
