@@ -141,7 +141,9 @@ static mtwnResult RunDestroyTarget(mtwnContext* context, mtwnTargetId target)
         mtwnEndTransition(context, slot->header.link);
     }
     MTWN_ASSERT(slot->header.link == 0);
-    // A target on the list of changed targets leaves it: it was on it once.
+    // A target on the list of changed targets leaves it. It is on it once:
+    // a clip group flags the targets it changes in its own work, and the
+    // update merges every one of them onto the list before it returns.
     if ((slot->header.flags & MTWN_TARGET_CHANGED) != 0)
     {
         uint32_t kept = 0;
