@@ -21,20 +21,22 @@ refused with `mtwn_errorVersion`.
   constant speed, not a step) and, when its keyframes time it, its
   easing is a maker's. Keyframes or lengths the host changes after
   making give an unspecified value, but nothing is read outside their
-  arrays, and at constant speed a keyframe changed to NaN no longer
-  makes one sample cost about 600,000 evaluations. A sample costs 1 to
-  13 ns more. Results for every input still taken are unchanged. This
-  is the path and track part of
+  arrays; what a keyframe's easing references, such as `linear()`'s
+  points and their count, stays the host's. At constant speed a
+  keyframe changed to NaN no longer makes one sample cost about 600,000
+  evaluations. A sample costs 1 to 13 ns more. Results for every input
+  still taken are unchanged. This is the path and track part of
   [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
   ([#70](https://github.com/Rawframe-Project/maul-tween/pull/70)).
 - **Breaking: a spring easing whose squared frequency is infinite is
   refused.** `mtwnMakeSpringEasing` refuses with `mtwn_errorInvalid` a
   spring whose natural frequency, in radians a second, times the
   duration reaches 2^512 (about 1.34e154); it used to make such an
-  overdamped or critical easing, and an overdamped one could ease NaN.
-  `mtwnEase` and every call taking an easing refuse a spring easing
-  whose squared frequency is infinite. Every easing still made gives
-  the same bits
+  easing from a critical spring, which eased finite, and already
+  refused an overdamped one. `mtwnEase` and every call taking an easing
+  refuse a spring easing whose squared frequency is infinite, which a
+  host-written one could have and which eased NaN. Every easing still
+  made gives the same bits
   ([#73](https://github.com/Rawframe-Project/maul-tween/pull/73)).
 
 ## [0.6.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.5.0...v0.6.0) (2026-10-25)
