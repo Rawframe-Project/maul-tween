@@ -59,6 +59,7 @@ static void Capture(Sweep* sweep, const mtwnEvent* event, double along)
     {
         return;
     }
+    MTWN_ASSERT(sharing->recordCount <= sharing->recordCapacity);
     if (sharing->recordCount == sharing->recordCapacity)
     {
         sharing->capture = false;
@@ -95,6 +96,14 @@ typedef struct Kinds
 static double IterationOf(const mtwnLevel* levels, uint32_t count, double known, double t)
 {
     return isnan(known) ? mtwnIterationAt(levels, count, t) : known;
+}
+
+// Whether the records kept for a track have room for one more: a track
+// makes at most six, its start, iterations and end, each either way.
+// Only an assertion calls it.
+[[maybe_unused]] static inline bool RoomToReplay(const Sweep* sweep, mtwnNode node)
+{
+    return sweep->replayNode != node || sweep->replayCount < 6;
 }
 
 // Records a leaf's crossings, chain levels [0, count) above it and the
@@ -158,6 +167,7 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         double along = fabs(first - sweep->from);
         mtwnWorkEvent(sweep->context, sweep->work, &event, along);
         Capture(sweep, &event, along);
+        MTWN_ASSERT(RoomToReplay(sweep, node));
         if (sweep->replayNode == node && sweep->replayCount < 6)
         {
             sweep->replay[sweep->replayCount] = event;
@@ -176,6 +186,9 @@ static uint32_t Chain(mtwnLevel* levels, const mtwnClipSlot* clip, uint32_t node
     {
         ++count;
     }
+    // A timeline is at most MTWN_MAX_CLIP_DEPTH below the root, and the
+    // levels hold its child's chain and the child: MTWN_MAX_CLIP_DEPTH + 2.
+    MTWN_ASSERT(count < MTWN_MAX_CLIP_DEPTH + 2u);
     uint32_t i = count;
     for (uint32_t at = node; at != 0; at = clip->nodes[at - 1].parent)
     {
@@ -456,6 +469,28 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     }
 }
 
+// Whether a player's clip is the one it plays, finished, every node after
+// its parent, a timeline, so the sweep has its parent's times when it
+// comes to it. A player's clip is finished before it plays and kept while
+// it does: destroying it is refused as busy. Only an assertion calls it.
+[[maybe_unused]] static inline bool Playable(const mtwnClipSlot* clip, const mtwnClipPlay* play)
+{
+    if (clip->header.generation != play->clip.generation || !clip->finished ||
+        clip->nodes[0].parent != 0)
+    {
+        return false;
+    }
+    for (uint32_t i = 1; i < clip->nodeCount; ++i)
+    {
+        uint32_t parent = clip->nodes[i].parent;
+        if (parent == 0 || parent > i || clip->nodes[parent - 1].kind != mtwn_nodeTimeline)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 // The sweep's key: what decides its records but the player.
 typedef struct SweepKey
 {
@@ -520,6 +555,7 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     bool turning = !fromNone && play->sweptWay != 0 && play->sweptWay != way;
     play->sweptWay = way;
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
+    MTWN_ASSERT(Playable(clip, play));
     // Set field by field: the kept records need no clearing.
     mtwnNodeTime* times = mtwnTimesFor(work, clip);
     Sweep sweep;
