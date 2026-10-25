@@ -67,6 +67,20 @@ static double Sinh(double x)
     return x < 0.0 ? -r : r;
 }
 
+// sinh(a) / cosh(a + r0) written so that nothing overflows, for where the
+// direct quotient is not finite (sinh and cosh overflow from |a| about 710
+// on): (1 - e^(-2a)) / (e^r0 + e^(-2a - r0)), and its mirror for a below 0.
+// Toward either infinity it goes to e^-r0 and -e^r0, where the centre
+// settles. Out of line, since a sample rarely takes it.
+static MTWN_NOINLINE double FarShare(double along, double r0)
+{
+    double m = fabs(along);
+    double r = along < 0.0 ? -r0 : r0;
+    double fading = mtwnExp(-2.0 * m);
+    double share = (1.0 - fading) / (mtwnExp(r) + mtwnExp(-2.0 * m - r));
+    return along < 0.0 ? -share : share;
+}
+
 static bool IsView(mtwnZoomView v)
 {
     return isfinite(v.x) && isfinite(v.y) && isfinite(v.width) && v.width > 0.0;
@@ -146,10 +160,22 @@ static MTWN_NOINLINE mtwnZoomView mtwnMixZoomWork(const mtwnZoomMix* mix, double
         return (mtwnZoomView){a->x, a->y, mtwnMixScaleWork(&mix->widths, progress)};
     }
     double along = mix->rho * progress * mix->length;
+    // NaN only where rho times the progress overflows and the path has no
+    // length; such a path stays where it starts.
+    along = isnan(along) ? 0.0 : along;
     double c = Cosh(along + mix->r0);
+    double width = a->width * (mix->coshR0 / c);
+    double dx = b->x - a->x;
+    double dy = b->y - a->y;
     double share = mix->panScale * Sinh(along) / c;
-    return (mtwnZoomView){a->x + share * (b->x - a->x), a->y + share * (b->y - a->y),
-                          a->width * (mix->coshR0 / c)};
+    if (isfinite(share))
+    {
+        return (mtwnZoomView){a->x + share * dx, a->y + share * dy, width};
+    }
+    // Far out, or with a share past the doubles' range: each axis's pan
+    // scaled first, so an axis with no pan moves by nothing.
+    double far = FarShare(along, mix->r0);
+    return (mtwnZoomView){a->x + mix->panScale * dx * far, a->y + mix->panScale * dy * far, width};
 }
 
 mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress)
