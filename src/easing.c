@@ -17,10 +17,12 @@
 #include "elementary.h"
 #include "fpenv.h"
 #include "spring_easing.h"
+#include "valid.h"
 #include "work.h"
 
 #include "generated/math_constants.h"
 
+#include <float.h>
 #include <math.h>
 
 // Where the normalization's numbers sit in parameters[].
@@ -32,6 +34,24 @@ enum
 
 // The largest exponent a power computes by multiplication.
 static const uint32_t s_largestIntegerExponent = 8;
+
+// The normalizations of the curves without parameters whose raw ends are
+// not 0 and 1, as Normalize computes them with the library's own
+// functions, so the same everywhere: sine's 1 - cos(pi / 2) at 1, expo's
+// 2^-10 at 0.
+static const double s_sineRange = 0x1.fffffffffffffp-1;
+static const double s_expoStart = 0x1.0p-10;
+static const double s_expoRange = 0x1.ff8p-1;
+
+// The elastic's largest amplitude, and the angular frequency of its
+// shortest period, 2^-10, once an amplitude below 1 has stretched it (2 pi
+// / P, as its maker computes it). The curve ends at 1 + a 2^-10 sin(...), which
+// it is normalized by: up to an amplitude of 512 that stays from 1/2 to
+// 3/2. Below the period, an oscillation is finer than MTWN_MAX_FIT_POINTS
+// points can follow: at 2^-10, a fit of that many has 64 points to each,
+// which trace a sine to about 0.1% of its height.
+static const double s_largestAmplitude = 512.0;
+static const double s_largestAngular = 4.0 * MTWN_PIO2_HI * 0x1.0p10;
 
 static bool IsMode(mtwnEaseMode mode)
 {
@@ -168,6 +188,78 @@ static void Normalize(mtwnEasing* easing)
     easing->parameters[s_range] = RawCurve(easing, 1.0) - start;
 }
 
+// Whether a curve's normalization is the one given.
+static bool IsNormalized(const mtwnEasing* easing, double start, double range)
+{
+    return easing->parameters[s_start] == start && easing->parameters[s_range] == range;
+}
+
+// An elastic's fields in the ranges its maker gives them: then its phase
+// in radians, asin(1 / a) at most pi / 2, and its sine's angle are finite,
+// its raw curve within a of 1, and less its start over its range at most
+// 2056 in magnitude.
+static bool ValidElastic(const mtwnEasing* easing)
+{
+    const double* parameter = easing->parameters;
+    double range = parameter[s_range];
+    return parameter[0] >= 1.0 && parameter[0] <= s_largestAmplitude && parameter[1] > 0.0 &&
+           parameter[1] <= s_largestAngular && parameter[2] >= 0.0 &&
+           parameter[2] * parameter[1] <= 2.0 && fabs(parameter[s_start]) <= 1.0 && range >= 0.25 &&
+           range <= 2.0;
+}
+
+// Whether a Penner kind's fields are its maker's: those it computes
+// exactly by their values, the elastic's by their ranges.
+static bool ValidPenner(const mtwnEasing* easing)
+{
+    double first = easing->parameters[0];
+    switch (easing->kind)
+    {
+    case mtwn_easingPower:
+        // A count is the integer exponent multiplied out.
+        return first > 0.0 && first <= DBL_MAX && easing->count <= s_largestIntegerExponent &&
+               (easing->count == 0 || (double)easing->count == first) &&
+               IsNormalized(easing, 0.0, 1.0);
+    case mtwn_easingSine:
+        return IsNormalized(easing, 0.0, s_sineRange);
+    case mtwn_easingExpo:
+        return IsNormalized(easing, s_expoStart, s_expoRange);
+    case mtwn_easingBack:
+        return first >= 0.0 && first <= DBL_MAX && IsNormalized(easing, 0.0, 1.0);
+    case mtwn_easingElastic:
+        return ValidElastic(easing);
+    default:
+        // Circ and bounce, whose raw ends are 0 and 1.
+        return IsNormalized(easing, 0.0, 1.0);
+    }
+}
+
+MTWN_NOINLINE bool mtwnValidEasing(const mtwnEasing* easing)
+{
+    if (easing == NULL || easing->reserved != 0 || !IsMode(easing->mode))
+    {
+        return false;
+    }
+    const double* parameter = easing->parameters;
+    switch (easing->kind)
+    {
+    case mtwn_easingLinear:
+        return true;
+    case mtwn_easingHost:
+        return easing->function != NULL;
+    case mtwn_easingCubicBezier:
+        return mtwnValidCubicBezier(parameter[0], parameter[1], parameter[2], parameter[3]);
+    case mtwn_easingSteps:
+        return mtwnValidSteps(easing->count, easing->position);
+    case mtwn_easingLinearPoints:
+        return easing->points != NULL && easing->count >= 2;
+    case mtwn_easingSpring:
+        return mtwnValidSpringEasing(easing);
+    default:
+        return easing->kind <= mtwn_easingBounce && ValidPenner(easing);
+    }
+}
+
 static mtwnEasing Blank(mtwnEasingKind kind, mtwnEaseMode mode)
 {
     mtwnEasing easing = {0};
@@ -255,8 +347,7 @@ mtwnResult mtwnMakeBackEasing(mtwnEaseMode mode, double overshoot, mtwnEasing* e
 static MTWN_NOINLINE mtwnResult mtwnMakeElasticEasingWork(mtwnEaseMode mode, double amplitude,
                                                           double period, mtwnEasing* easingOut)
 {
-    if (easingOut == NULL || !IsMode(mode) || !isfinite(amplitude) || amplitude <= 0.0 ||
-        !isfinite(period) || period <= 0.0)
+    if (easingOut == NULL || !IsMode(mode))
     {
         return mtwn_errorInvalid;
     }
@@ -272,10 +363,13 @@ static MTWN_NOINLINE mtwnResult mtwnMakeElasticEasingWork(mtwnEaseMode mode, dou
     easing.parameters[1] = angular;
     // asin(1 / a) as atan2(1, sqrt(a^2 - 1)), exactly pi / 2 at a = 1.
     easing.parameters[2] = mtwnAtan2(1.0, sqrt((amplitude - 1.0) * (amplitude + 1.0))) / angular;
-    // A period whose frequency overflows or vanishes leaves no finite,
-    // nonzero range between the curve's ends.
+    // The checks of every easing taken in refuse the rest: an amplitude
+    // or a period not above 0 or NaN leaves no amplitude of at least 1 or
+    // no frequency above 0, and they refuse an amplitude or a period past
+    // their ranges, a period so long, given or stretched, that its
+    // frequency vanishes, and one whose phase overflows.
     Normalize(&easing);
-    if (!isfinite(easing.parameters[s_range]) || easing.parameters[s_range] == 0.0)
+    if (!ValidElastic(&easing))
     {
         return mtwn_errorInvalid;
     }
@@ -309,8 +403,7 @@ mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void
 static MTWN_NOINLINE mtwnResult mtwnMakeCubicBezierWork(double x1, double y1, double x2, double y2,
                                                         mtwnEasing* easingOut)
 {
-    bool inside = x1 >= 0.0 && x1 <= 1.0 && x2 >= 0.0 && x2 <= 1.0;
-    if (easingOut == NULL || !inside || !isfinite(y1) || !isfinite(y2))
+    if (easingOut == NULL || !mtwnValidCubicBezier(x1, y1, x2, y2))
     {
         return mtwn_errorInvalid;
     }
@@ -333,8 +426,7 @@ mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnE
 
 mtwnResult mtwnMakeSteps(uint32_t count, mtwnStepPosition position, mtwnEasing* easingOut)
 {
-    uint32_t fewest = position == mtwn_jumpNone ? 2u : 1u;
-    if (easingOut == NULL || position > mtwn_jumpBoth || count < fewest)
+    if (easingOut == NULL || !mtwnValidSteps(count, position))
     {
         return mtwn_errorInvalid;
     }
@@ -402,14 +494,22 @@ mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count, mtwnEas
     return result;
 }
 
-mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
+static MTWN_NOINLINE mtwnResult mtwnSetEaseModeWork(mtwnEasing* easing, mtwnEaseMode mode)
 {
-    if (easing == NULL || !IsMode(mode))
+    if (!mtwnValidEasing(easing) || !IsMode(mode))
     {
         return mtwn_errorInvalid;
     }
     easing->mode = mode;
     return mtwn_success;
+}
+
+mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
+{
+    uint64_t env = mtwnFloatEnvEnter();
+    mtwnResult result = mtwnSetEaseModeWork(easing, mode);
+    mtwnFloatEnvLeave(env);
+    return result;
 }
 
 MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing)
@@ -445,10 +545,21 @@ MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing)
     }
 }
 
-bool mtwnIsEasingMonotonic(const mtwnEasing* easing)
+static MTWN_NOINLINE mtwnResult mtwnIsEasingMonotonicChecked(const mtwnEasing* easing,
+                                                             bool* monotonicOut)
+{
+    if (!mtwnValidEasing(easing) || monotonicOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *monotonicOut = mtwnIsEasingMonotonicWork(easing);
+    return mtwn_success;
+}
+
+mtwnResult mtwnIsEasingMonotonic(const mtwnEasing* easing, bool* monotonicOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    bool result = mtwnIsEasingMonotonicWork(easing);
+    mtwnResult result = mtwnIsEasingMonotonicChecked(easing, monotonicOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -483,10 +594,21 @@ MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, boo
     }
 }
 
-double mtwnEase(const mtwnEasing* easing, double progress, bool before)
+static MTWN_NOINLINE mtwnResult mtwnEaseChecked(const mtwnEasing* easing, double progress,
+                                                bool before, double* easedOut)
+{
+    if (!mtwnValidEasing(easing) || !isfinite(progress) || easedOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *easedOut = mtwnEaseWork(easing, progress, before);
+    return mtwn_success;
+}
+
+mtwnResult mtwnEase(const mtwnEasing* easing, double progress, bool before, double* easedOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnEaseWork(easing, progress, before);
+    mtwnResult result = mtwnEaseChecked(easing, progress, before, easedOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

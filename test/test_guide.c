@@ -26,12 +26,16 @@ static void TestEasing(void)
 {
     mtwnEasing ease;
     mtwnResult made = mtwnMakeCssEasing(mtwn_cssEaseInOut, &ease); // CSS's ease-in-out
-    double eased = mtwnEase(&ease, 0.25, false);                   // a quarter of the way
+    double eased = 0.0;
+    mtwnResult sampled = mtwnEase(&ease, 0.25, false, &eased); // a quarter of the way
 
     mtwnEasing back;
     made = mtwnMakeBackEasing(mtwn_easeOut, 1.70158, &back); // GSAP's back.out
-    CHECK(made == mtwn_success && eased > 0.0 && eased < 0.25, "ease-in-out slow at first");
-    CHECK(mtwnEase(&back, 1.0, false) == 1.0, "back.out lands on 1");
+    CHECK(made == mtwn_success && sampled == mtwn_success && eased > 0.0 && eased < 0.25,
+          "ease-in-out slow at first");
+    double landed = 0.0;
+    CHECK(mtwnEase(&back, 1.0, false, &landed) == mtwn_success && landed == 1.0,
+          "back.out lands on 1");
 }
 
 static void TestRough(void)
@@ -41,7 +45,10 @@ static void TestRough(void)
     def.taper = mtwn_roughTaperOut; // calm by the end
     mtwnEasing rough;
     mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);
-    CHECK(madeRough == mtwn_success && mtwnEase(&rough, 1.0, false) == 1.0, "a rough easing");
+    double end = 0.0;
+    CHECK(madeRough == mtwn_success && mtwnEase(&rough, 1.0, false, &end) == mtwn_success &&
+              end == 1.0,
+          "a rough easing");
 }
 
 static void TestSprings(void)

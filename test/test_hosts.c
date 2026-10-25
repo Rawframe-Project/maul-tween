@@ -62,7 +62,7 @@ static void EaseAll(Out* out, const mtwnEasing* easing)
 {
     for (int i = 0; i < s_progressCount; ++i)
     {
-        double eased = mtwnEase(easing, s_progress[i], false);
+        double eased = EaseAt(easing, s_progress[i], false);
         PUT(out, eased);
     }
 }
@@ -92,13 +92,16 @@ static void Easings(Out* out)
     EaseAll(out, &e);
     for (int i = 0; i < s_progressCount; ++i)
     {
-        double eased = mtwnEaseCubicBezier(&e, s_progress[i]);
+        double eased = EaseBezierAt(&e, s_progress[i]);
         PUT(out, eased);
     }
+    r = mtwnSetEaseMode(&e, mtwn_easeOut);
+    PUT(out, r);
+    EaseAll(out, &e);
     r = mtwnMakeCssEasing(mtwn_cssEaseInOut, &e);
     PUT(out, r);
     EaseAll(out, &e);
-    bool monotonic = mtwnIsEasingMonotonic(&e);
+    bool monotonic = IsMonotonicEasing(&e);
     PUT(out, monotonic);
     static const mtwnLinearPoint s_points[4] = {
         {0.0, 0.0}, {0x1p-1040, 0.3}, {0.6, 0.2}, {1.0, 1.0}};

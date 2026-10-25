@@ -15,7 +15,6 @@
 #include "easing_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
-#include "reserved_internal.h"
 #include "valid.h"
 #include "work.h"
 
@@ -45,7 +44,7 @@ static bool IsTolerance(double value)
 // tolerances are valid.
 static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
 {
-    if (!mtwnEasingClear(&def->easing) || def->spring.reserved != 0)
+    if (!mtwnValidEasing(&def->easing) || def->spring.reserved != 0)
     {
         return false;
     }
@@ -547,7 +546,7 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
-    if (!mtwnEasingClear(&def->easing) || def->spring.reserved != 0)
+    if (!mtwnValidEasing(&def->easing) || def->spring.reserved != 0)
     {
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;

@@ -15,6 +15,7 @@
 
 #include "fpenv.h"
 
+#include <float.h>
 #include <math.h>
 
 // The solver stops once x(t) is this close to x, or the bracket narrower
@@ -51,6 +52,33 @@ static double Slope(const Cubic* cubic, double t)
     return (3.0 * cubic->a * t + 2.0 * cubic->b) * t + cubic->c;
 }
 
+// A value past the doubles as the largest double of its sign.
+static double Saturated(double value)
+{
+    return isinf(value) ? copysign(DBL_MAX, value) : value;
+}
+
+// An end tangent's value from (0, 0) or (1, 1), a slope times a distance
+// from there: saturated, and a flat one's at an infinite distance (where
+// a mode's 2p overflowed) still its end.
+static double FromZero(double slope, double distance)
+{
+    double moved = slope * distance;
+    return isnan(moved) ? 0.0 : Saturated(moved);
+}
+
+static double FromOne(double slope, double distance)
+{
+    double moved = slope * distance;
+    return isnan(moved) ? 1.0 : Saturated(1.0 + moved);
+}
+
+bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2)
+{
+    return x1 >= 0.0 && x1 <= 1.0 && x2 >= 0.0 && x2 <= 1.0 && fabs(y1) <= MTWN_LARGEST_BEZIER_Y &&
+           fabs(y2) <= MTWN_LARGEST_BEZIER_Y;
+}
+
 double mtwnSampleCubicBezier(const double control[4], double x)
 {
     double x1 = control[0];
@@ -66,18 +94,18 @@ double mtwnSampleCubicBezier(const double control[4], double x)
         // The tangent through P0 and P1, else P0 and P2, else flat at 0.
         if (x1 > 0.0)
         {
-            return y1 / x1 * x;
+            return FromZero(y1 / x1, x);
         }
-        return x2 > 0.0 ? y2 / x2 * x : 0.0;
+        return x2 > 0.0 ? FromZero(y2 / x2, x) : 0.0;
     }
     if (x > 1.0)
     {
         // The tangent through P2 and P3, else P1 and P3, else flat at 1.
         if (x2 < 1.0)
         {
-            return 1.0 + (y2 - 1.0) / (x2 - 1.0) * (x - 1.0);
+            return FromOne((y2 - 1.0) / (x2 - 1.0), x - 1.0);
         }
-        return x1 < 1.0 ? 1.0 + (y1 - 1.0) / (x1 - 1.0) * (x - 1.0) : 1.0;
+        return x1 < 1.0 ? FromOne((y1 - 1.0) / (x1 - 1.0), x - 1.0) : 1.0;
     }
     Cubic xs = MakeCubic(x1, x2);
     Cubic ys = MakeCubic(y1, y2);
@@ -117,15 +145,13 @@ static double BezierOut(const double control[4], double x)
     return 1.0 - mtwnSampleCubicBezier(control, 1.0 - x);
 }
 
-static MTWN_NOINLINE double mtwnEaseCubicBezierWork(const mtwnEasing* easing, double progress)
+// mtwnEase's linear easing, or its cubic bezier in its mode, by the same
+// arithmetic; an easing of another kind is not one.
+static double EaseCubicBezier(const mtwnEasing* easing, double progress)
 {
     if (easing->kind == mtwn_easingLinear)
     {
         return progress;
-    }
-    if (easing->kind != mtwn_easingCubicBezier)
-    {
-        return (double)NAN;
     }
     const double* c = easing->parameters;
     double p = progress;
@@ -142,18 +168,62 @@ static MTWN_NOINLINE double mtwnEaseCubicBezierWork(const mtwnEasing* easing, do
     }
 }
 
-double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress)
+// The checks of mtwnValidEasing for the two kinds this samples, kept here
+// so that sampling a cubic bezier links none of the other curves.
+static MTWN_NOINLINE mtwnResult mtwnEaseCubicBezierWork(const mtwnEasing* easing, double progress,
+                                                        double* easedOut)
+{
+    if (easing == NULL || easing->reserved != 0 || easing->mode > mtwn_easeOutIn ||
+        !isfinite(progress) || easedOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    const double* c = easing->parameters;
+    bool bezier =
+        easing->kind == mtwn_easingCubicBezier && mtwnValidCubicBezier(c[0], c[1], c[2], c[3]);
+    if (easing->kind != mtwn_easingLinear && !bezier)
+    {
+        return mtwn_errorInvalid;
+    }
+    *easedOut = EaseCubicBezier(easing, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnEaseCubicBezier(const mtwnEasing* easing, double progress, double* easedOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnEaseCubicBezierWork(easing, progress);
+    mtwnResult result = mtwnEaseCubicBezierWork(easing, progress, easedOut);
     mtwnFloatEnvLeave(env);
     return result;
+}
+
+bool mtwnValidSteps(uint32_t count, mtwnStepPosition position)
+{
+    return position <= mtwn_jumpBoth && count >= (position == mtwn_jumpNone ? 2u : 1u);
+}
+
+// The jumps steps make from 0 to 1.
+static double StepJumps(double steps, mtwnStepPosition position)
+{
+    if (position == mtwn_jumpNone)
+    {
+        return steps - 1.0;
+    }
+    return position == mtwn_jumpBoth ? steps + 1.0 : steps;
 }
 
 double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool before)
 {
     double steps = (double)count;
     double scaled = x * steps;
+    if (isinf(scaled))
+    {
+        // So far past the ends that x is an integer and the floor and the
+        // jump at it vanish beside it: x steps of 1 / jumps each, saturated
+        // where that passes the doubles too (jump-none's steps are longer
+        // than 1, and a mode's 2p may have overflowed).
+        return Saturated(x * (steps / StepJumps(steps, position)));
+    }
     double step = floor(scaled);
     if (position == mtwn_jumpStart || position == mtwn_jumpBoth)
     {
@@ -167,20 +237,27 @@ double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool
     {
         step = 0.0;
     }
-    double jumps = steps;
-    if (position == mtwn_jumpNone)
-    {
-        jumps = steps - 1.0;
-    }
-    else if (position == mtwn_jumpBoth)
-    {
-        jumps = steps + 1.0;
-    }
+    double jumps = StepJumps(steps, position);
     if (x <= 1.0 && step > jumps)
     {
         step = jumps;
     }
     return step / jumps;
+}
+
+// The share of the way from input a to input b that x lies at, for
+// distinct finite inputs: with each distance halved when one overflows, so
+// it is still their ratio.
+static double Between(double a, double b, double x)
+{
+    double width = b - a;
+    double offset = x - a;
+    if (isinf(width) || isinf(offset))
+    {
+        width = 0.5 * b - 0.5 * a;
+        offset = 0.5 * x - 0.5 * a;
+    }
+    return offset / width;
 }
 
 double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, double x)
@@ -212,16 +289,25 @@ double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, dou
     {
         return b->output;
     }
-    double between = (x - a->input) / (b->input - a->input);
+    double between = Between(a->input, b->input, x);
     double span = b->output - a->output;
-    if (isinf(span))
+    // Outputs of opposite signs near the double range overflow their
+    // difference; the weighted sum stays between them, and is each at its
+    // own input.
+    double value = isinf(span) ? (1.0 - between) * a->output + between * b->output
+                               : a->output + between * span;
+    if (isfinite(value))
     {
-        // Outputs of opposite signs near the double range overflow their
-        // difference; the weighted sum stays between them, and is each at
-        // its own input.
-        return (1.0 - between) * a->output + between * b->output;
+        return value;
     }
-    return a->output + between * span;
+    // Only past the segment, or with its inputs out of order: an infinite
+    // share of a flat segment is its output, and a value past the doubles
+    // the largest of its sign, the line's way from a.
+    if (span == 0.0)
+    {
+        return a->output;
+    }
+    return (between > 0.0) == (span > 0.0) ? DBL_MAX : -DBL_MAX;
 }
 
 // Whether every output is finite and every input finite or not given.

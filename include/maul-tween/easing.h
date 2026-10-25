@@ -2,10 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Easing: curves that map a timing's progress to eased progress.
-// An easing is a value made by a function that validates it
-// and sampled by mtwnEase with no status to check: Penner's families,
-// which land exactly on 0 and 1, and CSS Easing Level 2 entire. Every
-// kind has the same four modes.
+// An easing is a value made by a function that validates it and sampled
+// by mtwnEase: Penner's families, which land exactly on 0 and 1, and CSS
+// Easing Level 2 entire. Every kind has the same four modes.
 
 #ifndef MAUL_TWEEN_EASING_H
 #define MAUL_TWEEN_EASING_H
@@ -118,9 +117,12 @@ extern "C"
 
     // An easing: a curve and its mode. Make one with a mtwnMake...
     // function or mtwnLinearEasing; its fields are the library's, set by
-    // the maker, and a host reads none of them. It is a plain value, copied
-    // freely; what it references (a host function's context, linear()
-    // points) stays the host's and must outlive every copy.
+    // the maker, and a host reads none of them. Every call taking one
+    // refuses an easing whose fields its kind reads are not as its maker
+    // sets them, or for an elastic and a spring easing outside the ranges
+    // its maker gives them. It is a plain value, copied freely; what it
+    // references (a host function's context, linear() points) stays the
+    // host's and must outlive every copy.
     typedef struct mtwnEasing
     {
         // The curve's numbers, precomputed by its maker.
@@ -246,9 +248,17 @@ extern "C"
     /// tween.js miss 1 at the end by up to a 2^-10 and set it there, so
     /// they differ from this by at most a (1 + a) 2^-10.
     ///
+    /// The curve ends at 1 + a 2^-10 sin(...) before it is normalized by
+    /// it, which an amplitude up to 512 keeps from 1/2 to 3/2. A period,
+    /// once an amplitude below 1 has stretched it, below 2^-10 is
+    /// refused: a fit of MTWN_MAX_FIT_POINTS points has 64 points to
+    /// each oscillation there, which trace a sine to about 0.1% of its
+    /// height, and finer ones it cannot follow.
+    ///
     /// @param mode       The mode.
-    /// @param amplitude  a, finite and above 0.
-    /// @param period     P, finite and above 0, in units of progress.
+    /// @param amplitude  a, above 0 and at most 512.
+    /// @param period     P, finite, in units of progress; P, or P / a for
+    ///                   an amplitude below 1, at least 2^-10.
     /// @param easingOut  Receives the easing; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
     ///         unknown mode or a parameter outside the above.
@@ -280,9 +290,10 @@ extern "C"
     /// 1 at 1, and outside 0 to 1 extended along CSS's end tangents.
     ///
     /// @param x1         The first control point's x, from 0 to 1.
-    /// @param y1         Its y, finite.
+    /// @param y1         Its y, at most 2^1000 in magnitude, which keeps the
+    ///                   curve's polynomial finite.
     /// @param x2         The second control point's x, from 0 to 1.
-    /// @param y2         Its y, finite.
+    /// @param y2         Its y, likewise.
     /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
     ///                   failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
@@ -323,8 +334,11 @@ extern "C"
     /// as CSS does: a first input not given is 0 and a last one 1 or the
     /// largest before it; an input below an earlier one is raised to it;
     /// runs not given are spread evenly between their neighbors. The
-    /// easing references the points, which must outlive it and not change.
-    /// Outside the points' inputs it extends their end segments.
+    /// easing references the points, which must outlive it and should not
+    /// change: changed, even out of order, while finite they give an
+    /// unspecified finite value. Outside the points' inputs it extends
+    /// their end segments, a value past the doubles' range given as the
+    /// largest finite double of its sign.
     ///
     /// @param points     The points, in order: at least 2, each output
     ///                   finite and each input finite or NaN.
@@ -352,9 +366,10 @@ extern "C"
     /// @param count      The number of points, at least 2.
     /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
     ///                   failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, fewer
-    ///         than 2 points, a strength below 0 or not finite, an unknown
-    ///         taper or flag, or a shape giving a value not finite.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a shape
+    ///         no maker produced, fewer than 2 points, a strength below 0
+    ///         or not finite, an unknown taper or flag, or a shape giving a
+    ///         value not finite.
     /// @par Thread safety
     /// Safe from any thread; the points are used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def,
@@ -365,8 +380,9 @@ extern "C"
     ///
     /// @param easing  An easing made by this library.
     /// @param mode    The mode.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer or an
-    ///         unknown mode, leaving the easing as it was.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
+    ///         easing no maker produced or an unknown mode, leaving the
+    ///         easing as it was.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode);
@@ -377,27 +393,38 @@ extern "C"
     /// never decrease; not back, elastic, bounce or a spring, and not a
     /// host function, which the library cannot inspect.
     ///
-    /// @param easing  An easing made by this library.
-    /// @return Whether it never decreases.
+    /// @param easing        An easing made by this library.
+    /// @param monotonicOut  Receives whether it never decreases; unchanged
+    ///                      on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer or an
+    ///         easing no maker produced.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API bool mtwnIsEasingMonotonic(const mtwnEasing* easing);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnIsEasingMonotonic(const mtwnEasing* easing,
+                                                             bool* monotonicOut);
 
     /// Samples an easing. CSS's curves follow CSS Easing Level 2 outside 0
     /// to 1; Penner's curves, springs and host functions see progress
     /// clamped to 0 to 1. The modes reflect the curve, and the before flag reaches it
     /// where it samples progress unreflected.
     ///
+    /// Every curve but a host function's gives a finite value: CSS's, past
+    /// the doubles' range, the largest finite double of its sign.
+    ///
     /// @param easing    An easing made by this library.
     /// @param progress  The progress, finite.
     /// @param before    Whether the timing is in its before phase; it moves
     ///                  only curves that jump at their start.
-    /// @return The eased progress: exactly 0 at 0 and 1 at 1 for Penner's
-    ///         curves, springs, linear and cubic bezier; what CSS defines
-    ///         for steps and linear().
+    /// @param easedOut  Receives the eased progress: exactly 0 at 0 and 1 at
+    ///                  1 for Penner's curves, springs, linear and cubic
+    ///                  bezier; what CSS defines for steps and linear().
+    ///                  Unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
+    ///         easing no maker produced or a progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnEase(const mtwnEasing* easing, double progress, bool before);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnEase(const mtwnEasing* easing, double progress,
+                                                bool before, double* easedOut);
 
     /// Samples a cubic bezier easing as mtwnEase does, to the bit, in each
     /// mode, reaching none of the other curves. With link-time optimization,
@@ -411,11 +438,16 @@ extern "C"
     ///                  or the linear easing.
     /// @param progress  The progress, finite; outside 0 to 1 the curve
     ///                  follows CSS Easing Level 2.
-    /// @return mtwnEase(easing, progress, false); the progress for the
-    ///         linear easing; NaN for an easing of any other kind.
+    /// @param easedOut  Receives what mtwnEase gives with before false: the
+    ///                  progress for the linear easing. Unchanged on
+    ///                  failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
+    ///         easing of another kind or no maker produced, or a progress
+    ///         not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnEaseCubicBezier(const mtwnEasing* easing, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnEaseCubicBezier(const mtwnEasing* easing,
+                                                           double progress, double* easedOut);
 
 #ifdef __cplusplus
 }

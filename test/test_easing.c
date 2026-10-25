@@ -8,8 +8,10 @@
 // refusals.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
+#include "maul-tween/sample.h"
 
 #include <float.h>
 #include <math.h>
@@ -217,15 +219,15 @@ static void TestEndsAreExact(void)
                 ++wrong;
                 continue;
             }
-            wrong += mtwnEase(&easing, 0.0, false) != 0.0;
-            wrong += mtwnEase(&easing, 1.0, false) != 1.0;
+            wrong += EaseAt(&easing, 0.0, false) != 0.0;
+            wrong += EaseAt(&easing, 1.0, false) != 1.0;
             if (s_modes[m] >= mtwn_easeInOut)
             {
-                wrong += mtwnEase(&easing, 0.5, false) != 0.5;
+                wrong += EaseAt(&easing, 0.5, false) != 0.5;
             }
             // Progress outside 0 to 1 is clamped.
-            wrong += mtwnEase(&easing, -0.25, false) != 0.0;
-            wrong += mtwnEase(&easing, 7.0, true) != 1.0;
+            wrong += EaseAt(&easing, -0.25, false) != 0.0;
+            wrong += EaseAt(&easing, 7.0, true) != 1.0;
         }
     }
     CHECK(wrong == 0, "every Penner easing is exactly 0, 1/2 and 1 at its ends and middle");
@@ -250,8 +252,8 @@ static void TestEndsAreExactForEveryParameter(void)
             for (int m = 0; m < 4; ++m)
             {
                 wrong += mtwnSetEaseMode(&easings[e], s_modes[m]) != mtwn_success;
-                wrong += mtwnEase(&easings[e], 0.0, false) != 0.0;
-                wrong += mtwnEase(&easings[e], 1.0, false) != 1.0;
+                wrong += EaseAt(&easings[e], 0.0, false) != 0.0;
+                wrong += EaseAt(&easings[e], 1.0, false) != 1.0;
             }
         }
     }
@@ -266,7 +268,7 @@ static const double s_bounceBreaks[] = {1.0 / 2.75, 2.0 / 2.75, 2.5 / 2.75};
 static double FormulaError(const Case* c, mtwnEaseMode mode, const mtwnEasing* easing, double p)
 {
     p = p < 0.0 ? 0.0 : (p > 1.0 ? 1.0 : p);
-    return fabs(mtwnEase(easing, p, false) - (double)EaseWide(&c->reference, mode, (Wide)p));
+    return fabs(EaseAt(easing, p, false) - (double)EaseWide(&c->reference, mode, (Wide)p));
 }
 
 static void TestAgainstTheFormulas(void)
@@ -329,7 +331,7 @@ static void TestMonotonicEasingsNeverDecrease(void)
             Family family = s_cases[c].reference.family;
             bool expected =
                 family != family_back && family != family_elastic && family != family_bounce;
-            wrong += mtwnIsEasingMonotonic(&easing) != expected;
+            wrong += IsMonotonicEasing(&easing) != expected;
             if (!expected)
             {
                 continue;
@@ -337,7 +339,7 @@ static void TestMonotonicEasingsNeverDecrease(void)
             double previous = 0.0;
             for (int i = 0; i <= 10000 * s_finer; ++i)
             {
-                double value = mtwnEase(&easing, (double)i / (10000.0 * s_finer), false);
+                double value = EaseAt(&easing, (double)i / (10000.0 * s_finer), false);
                 wrong += value < previous;
                 previous = value;
             }
@@ -359,7 +361,7 @@ static void TestRivalMappings(void)
     {
         double p = (double)i / 1000.0;
         double gsap = p * p * (2.70158 * p - 1.70158);
-        double error = fabs(mtwnEase(&back, p, false) - gsap);
+        double error = fabs(EaseAt(&back, p, false) - gsap);
         worst = error > worst ? error : worst;
     }
     CHECK(worst <= 0x1p-51, "back.in matches GSAP's");
@@ -373,7 +375,7 @@ static void TestRivalMappings(void)
         double p = (double)i / 1000.0;
         double c = 0.3 / (2.0 * 3.141592653589793) * asin(1.0);
         double gsap = pow(2.0, -10.0 * p) * sin((p - c) * 2.0 * 3.141592653589793 / 0.3) + 1.0;
-        double error = fabs(mtwnEase(&elastic, p, false) - gsap);
+        double error = fabs(EaseAt(&elastic, p, false) - gsap);
         worst = error > worst ? error : worst;
     }
     CHECK(worst <= 0x1.0p-10, "elastic.out within 2^-10 of GSAP's");
@@ -384,7 +386,7 @@ static void TestRivalMappings(void)
     for (int i = 1; i <= 1000; ++i)
     {
         double p = (double)i / 1000.0;
-        double error = fabs(mtwnEase(&expo, p, false) - pow(2.0, 10.0 * (p - 1.0)));
+        double error = fabs(EaseAt(&expo, p, false) - pow(2.0, 10.0 * (p - 1.0)));
         worst = error > worst ? error : worst;
     }
     CHECK(worst <= 0x1.0p-10, "expo within 2^-10 of Penner's");
@@ -392,7 +394,7 @@ static void TestRivalMappings(void)
     mtwnEasing bounce;
     CHECK(mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeOut, &bounce) == mtwn_success, "bounce");
     double penner = 7.5625 * (0.5 - 1.5 / 2.75) * (0.5 - 1.5 / 2.75) + 0.75;
-    CHECK(fabs(mtwnEase(&bounce, 0.5, false) - penner) <= 2e-16, "bounce.out(1/2) is Penner's");
+    CHECK(fabs(EaseAt(&bounce, 0.5, false) - penner) <= 2e-16, "bounce.out(1/2) is Penner's");
 }
 
 static void TestModesAreReflections(void)
@@ -408,18 +410,18 @@ static void TestModesAreReflections(void)
         // Binary fractions, so 1 - p is exact and the identity holds to the
         // bit.
         double p = (double)i / 1024.0;
-        wrong += mtwnEase(&out, p, false) != 1.0 - mtwnEase(&in, 1.0 - p, false);
+        wrong += EaseAt(&out, p, false) != 1.0 - EaseAt(&in, 1.0 - p, false);
     }
     CHECK(wrong == 0, "out is 1 - in(1 - p)");
     CHECK(mtwnSetEaseMode(&out, 4) == mtwn_errorInvalid && out.mode == mtwn_easeOut,
           "an unknown mode is refused and changes nothing");
     mtwnEasing linear = mtwnLinearEasing();
-    CHECK(mtwnEase(&linear, 0.3, false) == 0.3 && mtwnEase(&linear, -2.0, true) == -2.0,
+    CHECK(EaseAt(&linear, 0.3, false) == 0.3 && EaseAt(&linear, -2.0, true) == -2.0,
           "linear is the identity, unclamped");
     CHECK(mtwnSetEaseMode(&linear, mtwn_easeInOut) == mtwn_success &&
-              mtwnEase(&linear, 0.3, false) == 0.3,
+              EaseAt(&linear, 0.3, false) == 0.3,
           "linear in every mode");
-    CHECK(mtwnIsEasingMonotonic(&linear), "linear is monotonic");
+    CHECK(IsMonotonicEasing(&linear), "linear is monotonic");
 }
 
 typedef struct HostCalls
@@ -443,15 +445,15 @@ static void TestHostEasing(void)
     HostCalls calls = {0, 1.0, 0.0};
     mtwnEasing easing;
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Smoothstep, &calls, &easing) == mtwn_success, "host");
-    CHECK(mtwnEase(&easing, 0.5, false) == 0.5, "the host's value");
-    CHECK(mtwnEase(&easing, -3.0, false) == 0.0 && mtwnEase(&easing, 3.0, false) == 1.0,
+    CHECK(EaseAt(&easing, 0.5, false) == 0.5, "the host's value");
+    CHECK(EaseAt(&easing, -3.0, false) == 0.0 && EaseAt(&easing, 3.0, false) == 1.0,
           "clamped before the host sees it");
     CHECK(calls.count == 3 && calls.lowest == 0.0 && calls.highest == 1.0,
           "called once per sample with progress in 0 to 1");
     CHECK(mtwnSetEaseMode(&easing, mtwn_easeOut) == mtwn_success &&
-              mtwnEase(&easing, 0.25, false) == 1.0 - Smoothstep(&calls, 0.75),
+              EaseAt(&easing, 0.25, false) == 1.0 - Smoothstep(&calls, 0.75),
           "the out mode reflects the host's curve");
-    CHECK(!mtwnIsEasingMonotonic(&easing), "a host function is never called monotonic");
+    CHECK(!IsMonotonicEasing(&easing), "a host function is never called monotonic");
 }
 
 static void TestRefusals(void)
@@ -485,16 +487,27 @@ static void TestRefusals(void)
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1.0, 1e-310, &easing) == mtwn_errorInvalid,
           "a period whose frequency overflows");
     // At amplitude 1024 the sine at the out curve's end rounds to -1 for
-    // this period, putting both ends at 0.
+    // this period, putting both ends at 0: past the largest amplitude.
     CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 1024.0, 0x1.55433a91bf526p+0, &easing) ==
               mtwn_errorInvalid,
           "an elastic whose ends coincide");
+    mtwnEasing edge;
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, 512.0, 0x1.0p-10, &edge) == mtwn_success &&
+              mtwnMakeElasticEasing(mtwn_easeIn, 0.5, 0x1.0p-11, &edge) == mtwn_success,
+          "the largest amplitude and the shortest period, stretched or not, taken");
+    CHECK(mtwnMakeElasticEasing(mtwn_easeIn, nextafter(512.0, HUGE_VAL), 0.3, &edge) ==
+                  mtwn_errorInvalid &&
+              mtwnMakeElasticEasing(mtwn_easeIn, 1.0, nextafter(0x1.0p-10, 0.0), &edge) ==
+                  mtwn_errorInvalid &&
+              mtwnMakeElasticEasing(mtwn_easeIn, 0.5, nextafter(0x1.0p-11, 0.0), &edge) ==
+                  mtwn_errorInvalid,
+          "past them refused");
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, NULL, NULL, &easing) == mtwn_errorInvalid,
           "null function");
     CHECK(easing.kind == mtwn_easingLinear, "a refusal leaves the out-parameter as it was");
     CHECK(mtwnSetEaseMode(NULL, mtwn_easeIn) == mtwn_errorInvalid, "null easing");
     CHECK(mtwnMakeBackEasing(mtwn_easeIn, 0.0, &easing) == mtwn_success &&
-              mtwnEase(&easing, 0.5, false) == 0.125,
+              EaseAt(&easing, 0.5, false) == 0.125,
           "back with no overshoot is the cubic");
     // An overshoot from 2^53, where s + 1 rounds to s: still on 0 and 1,
     // and finite between.
@@ -502,9 +515,9 @@ static void TestRefusals(void)
     for (int mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
     {
         CHECK(mtwnMakeBackEasing((mtwnEaseMode)mode, 1e300, &easing) == mtwn_success, "huge");
-        lands = lands && mtwnEase(&easing, 0.0, false) == 0.0 &&
-                mtwnEase(&easing, 1.0, false) == 1.0 && isfinite(mtwnEase(&easing, 0.3, false)) &&
-                isfinite(mtwnEase(&easing, 2.5, false)) && isfinite(mtwnEase(&easing, -1.5, false));
+        lands = lands && EaseAt(&easing, 0.0, false) == 0.0 && EaseAt(&easing, 1.0, false) == 1.0 &&
+                isfinite(EaseAt(&easing, 0.3, false)) && isfinite(EaseAt(&easing, 2.5, false)) &&
+                isfinite(EaseAt(&easing, -1.5, false));
     }
     CHECK(lands, "back with an overshoot of 1e300 lands");
 }
@@ -540,7 +553,7 @@ static bool SameBits(double a, double b)
 // mtwnEaseCubicBezier against mtwnEase, bit for bit: CSS's keywords and
 // curves with control points at the corners, overshooting and flat, in
 // every mode, at progress through 0 to 1 and past both ends; the linear
-// easing as its progress, and NaN for every other kind.
+// easing as its progress, and every other kind refused.
 static void TestCubicBezierSampler(void)
 {
     static const double s_curves[][4] = {
@@ -566,14 +579,14 @@ static void TestCubicBezierSampler(void)
             for (int i = -200; i <= 1200; ++i)
             {
                 double p = (double)i / 1000.0;
-                same += SameBits(mtwnEaseCubicBezier(&easing, p), mtwnEase(&easing, p, false));
-                same += SameBits(mtwnEaseCubicBezier(&easing, p), mtwnEase(&easing, p, true));
+                same += SameBits(EaseBezierAt(&easing, p), EaseAt(&easing, p, false));
+                same += SameBits(EaseBezierAt(&easing, p), EaseAt(&easing, p, true));
                 compared += 2;
             }
             for (size_t e = 0; e < sizeof s_edges / sizeof s_edges[0]; ++e)
             {
                 double p = s_edges[e];
-                same += SameBits(mtwnEaseCubicBezier(&easing, p), mtwnEase(&easing, p, false));
+                same += SameBits(EaseBezierAt(&easing, p), EaseAt(&easing, p, false));
                 compared += 1;
             }
         }
@@ -584,13 +597,13 @@ static void TestCubicBezierSampler(void)
     {
         mtwnEasing keyword;
         CHECK(mtwnMakeCssEasing((mtwnCssKeyword)k, &keyword) == mtwn_success, "a keyword");
-        CHECK(SameBits(mtwnEaseCubicBezier(&keyword, 0.3), mtwnEase(&keyword, 0.3, false)) &&
-                  SameBits(mtwnEaseCubicBezier(&keyword, -0.25), mtwnEase(&keyword, -0.25, false)),
+        CHECK(SameBits(EaseBezierAt(&keyword, 0.3), EaseAt(&keyword, 0.3, false)) &&
+                  SameBits(EaseBezierAt(&keyword, -0.25), EaseAt(&keyword, -0.25, false)),
               "CSS's keywords as mtwnEase gives them");
     }
     mtwnEasing linear = mtwnLinearEasing();
-    CHECK(SameBits(mtwnEaseCubicBezier(&linear, 0.3), 0.3) &&
-              SameBits(mtwnEaseCubicBezier(&linear, -2.5), mtwnEase(&linear, -2.5, false)),
+    CHECK(SameBits(EaseBezierAt(&linear, 0.3), 0.3) &&
+              SameBits(EaseBezierAt(&linear, -2.5), EaseAt(&linear, -2.5, false)),
           "the linear easing, its progress");
     mtwnEasing others[4];
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &others[0]) == mtwn_success &&
@@ -600,8 +613,152 @@ static void TestCubicBezierSampler(void)
           "easings of other kinds");
     for (int k = 0; k < 4; ++k)
     {
-        CHECK(isnan(mtwnEaseCubicBezier(&others[k], 0.5)), "another kind is NaN");
+        double eased = 7.0;
+        CHECK(mtwnEaseCubicBezier(&others[k], 0.5, &eased) == mtwn_errorInvalid && eased == 7.0,
+              "another kind refused");
     }
+    mtwnEasing bezier;
+    CHECK(mtwnMakeCubicBezier(0.3, 0.1, 0.7, 0.9, &bezier) == mtwn_success, "a bezier");
+    mtwnEasing reserved = bezier;
+    reserved.reserved = 1;
+    mtwnEasing mode = bezier;
+    mode.mode = 4;
+    mtwnEasing outside = bezier;
+    outside.parameters[2] = 1.5;
+    double eased = 7.0;
+    CHECK(mtwnEaseCubicBezier(&reserved, 0.5, &eased) == mtwn_errorInvalid &&
+              mtwnEaseCubicBezier(&mode, 0.5, &eased) == mtwn_errorInvalid &&
+              mtwnEaseCubicBezier(&outside, 0.5, &eased) == mtwn_errorInvalid &&
+              mtwnEaseCubicBezier(NULL, 0.5, &eased) == mtwn_errorInvalid && eased == 7.0,
+          "a reserved byte, an unknown mode, a control point no maker takes, or none refused");
+}
+
+// How many of the five calls taking an easing refuse this one, or -1 if
+// one changed an output while refusing.
+static int Refusals(const mtwnEasing* easing)
+{
+    double eased = 7.0;
+    bool monotonic = true;
+    float samples[4] = {7.0f, 7.0f, 7.0f, 7.0f};
+    mtwnLinearPoint points[4] = {{7.0, 7.0}, {7.0, 7.0}, {7.0, 7.0}, {7.0, 7.0}};
+    mtwnEasing rough;
+    memset(&rough, 0xAB, sizeof rough);
+    mtwnEasing before = rough;
+    mtwnRoughDef def = {.shape = *easing, .strength = 0.1, .seed = 3};
+    mtwnEasing moded = *easing;
+    int refused = 0;
+    refused += mtwnEase(easing, 0.5, false, &eased) == mtwn_errorInvalid;
+    refused += mtwnIsEasingMonotonic(easing, &monotonic) == mtwn_errorInvalid;
+    refused += mtwnSetEaseMode(&moded, mtwn_easeOut) == mtwn_errorInvalid;
+    refused += mtwnSampleEasing(easing, 4, samples) == mtwn_errorInvalid;
+    refused += mtwnMakeRoughEasing(&def, points, 4, &rough) == mtwn_errorInvalid;
+    bool kept = eased == 7.0 && monotonic && samples[0] == 7.0f && samples[3] == 7.0f &&
+                memcmp(&moded, easing, sizeof moded) == 0 && points[1].output == 7.0 &&
+                memcmp(&rough, &before, sizeof rough) == 0;
+    return refused == 5 && !kept ? -1 : refused;
+}
+
+static double ReturnHalf(void* context, double progress)
+{
+    (void)context;
+    (void)progress;
+    return 0.5;
+}
+
+// One made easing with one field written as no maker writes it.
+#define FORGED(base, change, what)                                                                 \
+    do                                                                                             \
+    {                                                                                              \
+        mtwnEasing e = (base);                                                                     \
+        change;                                                                                    \
+        CHECK(Refusals(&e) == 5, what);                                                            \
+    } while (0)
+
+static void TestForgedPenner(void)
+{
+    mtwnEasing power = mtwnLinearEasing();
+    mtwnEasing sine = power;
+    mtwnEasing expo = power;
+    mtwnEasing circ = power;
+    mtwnEasing bounce = power;
+    mtwnEasing back = power;
+    mtwnEasing elastic = power;
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &power) == mtwn_success &&
+              mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeIn, &sine) == mtwn_success &&
+              mtwnMakePennerEasing(mtwn_easingExpo, mtwn_easeIn, &expo) == mtwn_success &&
+              mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeIn, &circ) == mtwn_success &&
+              mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeIn, &bounce) == mtwn_success &&
+              mtwnMakeBackEasing(mtwn_easeIn, 1.7, &back) == mtwn_success &&
+              mtwnMakeElasticEasing(mtwn_easeOut, 1.2, 0.3, &elastic) == mtwn_success,
+          "Penner's easings");
+    const mtwnEasing* made[] = {&power, &sine, &expo, &circ, &bounce, &back, &elastic};
+    int taken = 0;
+    for (size_t i = 0; i < sizeof made / sizeof made[0]; ++i)
+    {
+        taken += Refusals(made[i]) == 0;
+    }
+    CHECK(taken == 7, "as made, taken");
+    FORGED(power, e.reserved = 1, "a reserved byte not 0");
+    FORGED(power, e.mode = 4, "an unknown mode");
+    FORGED(power, e.kind = 13, "an unknown kind");
+    FORGED(power, e.parameters[0] = 0.0, "an exponent of 0");
+    FORGED(power, e.parameters[0] = HUGE_VAL, "an infinite exponent");
+    FORGED(power, (e.count = 0, e.parameters[0] = HUGE_VAL), "an infinite exponent, not counted");
+    FORGED(power, e.count = 3, "a count not its exponent");
+    FORGED(power, (e.parameters[0] = 9.0, e.count = 9), "a count past 8");
+    FORGED(power, e.parameters[3] = 0.5, "a power's start not 0");
+    FORGED(power, e.parameters[4] = 2.0, "a power's range not 1");
+    FORGED(sine, e.parameters[4] = 1.0, "sine's range not its own");
+    FORGED(expo, e.parameters[3] = 0.0, "expo's start not its own");
+    FORGED(expo, e.parameters[4] = 1.0, "expo's range not its own");
+    FORGED(circ, e.parameters[4] = 0x1.0p-1074, "circ's range not 1");
+    FORGED(bounce, e.parameters[3] = -1.0, "bounce's start not 0");
+    FORGED(back, e.parameters[0] = -1.0, "a negative overshoot");
+    FORGED(back, e.parameters[0] = HUGE_VAL, "an infinite overshoot");
+    FORGED(back, e.parameters[4] = 0.0, "back's range 0");
+    FORGED(elastic, e.parameters[0] = 0.5, "an amplitude below 1");
+    FORGED(elastic, e.parameters[0] = 513.0, "an amplitude past 512");
+    FORGED(elastic, e.parameters[1] = 0.0, "no frequency");
+    FORGED(elastic, e.parameters[1] = 0x1.0p13, "a period below 2^-10");
+    FORGED(elastic, e.parameters[2] = (double)NAN, "a NaN phase");
+    FORGED(elastic, e.parameters[2] = -1e308, "a phase whose angle overflows");
+    FORGED(elastic, e.parameters[2] = 0.5, "a phase past a quarter turn");
+    FORGED(elastic, e.parameters[3] = 1.5, "a start past 1");
+    FORGED(elastic, e.parameters[4] = 0.2, "a range below 1/4");
+    FORGED(elastic, e.parameters[4] = 2.5, "a range past 2");
+}
+
+static void TestForgedOthers(void)
+{
+    mtwnEasing host = mtwnLinearEasing();
+    mtwnEasing bezier = host;
+    mtwnEasing steps = host;
+    mtwnEasing linear = host;
+    mtwnLinearPoint points[3] = {{0.0, 0.0}, {0.5, 0.8}, {1.0, 1.0}};
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, ReturnHalf, NULL, &host) == mtwn_success &&
+              mtwnMakeCubicBezier(0.25, 0.1, 0.25, 1.0, &bezier) == mtwn_success &&
+              mtwnMakeSteps(4, mtwn_jumpEnd, &steps) == mtwn_success &&
+              mtwnMakeLinearEasing(points, 3, &linear) == mtwn_success,
+          "the others");
+    mtwnEasing zeroed;
+    memset(&zeroed, 0, sizeof zeroed);
+    CHECK(Refusals(&host) == 0 && Refusals(&bezier) == 0 && Refusals(&steps) == 0 &&
+              Refusals(&linear) == 0 && Refusals(&zeroed) == 0,
+          "as made, taken, and a zeroed one is linear");
+    FORGED(host, e.function = NULL, "a host easing without its function");
+    FORGED(bezier, e.parameters[0] = -0.1, "a control x below 0");
+    FORGED(bezier, e.parameters[2] = 1.5, "a control x past 1");
+    FORGED(bezier, e.parameters[1] = 0x1.0p1001, "a control y past 2^1000");
+    FORGED(bezier, e.parameters[3] = (double)NAN, "a NaN control y");
+    FORGED(steps, e.count = 0, "no steps");
+    FORGED(steps, (e.count = 1, e.position = mtwn_jumpNone), "steps(1) jumping at neither end");
+    FORGED(steps, e.position = 4, "an unknown position");
+    FORGED(linear, e.points = NULL, "linear() without its points");
+    FORGED(linear, e.count = 1, "linear() of one point");
+    CHECK(mtwnMakeCubicBezier(0.5, 0x1.0p1000, 0.5, -0x1.0p1000, &bezier) == mtwn_success &&
+              mtwnMakeCubicBezier(0.5, nextafter(0x1.0p1000, HUGE_VAL), 0.5, 0.0, &bezier) ==
+                  mtwn_errorInvalid,
+          "a control y of 2^1000 taken, past it refused");
 }
 
 int main(int argc, char** argv)
@@ -614,6 +771,8 @@ int main(int argc, char** argv)
     }
     s_finer = dense ? 10 : 1;
     TestElasticZero();
+    TestForgedPenner();
+    TestForgedOthers();
     TestLinearRunEnd();
     TestEndsAreExact();
     TestEndsAreExactForEveryParameter();

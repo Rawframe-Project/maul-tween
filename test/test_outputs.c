@@ -227,6 +227,16 @@ static void TestPathsAndTracks(void)
 // output as it was.
 static void TestSamplers(void)
 {
+    mtwnEasing easing;
+    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &easing) == mtwn_success, "an easing");
+    double eased;
+    UNCHANGED(eased, mtwnEase(&easing, (double)NAN, false, &eased), "an easing at NaN");
+    UNCHANGED(eased, mtwnEaseCubicBezier(&easing, HUGE_VAL, &eased), "a bezier at infinity");
+    mtwnEasing forgedEasing = easing;
+    forgedEasing.parameters[0] = 2.0;
+    bool monotonic;
+    UNCHANGED(monotonic, mtwnIsEasingMonotonic(&forgedEasing, &monotonic),
+              "a forged easing's monotonicity");
     mtwnSpring spring;
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.2, &spring) == mtwn_success, "a spring");
     mtwnSpring forged = spring;

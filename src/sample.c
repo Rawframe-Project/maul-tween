@@ -13,6 +13,7 @@
 #include "maul-tween/sample.h"
 
 #include "fpenv.h"
+#include "valid.h"
 #include "work.h"
 
 #include <math.h>
@@ -35,7 +36,7 @@ static const double s_narrowest = 0x1.0p-24;
 static MTWN_NOINLINE mtwnResult mtwnSampleEasingWork(const mtwnEasing* easing, uint32_t count,
                                                      float* valuesOut)
 {
-    if (easing == NULL || valuesOut == NULL || count < 2)
+    if (!mtwnValidEasing(easing) || valuesOut == NULL || count < 2)
     {
         return mtwn_errorInvalid;
     }
@@ -99,7 +100,7 @@ static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing
                                                         mtwnLinearPoint* pointsOut,
                                                         uint32_t capacity, uint32_t* countOut)
 {
-    if (easing == NULL || countOut == NULL || (pointsOut == NULL && capacity > 0) ||
+    if (!mtwnValidEasing(easing) || countOut == NULL || (pointsOut == NULL && capacity > 0) ||
         easing->kind == mtwn_easingSteps || !isfinite(tolerance) || tolerance <= 0.0)
     {
         return mtwn_errorInvalid;

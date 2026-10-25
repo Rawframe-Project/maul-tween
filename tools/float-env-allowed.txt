@@ -6,7 +6,6 @@ makes an easing from integers, pointers and constants, computing no float:
     mtwnLinearEasing
     mtwnMakeHostEasing
     mtwnMakeSteps
-    mtwnSetEaseMode
 
 makes a default from constants, computing no float:
     mtwnDefaultTiming

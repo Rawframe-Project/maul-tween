@@ -72,8 +72,8 @@ static uint64_t Work(void)
         for (int i = 0; i <= 64; ++i)
         {
             double p = (double)i / 64.0;
-            hash = Mix(hash, mtwnEase(&s_shared.ease, p, false));
-            hash = Mix(hash, mtwnEase(&s_shared.bezier, p, false));
+            hash = Mix(hash, EaseAt(&s_shared.ease, p, false));
+            hash = Mix(hash, EaseAt(&s_shared.bezier, p, false));
             double offset = 0.0;
             double speed = 0.0;
             SampleSpring(&s_shared.spring, -1.0, 0.0, p, &offset, &speed);

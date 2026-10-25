@@ -7,6 +7,7 @@
 // library's own linear().
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
 #include "maul-tween/sample.h"
@@ -46,7 +47,7 @@ static void TestEvenTables(void)
     int wrong = 0;
     for (int i = 0; i <= 256; ++i)
     {
-        wrong += table[i] != (float)mtwnEase(&elastic, (double)i / 256.0, false);
+        wrong += table[i] != (float)EaseAt(&elastic, (double)i / 256.0, false);
     }
     CHECK(wrong == 0 && table[0] == 0.0f && table[256] == 1.0f, "the easing, rounded to float");
     CHECK(mtwnSampleEasing(&quad, 2, values) == mtwn_success && values[0] == 0.0f &&
@@ -64,7 +65,7 @@ static double FitError(const mtwnEasing* easing, uint32_t count, bool* shapeOut)
     bool shape = count >= 2 && s_points[0].input == 0.0 && s_points[count - 1].input == 1.0;
     for (uint32_t i = 0; i < count; ++i)
     {
-        shape = shape && s_points[i].output == mtwnEase(easing, s_points[i].input, false);
+        shape = shape && s_points[i].output == EaseAt(easing, s_points[i].input, false);
         shape = shape && (i == 0 || s_points[i].input > s_points[i - 1].input);
     }
     *shapeOut = shape;
@@ -78,7 +79,7 @@ static double FitError(const mtwnEasing* easing, uint32_t count, bool* shapeOut)
     for (int i = 0; i <= s_grid; ++i)
     {
         double p = (double)i / s_grid;
-        double error = fabs(mtwnEase(&fitted, p, false) - mtwnEase(easing, p, false));
+        double error = fabs(EaseAt(&fitted, p, false) - EaseAt(easing, p, false));
         worst = error > worst ? error : worst;
     }
     return worst;
@@ -195,7 +196,7 @@ static void TestToleranceMetExactly(void)
     for (int k = 1; k <= 32; ++k)
     {
         double share = (double)k / 33.0;
-        double miss = fabs(mtwnEase(&quad, share, false) - share);
+        double miss = fabs(EaseAt(&quad, share, false) - share);
         worst = miss > worst ? miss : worst;
     }
     uint32_t count = 0;
@@ -226,7 +227,7 @@ static void TestJumpsEnd(void)
         double p = (double)i / s_grid;
         if (fabs(p - 0.5) > 0x1.0p-24)
         {
-            double error = fabs(mtwnEase(&fitted, p, false) - Jump(NULL, p));
+            double error = fabs(EaseAt(&fitted, p, false) - Jump(NULL, p));
             worst = error > worst ? error : worst;
         }
     }
@@ -274,6 +275,11 @@ static void TestFitRefusals(void)
           "a capacity without a buffer");
     CHECK(mtwnFitLinearEasing(NULL, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
           "no easing");
+    mtwnEasing forged = quad;
+    forged.count = 3;
+    CHECK(mtwnFitLinearEasing(&forged, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid &&
+              count == 7,
+          "an easing no maker produced");
     CHECK(mtwnFitLinearEasing(&quad, 1e-3, s_points, s_capacity, NULL) == mtwn_errorInvalid,
           "no count");
     mtwnEasing endless;

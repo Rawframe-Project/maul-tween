@@ -10,9 +10,18 @@
 #ifndef MAUL_TWEEN_SRC_VALID_H
 #define MAUL_TWEEN_SRC_VALID_H
 
+#include "maul-tween/easing.h"
 #include "maul-tween/spring.h"
 
 #include <stdbool.h>
+
+// An easing's fields, those its kind reads, as its maker gives them:
+// exactly where the maker computes them exactly (the normalizations of the
+// curves without parameters, a power's and a back's, the CSS curves' own
+// fields), and otherwise in the ranges that keep its sample finite over
+// progress 0 to 1 (an elastic, a spring easing). linear()'s points are
+// the host's and not read; its sampler is finite for any finite points.
+bool mtwnValidEasing(const mtwnEasing* easing);
 
 // A spring's precomputed fields derived again from its frequency and ratio,
 // bit for bit, and its reserved word 0.

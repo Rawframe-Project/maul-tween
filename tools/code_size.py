@@ -42,13 +42,13 @@ PARTS = [
 # whole library's by what an overflowing start's exact settling time
 # costs, the values' and the whole library's by what refusing a timing
 # whose active duration or cycle overflows costs, and every part's by what
-# checking springs and decays where they enter costs.
+# checking springs and decays, then easings, where they enter costs.
 BUDGETS = {
-    "curves": 29500,
-    "values": 61200,
-    "transitions": 64700,
-    "clips": 153600,
-    "everything": 171800,
+    "curves": 31500,
+    "values": 63100,
+    "transitions": 66700,
+    "clips": 155700,
+    "everything": 173800,
 }
 
 
@@ -66,7 +66,9 @@ GROWTH = 0.10
 RAISED = {
     "curves": "every public call that computes enters the float environment through a "
     "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
-    "or a decay checks it, 1.6 kB",
+    "or a decay checks it, 1.6 kB, and every call taking an easing, 2.0 kB",
+    "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB",
+    "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB",
 }
 
 

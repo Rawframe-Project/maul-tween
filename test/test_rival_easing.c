@@ -9,6 +9,7 @@
 // difference is the rival's miss, under 2^-10.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
 
@@ -92,7 +93,7 @@ static void TestRivals(void)
         for (int i = 0; i <= RIVAL_STEPS; ++i)
         {
             double p = (double)i / RIVAL_STEPS;
-            double error = fabs(mtwnEase(&easing, p, false) - curve->values[i]);
+            double error = fabs(EaseAt(&easing, p, false) - curve->values[i]);
             worst = error > worst ? error : worst;
         }
         if (worst <= Bound(curve))

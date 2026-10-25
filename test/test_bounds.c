@@ -10,6 +10,7 @@
 // oracle is, fails; a check of finite values alone passes both.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/player.h"
@@ -122,7 +123,7 @@ static void TestTransitions(void)
         for (int k = 1; k <= 16; ++k)
         {
             double p = (double)k / 16.0;
-            double e = mtwnEase(&def.easing, p, false);
+            double e = EaseAt(&def.easing, p, false);
             double change = e * ((double)b - (double)a);
             double exact = e == 1.0 ? (double)b : (double)a + change;
             float got = At(&w, 1.0 + p);
@@ -183,7 +184,7 @@ static void TestTracks(void)
         {
             double t = (double)k / 16.0;
             int i = t < 0.5 ? 0 : 1;
-            double e = mtwnEase(&keys[i].easing, (t - keys[i].offset) / 0.5, false);
+            double e = EaseAt(&keys[i].easing, (t - keys[i].offset) / 0.5, false);
             double a = (double)keys[i].value.x;
             double change = e * ((double)keys[i + 1].value.x - a);
             double exact = e == 1.0 ? (double)keys[i + 1].value.x : a + change;

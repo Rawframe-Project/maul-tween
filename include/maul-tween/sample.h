@@ -27,8 +27,8 @@ extern "C"
     /// @param easing     An easing made by this library.
     /// @param count      The number of samples, at least 2.
     /// @param valuesOut  Receives count values; unchanged on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a
-    ///         count below 2.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
+    ///         easing no maker produced or a count below 2.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count,
@@ -55,7 +55,8 @@ extern "C"
     ///         MTWN_MAX_FIT_POINTS are, the fit stopped there, countOut
     ///         0 and the contents of pointsOut unspecified;
     ///         mtwn_errorInvalid for a null easing or
-    ///         countOut, a NULL pointsOut with a capacity, steps, a
+    ///         countOut, an easing no maker produced, a NULL pointsOut with
+    ///         a capacity, steps, a
     ///         tolerance outside the above, or an easing not finite at a
     ///         point the fit keeps.
     /// @par Thread safety

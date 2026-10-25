@@ -603,13 +603,13 @@ static void HashEasing(const mtwnEasing* easing)
 {
     for (uint32_t k = 0; k < SAMPLES; ++k)
     {
-        HashDouble(mtwnEase(easing, Progress(k), false));
-        HashDouble(mtwnEase(easing, Progress(k), true));
+        HashDouble(EaseAt(easing, Progress(k), false));
+        HashDouble(EaseAt(easing, Progress(k), true));
     }
     for (uint32_t e = 0; e < 6; ++e)
     {
-        HashDouble(mtwnEase(easing, s_ends[e], false));
-        HashDouble(mtwnEase(easing, s_ends[e], true));
+        HashDouble(EaseAt(easing, s_ends[e], false));
+        HashDouble(EaseAt(easing, s_ends[e], true));
     }
 }
 

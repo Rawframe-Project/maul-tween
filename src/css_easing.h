@@ -10,14 +10,30 @@
 
 #include "maul-tween/easing.h"
 
-// cubic-bezier(control[0], control[1], control[2], control[3]) at any
-// finite progress x, both control x from 0 to 1.
+// The largest control y of a cubic bezier: its polynomial's coefficients,
+// at most 21 times it, stay finite.
+#define MTWN_LARGEST_BEZIER_Y 0x1.0p1000
+
+// Whether control points are those mtwnMakeCubicBezier takes: both x
+// from 0 to 1, both y at most MTWN_LARGEST_BEZIER_Y in magnitude.
+bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2);
+
+// The CSS curves take any progress x but NaN: an infinite one is where a
+// mode's 2p overflowed. Each is finite, a value past the doubles given as
+// the largest double of its sign.
+
+// cubic-bezier(control[0], control[1], control[2], control[3]) for control
+// points it takes, a flat end tangent still its end at an infinite x.
 double mtwnSampleCubicBezier(const double control[4], double x);
 
-// steps(count, position) at any finite progress x.
+// Whether steps(count, position) is one mtwnMakeSteps makes.
+bool mtwnValidSteps(uint32_t count, mtwnStepPosition position);
+
+// steps(count, position).
 double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool before);
 
-// linear() through canonical points at any finite progress x.
+// linear() through at least 2 points: CSS's value through canonical
+// points, and for any finite points, sorted or not, a finite value.
 double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, double x);
 
 // Validates count points (at least 2, finite outputs, inputs finite or

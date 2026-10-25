@@ -7,6 +7,7 @@
 // taper, the flags, and the refusals.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
 
@@ -42,12 +43,12 @@ static void TestSeedBits(void)
     mtwnEasing easing;
     CHECK(mtwnMakeRoughEasing(&def, points, 6, &easing) == mtwn_success, "a rough easing");
     CHECK(memcmp(points, want, sizeof want) == 0, "the seed's points, bit for bit");
-    CHECK(mtwnEase(&easing, 0.0, false) == 0.0 && mtwnEase(&easing, 1.0, false) == 1.0,
+    CHECK(EaseAt(&easing, 0.0, false) == 0.0 && EaseAt(&easing, 1.0, false) == 1.0,
           "its ends exact");
     double a = points[2].output;
     double b = points[3].output;
     double mid = 0.5 * (points[2].input + points[3].input);
-    CHECK(fabs(mtwnEase(&easing, mid, false) - 0.5 * (a + b)) <= 1e-15, "straight between points");
+    CHECK(fabs(EaseAt(&easing, mid, false) - 0.5 * (a + b)) <= 1e-15, "straight between points");
     mtwnLinearPoint again[6];
     CHECK(mtwnMakeRoughEasing(&def, again, 6, &easing) == mtwn_success &&
               memcmp(points, again, sizeof again) == 0,
@@ -95,7 +96,7 @@ static void TestBounds(void)
                 double low = (double)(k - 1) / (count - 2);
                 double high = (double)k / (count - 2);
                 unordered += !(x > low && x < high);
-                double offset = fabs(points[k].output - mtwnEase(&def.shape, x, false));
+                double offset = fabs(points[k].output - EaseAt(&def.shape, x, false));
                 outside += offset > 0.3 * Share(taper, x) * (1.0 + 1e-15) + 1e-16;
             }
             // Clamped: the same draws, each output held to [0, 1].
@@ -117,7 +118,7 @@ static void TestBounds(void)
             {
                 falling += points[k].output < points[k - 1].output || points[k].output > 1.0;
             }
-            falling += !mtwnIsEasingMonotonic(&easing);
+            falling += !IsMonotonicEasing(&easing);
         }
     }
     CHECK(outside == 0, "every offset within the strength by the taper");
@@ -147,7 +148,7 @@ static void TestZigZag(void)
           "no seed in it");
     // Two points are the shape's ends: linear.
     CHECK(mtwnMakeRoughEasing(&def, points, 2, &easing) == mtwn_success &&
-              mtwnEase(&easing, 0.25, false) == 0.25,
+              EaseAt(&easing, 0.25, false) == 0.25,
           "two points, a straight line");
     // A shape sampled outside its before phase, at a strength of 0: a
     // zig-zag of three points puts its middle at 0.5, steps(2)'s jump.

@@ -6,7 +6,9 @@
 // rotations, paths, tracks, punch, shake and staggers, made from
 // parameters ordinary or wild (zero, negative, tiny, huge, infinite,
 // NaN). What is made, sampled at finite inputs, is never NaN, and never
-// infinite when every parameter was ordinary; easings meet their ends
+// infinite when every parameter was ordinary; an easing, made from any
+// parameters, is finite at every finite progress, and with a field a host
+// wrote is refused or still finite; easings meet their ends
 // where the API says they do, rotations stay unit, a punch rests outside
 // its span, and a stagger that succeeds writes finite offsets.
 //
@@ -134,6 +136,9 @@ static void CheckEach(const Bytes* in, const char* what, const double* values, i
 static const double s_progress[] = {-1.5, -0.25,         0.0, 0x1p-40, 0.1, 0.5,
                                     0.75, 1.0 - 0x1p-40, 1.0, 1.25,    2.5};
 
+// And for an easing, progress so far out that a mode's 2p overflows.
+static const double s_farProgress[] = {-DBL_MAX, -0x1.8p1023, 0x1.8p1023, DBL_MAX};
+
 // The fit's tolerance (fuzz_fit's alone). A fit costs about as many
 // points as the curve needs, so an even draw of the tolerance spent the
 // target's time on a few fits near the limit (19 inputs a second): most
@@ -154,6 +159,77 @@ static double FitTolerance(Bytes* in, bool* deep)
         return (b & 16) != 0 ? 1e-300 : 0x1p-40;
     }
     return ldexp(1.0 + (double)Byte(in) / 256.0, -(int)(2 + b % 15));
+}
+
+// An easing a maker made, at a finite progress: taken, and finite.
+static double Eased(const mtwnEasing* e, double progress, bool before)
+{
+    double eased = (double)NAN;
+    if (mtwnEase(e, progress, before, &eased) != mtwn_success || !isfinite(eased))
+    {
+        Fail("an easing's value", eased);
+    }
+    return eased;
+}
+
+// Any double, from eight bytes.
+static double AnyDouble(Bytes* in)
+{
+    uint64_t bits = 0;
+    for (int i = 0; i < 8; ++i)
+    {
+        bits = bits << 8 | Byte(in);
+    }
+    double value = 0.0;
+    memcpy(&value, &bits, sizeof value);
+    return value;
+}
+
+// A forged easing at a progress: refused, or finite.
+static void ForgedAt(const mtwnEasing* e, double progress)
+{
+    double eased = 0.0;
+    if (mtwnEase(e, progress, false, &eased) == mtwn_success && !isfinite(eased))
+    {
+        Fail("a forged easing taken and not finite", eased);
+    }
+}
+
+// A made easing with one field a host wrote: refused, or finite at every
+// progress. Not for linear() or a host function, whose points and
+// function the host owns.
+static void Forged(Bytes* in, const mtwnEasing* made)
+{
+    mtwnEasing e = *made;
+    uint32_t field = Below(in, 8);
+    if (field < 5)
+    {
+        e.parameters[field] = AnyDouble(in);
+    }
+    else if (field == 5)
+    {
+        e.count = 0;
+        for (int i = 0; i < 4; ++i)
+        {
+            e.count = e.count << 8 | Byte(in);
+        }
+    }
+    else if (field == 6)
+    {
+        e.kind = (mtwnEasingKind)Byte(in);
+    }
+    else
+    {
+        e.position = (mtwnStepPosition)Byte(in);
+    }
+    for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
+    {
+        ForgedAt(&e, s_progress[i]);
+    }
+    for (size_t i = 0; i < sizeof s_farProgress / sizeof s_farProgress[0]; ++i)
+    {
+        ForgedAt(&e, s_farProgress[i]);
+    }
 }
 
 // The fit of linear() is fuzz_fit's: at its limit it takes a thousand
@@ -239,13 +315,21 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     }
     for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
     {
-        Check(in, "an easing's value", mtwnEase(&e, s_progress[i], false));
-        Check(in, "an easing's value before", mtwnEase(&e, s_progress[i], true));
+        (void)Eased(&e, s_progress[i], false);
+        (void)Eased(&e, s_progress[i], true);
     }
-    if (ends && in->ordinary &&
-        (mtwnEase(&e, 0.0, false) != 0.0 || mtwnEase(&e, 1.0, false) != 1.0))
+    for (size_t i = 0; i < sizeof s_farProgress / sizeof s_farProgress[0]; ++i)
     {
-        Fail("an easing's ends", mtwnEase(&e, 1.0, false));
+        (void)Eased(&e, s_farProgress[i], false);
+        (void)Eased(&e, s_farProgress[i], true);
+    }
+    if (ends && in->ordinary && (Eased(&e, 0.0, false) != 0.0 || Eased(&e, 1.0, false) != 1.0))
+    {
+        Fail("an easing's ends", Eased(&e, 1.0, false));
+    }
+    if (e.kind != mtwn_easingLinearPoints)
+    {
+        Forged(in, &e);
     }
     float samples[16];
     if (mtwnSampleEasing(&e, 16, samples) == mtwn_success)
@@ -269,7 +353,7 @@ static void Easings(Bytes* in, bool fit, bool* deep)
             Fail("a fitted linear() refused", (double)fittedCount);
             return;
         }
-        Check(in, "a fitted linear()'s value", mtwnEase(&linear, 0.5, false));
+        (void)Eased(&linear, 0.5, false);
     }
 }
 
