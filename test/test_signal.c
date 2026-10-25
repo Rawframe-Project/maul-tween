@@ -8,6 +8,7 @@
 // bits on every platform for a seed.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -76,11 +77,13 @@ static void TestPunch(void)
 {
     mtwnPunch punch;
     CHECK(mtwnMakePunch(6.0, 0.8, 1.5, &punch) == mtwn_success, "made");
-    CHECK(mtwnSamplePunch(&punch, 0.0) == 0.0 && mtwnSamplePunch(&punch, 0.8) == 0.0 &&
-              mtwnSamplePunch(&punch, -1.0) == 0.0 && mtwnSamplePunch(&punch, 5.0) == 0.0,
+    CHECK(SamplePunch(&punch, 0.0) == 0.0 && SamplePunch(&punch, 0.8) == 0.0 &&
+              SamplePunch(&punch, -1.0) == 0.0 && SamplePunch(&punch, 5.0) == 0.0,
           "0 at its ends and outside");
-    CHECK(mtwnSamplePunch(&punch, HUGE_VAL) == 0.0 && mtwnSamplePunch(&punch, (double)NAN) == 0.0,
-          "0 at an infinite or NaN time, not the sine's NaN");
+    double factor = 7.0;
+    CHECK(SamplePunch(&punch, HUGE_VAL) == 0.0 &&
+              mtwnSamplePunch(&punch, (double)NAN, &factor) == mtwn_errorInvalid && factor == 7.0,
+          "0 at an infinite time, not the sine's NaN, and a NaN time refused");
     double worst = 0.0;
     double largest = 0.0;
     for (int k = 1; k < 8000; ++k)
@@ -88,7 +91,7 @@ static void TestPunch(void)
         double t = 0.8 * (double)k / 8000.0;
         Wide reference = WIDE_SIN(2 * (Wide)3.14159265358979323846264L * 6 * (Wide)t) *
                          WIDE_POW(1 - (Wide)t / (Wide)0.8, (Wide)1.5);
-        double value = mtwnSamplePunch(&punch, t);
+        double value = SamplePunch(&punch, t);
         double e = fabs(value - (double)reference);
         worst = e > worst ? e : worst;
         largest = fabs(value) > largest ? fabs(value) : largest;
@@ -102,19 +105,19 @@ static void TestPunch(void)
     // A punch over a very long span: its sine is of the cycles' fraction,
     // in range however far in.
     CHECK(mtwnMakePunch(8.0, 1e300, 1.5, &punch) == mtwn_success, "a punch over 1e300 s");
-    double deep = mtwnSamplePunch(&punch, 2.5e299 + 0.03125);
+    double deep = SamplePunch(&punch, 2.5e299 + 0.03125);
     CHECK(fabs(deep) <= 1.0, "a factor deep into it");
     // Its cycles past the double range: a whole count, the sine 0.
     CHECK(mtwnMakePunch(1e300, 1e300, 1e-300, &punch) == mtwn_success, "a fast punch");
-    CHECK(mtwnSamplePunch(&punch, 2.5e299) == 0.0, "cycles overflowed");
+    CHECK(SamplePunch(&punch, 2.5e299) == 0.0, "cycles overflowed");
 }
 
 static void TestShakeShape(void)
 {
     mtwnShake shake;
     CHECK(mtwnMakeShake(4.0, 3.0, 1.0, 42, &shake) == mtwn_success, "made");
-    CHECK(mtwnSampleShake(&shake, 0, 0.0) == 0.0 && mtwnSampleShake(&shake, 0, 3.0) == 0.0 &&
-              mtwnSampleShake(&shake, 0, -1.0) == 0.0 && mtwnSampleShake(&shake, 0, 9.0) == 0.0,
+    CHECK(SampleShake(&shake, 0, 0.0) == 0.0 && SampleShake(&shake, 0, 3.0) == 0.0 &&
+              SampleShake(&shake, 0, -1.0) == 0.0 && SampleShake(&shake, 0, 9.0) == 0.0,
           "0 at its ends and outside");
     int negative = 0;
     for (uint64_t seed = 0; seed < 8; ++seed)
@@ -122,7 +125,7 @@ static void TestShakeShape(void)
         CHECK(mtwnMakeShake(7.0, 1.0, 2.0, seed, &shake) == mtwn_success, "made");
         for (uint32_t channel = 0; channel < 4; ++channel)
         {
-            negative += signbit(mtwnSampleShake(&shake, channel, 0.0)) ? 1 : 0;
+            negative += signbit(SampleShake(&shake, channel, 0.0)) ? 1 : 0;
         }
     }
     CHECK(negative == 0, "its start an unsigned 0 on every channel");
@@ -130,7 +133,7 @@ static void TestShakeShape(void)
     int lattice = 0;
     for (int k = 1; k < 12; ++k)
     {
-        lattice += mtwnSampleShake(&shake, 1, (double)k * 0.25) != 0.0;
+        lattice += SampleShake(&shake, 1, (double)k * 0.25) != 0.0;
     }
     CHECK(lattice == 0, "0 on its lattice, as gradient noise is");
     mtwnShake steady;
@@ -145,7 +148,7 @@ static void TestShakeShape(void)
     for (int k = 0; k <= 2000000; ++k)
     {
         double t = (double)k * 1e-5;
-        double value = mtwnSampleShake(&steady, 3, t);
+        double value = SampleShake(&steady, 3, t);
         largest = fabs(value) > largest ? fabs(value) : largest;
         double step = fabs(value - previous);
         jump = k > 0 && step > jump ? step : jump;
@@ -168,16 +171,16 @@ static void TestShakeRepeats(void)
     for (int k = 1; k < 1000; ++k)
     {
         double t = (double)k * 0.002;
-        same += mtwnSampleShake(&a, 2, t) == mtwnSampleShake(&b, 2, t);
+        same += SampleShake(&a, 2, t) == SampleShake(&b, 2, t);
         // On the lattice every channel is 0; elsewhere they differ.
-        double value = mtwnSampleShake(&a, 2, t);
-        otherChannel += value != 0.0 && value == mtwnSampleShake(&a, 3, t);
+        double value = SampleShake(&a, 2, t);
+        otherChannel += value != 0.0 && value == SampleShake(&a, 3, t);
     }
     CHECK(same == 999, "the same seed shakes the same way");
     CHECK(otherChannel == 0, "each channel its own noise off the lattice");
     mtwnShake c;
     CHECK(mtwnMakeShake(10.0, 2.0, 2.0, 1235, &c) == mtwn_success &&
-              mtwnSampleShake(&c, 2, 0.123) != mtwnSampleShake(&a, 2, 0.123),
+              SampleShake(&c, 2, 0.123) != SampleShake(&a, 2, 0.123),
           "another seed another way");
     CHECK(mtwnMakeShake(1.0, 1.0, 0.0, 0, &c) == mtwn_errorInvalid, "a zero exponent");
     CHECK(mtwnMakeShake(-1.0, 1.0, 1.0, 0, &c) == mtwn_errorInvalid, "a negative frequency");
@@ -195,19 +198,20 @@ static void TestShakeNoise(void)
     {
         double t = (double)k * 0.0093;
         double envelope = 1.0 - t / 2.0;
-        apart += mtwnSampleShake(&shake, 4, t) != mtwnShakeNoise(&shake, 4, t) * envelope;
+        apart += SampleShake(&shake, 4, t) != ShakeNoise(&shake, 4, t) * envelope;
     }
     CHECK(apart == 0, "the shake is its noise times its envelope, bit for bit");
-    CHECK(mtwnShakeNoise(&shake, 4, 3.07) != 0.0 && mtwnSampleShake(&shake, 4, 3.07) == 0.0,
+    CHECK(ShakeNoise(&shake, 4, 3.07) != 0.0 && SampleShake(&shake, 4, 3.07) == 0.0,
           "the noise runs on past the duration");
-    CHECK(mtwnShakeNoise(&shake, 4, 0.3) == 0.0 && mtwnShakeNoise(&shake, 4, -0.07) == 0.0 &&
-              mtwnShakeNoise(&shake, 4, 0x1p53 / 10.0) == 0.0 &&
-              mtwnShakeNoise(&shake, 4, (double)NAN) == 0.0,
-          "0 on the lattice, before 0, past 2^53 points and for NaN");
+    double factor = 7.0;
+    CHECK(ShakeNoise(&shake, 4, 0.3) == 0.0 && ShakeNoise(&shake, 4, -0.07) == 0.0 &&
+              ShakeNoise(&shake, 4, 0x1p53 / 10.0) == 0.0 &&
+              mtwnShakeNoise(&shake, 4, (double)NAN, &factor) == mtwn_errorInvalid && factor == 7.0,
+          "0 on the lattice, before 0 and past 2^53 points, and a NaN clock refused");
     double largest = 0.0;
     for (int k = 0; k < 100000; ++k)
     {
-        largest = fmax(largest, fabs(mtwnShakeNoise(&shake, 9, (double)k * 1e-3)));
+        largest = fmax(largest, fabs(ShakeNoise(&shake, 9, (double)k * 1e-3)));
     }
     CHECK(largest <= 1.0 && largest > 0.7, "within [-1, 1], filling most of it");
 }
@@ -228,6 +232,81 @@ static void TestIntegerTop(void)
           "a mix of 2^63 exactly: the largest");
 }
 
+// Whether a punch's sample refuses it, its out as it was.
+static bool PunchRefused(const mtwnPunch* punch)
+{
+    double factor = 7.0;
+    return mtwnSamplePunch(punch, 0.25, &factor) == mtwn_errorInvalid && factor == 7.0;
+}
+
+// Whether a shake's sample and noise both refuse it, their outs as they
+// were.
+static bool ShakeRefused(const mtwnShake* shake)
+{
+    double factor = 7.0;
+    double noise = 7.0;
+    return mtwnSampleShake(shake, 1, 0.25, &factor) == mtwn_errorInvalid &&
+           mtwnShakeNoise(shake, 1, 0.25, &noise) == mtwn_errorInvalid && factor == 7.0 &&
+           noise == 7.0;
+}
+
+// A punch or a shake with a field written as its maker never writes it:
+// each field refused on its own, wherever it is taken. A shake of 2^53
+// lattice points or more over its duration is refused: a sample inside it
+// would hold an index past what the noise keeps exact, and from 2^64 one
+// a cast could not.
+static void TestForgedSignals(void)
+{
+    mtwnPunch madePunch;
+    mtwnShake madeShake;
+    CHECK(mtwnMakePunch(6.0, 0.8, 1.5, &madePunch) == mtwn_success &&
+              mtwnMakeShake(12.0, 0.9, 1.5, 7u, &madeShake) == mtwn_success,
+          "a punch and a shake");
+    double factor = 7.0;
+    CHECK(mtwnSamplePunch(NULL, 0.25, &factor) == mtwn_errorInvalid &&
+              mtwnSamplePunch(&madePunch, 0.25, NULL) == mtwn_errorInvalid &&
+              mtwnSampleShake(NULL, 0, 0.25, &factor) == mtwn_errorInvalid &&
+              mtwnSampleShake(&madeShake, 0, 0.25, NULL) == mtwn_errorInvalid &&
+              mtwnShakeNoise(NULL, 0, 0.25, &factor) == mtwn_errorInvalid &&
+              mtwnShakeNoise(&madeShake, 0, 0.25, NULL) == mtwn_errorInvalid && factor == 7.0,
+          "a null signal or out");
+    double shake = 7.0;
+    CHECK(mtwnSampleShake(&madeShake, 0, (double)NAN, &shake) == mtwn_errorInvalid && shake == 7.0,
+          "a NaN time");
+    const double wrong[] = {0.0, -1.0, (double)NAN, (double)INFINITY};
+    int refused = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int field = 0; field < 3; ++field)
+        {
+            mtwnPunch punch = madePunch;
+            mtwnShake forged = madeShake;
+            double* punchField = field == 0   ? &punch.frequency
+                                 : field == 1 ? &punch.duration
+                                              : &punch.exponent;
+            double* shakeField = field == 0   ? &forged.frequency
+                                 : field == 1 ? &forged.duration
+                                              : &forged.exponent;
+            *punchField = wrong[i];
+            *shakeField = wrong[i];
+            refused += PunchRefused(&punch) && ShakeRefused(&forged);
+        }
+    }
+    CHECK(refused == 12, "a frequency, duration or exponent of 0, below 0, NaN or infinite");
+    mtwnShake forged = madeShake;
+    forged.frequency = 1.0;
+    forged.duration = 0x1.fffffffffffffp52;
+    double inside = 7.0;
+    CHECK(mtwnSampleShake(&forged, 0, 0x1.8p52, &inside) == mtwn_success && isfinite(inside),
+          "just under 2^53 lattice points taken");
+    forged.duration = 0x1p53;
+    CHECK(ShakeRefused(&forged), "2^53 refused");
+    forged.frequency = 0x1p40;
+    forged.duration = 0x1p30;
+    CHECK(ShakeRefused(&forged),
+          "past 2^64 refused, where a sample's index cast would be undefined");
+}
+
 int main(void)
 {
     TestIntegerFarProgress();
@@ -238,5 +317,6 @@ int main(void)
     TestShakeRepeats();
     TestShakeNoise();
     TestIntegerTop();
+    TestForgedSignals();
     return s_failures == 0 ? 0 : 1;
 }

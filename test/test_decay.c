@@ -201,6 +201,17 @@ static void TestDecayCrossings(void)
     CHECK(fabs(position - 3.9) <= 1e-14, "the motion is at the target then");
 }
 
+// Whether the rubber band and its inverse both refuse their arguments,
+// leaving their outs as they were.
+static bool BandRefused(double distance, double dimension, double coefficient)
+{
+    double offset = 7.0;
+    double drag = 7.0;
+    return mtwnRubberBand(distance, dimension, coefficient, &offset) == mtwn_errorInvalid &&
+           mtwnRubberBandInverse(distance, dimension, coefficient, &drag) == mtwn_errorInvalid &&
+           offset == 7.0 && drag == 7.0;
+}
+
 static void TestRubberBand(void)
 {
     double worst = 0.0;
@@ -208,14 +219,14 @@ static void TestRubberBand(void)
     for (int i = 1; i <= 2000; ++i)
     {
         double x = ldexp((double)i / 2000.0, i % 40 - 20);
-        double band = mtwnRubberBand(x, 600.0, 0.55);
+        double band = RubberBand(x, 600.0, 0.55);
         // iOS's d (1 - 1 / (u + 1)) with u = c x / d is c x / (1 + u),
         // which loses no digits in either width: the band over c x is
         // checked against 1 / (1 + u).
         Wide u = (Wide)0.55 * (Wide)x / 600;
         double error = Relative(band / (0.55 * x), 1 / (1 + u));
         worst = error > worst ? error : worst;
-        double back = mtwnRubberBandInverse(band, 600.0, 0.55);
+        double back = RubberBandInverse(band, 600.0, 0.55);
         double round = fabs(back - x) / x;
         worstInverse = round > worstInverse ? round : worstInverse;
     }
@@ -225,45 +236,45 @@ static void TestRubberBand(void)
     }
     CHECK(worst <= 6e-16 + s_slack, "iOS's rubber band, small drags keeping their digits");
     CHECK(worstInverse <= 1e-13, "its inverse takes the band back to the drag");
-    CHECK(mtwnRubberBand(-30.0, 600.0, 0.55) == -mtwnRubberBand(30.0, 600.0, 0.55), "signed");
-    CHECK(mtwnRubberBand(0.0, 600.0, 0.55) == 0.0, "nothing past the limit");
-    CHECK(fabs(mtwnRubberBand(1e-9, 600.0, 0.55) / 1e-9 - 0.55) <= 1e-12, "slope c at the limit");
-    CHECK(mtwnRubberBand(HUGE_VAL, 600.0, 0.55) == 600.0 &&
-              mtwnRubberBand(-HUGE_VAL, 600.0, 0.55) == -600.0,
+    CHECK(RubberBand(-30.0, 600.0, 0.55) == -RubberBand(30.0, 600.0, 0.55), "signed");
+    CHECK(RubberBand(0.0, 600.0, 0.55) == 0.0, "nothing past the limit");
+    CHECK(fabs(RubberBand(1e-9, 600.0, 0.55) / 1e-9 - 0.55) <= 1e-12, "slope c at the limit");
+    CHECK(RubberBand(HUGE_VAL, 600.0, 0.55) == 600.0 &&
+              RubberBand(-HUGE_VAL, 600.0, 0.55) == -600.0,
           "an infinite drag reaches the dimension");
-    CHECK(mtwnRubberBand(30.0, HUGE_VAL, 0.55) == 0.55 * 30.0 &&
-              mtwnRubberBand(-30.0, HUGE_VAL, HUGE_VAL) == -HUGE_VAL,
+    CHECK(RubberBand(30.0, HUGE_VAL, 0.55) == 0.55 * 30.0 &&
+              RubberBand(-30.0, HUGE_VAL, HUGE_VAL) == -HUGE_VAL,
           "an endless view resists nothing; with an endless coefficient, not NaN");
-    CHECK(mtwnRubberBand(0.0, 600.0, HUGE_VAL) == 0.0 &&
-              signbit(mtwnRubberBand(-0.0, 600.0, HUGE_VAL)) &&
-              mtwnRubberBand(30.0, 600.0, HUGE_VAL) == 600.0 &&
-              mtwnRubberBandInverse(0.0, 600.0, HUGE_VAL) == 0.0,
+    CHECK(RubberBand(0.0, 600.0, HUGE_VAL) == 0.0 && signbit(RubberBand(-0.0, 600.0, HUGE_VAL)) &&
+              RubberBand(30.0, 600.0, HUGE_VAL) == 600.0 &&
+              RubberBandInverse(0.0, 600.0, HUGE_VAL) == 0.0,
           "an endless coefficient: nothing past the limit moves nothing, any drag the view");
-    CHECK(mtwnRubberBandInverse(-16.5, HUGE_VAL, 0.55) == -16.5 / 0.55,
+    CHECK(RubberBandInverse(-16.5, HUGE_VAL, 0.55) == -16.5 / 0.55,
           "and its inverse takes it back");
-    CHECK(mtwnRubberBand(1e10, 600.0, 0.55) < 600.0, "a finite one does not");
-    CHECK(mtwnRubberBand(1e308, 600.0, 4.0) == 600.0 &&
-              mtwnRubberBand(1e-310, 600.0, 0.55) == 0.55 * 1e-310,
+    CHECK(RubberBand(1e10, 600.0, 0.55) < 600.0, "a finite one does not");
+    CHECK(RubberBand(1e308, 600.0, 4.0) == 600.0 &&
+              RubberBand(1e-310, 600.0, 0.55) == 0.55 * 1e-310,
           "nothing overflows at huge drags or vanishes at tiny ones");
-    CHECK(mtwnRubberBand(30.0, 0.0, 0.55) == 0.0 && mtwnRubberBand(30.0, 600.0, 0.0) == 0.0 &&
-              mtwnRubberBand((double)NAN, 600.0, 0.55) == 0.0 &&
-              mtwnRubberBand(30.0, -1.0, 0.55) == 0.0,
-          "no band without a dimension and a coefficient");
-    CHECK(!signbit(mtwnRubberBand(-30.0, 0.0, 0.55)) && !signbit(mtwnRubberBand(-30.0, 600.0, 0.0)),
-          "its 0 unsigned, a negative drag too");
-    double small = mtwnRubberBand(1.0, 0.5, 0.55);
+    CHECK(BandRefused(30.0, 0.0, 0.55) && BandRefused(30.0, 600.0, 0.0) &&
+              BandRefused((double)NAN, 600.0, 0.55) && BandRefused(30.0, -1.0, 0.55) &&
+              BandRefused(30.0, (double)NAN, 0.55) && BandRefused(30.0, 600.0, (double)NAN),
+          "no band without a dimension and a coefficient above 0, nor for a NaN drag");
+    double small = RubberBand(1.0, 0.5, 0.55);
     CHECK(fabs(small - 0.5 * 0.55 / 1.05) <= 1e-15 &&
-              fabs(mtwnRubberBandInverse(small, 0.5, 0.55) - 1.0) <= 1e-12,
+              fabs(RubberBandInverse(small, 0.5, 0.55) - 1.0) <= 1e-12,
           "a band under a unit wide");
-    CHECK(mtwnRubberBandInverse(-30.0, 600.0, 0.55) == -mtwnRubberBandInverse(30.0, 600.0, 0.55) &&
-              mtwnRubberBandInverse(-30.0, 600.0, 0.55) < 0.0,
+    CHECK(RubberBandInverse(-30.0, 600.0, 0.55) == -RubberBandInverse(30.0, 600.0, 0.55) &&
+              RubberBandInverse(-30.0, 600.0, 0.55) < 0.0,
           "the inverse is signed");
-    CHECK(mtwnRubberBandInverse(600.0, 600.0, 0.55) == HUGE_VAL &&
-              mtwnRubberBandInverse(-700.0, 600.0, 0.55) == -HUGE_VAL,
+    CHECK(RubberBandInverse(600.0, 600.0, 0.55) == HUGE_VAL &&
+              RubberBandInverse(-700.0, 600.0, 0.55) == -HUGE_VAL,
           "no drag moves it the dimension");
-    CHECK(mtwnRubberBandInverse(30.0, 0.0, 0.55) == 0.0 &&
-              mtwnRubberBandInverse((double)NAN, 600.0, 0.55) == 0.0,
-          "nor without a dimension");
+    CHECK(BandRefused(30.0, 0.0, 0.55) && BandRefused((double)NAN, 600.0, 0.55) &&
+              BandRefused(30.0, 600.0, -0.55),
+          "the inverse refuses the same, and a NaN offset");
+    CHECK(mtwnRubberBand(30.0, 600.0, 0.55, NULL) == mtwn_errorInvalid &&
+              mtwnRubberBandInverse(30.0, 600.0, 0.55, NULL) == mtwn_errorInvalid,
+          "a null out refused");
 }
 
 // The documented ends: a stop speed not above 0 is
@@ -277,9 +288,9 @@ static void TestEnds(void)
     CHECK(mtwnDecayStopTime(&decay, 0.0, 0.0, &stop) == mtwn_errorInvalid &&
               mtwnDecayStopTime(&decay, 5.0, -1.0, &stop) == mtwn_errorInvalid && stop == 0.0,
           "a stop speed not above 0 refused");
-    CHECK(mtwnRubberBand(0.0, 0.0, 0.55) == 0.0 && mtwnRubberBand(3.0, 0.0, 0.55) == 0.0 &&
-              mtwnRubberBand(3.0, 100.0, 0.0) == 0.0,
-          "no dimension or coefficient, no band");
+    CHECK(BandRefused(0.0, 0.0, 0.55) && BandRefused(3.0, 0.0, 0.55) &&
+              BandRefused(3.0, 100.0, 0.0),
+          "no dimension or coefficient refused");
 }
 
 // A decay's rate is the library's: one no maker gives, not finite and

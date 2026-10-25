@@ -199,9 +199,12 @@ static void Springs(Out* out)
         PUT(out, velocity);
     }
     double stop = BoundedDecayStopTime(&bounded, 90.0, 900.0, 0.001, 0.5);
-    double band = mtwnRubberBand(120.0, 400.0, 0.55);
-    double back = mtwnRubberBandInverse(80.0, 400.0, 0.55);
+    double band = 0.0;
+    double back = 0.0;
+    mtwnResult banded[2] = {mtwnRubberBand(120.0, 400.0, 0.55, &band),
+                            mtwnRubberBandInverse(80.0, 400.0, 0.55, &back)};
     PUT(out, stop);
+    PUT(out, banded);
     PUT(out, band);
     PUT(out, back);
 }
@@ -261,9 +264,13 @@ static void Values(Out* out)
     PUT(out, made);
     for (int i = 0; i < s_secondCount; ++i)
     {
-        double p = mtwnSamplePunch(&punch, s_seconds[i]);
-        double sh = mtwnSampleShake(&shake, 1, s_seconds[i]);
-        double noise = mtwnShakeNoise(&shake, 2, s_seconds[i]);
+        double p = 0.0;
+        double sh = 0.0;
+        double noise = 0.0;
+        mtwnResult sampled[3] = {mtwnSamplePunch(&punch, s_seconds[i], &p),
+                                 mtwnSampleShake(&shake, 1, s_seconds[i], &sh),
+                                 mtwnShakeNoise(&shake, 2, s_seconds[i], &noise)};
+        PUT(out, sampled);
         PUT(out, p);
         PUT(out, sh);
         PUT(out, noise);

@@ -348,7 +348,9 @@ extern "C"
     MTWN_API uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress);
 
     // A punch: a sine fading out over a duration, sin(2 pi f t) (1 - t /
-    // duration)^exponent. Make one with mtwnMakePunch.
+    // duration)^exponent. Make one with mtwnMakePunch; its fields are the
+    // maker's arguments, and every call taking one refuses fields the maker
+    // would.
     typedef struct mtwnPunch
     {
         double frequency;
@@ -357,7 +359,9 @@ extern "C"
     } mtwnPunch;
 
     // A shake: gradient noise fading out over the same envelope, the same
-    // for a seed on every platform. Make one with mtwnMakeShake.
+    // for a seed on every platform. Make one with mtwnMakeShake; its fields
+    // are the maker's arguments, and every call taking one refuses fields
+    // the maker would.
     typedef struct mtwnShake
     {
         double frequency;
@@ -385,12 +389,15 @@ extern "C"
     /// channel's amplitude and adds to the value; exactly 0 at 0, at the
     /// duration and outside them.
     ///
-    /// @param punch    A punch made by this library.
-    /// @param seconds  The time since its start.
-    /// @return The factor.
+    /// @param punch      A punch made by this library.
+    /// @param seconds    The time since its start, not NaN.
+    /// @param factorOut  Receives the factor; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a punch
+    ///         whose fields mtwnMakePunch would refuse, or a NaN time.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnSamplePunch(const mtwnPunch* punch, double seconds);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSamplePunch(const mtwnPunch* punch, double seconds,
+                                                       double* factorOut);
 
     /// Makes a shake.
     ///
@@ -413,13 +420,16 @@ extern "C"
     /// channel its own noise; exactly 0 at 0, at the duration and outside
     /// them.
     ///
-    /// @param shake    A shake made by this library.
-    /// @param channel  Which channel, any value.
-    /// @param seconds  The time since its start.
-    /// @return The factor.
+    /// @param shake      A shake made by this library.
+    /// @param channel    Which channel, any value.
+    /// @param seconds    The time since its start, not NaN.
+    /// @param factorOut  Receives the factor; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a shake
+    ///         whose fields mtwnMakeShake would refuse, or a NaN time.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seconds);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleShake(const mtwnShake* shake, uint32_t channel,
+                                                       double seconds, double* factorOut);
 
     /// Samples a shake's noise alone, its envelope left to the host:
     /// for a shake driven by "trauma" (Eiserloh's camera shake:
@@ -427,16 +437,20 @@ extern "C"
     /// square), on a clock that runs on through the hits, so the noise never
     /// jumps where the amplitude changes. Each channel its own noise.
     ///
-    /// @param shake    A shake made by this library; its duration and
-    ///                 exponent are not used.
-    /// @param channel  Which channel, any value.
-    /// @param seconds  The clock, from 0 while the frequency times it is
-    ///                 below 2^53.
-    /// @return A factor from -1 to 1: 0 on the lattice points and outside
-    ///         the clock's range.
+    /// @param shake      A shake made by this library; its duration and
+    ///                   exponent are checked but not used.
+    /// @param channel    Which channel, any value.
+    /// @param seconds    The clock, from 0 while the frequency times it is
+    ///                   below 2^53; not NaN.
+    /// @param factorOut  Receives a factor from -1 to 1: 0 on the lattice
+    ///                   points and outside the clock's range; unchanged on
+    ///                   failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a shake
+    ///         whose fields mtwnMakeShake would refuse, or a NaN clock.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnShakeNoise(const mtwnShake* shake, uint32_t channel,
+                                                      double seconds, double* factorOut);
 
 #ifdef __cplusplus
 }

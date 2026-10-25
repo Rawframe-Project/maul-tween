@@ -373,27 +373,31 @@ extern "C"
     /// c x d / (c x + d), with slope c at the limit, never reaching d.
     /// Signed: a negative distance moves the other way.
     ///
-    /// @param distance     The drag past the limit; may be infinite.
-    /// @param dimension    The view's size along it.
-    /// @param coefficient  c, 0.55 on iOS.
-    /// @return The distance moved; 0 for a dimension or coefficient not
-    ///         above 0 or NaN.
+    /// @param distance     The drag past the limit, not NaN; may be infinite.
+    /// @param dimension    The view's size along it, above 0; may be infinite.
+    /// @param coefficient  c, 0.55 on iOS; above 0, and may be infinite.
+    /// @param offsetOut    Receives the distance moved; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null offsetOut or an
+    ///         argument outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnRubberBand(double distance, double dimension, double coefficient);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnRubberBand(double distance, double dimension,
+                                                      double coefficient, double* offsetOut);
 
     /// The inverse of mtwnRubberBand: the drag that moves content an
     /// offset past a limit, d o / (c (d - o)).
     ///
-    /// @param offset       The distance moved, signed.
-    /// @param dimension    The view's size along it.
-    /// @param coefficient  c, 0.55 on iOS.
-    /// @return The drag; infinite, signed, for an offset of at least the
-    ///         dimension; 0 for a dimension or coefficient not above 0 or
-    ///         NaN.
+    /// @param offset       The distance moved, signed, not NaN.
+    /// @param dimension    The view's size along it, above 0; may be infinite.
+    /// @param coefficient  c, 0.55 on iOS; above 0, and may be infinite.
+    /// @param dragOut      Receives the drag: infinite, signed, for an offset
+    ///                     of at least the dimension; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null dragOut or an
+    ///         argument outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnRubberBandInverse(double offset, double dimension, double coefficient);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnRubberBandInverse(double offset, double dimension,
+                                                             double coefficient, double* dragOut);
 
 #ifdef __cplusplus
 }

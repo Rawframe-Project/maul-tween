@@ -11,6 +11,7 @@
 #define MAUL_TWEEN_SRC_VALID_H
 
 #include "maul-tween/easing.h"
+#include "maul-tween/interpolate.h"
 #include "maul-tween/path.h"
 #include "maul-tween/spring.h"
 
@@ -43,5 +44,12 @@ bool mtwnValidPath(const mtwnPath* path);
 
 // A track's fields and its path's as mtwnMakeTrack sets them.
 bool mtwnValidTrack(const mtwnTrack* track);
+
+// A punch's fields, its maker's arguments, as mtwnMakePunch takes them.
+bool mtwnValidPunch(const mtwnPunch* punch);
+
+// A shake's fields, its maker's arguments, as mtwnMakeShake takes them:
+// fewer than 2^53 lattice points over its duration.
+bool mtwnValidShake(const mtwnShake* shake);
 
 #endif
