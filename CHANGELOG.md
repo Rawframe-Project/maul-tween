@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.6.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.5.0...v0.6.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **context:** mtwnContextDef gains pointsPerTransition (64 by default) and mtwnClipDef gains pointCapacity (64 by default), which change both defs' layout. A transition, track or timeline eased by linear() copies the points into the context, so the host's array may change or go once the call returns. A transition with more points than pointsPerTransition, and a track or timeline whose points pass the clip's pointCapacity, are refused with mtwn_errorLimit. Points the host changed out of their maker's canonical order are refused with mtwn_errorInvalid. mtwnGrowContext refuses a smaller pointsPerTransition. The default context grows by 256 KiB, the default clip by 1 KiB, and the default clip storage from 208 KiB to 224 KiB. mtwnValidateTiming, mtwnComputeTiming, mtwnMakePath, mtwnMakeTrack, the stagger functions and the clips refuse an easing no maker produced, as the easing calls already do. Results for every input still taken are unchanged.
+
+### Fixed
+
+* **context:** copy linear() points where an easing enters a context ([#68](https://github.com/Rawframe-Project/maul-tween/issues/68)) ([1d6a13b](https://github.com/Rawframe-Project/maul-tween/commit/1d6a13bb68d1085d445eecfeaf5b08cbdd86752c)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+
 ## [0.5.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.4.0...v0.5.0) (2026-10-25)
 
 ### Changed
