@@ -32,10 +32,10 @@ ctest --test-dir build
 ./build/sample_button
 ```
 
-Ubuntu 24.04's default compiler is GCC 13, which the build refuses ("GCC 14 or newer is required"). Install GCC 14 and configure again in a fresh build directory, since `build/` keeps the compiler it first found; then go on from `cmake --build build`:
+Ubuntu 24.04's default compiler is GCC 13, which the build refuses ("GCC 14 or newer is required"). Install GCC 14, with Git and CMake on a system that lacks them, and configure again in a fresh build directory, since `build/` keeps the compiler it first found; then go on from `cmake --build build`:
 
 ```sh
-sudo apt install gcc-14
+sudo apt install git cmake gcc-14
 rm -rf build && CC=gcc-14 cmake -B build -DCMAKE_BUILD_TYPE=Release
 ```
 
