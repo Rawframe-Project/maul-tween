@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.3.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.1...v0.3.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **timing:** mtwnValidateTiming, and the clip calls that check a timing, refuse timings they accepted before. What timing.h already promised: a negative rate only with a finite active duration, whose end a backward play starts from; the code checked only that iterations times duration was finite, and now meets that contract for backward timings whose repeat delays or small rate overflow the active duration. What is newly refused: finite iterations and duration whose active duration overflows a double played forwards, which used to become endless; an end time, delay plus active duration plus end delay, that overflows a double, unless the active duration is infinite because the iterations or the duration are and the timing plays forwards, which used to become endless the same way (infinitely many iterations of nothing, or none of an infinite duration, last 0 and are refused when their delays overflow); a repeat delay whose sum with the duration overflows a double, either way; and a child of a timeline lasting as long as its children when the duration it would give the timeline makes the timeline's timing one of these, which mtwnClip_AddTrack and mtwnClip_AddTimeline refuse with mtwn_errorInvalid, leaving the clip as it was.
+
+### Fixed
+
+* **timing:** refuse timings whose active duration or cycle overflows ([#58](https://github.com/Rawframe-Project/maul-tween/issues/58)) ([724052b](https://github.com/Rawframe-Project/maul-tween/commit/724052b08090c874e448884bb83efa2c09f90021)), closes [#57](https://github.com/Rawframe-Project/maul-tween/issues/57)
+
 ## [0.2.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.0...v0.2.1) (2026-10-25)
 
 ### Fixed
