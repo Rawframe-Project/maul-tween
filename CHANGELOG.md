@@ -6,6 +6,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.7.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.6.0...v0.7.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **spring:** mtwnMakeSpringEasing refuses, with mtwn_errorInvalid, a spring whose natural frequency in radians a second times the duration reaches 2^512 (about 1.34e154), whose squared frequency would not be finite; it used to make such an overdamped or critical easing. mtwnEase and every call taking an easing refuse a spring easing whose squared frequency is infinite.
+* **path:** mtwnSamplePath(path, progress, valueOut, tangentOut), mtwnPathDirection(path, progress, directionOut), mtwnPathAngle(path, progress, angleOut) and mtwnSampleTrack(track, progress, valueOut) return mtwnResult. mtwnPathAngle gives its angle through the new angleOut, and mtwnSampleTrack its value through the new valueOut; every output is unchanged on refusal. Each refuses with mtwn_errorInvalid a null struct or out, a progress that is not finite, a path or track whose fields no maker gives, and the segment it reads unless its kind is known (at constant speed, not a step) and, timed by its keyframes, its easing is a maker's. Results for every input still taken are unchanged.
+
+### Fixed
+
+* **path:** validate paths and tracks wherever a call takes one ([#70](https://github.com/Rawframe-Project/maul-tween/issues/70)) ([3a3b1de](https://github.com/Rawframe-Project/maul-tween/commit/3a3b1de6ceb9ef83ad10f95deb0f62830187cc4d)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+* **spring:** refuse a spring easing whose squared frequency is infinite ([#73](https://github.com/Rawframe-Project/maul-tween/issues/73)) ([9ea5f99](https://github.com/Rawframe-Project/maul-tween/commit/9ea5f9969268d801484a7bbf59b46389f87570ec)), closes [#71](https://github.com/Rawframe-Project/maul-tween/issues/71)
+
 ## [0.6.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.5.0...v0.6.0) (2026-10-25)
 
 ### Changed
