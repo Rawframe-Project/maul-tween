@@ -85,6 +85,8 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     }
     if (target->kind == mtwn_valueScale)
     {
+        // An accepted scale is above 0, so its logarithm is finite.
+        MTWN_ASSERT(out->from.x > 0.0f && out->to.x > 0.0f);
         // The rate in the logarithm, v / value; a spring's or easing's
         // progress takes it over the logarithm's distance.
         double rate = out->velocity[0] / (double)out->from.x;
@@ -330,6 +332,9 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
         return mtwn_errorInvalid;
     }
     EndOf(def, out);
+    // A delay, duration, settling or stopping time: never below 0 or NaN,
+    // so the update ends the transition once its time is reached.
+    MTWN_ASSERT(out->endTime >= 0.0);
     switch (target->kind)
     {
     case mtwn_valueColor:
@@ -364,12 +369,17 @@ static void Reverse(const mtwnContext* context, const mtwnTransitionDef* def,
         return;
     }
     const mtwnPlayerSlot* running = mtwnPlayerAt(context, target->header.link);
+    // A target's link is the transition writing it, which links back.
+    MTWN_ASSERT(running->type == MTWN_PLAYER_TRANSITION &&
+                running->header.link == def->target.index1);
     mtwnVec4 end = {0};
     if (running->spec != mtwn_transitionEasing ||
         !mtwnAcceptValue(target->kind, def->value, &end) || !Same(end, running->reversingStart))
     {
         return;
     }
+    // An eased transition's shortening is the share left of its way.
+    MTWN_ASSERT(running->shortening >= 0.0 && running->shortening <= 1.0);
     double share = mtwnEasedProgress(context, target->header.link) * running->shortening +
                    (1.0 - running->shortening);
     double factor = fabs(share) < 1.0 ? fabs(share) : 1.0;
@@ -408,12 +418,14 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
         mtwnPlayerEvent(context, target->header.link, mtwn_eventCancel, now, since);
         mtwnEndTransition(context, target->header.link);
     }
+    MTWN_ASSERT(target->header.link == 0);
     uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_TRANSITION);
     if (index1 == 0)
     {
         return mtwn_errorLimit;
     }
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
+    MTWN_ASSERT(slot->type == MTWN_PLAYER_TRANSITION);
     prepared.header = slot->header;
     prepared.type = slot->type;
 
@@ -584,6 +596,9 @@ mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* 
 void mtwnEndTransition(mtwnContext* context, uint32_t player)
 {
     uint32_t target = mtwnPlayerAt(context, player)->header.link;
+    // A transition and its target link to each other.
+    MTWN_ASSERT(mtwnPlayerAt(context, player)->type == MTWN_PLAYER_TRANSITION && target != 0 &&
+                mtwnTargetAt(context, target)->header.link == player);
     mtwnSettleVelocity(context, target);
     mtwnLinkTarget(context, mtwnTargetAt(context, target), 0);
     mtwnFreePlayer(context, player);

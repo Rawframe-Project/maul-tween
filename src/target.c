@@ -140,7 +140,8 @@ static mtwnResult RunDestroyTarget(mtwnContext* context, mtwnTargetId target)
     {
         mtwnEndTransition(context, slot->header.link);
     }
-    // A target on the list of changed targets leaves it.
+    MTWN_ASSERT(slot->header.link == 0);
+    // A target on the list of changed targets leaves it: it was on it once.
     if ((slot->header.flags & MTWN_TARGET_CHANGED) != 0)
     {
         uint32_t kept = 0;
@@ -151,9 +152,11 @@ static mtwnResult RunDestroyTarget(mtwnContext* context, mtwnTargetId target)
                 context->changed[kept++] = context->changed[i];
             }
         }
+        MTWN_ASSERT(kept + 1u == context->changedCount);
         context->changedCount = kept;
     }
     // Its transition ended above: layered only by its clips' players.
+    MTWN_ASSERT(!mtwnLayered(slot) || context->layeredTargets > 0);
     context->layeredTargets -= mtwnLayered(slot) ? 1u : 0u;
     ++context->writersEpoch;
     mtwnPoolRelease(&context->targets, target.index1);
