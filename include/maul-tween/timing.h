@@ -136,7 +136,8 @@ extern "C"
     /// delay finite and from 0, playback rate finite and not 0, every
     /// enumeration known. The active duration and the end time (delay plus
     /// active duration plus end delay) must be finite, unless the
-    /// iterations or the duration are infinite and the rate is positive:
+    /// iterations or the duration are infinite, making the active duration
+    /// infinite, and the rate is positive:
     /// a backward play starts from the active interval's end, and finite
     /// fields that overflow a double there are refused. With a repeat
     /// delay, the duration plus the repeat delay must be finite.

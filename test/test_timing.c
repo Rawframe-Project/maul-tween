@@ -244,6 +244,24 @@ static void TestOverflowingTimings(void)
         {1e308, 1e308, 0.0, "a delay and an active duration overflowing the end"},
         {0.0, 1e308, 1e308, "an active duration and an end delay overflowing the end"},
     };
+    // Infinitely many of nothing, or none of forever, last 0 however they
+    // play: endless forwards only when the active duration is.
+    double infinite[][2] = {{HUGE_VAL, 0.0}, {0.0, HUGE_VAL}};
+    for (size_t i = 0; i < 2; ++i)
+    {
+        mtwnTiming timing = mtwnDefaultTiming();
+        timing.iterations = infinite[i][0];
+        timing.duration = infinite[i][1];
+        timing.delay = 1e308;
+        timing.endDelay = 1e308;
+        CHECK(mtwnValidateTiming(&timing) == mtwn_errorInvalid,
+              i == 0 ? "forwards, infinitely many of nothing, delays overflowing the end"
+                     : "forwards, none of forever, delays overflowing the end");
+        timing.endDelay = 0.0;
+        CHECK(mtwnValidateTiming(&timing) == mtwn_success,
+              i == 0 ? "forwards, infinitely many of nothing after a 1e308 s delay"
+                     : "forwards, none of forever after a 1e308 s delay");
+    }
     for (size_t i = 0; i < sizeof endless / sizeof endless[0]; ++i)
     {
         mtwnTiming timing = mtwnDefaultTiming();
