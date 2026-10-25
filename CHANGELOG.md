@@ -8,14 +8,25 @@ refused with `mtwn_errorVersion`.
 
 ## [0.4.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.3.0...v0.4.0) (2026-10-25)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **spring:** mtwnSpringMotionAt, mtwnSampleSpring, mtwnSpringSettlingTime, mtwnSampleDecay, mtwnDecayStopTime, mtwnDecayCrossingTime, mtwnSampleBoundedDecay and mtwnBoundedDecayStopTime return an mtwnResult and give their results through pointers, unchanged on refusal. A tolerance or stop speed not above 0, which gave infinity, is now refused. New refusals cover a start that is not finite, a time below 0 or NaN, and a spring, decay or bounded decay no maker produced. mtwnMakeBoundedDecay now refuses a decay or spring no maker produced, and a spring transition refuses a spring whose derived fields or regime differ from what its frequency and ratio make. Results for every input still taken are unchanged.
-
-### Fixed
-
-* **spring:** validate springs and decays wherever a call takes one ([#62](https://github.com/Rawframe-Project/maul-tween/issues/62)) ([50d69f7](https://github.com/Rawframe-Project/maul-tween/commit/50d69f7a94deddf7baa7e8403361d962cae5966c)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+- **Breaking: springs and decays are checked wherever a call takes
+  one.** `mtwnSpringMotionAt`, `mtwnSampleSpring`,
+  `mtwnSpringSettlingTime`, `mtwnSampleDecay`, `mtwnDecayStopTime`,
+  `mtwnDecayCrossingTime`, `mtwnSampleBoundedDecay` and
+  `mtwnBoundedDecayStopTime` return an `mtwnResult` and give their
+  results through pointers, unchanged on refusal. They refuse a spring,
+  decay or bounded decay no maker produced, a start that is not finite,
+  a time below 0 or NaN, and a tolerance or stop speed not above 0,
+  which used to give infinity. `mtwnMakeBoundedDecay` refuses a decay or
+  spring no maker produced, and a spring transition refuses a spring
+  whose derived fields or regime differ from what its frequency and
+  ratio make. Results for every input still taken are unchanged. A
+  sample costs a few nanoseconds more (about 5 ns for a spring, 2 to
+  4 ns for a decay, 15 to 21 ns for a bounded decay); a transition
+  checks once, at start. This is the first part of
+  [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+  ([#62](https://github.com/Rawframe-Project/maul-tween/pull/62)).
 
 ## [0.3.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.2.1...v0.3.0) (2026-10-25)
 
