@@ -380,8 +380,9 @@ static double SpringNs(const mtwnSpring* spring)
     for (uint32_t i = 0; i < SAMPLES; ++i)
     {
         double offset = 0.0;
-        mtwnSampleSpring(spring, 1.0, 0.0, (double)i * (2.0 / SAMPLES), &offset, NULL);
-        sum += offset;
+        mtwnResult sampled =
+            mtwnSampleSpring(spring, 1.0, 0.0, (double)i * (2.0 / SAMPLES), &offset, NULL);
+        sum += sampled == mtwn_success ? offset : (double)NAN;
     }
     double took = Seconds() - start;
     s_sink = sum;

@@ -8,6 +8,7 @@
 // crossing times land where the motion does.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/spring.h"
 
@@ -52,7 +53,7 @@ static void TestDecayAgainstTheFormula(void)
                 double seconds = ldexp((double)m / 8.0, e);
                 double position = 0.0;
                 double velocity = 0.0;
-                mtwnSampleDecay(&decay, 5.0, -300.0, seconds, &position, &velocity);
+                SampleDecay(&decay, 5.0, -300.0, seconds, &position, &velocity);
                 Wide y = (Wide)rates[r] * (Wide)seconds;
                 Wide travel = (Wide)-300.0 * -WIDE_EXPM1(-y) / (Wide)rates[r];
                 // The position within an ulp or so of its size, start
@@ -90,7 +91,7 @@ static void TestDecayTravelAlone(void)
     {
         double seconds = ldexp(1.0, e);
         double position = 0.0;
-        mtwnSampleDecay(&decay, 0.0, 1.0, seconds, &position, NULL);
+        SampleDecay(&decay, 0.0, 1.0, seconds, &position, NULL);
         Wide y = 2 * (Wide)seconds;
         double error = Relative(position, -WIDE_EXPM1(-y) / 2);
         worst = error > worst ? error : worst;
@@ -104,7 +105,7 @@ static void TestDecayFromIos(void)
     CHECK(mtwnMakeDecayFromDeceleration(0.998, &normal) == mtwn_success, "0.998");
     // e^(-k t) is 0.998 to the t in milliseconds.
     double velocity = 0.0;
-    mtwnSampleDecay(&normal, 0.0, 1.0, 0.5, NULL, &velocity);
+    SampleDecay(&normal, 0.0, 1.0, 0.5, NULL, &velocity);
     CHECK(Relative(velocity, (Wide)pow(0.998, 500.0)) <= 2e-15, "0.998 kept each millisecond");
     CHECK(fabs(normal.rate - 2.0020026706730793) <= 1e-15, "a rate of -1000 ln 0.998 a second");
     mtwnDecay fast;
@@ -131,17 +132,20 @@ static void TestDecayRestAndStop(void)
     CHECK(mtwnMakeDecay(4.0, &decay) == mtwn_success, "made");
     double position = 0.0;
     double velocity = 1.0;
-    mtwnSampleDecay(&decay, 10.0, -200.0, HUGE_VAL, &position, &velocity);
+    SampleDecay(&decay, 10.0, -200.0, HUGE_VAL, &position, &velocity);
     CHECK(position == 10.0 + -200.0 / 4.0 && velocity == 0.0, "at rest at infinity");
-    double stop = mtwnDecayStopTime(&decay, -200.0, 0.5);
-    mtwnSampleDecay(&decay, 10.0, -200.0, stop, NULL, &velocity);
+    double stop = DecayStopTime(&decay, -200.0, 0.5);
+    SampleDecay(&decay, 10.0, -200.0, stop, NULL, &velocity);
     CHECK(fabs(fabs(velocity) - 0.5) <= 1e-14, "at its stop time it has the stop speed");
-    CHECK(mtwnDecayStopTime(&decay, 0.3, 0.5) == 0.0, "a start already slow");
-    CHECK(mtwnDecayStopTime(&decay, -0.5, 0.5) == 0.0, "a start at the stop speed");
-    CHECK(mtwnDecayStopTime(&decay, -HUGE_VAL, HUGE_VAL) == 0.0, "an endless one too");
-    CHECK(isinf(mtwnDecayStopTime(&decay, 3.0, 0.0)), "a stop speed of 0 is never reached");
-    CHECK(isinf(mtwnDecayStopTime(&decay, 3.0, (double)NAN)), "nor a NaN one");
-    mtwnSampleDecay(&decay, 1.0, 1.0, 1.0, NULL, NULL);
+    CHECK(DecayStopTime(&decay, 0.3, 0.5) == 0.0, "a start already slow");
+    CHECK(DecayStopTime(&decay, -0.5, 0.5) == 0.0, "a start at the stop speed");
+    double never = 0.0;
+    CHECK(mtwnDecayStopTime(&decay, -HUGE_VAL, HUGE_VAL, &never) == mtwn_errorInvalid &&
+              mtwnDecayStopTime(&decay, 3.0, 0.0, &never) == mtwn_errorInvalid &&
+              mtwnDecayStopTime(&decay, 3.0, (double)NAN, &never) == mtwn_errorInvalid &&
+              never == 0.0,
+          "an endless start, a stop speed of 0 or a NaN one refused");
+    SampleDecay(&decay, 1.0, 1.0, 1.0, NULL, NULL);
 }
 
 static void TestDecayCrossings(void)
@@ -157,7 +161,7 @@ static void TestDecayCrossings(void)
         for (int sign = -1; sign <= 1; sign += 2)
         {
             double target = 2.0 + sign * (targets[i] - 2.0);
-            double t = mtwnDecayCrossingTime(&decay, 2.0, sign * 6.0, target);
+            double t = DecayCrossingTime(&decay, 2.0, sign * 6.0, target);
             Wide share = ((Wide)target - 2) * 3 / (sign * 6);
             Wide expected = -WIDE_LOG1P(-share) / 3;
             // Near the rest the time is ill-conditioned in the share f, by
@@ -176,7 +180,7 @@ static void TestDecayCrossings(void)
           "crossing times within 2e-15 of their conditioning, near the start too");
     // From 0 a tiny target makes a share that is no multiple of 2^-53, so
     // 1 - f rounds: the series keeps its digits.
-    double tiny = mtwnDecayCrossingTime(&decay, 0.0, 7.0, 1e-12);
+    double tiny = DecayCrossingTime(&decay, 0.0, 7.0, 1e-12);
     Wide tinyShare = (Wide)1e-12 * 3 / 7;
     CHECK(Relative(tiny, -WIDE_LOG1P(-tinyShare) / 3) <= 2e-15 + s_slack,
           "a target next to the start");
@@ -184,16 +188,16 @@ static void TestDecayCrossings(void)
     // every platform (1 ulp below ln 2 correctly rounded, within the bound).
     mtwnDecay unit;
     CHECK(mtwnMakeDecay(1.0, &unit) == mtwn_success &&
-              mtwnDecayCrossingTime(&unit, 0.0, 2.0, 1.0) == 0x1.62e42fefa39eep-1,
+              DecayCrossingTime(&unit, 0.0, 2.0, 1.0) == 0x1.62e42fefa39eep-1,
           "half the travel by the series");
-    CHECK(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 2.0) == 0.0, "at the start");
-    CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 1.0)), "behind it");
-    CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 4.0)), "exactly at rest");
-    CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 6.0, 5.0)), "past the rest");
-    CHECK(isinf(mtwnDecayCrossingTime(&decay, 2.0, 0.0, 5.0)), "with no velocity");
-    double t = mtwnDecayCrossingTime(&decay, 2.0, 6.0, 3.9);
+    CHECK(DecayCrossingTime(&decay, 2.0, 6.0, 2.0) == 0.0, "at the start");
+    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 6.0, 1.0)), "behind it");
+    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 6.0, 4.0)), "exactly at rest");
+    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 6.0, 5.0)), "past the rest");
+    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 0.0, 5.0)), "with no velocity");
+    double t = DecayCrossingTime(&decay, 2.0, 6.0, 3.9);
     double position = 0.0;
-    mtwnSampleDecay(&decay, 2.0, 6.0, t, &position, NULL);
+    SampleDecay(&decay, 2.0, 6.0, t, &position, NULL);
     CHECK(fabs(position - 3.9) <= 1e-14, "the motion is at the target then");
 }
 
@@ -269,17 +273,46 @@ static void TestEnds(void)
 {
     mtwnDecay decay;
     CHECK(mtwnMakeDecay(4.0, &decay) == mtwn_success, "a decay");
-    CHECK(mtwnDecayStopTime(&decay, 0.0, 0.0) == HUGE_VAL &&
-              mtwnDecayStopTime(&decay, 5.0, -1.0) == HUGE_VAL,
-          "a stop speed not above 0 never reached");
+    double stop = 0.0;
+    CHECK(mtwnDecayStopTime(&decay, 0.0, 0.0, &stop) == mtwn_errorInvalid &&
+              mtwnDecayStopTime(&decay, 5.0, -1.0, &stop) == mtwn_errorInvalid && stop == 0.0,
+          "a stop speed not above 0 refused");
     CHECK(mtwnRubberBand(0.0, 0.0, 0.55) == 0.0 && mtwnRubberBand(3.0, 0.0, 0.55) == 0.0 &&
               mtwnRubberBand(3.0, 100.0, 0.0) == 0.0,
           "no dimension or coefficient, no band");
 }
 
+// A decay's rate is the library's: one no maker gives, not finite and
+// above 0, is refused by every call taking it, with its outputs as they
+// were.
+static void TestForgedDecays(void)
+{
+    static const double rates[] = {0.0, -0.0, -1.0, HUGE_VAL, (double)NAN};
+    int refused = 0;
+    double values[4] = {7.0, 7.0, 7.0, 7.0};
+    for (size_t i = 0; i < sizeof rates / sizeof rates[0]; i++)
+    {
+        mtwnDecay decay = {rates[i]};
+        refused +=
+            mtwnSampleDecay(&decay, 0.0, 1.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
+        refused += mtwnDecayStopTime(&decay, 1.0, 0.5, &values[2]) == mtwn_errorInvalid;
+        refused += mtwnDecayCrossingTime(&decay, 0.0, 1.0, 0.1, &values[3]) == mtwn_errorInvalid;
+    }
+    refused += mtwnSampleDecay(NULL, 0.0, 1.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
+    refused += mtwnDecayStopTime(NULL, 1.0, 0.5, &values[2]) == mtwn_errorInvalid;
+    refused += mtwnDecayCrossingTime(NULL, 0.0, 1.0, 0.1, &values[3]) == mtwn_errorInvalid;
+    CHECK(refused == 18 && values[0] == 7.0 && values[1] == 7.0 && values[2] == 7.0 &&
+              values[3] == 7.0,
+          "a rate not finite and above 0, or no decay, refused");
+    mtwnDecay least = {DBL_TRUE_MIN};
+    CHECK(mtwnDecayStopTime(&least, 1.0, 0.5, &values[2]) == mtwn_success,
+          "the least rate above 0 taken");
+}
+
 int main(void)
 {
     TestEnds();
+    TestForgedDecays();
     TestDecayAgainstTheFormula();
     TestDecayTravelAlone();
     TestDecayFromIos();

@@ -9,6 +9,7 @@
 
 #include "test_fenv.h"
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/context.h"
 #include "maul-tween/event.h"
@@ -477,7 +478,7 @@ static void TestSpring(void)
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
     mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     mtwnPlayerId player = Start(context, &def);
-    double settle = mtwnSpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
+    double settle = SpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
     CHECK(settle > 0.3 && settle < 2.0, "a critical spring settles within a second or so");
     Update(context, 0);
     double worst = 0.0;
@@ -487,7 +488,7 @@ static void TestSpring(void)
         Update(context, time);
         double offset = 0.0;
         double velocity = 0.0;
-        mtwnSampleSpring(&def.spring, -1.0, 0.0, (double)time / 1e9, &offset, &velocity);
+        SampleSpring(&def.spring, -1.0, 0.0, (double)time / 1e9, &offset, &velocity);
         mtwnTargetState state = State(context, x);
         double e = fabs((double)state.value.x - (1.0 + offset)) +
                    fabs((double)state.velocity.x - velocity);
@@ -511,8 +512,8 @@ static void TestStiffSpringEnds(void)
     mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     CHECK(mtwnMakeSpring(1e300, 1e150, 1.0, &def.spring) == mtwn_success, "a stiff spring");
     mtwnPlayerId player = Start(context, &def);
-    double settle = mtwnSpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0, def.restOffset,
-                                           def.restSpeed);
+    double settle =
+        SpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0, def.restOffset, def.restSpeed);
     CHECK(settle > 0.0 && settle < 1e-9, "it settles within a nanosecond");
     Update(context, 0);
     Update(context, 1);
@@ -538,7 +539,7 @@ static void TestHandover(void)
     Update(context, s_second / 2 + 1000000);
     double offset = 0.0;
     double speed = 0.0;
-    mtwnSampleSpring(&back.spring, 5.0, (double)velocity, 0.001, &offset, &speed);
+    SampleSpring(&back.spring, 5.0, (double)velocity, 0.001, &offset, &speed);
     CHECK(fabs((double)State(context, x).value.x - offset) <= 1e-6 &&
               fabs((double)State(context, x).velocity.x - speed) <= 1e-5,
           "the spring takes the velocity the easing left");
@@ -549,7 +550,7 @@ static void TestHandover(void)
     Start(context, &back);
     Update(context, s_second);
     Update(context, s_second + 1000000);
-    mtwnSampleSpring(&back.spring, (double)at, -40.0, 0.001, &offset, &speed);
+    SampleSpring(&back.spring, (double)at, -40.0, 0.001, &offset, &speed);
     CHECK(fabs((double)State(context, x).value.x - offset) <= 1e-6, "or the one given");
     mtwnDestroyContext(context);
 }
@@ -564,19 +565,18 @@ static void TestDecay(void)
     def.velocitySource = mtwn_velocityGiven;
     def.velocity = (mtwnVec4){2000.0f, -50.0f, 0, 0};
     mtwnPlayerId player = Start(context, &def);
-    double stop = mtwnDecayStopTime(&def.decay, 2000.0, def.restSpeed);
-    CHECK(stop > mtwnDecayStopTime(&def.decay, -50.0, def.restSpeed),
-          "the faster channel stops last");
+    double stop = DecayStopTime(&def.decay, 2000.0, def.restSpeed);
+    CHECK(stop > DecayStopTime(&def.decay, -50.0, def.restSpeed), "the faster channel stops last");
     Update(context, 0);
     Update(context, s_second / 4);
     double position = 0.0;
     double velocity = 0.0;
-    mtwnSampleDecay(&def.decay, 100.0, 2000.0, 0.25, &position, &velocity);
+    SampleDecay(&def.decay, 100.0, 2000.0, 0.25, &position, &velocity);
     CHECK(State(context, x).value.x == (float)position &&
               State(context, x).velocity.x == (float)velocity,
           "the decay's position and velocity");
     Update(context, (uint64_t)(stop * 1e9) + 1);
-    mtwnSampleDecay(&def.decay, 100.0, 2000.0, stop, &position, NULL);
+    SampleDecay(&def.decay, 100.0, 2000.0, stop, &position, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) && State(context, x).base.x == (float)position &&
               State(context, x).velocity.x == 0.0f,
           "it ends where it stopped, committed");
@@ -623,7 +623,7 @@ static void TestPathSprings(void)
     Update(context, s_second / 2);
     Update(context, s_second);
     double offset = 0.0;
-    mtwnSampleSpring(&spring.spring, -1.0, along / length, 0.5, &offset, NULL);
+    SampleSpring(&spring.spring, -1.0, along / length, 0.5, &offset, NULL);
     mtwnColorMix mix;
     CHECK(mtwnMakeColorMix((mtwnColor){at.x, at.y, at.z, at.w}, (mtwnColor){0.0f, 1.0f, 1.0f, 1.0f},
                            mtwn_colorSrgb, mtwn_hueShorter, &mix) == mtwn_success,
@@ -674,7 +674,7 @@ static void TestScales(void)
     Update(context, s_second / 2);
     Update(context, s_second);
     double offset = 0.0;
-    mtwnSampleSpring(&spring.spring, -1.0, progress, 0.5, &offset, NULL);
+    SampleSpring(&spring.spring, -1.0, progress, 0.5, &offset, NULL);
     CHECK(mtwnMakeScaleMix(from, 4.0, &mix) == mtwn_success, "the spring's mix");
     CHECK(State(context, s).value.x == (float)mtwnMixScale(&mix, 1.0 + offset),
           "the scale at the spring's progress along its mix");
@@ -701,15 +701,15 @@ static void TestScales(void)
     Update(context, 40 * s_second + s_second / 4);
     double position = 0.0;
     double rate = 0.0;
-    mtwnSampleDecay(&coast.decay, log(2.0), 3.0, 0.25, &position, &rate);
+    SampleDecay(&coast.decay, log(2.0), 3.0, 0.25, &position, &rate);
     CHECK(fabsf(State(context, z).value.x - (float)exp(position)) <=
                   1e-6f * State(context, z).value.x &&
               fabs((double)State(context, z).velocity.x - exp(position) * rate) <=
                   1e-5 * exp(position) * rate,
           "the decay in the logarithm, its velocity the value times the rate");
-    double stop = mtwnDecayStopTime(&coast.decay, 3.0, coast.restSpeed);
+    double stop = DecayStopTime(&coast.decay, 3.0, coast.restSpeed);
     Update(context, 40 * s_second + (uint64_t)(stop * 1e9) + 1);
-    mtwnSampleDecay(&coast.decay, log(2.0), 3.0, stop, &position, NULL);
+    SampleDecay(&coast.decay, log(2.0), 3.0, stop, &position, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) &&
               fabsf(State(context, z).base.x - (float)exp(position)) <=
                   1e-6f * (float)exp(position),
@@ -846,6 +846,14 @@ static void TestSpecRefusals(void)
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.spring = (mtwnSpring){{0.0}, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spring not made");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.spring.parameters[4] = nextafter(def.spring.parameters[4], 0.0);
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
+          "a spring a bit off what its frequency and ratio make");
+    def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
+    def.spring.regime ^= 1U;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
+          "a spring in another regime");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.restOffset = 0.0;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "no rest offset");
@@ -1079,8 +1087,8 @@ static void TestReplacedVelocity(void)
           "the velocity it had, until the next update");
     double offset = 0.0;
     double speed = 0.0;
-    mtwnSampleSpring(&def.spring, (double)before.value.x + 5.0, (double)before.velocity.x, 0.25,
-                     &offset, &speed);
+    SampleSpring(&def.spring, (double)before.value.x + 5.0, (double)before.velocity.x, 0.25,
+                 &offset, &speed);
     // It starts at the next update, from where the target is then.
     CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success &&
@@ -1246,7 +1254,7 @@ static void TestPathVelocity(void)
     // Seen through the color: 0.1 s in, it is where a spring along the mix
     // started with that projected velocity is.
     double offset = 0.0;
-    mtwnSampleSpring(&def.spring, -1.0, along / length, 0.1, &offset, NULL);
+    SampleSpring(&def.spring, -1.0, along / length, 0.1, &offset, NULL);
     mtwnColorMix mix;
     CHECK(mtwnMakeColorMix((mtwnColor){from[0], from[1], from[2], from[3]},
                            (mtwnColor){to[0], to[1], to[2], to[3]}, def.colorSpace, def.hueMethod,

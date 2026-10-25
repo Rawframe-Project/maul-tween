@@ -8,6 +8,7 @@
 // to rounding, scaled by the spring's amplitude.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/spring.h"
 
@@ -45,7 +46,7 @@ static void TestSprings(void)
         {
             double offset = 0.0;
             double speed = 0.0;
-            mtwnSampleSpring(&spring, offset0, r->params[5], i * 0.02, &offset, &speed);
+            SampleSpring(&spring, offset0, r->params[5], i * 0.02, &offset, &speed);
             ok = ok && fabs(r->params[4] + offset - r->values[i]) <= 64.0 * DBL_EPSILON * scale &&
                  fabs(speed - r->velocities[i]) <= 64.0 * DBL_EPSILON * scale * omega;
         }

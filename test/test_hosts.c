@@ -11,6 +11,7 @@
 
 #include "test_fenv.h"
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/context.h"
@@ -152,15 +153,15 @@ static void Springs(Out* out)
     {
         for (int i = 0; i < s_secondCount; ++i)
         {
-            mtwnSpringMotion motion = mtwnSpringMotionAt(&springs[k], s_seconds[i]);
+            mtwnSpringMotion motion = SpringMotionAt(&springs[k], s_seconds[i]);
             PUT(out, motion);
             double offset = 0.0;
             double velocity = 0.0;
-            mtwnSampleSpring(&springs[k], -1.0, 0.3, s_seconds[i], &offset, &velocity);
+            SampleSpring(&springs[k], -1.0, 0.3, s_seconds[i], &offset, &velocity);
             PUT(out, offset);
             PUT(out, velocity);
         }
-        double settle = mtwnSpringSettlingTime(&springs[k], -1.0, 0.3, 0.001, 0.01);
+        double settle = SpringSettlingTime(&springs[k], -1.0, 0.3, 0.001, 0.01);
         PUT(out, settle);
     }
     mtwnDecay decays[3];
@@ -174,12 +175,12 @@ static void Springs(Out* out)
         {
             double position = 0.0;
             double velocity = 0.0;
-            mtwnSampleDecay(&decays[k], 10.0, 400.0, s_seconds[i], &position, &velocity);
+            SampleDecay(&decays[k], 10.0, 400.0, s_seconds[i], &position, &velocity);
             PUT(out, position);
             PUT(out, velocity);
         }
-        double stop = mtwnDecayStopTime(&decays[k], 400.0, 0.5);
-        double cross = mtwnDecayCrossingTime(&decays[k], 10.0, 400.0, 60.0);
+        double stop = DecayStopTime(&decays[k], 400.0, 0.5);
+        double cross = DecayCrossingTime(&decays[k], 10.0, 400.0, 60.0);
         PUT(out, stop);
         PUT(out, cross);
     }
@@ -190,11 +191,11 @@ static void Springs(Out* out)
     {
         double position = 0.0;
         double velocity = 0.0;
-        mtwnSampleBoundedDecay(&bounded, 90.0, 900.0, s_seconds[i], &position, &velocity);
+        SampleBoundedDecay(&bounded, 90.0, 900.0, s_seconds[i], &position, &velocity);
         PUT(out, position);
         PUT(out, velocity);
     }
-    double stop = mtwnBoundedDecayStopTime(&bounded, 90.0, 900.0, 0.001, 0.5);
+    double stop = BoundedDecayStopTime(&bounded, 90.0, 900.0, 0.001, 0.5);
     double band = mtwnRubberBand(120.0, 400.0, 0.55);
     double back = mtwnRubberBandInverse(80.0, 400.0, 0.55);
     PUT(out, stop);

@@ -8,6 +8,7 @@
 // turns; and the refusals.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/transition.h"
 
@@ -85,7 +86,7 @@ static void TestSlowCross(void)
     {
         Update(context, (uint64_t)k * s_second / 20u);
         double p = 0.0;
-        mtwnSampleBoundedDecay(&alone, (double)0.5f, (double)0.8f, k / 20.0, &p, NULL);
+        SampleBoundedDecay(&alone, (double)0.5f, (double)0.8f, k / 20.0, &p, NULL);
         differ += State(context, t).value.x != (float)p;
     }
     CHECK(differ == 0, "bounced at the bound as alone");
@@ -119,21 +120,21 @@ static void TestBounded(void)
         Update(context, (uint64_t)k * s_second / 60u);
         double px = 0.0;
         double py = 0.0;
-        mtwnSampleBoundedDecay(&x, 40.0, 1500.0, s, &px, NULL);
-        mtwnSampleBoundedDecay(&y, 300.0, -200.0, s, &py, NULL);
+        SampleBoundedDecay(&x, 40.0, 1500.0, s, &px, NULL);
+        SampleBoundedDecay(&y, 300.0, -200.0, s, &py, NULL);
         mtwnTargetState state = State(context, t);
         differ += state.value.x != (float)px || state.value.y != (float)py;
     }
     CHECK(differ == 0, "each channel its bounded decay, sampled as alone");
-    double stop = mtwnBoundedDecayStopTime(&x, 40.0, 1500.0, 0.5, 1.0);
+    double stop = BoundedDecayStopTime(&x, 40.0, 1500.0, 0.5, 1.0);
     Update(context, (uint64_t)(stop * 1e9) + s_second);
     mtwnTargetState end = State(context, t);
     double rest = 0.0;
-    mtwnSampleDecay(&def.decay, 300.0, -200.0,
-                    mtwnDecayStopTime(&def.decay, -200.0, 1.0) > stop
-                        ? mtwnDecayStopTime(&def.decay, -200.0, 1.0)
-                        : stop,
-                    &rest, NULL);
+    SampleDecay(&def.decay, 300.0, -200.0,
+                DecayStopTime(&def.decay, -200.0, 1.0) > stop
+                    ? DecayStopTime(&def.decay, -200.0, 1.0)
+                    : stop,
+                &rest, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) && end.base.x == 600.0f &&
               fabsf(end.base.y - (float)rest) <= 1e-3f,
           "ends on the bound it reached, the other where it stopped");
@@ -154,7 +155,7 @@ static void TestBounded(void)
     {
         Update(context, down + (uint64_t)k * s_second / 30u);
         double pw = 0.0;
-        mtwnSampleBoundedDecay(&low, 100.0, -1500.0, k / 30.0, &pw, NULL);
+        SampleBoundedDecay(&low, 100.0, -1500.0, k / 30.0, &pw, NULL);
         // Its clock seconds in: within the float's rounding of the decay
         // sampled alone.
         off += fabs((double)State(context, w).value.x - pw) > 1e-6 * fmax(1.0, fabs(pw));
@@ -171,7 +172,7 @@ static void TestBounded(void)
     Update(context, at);
     Update(context, at + s_second / 10u);
     double offset = 0.0;
-    mtwnSampleSpring(&def.spring, -30.0, -100.0, 0.1, &offset, NULL);
+    SampleSpring(&def.spring, -30.0, -100.0, 0.1, &offset, NULL);
     CHECK(State(context, u).value.x == (float)offset, "the bounce from the start");
     Update(context, at + 10u * s_second);
     CHECK(State(context, u).base.x == 0.0f, "ending on the bound");
@@ -197,8 +198,8 @@ static void TestLanding(void)
           "its channels' landings");
     double px = 0.0;
     double py = 0.0;
-    mtwnSampleDecay(&x, 40.0, 1500.0, 0.25, &px, NULL);
-    mtwnSampleDecay(&y, 300.0, -900.0, 0.25, &py, NULL);
+    SampleDecay(&x, 40.0, 1500.0, 0.25, &px, NULL);
+    SampleDecay(&y, 300.0, -900.0, 0.25, &py, NULL);
     mtwnTargetState state = State(context, t);
     CHECK(state.value.x == (float)px && state.value.y == (float)py, "each its own decay");
     Update(context, 60u * s_second);
@@ -223,7 +224,7 @@ static void TestLanding(void)
     mtwnDecay log4;
     CHECK(mtwnMakeDecay(3.0 / log(4.0), &log4) == mtwn_success, "its rate");
     double position = 0.0;
-    mtwnSampleDecay(&log4, 0.0, 3.0, 0.5, &position, NULL);
+    SampleDecay(&log4, 0.0, 3.0, 0.5, &position, NULL);
     CHECK(fabsf(State(context, z).value.x - (float)exp(position)) <= 1e-6f, "in the logarithm");
     Update(context, 200u * s_second);
     CHECK(State(context, z).base.x == 4.0f, "ending on 4");
@@ -267,7 +268,7 @@ static void TestScaleBounded(void)
     {
         Update(context, (uint64_t)k * s_second / 30u);
         double position = 0.0;
-        mtwnSampleBoundedDecay(&logs, 0.0, 3.0, k / 30.0, &position, NULL);
+        SampleBoundedDecay(&logs, 0.0, 3.0, k / 30.0, &position, NULL);
         float got = State(context, z).value.x;
         differ += fabsf(got - (float)exp(position)) > 1e-6f * got;
     }
@@ -377,6 +378,13 @@ static void TestRefusals(void)
     def.velocity = (mtwnVec4){100.0f, 0, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid,
           "landing where it is with a velocity: refused, no rate takes it there");
+    def = Fling(t, (mtwnVec4){1500.0f, 0, 0, 0});
+    def.bounded = true;
+    def.upper = (mtwnVec4){600.0f, 0, 0, 0};
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a bounded fling");
+    def.spring.regime ^= 1U;
+    CHECK(mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid,
+          "its bounce in another regime refused");
     mtwnDestroyContext(context);
 }
 
@@ -418,7 +426,7 @@ static void TestStartOnBound(void)
     Update(context, s_second / 20u);
     Update(context, s_second / 10u);
     double decayed = 0.0;
-    mtwnSampleDecay(&def.decay, 0.0, 30.0, 0.05, &decayed, NULL);
+    SampleDecay(&def.decay, 0.0, 30.0, 0.05, &decayed, NULL);
     CHECK(State(context, u).value.x == (float)decayed, "the decay's way, not a bounce's");
     CHECK(Settled(context, u, player) == 10.0f, "ends on the upper bound");
     mtwnDestroyContext(context);

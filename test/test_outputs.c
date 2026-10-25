@@ -222,10 +222,56 @@ static void TestPathsAndTracks(void)
     CHECK(memcmp(keys, given, sizeof keys) == 0, "its keyframes as they were");
 }
 
+// The samplers of springs and decays: a spring, decay or bounded decay
+// no maker produced, or an argument outside its range, refused with every
+// output as it was.
+static void TestSamplers(void)
+{
+    mtwnSpring spring;
+    CHECK(mtwnMakeSpringFromDuration(0.5, 0.2, &spring) == mtwn_success, "a spring");
+    mtwnSpring forged = spring;
+    forged.parameters[2] *= 2.0;
+    mtwnSpringMotion motion;
+    UNCHANGED(motion, mtwnSpringMotionAt(&forged, 0.1, &motion), "a forged spring's motion");
+    UNCHANGED(motion, mtwnSpringMotionAt(&spring, -1.0, &motion), "a motion before the start");
+    double values[2];
+    memset(values, 0xAB, sizeof values);
+    CHECK(mtwnSampleSpring(&spring, (double)NAN, 0.0, 0.1, &values[0], &values[1]) ==
+                  mtwn_errorInvalid &&
+              AllBytes(values, sizeof values, 0xAB),
+          "a spring from a NaN start");
+    double seconds;
+    UNCHANGED(seconds, mtwnSpringSettlingTime(&spring, 1.0, 0.0, 0.0, 1e-3, &seconds),
+              "a settling time to no tolerance");
+    mtwnDecay decay;
+    CHECK(mtwnMakeDecay(2.0, &decay) == mtwn_success, "a decay");
+    mtwnDecay still = {0.0};
+    memset(values, 0xAB, sizeof values);
+    CHECK(mtwnSampleDecay(&still, 0.0, 1.0, 0.1, &values[0], &values[1]) == mtwn_errorInvalid &&
+              AllBytes(values, sizeof values, 0xAB),
+          "a decay of rate 0");
+    UNCHANGED(seconds, mtwnDecayStopTime(&decay, 1.0, 0.0, &seconds), "a stop at speed 0");
+    UNCHANGED(seconds, mtwnDecayCrossingTime(&decay, 0.0, 1.0, (double)INFINITY, &seconds),
+              "a crossing of infinity");
+    mtwnBoundedDecay bounded;
+    CHECK(mtwnMakeBoundedDecay(&decay, &spring, 0.0, 1.0, &bounded) == mtwn_success,
+          "a bounded decay");
+    mtwnBoundedDecay crossed = bounded;
+    crossed.lower = 2.0;
+    memset(values, 0xAB, sizeof values);
+    CHECK(mtwnSampleBoundedDecay(&crossed, 0.5, 1.0, 0.1, &values[0], &values[1]) ==
+                  mtwn_errorInvalid &&
+              AllBytes(values, sizeof values, 0xAB),
+          "bounds crossed");
+    UNCHANGED(seconds, mtwnBoundedDecayStopTime(&bounded, 0.5, 1.0, 0.5, (double)NAN, &seconds),
+              "a stop at a NaN speed");
+}
+
 int main(void)
 {
     TestOnContext();
     TestMakers();
     TestPathsAndTracks();
+    TestSamplers();
     return s_failures == 0 ? 0 : 1;
 }

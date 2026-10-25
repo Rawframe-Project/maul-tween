@@ -311,23 +311,37 @@ static void Springs(Bytes* in)
     double offset = Param(in, 100.0);
     double velocity = Param(in, 1000.0);
     double seconds[] = {0.0, 0.016, 0.5, 3.0, 60.0};
+    // A start not finite is refused, its outputs left as they were.
+    bool start = isfinite(offset) && isfinite(velocity);
     for (int i = 0; i < 5; ++i)
     {
-        mtwnSpringMotion m = mtwnSpringMotionAt(&spring, seconds[i]);
+        mtwnSpringMotion m = {0.0, 0.0, 0.0, 0.0};
+        if (mtwnSpringMotionAt(&spring, seconds[i], &m) != mtwn_success)
+        {
+            Fail("a made spring's motion refused", seconds[i]);
+        }
         CheckEach(in, "a spring's motion",
                   (const double[]){m.offsetFromOffset, m.offsetFromVelocity, m.velocityFromOffset,
                                    m.velocityFromVelocity},
                   4);
         double o = 0.0;
         double v = 0.0;
-        mtwnSampleSpring(&spring, offset, velocity, seconds[i], &o, &v);
+        bool sampled =
+            mtwnSampleSpring(&spring, offset, velocity, seconds[i], &o, &v) == mtwn_success;
+        if (sampled != start || (!sampled && (o != 0.0 || v != 0.0)))
+        {
+            Fail("a spring's sample refused or taken", offset);
+        }
         Check(in, "a spring's offset", o);
         Check(in, "a spring's velocity", v);
     }
     double tolerances[2];
     Draw(in, tolerances, 2, (const double[]){1.0, 1.0}, true);
-    double settle = mtwnSpringSettlingTime(&spring, offset, velocity, tolerances[0], tolerances[1]);
-    if ((in->finite && isnan(settle)) || settle < 0.0)
+    double settle = 0.0;
+    bool settled = mtwnSpringSettlingTime(&spring, offset, velocity, tolerances[0], tolerances[1],
+                                          &settle) == mtwn_success;
+    if (settled != (start && tolerances[0] > 0.0 && tolerances[1] > 0.0) || isnan(settle) ||
+        settle < 0.0)
     {
         Fail("a spring's settling time", settle);
     }
@@ -345,17 +359,30 @@ static void Decays(Bytes* in)
     double position = Param(in, 1000.0);
     double velocity = Param(in, 5000.0);
     double seconds[] = {0.0, 0.016, 1.0, 100.0};
+    bool startFinite = isfinite(position) && isfinite(velocity);
     for (int i = 0; i < 4; ++i)
     {
         double p = 0.0;
         double v = 0.0;
-        mtwnSampleDecay(&decay, position, velocity, seconds[i], &p, &v);
+        bool sampled =
+            mtwnSampleDecay(&decay, position, velocity, seconds[i], &p, &v) == mtwn_success;
+        if (sampled != startFinite || (!sampled && (p != 0.0 || v != 0.0)))
+        {
+            Fail("a decay's sample refused or taken", position);
+        }
         Check(in, "a decay's position", p);
         Check(in, "a decay's velocity", v);
     }
-    double stop = mtwnDecayStopTime(&decay, velocity, Param(in, 10.0));
-    double cross = mtwnDecayCrossingTime(&decay, position, velocity, Param(in, 1000.0));
-    if ((in->finite && (isnan(stop) || isnan(cross))) || stop < 0.0 || cross < 0.0)
+    double stopSpeed = Param(in, 10.0);
+    double target = Param(in, 1000.0);
+    double stop = 0.0;
+    double cross = 0.0;
+    bool stopped = mtwnDecayStopTime(&decay, velocity, stopSpeed, &stop) == mtwn_success;
+    bool crossed =
+        mtwnDecayCrossingTime(&decay, position, velocity, target, &cross) == mtwn_success;
+    if (stopped != (isfinite(velocity) && stopSpeed > 0.0) ||
+        crossed != (startFinite && isfinite(target)) || isnan(stop) || isnan(cross) || stop < 0.0 ||
+        cross < 0.0)
     {
         Fail("a decay's time", isnan(stop) || stop < 0.0 ? stop : cross);
     }
@@ -397,16 +424,24 @@ static void Decays(Bytes* in)
     {
         return;
     }
+    bool finite = isfinite(start[0]) && isfinite(start[1]);
     for (int i = 0; i < 4; ++i)
     {
         double p = 0.0;
         double v = 0.0;
-        mtwnSampleBoundedDecay(&bounded, start[0], start[1], seconds[i], &p, &v);
+        bool sampled = mtwnSampleBoundedDecay(&bounded, start[0], start[1], seconds[i], &p, &v) ==
+                       mtwn_success;
+        if (sampled != finite || (!sampled && (p != 0.0 || v != 0.0)))
+        {
+            Fail("a bounded decay's sample refused or taken", start[0]);
+        }
         Check(in, "a bounded decay's position", p);
         Check(in, "a bounded decay's velocity", v);
     }
-    double still = mtwnBoundedDecayStopTime(&bounded, start[0], start[1], 0.5, 1.0);
-    if ((in->finite && isnan(still)) || still < 0.0)
+    double still = 0.0;
+    bool stilled =
+        mtwnBoundedDecayStopTime(&bounded, start[0], start[1], 0.5, 1.0, &still) == mtwn_success;
+    if (stilled != finite || isnan(still) || still < 0.0)
     {
         Fail("a bounded decay's stop", still);
     }

@@ -50,9 +50,13 @@ static void TestSprings(void)
     mtwnResult made = mtwnMakeSpringFromDuration(0.4, 0.2, &spring); // 0.4 s, a little bounce
     double offset = 0.0;
     double speed = 0.0;
-    mtwnSampleSpring(&spring, -1.0, 0.0, 0.1, &offset, &speed); // 0.1 s after starting 1 short
-    double settled = mtwnSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2);
-    CHECK(made == mtwn_success && offset > -1.0 && speed > 0.0, "on its way to 0");
+    // 0.1 s after starting 1 short of the target, at rest.
+    mtwnResult sampled = mtwnSampleSpring(&spring, -1.0, 0.0, 0.1, &offset, &speed);
+    double settled = 0.0;
+    mtwnResult timed = mtwnSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
+    CHECK(made == mtwn_success && sampled == mtwn_success && timed == mtwn_success &&
+              offset > -1.0 && speed > 0.0,
+          "on its way to 0");
     CHECK(settled > 0.1 && isfinite(settled), "settled after a while");
 }
 
@@ -61,8 +65,9 @@ static void TestInertia(void)
     mtwnDecay coast;
     mtwnResult made = mtwnMakeDecayFromDeceleration(0.998, &coast);
     double rest = 0.0;
-    mtwnSampleDecay(&coast, 40.0, 1500.0, HUGE_VAL, &rest, NULL); // where it would stop
-    double page = 320.0 * round(rest / 320.0);                    // the nearest page
+    // Where it would stop: its sample at infinite time.
+    mtwnResult sampled = mtwnSampleDecay(&coast, 40.0, 1500.0, HUGE_VAL, &rest, NULL);
+    double page = 320.0 * round(rest / 320.0); // the nearest page
     mtwnDecay snap;
     made = mtwnMakeDecayToRest(40.0, 1500.0, page, &snap);
 
@@ -71,8 +76,11 @@ static void TestInertia(void)
     mtwnBoundedDecay scroll;
     made = mtwnMakeBoundedDecay(&coast, &bounce, 0.0, 600.0, &scroll); // content 0 to 600
     double at = 0.0;
-    mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
-    double still = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0);
+    mtwnResult bounced = mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
+    double still = 0.0;
+    mtwnResult stopped = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &still);
+    CHECK(sampled == mtwn_success && bounced == mtwn_success && stopped == mtwn_success,
+          "sampled and timed");
     CHECK(made == mtwn_success && page == 640.0 && snap.rate > 0.0, "snapped to the second page");
     CHECK(at > 500.0 && at < 700.0 && isfinite(still), "bounced at 600, coming to rest");
 }
@@ -276,7 +284,7 @@ static void TestScroll(void)
     // At a scroll event: the chase from where it is, toward the new progress.
     double offset = 0.0;
     double speed = 0.0;
-    mtwnSampleSpring(&chase, away, pace, now - since, &offset, &speed);
+    mtwnResult chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, &speed);
     away = goal + offset - scrolled; // the same place, against the new goal
     pace = speed;
     goal = scrolled;
@@ -287,9 +295,9 @@ static void TestScroll(void)
     {
         now = frame / 60.0;
         // Each frame, before the update: the paused player swept to the chase.
-        mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
+        chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
         mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
-        CHECK(swept == mtwn_success, "swept");
+        CHECK(chased == mtwn_success && swept == mtwn_success, "swept");
         CHECK(mtwnUpdate(context, (uint64_t)llround(now * 1e9), NULL, 0, NULL) == mtwn_success,
               "updated");
         mtwnVec4 value;

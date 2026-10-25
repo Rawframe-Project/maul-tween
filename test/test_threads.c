@@ -10,6 +10,7 @@
 // build has no threads, so there the workers run one after another.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/interpolate.h"
@@ -75,7 +76,7 @@ static uint64_t Work(void)
             hash = Mix(hash, mtwnEase(&s_shared.bezier, p, false));
             double offset = 0.0;
             double speed = 0.0;
-            mtwnSampleSpring(&s_shared.spring, -1.0, 0.0, p, &offset, &speed);
+            SampleSpring(&s_shared.spring, -1.0, 0.0, p, &offset, &speed);
             hash = Mix(Mix(hash, offset), speed);
             mtwnColor color = mtwnMixColor(&s_shared.mix, p);
             hash = Mix(Mix(Mix(hash, (double)color.red), (double)color.green), (double)color.blue);

@@ -10,6 +10,7 @@
 
 #include "elementary.h"
 #include "fpenv.h"
+#include "valid.h"
 #include "work.h"
 
 #include "maul-tween/spring.h"
@@ -20,12 +21,18 @@ static const double s_seriesBelow = 0.5;
 
 MTWN_NOINLINE mtwnResult mtwnMakeDecayWork(double rate, mtwnDecay* decayOut)
 {
-    if (decayOut == NULL || !isfinite(rate) || rate <= 0.0)
+    mtwnDecay decay = {rate};
+    if (decayOut == NULL || !mtwnValidDecay(&decay))
     {
         return mtwn_errorInvalid;
     }
-    decayOut->rate = rate;
+    *decayOut = decay;
     return mtwn_success;
+}
+
+bool mtwnValidDecay(const mtwnDecay* decay)
+{
+    return decay != NULL && isfinite(decay->rate) && decay->rate > 0.0;
 }
 
 mtwnResult mtwnMakeDecay(double rate, mtwnDecay* decayOut)
@@ -96,12 +103,26 @@ MTWN_NOINLINE void mtwnSampleDecayWork(const mtwnDecay* decay, double position, 
     }
 }
 
-void mtwnSampleDecay(const mtwnDecay* decay, double position, double velocity, double seconds,
-                     double* positionOut, double* velocityOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleDecayChecked(const mtwnDecay* decay, double position,
+                                                       double velocity, double seconds,
+                                                       double* positionOut, double* velocityOut)
+{
+    if (!mtwnValidDecay(decay) || !isfinite(position) || !isfinite(velocity) || !(seconds >= 0.0))
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnSampleDecayWork(decay, position, velocity, seconds, positionOut, velocityOut);
+    return mtwn_success;
+}
+
+mtwnResult mtwnSampleDecay(const mtwnDecay* decay, double position, double velocity, double seconds,
+                           double* positionOut, double* velocityOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnSampleDecayWork(decay, position, velocity, seconds, positionOut, velocityOut);
+    mtwnResult result =
+        mtwnSampleDecayChecked(decay, position, velocity, seconds, positionOut, velocityOut);
     mtwnFloatEnvLeave(env);
+    return result;
 }
 
 MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double velocity,
@@ -115,10 +136,22 @@ MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double veloci
     return speed <= stopSpeed ? 0.0 : mtwnLog(speed / stopSpeed) / decay->rate;
 }
 
-double mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed)
+static MTWN_NOINLINE mtwnResult mtwnDecayStopTimeChecked(const mtwnDecay* decay, double velocity,
+                                                         double stopSpeed, double* secondsOut)
+{
+    if (!mtwnValidDecay(decay) || !isfinite(velocity) || !(stopSpeed > 0.0) || secondsOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *secondsOut = mtwnDecayStopTimeWork(decay, velocity, stopSpeed);
+    return mtwn_success;
+}
+
+mtwnResult mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed,
+                             double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnDecayStopTimeWork(decay, velocity, stopSpeed);
+    mtwnResult result = mtwnDecayStopTimeChecked(decay, velocity, stopSpeed, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -154,11 +187,24 @@ MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double po
     return 2.0 * s * sum / decay->rate;
 }
 
-double mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
-                             double target)
+static MTWN_NOINLINE mtwnResult mtwnDecayCrossingTimeChecked(const mtwnDecay* decay,
+                                                             double position, double velocity,
+                                                             double target, double* secondsOut)
+{
+    if (!mtwnValidDecay(decay) || !isfinite(position) || !isfinite(velocity) || !isfinite(target) ||
+        secondsOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *secondsOut = mtwnDecayCrossingTimeWork(decay, position, velocity, target);
+    return mtwn_success;
+}
+
+mtwnResult mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
+                                 double target, double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnDecayCrossingTimeWork(decay, position, velocity, target);
+    mtwnResult result = mtwnDecayCrossingTimeChecked(decay, position, velocity, target, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
