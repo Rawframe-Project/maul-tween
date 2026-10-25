@@ -160,7 +160,11 @@ extern "C"
     /// is: a fit of MTWN_MAX_FIT_POINTS points could not follow it. So is
     /// one whose eased progress could pass the doubles' range, as a spring
     /// almost back at its start at the duration has, divided by its value
-    /// there.
+    /// there. So is one whose natural frequency, in radians a second, times
+    /// the duration reaches 2^512 (about 1.34e154): its square, the easing's
+    /// squared frequency, would pass the doubles' range, as mtwnMakeSpring
+    /// refuses a spring whose own would. Only an overdamped or critical
+    /// spring reaches it, an oscillating one being refused far sooner.
     ///
     /// @param spring     A spring made by this library.
     /// @param duration   Seconds, finite and above 0.
@@ -171,7 +175,7 @@ extern "C"
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
     ///         spring no maker produced, an unknown mode, a duration or
     ///         velocity outside the above, a spring back at its start at
-    ///         the duration, or one of the two above.
+    ///         the duration, or one of the three above.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring,
