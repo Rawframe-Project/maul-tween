@@ -40,14 +40,15 @@ PARTS = [
 # Each part's budget in bytes, about 6% over its size when it was set;
 # the curves' moved by what the float environment's wrappers cost, the
 # whole library's by what an overflowing start's exact settling time
-# costs, and the values' and the whole library's by what refusing a timing
-# whose active duration or cycle overflows costs.
+# costs, the values' and the whole library's by what refusing a timing
+# whose active duration or cycle overflows costs, and every part's by what
+# checking springs and decays where they enter costs.
 BUDGETS = {
-    "curves": 27900,
-    "values": 60600,
-    "transitions": 63000,
-    "clips": 152000,
-    "everything": 170200,
+    "curves": 29500,
+    "values": 61200,
+    "transitions": 64700,
+    "clips": 153600,
+    "everything": 171800,
 }
 
 
@@ -64,7 +65,8 @@ RELEASED = {
 GROWTH = 0.10
 RAISED = {
     "curves": "every public call that computes enters the float environment through a "
-    "wrapper of its own, 0.8 kB here with -fno-math-errno",
+    "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
+    "or a decay checks it, 1.6 kB",
 }
 
 

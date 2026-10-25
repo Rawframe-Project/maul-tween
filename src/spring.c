@@ -18,12 +18,13 @@
 #include "elementary.h"
 #include "fpenv.h"
 #include "spring_easing.h"
-#include "spring_internal.h"
+#include "valid.h"
 #include "work.h"
 
 #include "generated/math_constants.h"
 
 #include <math.h>
+#include <string.h>
 
 enum
 {
@@ -204,10 +205,21 @@ MTWN_NOINLINE mtwnSpringMotion mtwnSpringMotionAtWork(const mtwnSpring* spring, 
     return FromTerms(spring, envelope, 0.5 * (mtwnExp(y) + mtwnExp(-y)), seconds * SinhcSeries(y));
 }
 
-mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds)
+static MTWN_NOINLINE mtwnResult mtwnSpringMotionAtChecked(const mtwnSpring* spring, double seconds,
+                                                          mtwnSpringMotion* motionOut)
+{
+    if (!mtwnValidSpring(spring) || !(seconds >= 0.0) || motionOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *motionOut = mtwnSpringMotionAtWork(spring, seconds);
+    return mtwn_success;
+}
+
+mtwnResult mtwnSpringMotionAt(const mtwnSpring* spring, double seconds, mtwnSpringMotion* motionOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnSpringMotion result = mtwnSpringMotionAtWork(spring, seconds);
+    mtwnResult result = mtwnSpringMotionAtChecked(spring, seconds, motionOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -226,12 +238,26 @@ MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset,
     }
 }
 
-void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity, double seconds,
-                      double* offsetOut, double* velocityOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleSpringChecked(const mtwnSpring* spring, double offset,
+                                                        double velocity, double seconds,
+                                                        double* offsetOut, double* velocityOut)
+{
+    if (!mtwnValidSpring(spring) || !isfinite(offset) || !isfinite(velocity) || !(seconds >= 0.0))
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnSampleSpringWork(spring, offset, velocity, seconds, offsetOut, velocityOut);
+    return mtwn_success;
+}
+
+mtwnResult mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity,
+                            double seconds, double* offsetOut, double* velocityOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnSampleSpringWork(spring, offset, velocity, seconds, offsetOut, velocityOut);
+    mtwnResult result =
+        mtwnSampleSpringChecked(spring, offset, velocity, seconds, offsetOut, velocityOut);
     mtwnFloatEnvLeave(env);
+    return result;
 }
 
 // The bound e^(-r t) (a + b min(t, cap)) on |x| for x = e^(-alpha t) (x0 C
@@ -387,12 +413,29 @@ MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double
     return isnan(time) ? HUGE_VAL : time;
 }
 
-double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
-                              double offsetTolerance, double velocityTolerance)
+static MTWN_NOINLINE mtwnResult mtwnSpringSettlingTimeChecked(const mtwnSpring* spring,
+                                                              double offset, double velocity,
+                                                              double offsetTolerance,
+                                                              double velocityTolerance,
+                                                              double* secondsOut)
+{
+    if (!mtwnValidSpring(spring) || !isfinite(offset) || !isfinite(velocity) ||
+        !(offsetTolerance > 0.0) || !(velocityTolerance > 0.0) || secondsOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *secondsOut =
+        mtwnSpringSettlingTimeWork(spring, offset, velocity, offsetTolerance, velocityTolerance);
+    return mtwn_success;
+}
+
+mtwnResult mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
+                                  double offsetTolerance, double velocityTolerance,
+                                  double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result =
-        mtwnSpringSettlingTimeWork(spring, offset, velocity, offsetTolerance, velocityTolerance);
+    mtwnResult result = mtwnSpringSettlingTimeChecked(spring, offset, velocity, offsetTolerance,
+                                                      velocityTolerance, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -426,7 +469,7 @@ static MTWN_NOINLINE mtwnResult mtwnMakeSpringEasingWork(const mtwnSpring* sprin
 {
     // A duration or velocity NaN or infinite leaves a scaled parameter
     // that is not finite, refused below.
-    if (spring == NULL || easingOut == NULL || mode > mtwn_easeOutIn || !(duration > 0.0))
+    if (!mtwnValidSpring(spring) || easingOut == NULL || mode > mtwn_easeOutIn || !(duration > 0.0))
     {
         return mtwn_errorInvalid;
     }
@@ -471,10 +514,28 @@ double mtwnSampleSpringEasing(const mtwnEasing* easing, double p)
            easing->parameters[s_easingRange];
 }
 
-bool mtwnIsSpring(const mtwnSpring* spring)
+// Whether two doubles have the same bits: a sign of zero or a NaN no
+// maker gives is refused with the rest.
+static bool SameBits(double a, double b)
 {
-    double frequency = spring->parameters[s_frequency];
-    double ratio = spring->parameters[s_ratio];
-    return isfinite(frequency) && frequency > 0.0 && isfinite(ratio) && ratio >= 0.0 &&
-           spring->regime <= s_overdamped;
+    uint64_t x = 0;
+    uint64_t y = 0;
+    memcpy(&x, &a, sizeof x);
+    memcpy(&y, &b, sizeof y);
+    return x == y;
+}
+
+MTWN_NOINLINE bool mtwnValidSpring(const mtwnSpring* spring)
+{
+    // The maker's own arithmetic from the two fields it was made from: a
+    // frequency or ratio no maker takes is refused there, and the fields
+    // it derives from them must be what it gives.
+    mtwnSpring made;
+    return spring != NULL && spring->reserved == 0 &&
+           Finish(spring->parameters[s_frequency], spring->parameters[s_ratio], &made) ==
+               mtwn_success &&
+           SameBits(made.parameters[s_decay], spring->parameters[s_decay]) &&
+           SameBits(made.parameters[s_damped], spring->parameters[s_damped]) &&
+           SameBits(made.parameters[s_squared], spring->parameters[s_squared]) &&
+           made.regime == spring->regime;
 }

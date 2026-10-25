@@ -9,6 +9,7 @@
 // past them.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
 #include "maul-tween/sample.h"
@@ -111,7 +112,7 @@ static void TestAgainstIntegration(void)
         double worst = 0.0;
         for (int k = 0; k <= 300; ++k)
         {
-            mtwnSpringMotion m = mtwnSpringMotionAt(&spring, (double)k / 100.0);
+            mtwnSpringMotion m = SpringMotionAt(&spring, (double)k / 100.0);
             double errors[4] = {
                 fabs(m.offsetFromOffset - s_reference[k][0]),
                 fabs(m.offsetFromVelocity - s_reference[k][1]) * w0,
@@ -133,8 +134,8 @@ static void TestAgainstIntegration(void)
 
 static double Distance(const mtwnSpring* a, const mtwnSpring* b, double seconds)
 {
-    mtwnSpringMotion x = mtwnSpringMotionAt(a, seconds);
-    mtwnSpringMotion y = mtwnSpringMotionAt(b, seconds);
+    mtwnSpringMotion x = SpringMotionAt(a, seconds);
+    mtwnSpringMotion y = SpringMotionAt(b, seconds);
     return fabs(x.offsetFromOffset - y.offsetFromOffset) +
            fabs(x.offsetFromVelocity - y.offsetFromVelocity) +
            fabs(x.velocityFromOffset - y.velocityFromOffset) * 1e-3 +
@@ -202,8 +203,8 @@ static void TestRegimesMeet(void)
     // w t = 1/2 at t = 1 / (4 pi sqrt(3)).
     double edge = 0.5 / (s_twoPi * sqrt(3.0));
     double jump = Distance(&heavy, &heavy, edge) +
-                  fabs(mtwnSpringMotionAt(&heavy, nextafter(edge, 0.0)).offsetFromOffset -
-                       mtwnSpringMotionAt(&heavy, edge).offsetFromOffset);
+                  fabs(SpringMotionAt(&heavy, nextafter(edge, 0.0)).offsetFromOffset -
+                       SpringMotionAt(&heavy, edge).offsetFromOffset);
     CHECK(jump <= 1e-15, "the series and the closed form meet");
 }
 
@@ -211,17 +212,17 @@ static void TestEndsOfTime(void)
 {
     mtwnSpring spring;
     CHECK(mtwnMakeSpringFromFrequency(1.5, 0.4, &spring) == mtwn_success, "made");
-    mtwnSpringMotion start = mtwnSpringMotionAt(&spring, 0.0);
+    mtwnSpringMotion start = SpringMotionAt(&spring, 0.0);
     CHECK(start.offsetFromOffset == 1.0 && start.offsetFromVelocity == 0.0 &&
               start.velocityFromOffset == 0.0 && start.velocityFromVelocity == 1.0,
           "the identity at 0");
-    mtwnSpringMotion rest = mtwnSpringMotionAt(&spring, HUGE_VAL);
+    mtwnSpringMotion rest = SpringMotionAt(&spring, HUGE_VAL);
     CHECK(rest.offsetFromOffset == 0.0 && rest.offsetFromVelocity == 0.0 &&
               rest.velocityFromOffset == 0.0 && rest.velocityFromVelocity == 0.0,
           "at rest at infinity");
     // Far past where its envelope underflows, at rest too, though the
     // phase there is beyond the sine's range.
-    mtwnSpringMotion far = mtwnSpringMotionAt(&spring, 1e300);
+    mtwnSpringMotion far = SpringMotionAt(&spring, 1e300);
     CHECK(far.offsetFromOffset == 0.0 && far.offsetFromVelocity == 0.0 &&
               far.velocityFromOffset == 0.0 && far.velocityFromVelocity == 0.0,
           "at rest at 1e300 s");
@@ -232,7 +233,7 @@ static void TestEndsOfTime(void)
     bool bounded = true;
     for (double t = 0.016; t < 100.0; t *= 4.0)
     {
-        mtwnSpringMotion m = mtwnSpringMotionAt(&stiff, t);
+        mtwnSpringMotion m = SpringMotionAt(&stiff, t);
         bounded = bounded && fabs(m.offsetFromOffset) <= 1.0 &&
                   fabs(m.velocityFromVelocity) <= 1.0 && isfinite(m.offsetFromVelocity) &&
                   isfinite(m.velocityFromOffset);
@@ -240,12 +241,12 @@ static void TestEndsOfTime(void)
     // Between 2^53 and 2^60 too, where the phase holds no angle and the
     // sine reduces it exactly.
     CHECK(mtwnMakeSpringFromFrequency(1e18 / s_twoPi, 0.0, &stiff) == mtwn_success, "1e18 rad/s");
-    mtwnSpringMotion mid = mtwnSpringMotionAt(&stiff, 1.0);
+    mtwnSpringMotion mid = SpringMotionAt(&stiff, 1.0);
     bounded = bounded && fabs(mid.offsetFromOffset) <= 1.0 && fabs(mid.velocityFromVelocity) <= 1.0;
     CHECK(bounded, "a phase past 2^52 radians bounded");
     // Undamped, its phase overflowing: no angle either, and no NaN.
     CHECK(mtwnMakeSpringFromFrequency(1e150, 0.0, &stiff) == mtwn_success, "an undamped one");
-    mtwnSpringMotion endless = mtwnSpringMotionAt(&stiff, 1e160);
+    mtwnSpringMotion endless = SpringMotionAt(&stiff, 1e160);
     CHECK(fabs(endless.offsetFromOffset) <= 1.0 && isfinite(endless.offsetFromVelocity) &&
               isfinite(endless.velocityFromOffset) && fabs(endless.velocityFromVelocity) <= 1.0,
           "an infinite phase bounded");
@@ -257,25 +258,25 @@ static void TestEndsOfTime(void)
     mtwnSpring firm;
     double falling = -0.9 * s_twoPi * 1e-4 * 0.999;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0.9, &firm) == mtwn_success &&
-              mtwnSpringSettlingTime(&firm, 1e-4, falling, 1e-3, 1.01 * fabs(falling)) == 0.0,
+              SpringSettlingTime(&firm, 1e-4, falling, 1e-3, 1.01 * fabs(falling)) == 0.0,
           "a start falling inside both is settled at once");
     mtwnSpring undamped;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0.0, &undamped) == mtwn_success, "undamped");
-    CHECK(isnan(mtwnSpringMotionAt(&undamped, HUGE_VAL).offsetFromOffset),
+    CHECK(isnan(SpringMotionAt(&undamped, HUGE_VAL).offsetFromOffset),
           "an undamped spring has no rest");
     double offset = 0.0;
     double velocity = 0.0;
-    mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, &offset, &velocity);
-    mtwnSpringMotion m = mtwnSpringMotionAt(&spring, 0.4);
+    SampleSpring(&spring, 2.0, -3.0, 0.4, &offset, &velocity);
+    mtwnSpringMotion m = SpringMotionAt(&spring, 0.4);
     CHECK(offset == m.offsetFromOffset * 2.0 + m.offsetFromVelocity * -3.0 &&
               velocity == m.velocityFromOffset * 2.0 + m.velocityFromVelocity * -3.0,
           "a sample is the motion applied");
-    mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, NULL, NULL);
+    SampleSpring(&spring, 2.0, -3.0, 0.4, NULL, NULL);
     double alone = 0.0;
-    mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, &alone, NULL);
+    SampleSpring(&spring, 2.0, -3.0, 0.4, &alone, NULL);
     CHECK(alone == offset, "the offset alone");
     alone = 0.0;
-    mtwnSampleSpring(&spring, 2.0, -3.0, 0.4, NULL, &alone);
+    SampleSpring(&spring, 2.0, -3.0, 0.4, NULL, &alone);
     CHECK(alone == velocity, "the velocity alone");
 }
 
@@ -307,11 +308,65 @@ static void TestRefusals(void)
     CHECK(spring.parameters[0] == 7.0 && spring.regime == 9,
           "refusals leave the out-parameter as it was");
     CHECK(mtwnMakeSpringFromDuration(1.0, 1.0, &spring) == mtwn_success &&
-              isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 1e-3, 1e-3)),
+              isinf(SpringSettlingTime(&spring, 1.0, 0.0, 1e-3, 1e-3)),
           "bounce 1 never settles");
     CHECK(mtwnMakeSpring(100.0, 0.0, 1.0, &spring) == mtwn_success &&
               mtwnMakeSpring(100.0, 0.5, 1.0, &spring) == mtwn_success,
           "no damping and damping under 1 made");
+}
+
+// How many of the four calls taking a spring refuse this one, or -1 if
+// one changed an output while refusing.
+static int Refusals(const mtwnSpring* spring)
+{
+    mtwnSpringMotion motion = {7.0, 7.0, 7.0, 7.0};
+    double values[3] = {7.0, 7.0, 7.0};
+    mtwnEasing easing;
+    memset(&easing, 0xAB, sizeof easing);
+    mtwnEasing before = easing;
+    int refused = 0;
+    refused += mtwnSpringMotionAt(spring, 0.5, &motion) == mtwn_errorInvalid;
+    refused += mtwnSampleSpring(spring, 1.0, 0.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
+    refused +=
+        mtwnSpringSettlingTime(spring, 1.0, 0.0, 1e-3, 1e-3, &values[2]) == mtwn_errorInvalid;
+    refused += mtwnMakeSpringEasing(spring, 1.0, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid;
+    bool kept = motion.offsetFromOffset == 7.0 && motion.offsetFromVelocity == 7.0 &&
+                motion.velocityFromOffset == 7.0 && motion.velocityFromVelocity == 7.0 &&
+                values[0] == 7.0 && values[1] == 7.0 && values[2] == 7.0 &&
+                memcmp(&easing, &before, sizeof easing) == 0;
+    return refused == 4 && !kept ? -1 : refused;
+}
+
+// A spring's fields are the library's: one that differs from what its
+// frequency and ratio make, by a bit of any field, is refused.
+static void TestForgedSprings(void)
+{
+    mtwnSpring made;
+    CHECK(mtwnMakeSpringFromFrequency(2.0, 0.4, &made) == mtwn_success, "a spring");
+    CHECK(Refusals(&made) == 0, "as made, taken");
+    mtwnSpring zero = {{0.0}, 0, 0};
+    CHECK(Refusals(&zero) == 4, "one never made, all zeros");
+    CHECK(Refusals(NULL) == 4, "none");
+    for (size_t i = 0; i < 5; i++)
+    {
+        mtwnSpring forged = made;
+        forged.parameters[i] = nextafter(forged.parameters[i], HUGE_VAL);
+        CHECK(Refusals(&forged) == 4, "a field a bit off");
+        forged.parameters[i] = (double)NAN;
+        CHECK(Refusals(&forged) == 4, "a NaN field");
+    }
+    mtwnSpring regime = made;
+    regime.regime ^= 1U;
+    CHECK(Refusals(&regime) == 4, "another regime");
+    mtwnSpring reserved = made;
+    reserved.reserved = 1;
+    CHECK(Refusals(&reserved) == 4, "a reserved word not 0");
+    mtwnSpring critical;
+    CHECK(mtwnMakeSpringFromFrequency(2.0, 1.0, &critical) == mtwn_success, "a critical spring");
+    mtwnSpring negative = critical;
+    negative.parameters[3] = -negative.parameters[3];
+    CHECK(Refusals(&critical) == 0 && Refusals(&negative) == 4,
+          "its zero field as made, taken; negated, refused");
 }
 
 typedef struct SettleCase
@@ -347,7 +402,7 @@ static void TestSettling(void)
         CHECK(mtwnMakeSpringFromFrequency(sc->hertz, sc->ratio, &spring) == mtwn_success, "made");
         const double tolerance = 1e-3;
         const double speed = 1e-2;
-        double settle = mtwnSpringSettlingTime(&spring, sc->offset, sc->velocity, tolerance, speed);
+        double settle = SpringSettlingTime(&spring, sc->offset, sc->velocity, tolerance, speed);
         // Sampled past it, the spring stays within both; just before the
         // last time it is out of them, it is not settled yet.
         bool within = isfinite(settle) && settle >= 0.0;
@@ -359,7 +414,7 @@ static void TestSettling(void)
             double t = horizon * (double)k / (double)samples;
             double offset = 0.0;
             double velocity = 0.0;
-            mtwnSampleSpring(&spring, sc->offset, sc->velocity, t, &offset, &velocity);
+            SampleSpring(&spring, sc->offset, sc->velocity, t, &offset, &velocity);
             bool out = fabs(offset) > tolerance || fabs(velocity) > speed;
             lastOut = out ? t : lastOut;
             within = within && !(out && t >= settle);
@@ -373,17 +428,23 @@ static void TestSettling(void)
     }
     mtwnSpring spring;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0.5, &spring) == mtwn_success, "made");
-    CHECK(mtwnSpringSettlingTime(&spring, 1e-4, 1e-4, 1e-3, 1e-2) == 0.0,
+    CHECK(SpringSettlingTime(&spring, 1e-4, 1e-4, 1e-3, 1e-2) == 0.0,
           "a start within both is settled");
-    CHECK(mtwnSpringSettlingTime(&spring, 0.0, 0.0, 1e-3, 1e-2) == 0.0, "at rest");
-    CHECK(isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 0.0, 1e-2)), "a zero tolerance");
+    CHECK(SpringSettlingTime(&spring, 0.0, 0.0, 1e-3, 1e-2) == 0.0, "at rest");
+    double seconds = 0.0;
+    CHECK(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 0.0, 1e-2, &seconds) == mtwn_errorInvalid &&
+              seconds == 0.0,
+          "a zero tolerance refused");
     mtwnSpring undamped;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0.0, &undamped) == mtwn_success, "undamped");
-    CHECK(isinf(mtwnSpringSettlingTime(&undamped, 0.0, 0.009, 1e-3, 1e-2)),
+    CHECK(isinf(SpringSettlingTime(&undamped, 0.0, 0.009, 1e-3, 1e-2)),
           "an undamped start inside both that swings out of them never settles");
-    CHECK(mtwnSpringSettlingTime(&undamped, 0.0, 0.001, 1e-3, 1e-2) == 0.0,
+    CHECK(SpringSettlingTime(&undamped, 0.0, 0.001, 1e-3, 1e-2) == 0.0,
           "one whose swing stays inside both is settled at once");
-    CHECK(isinf(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 1e-3, (double)NAN)), "a NaN one");
+    CHECK(mtwnSpringSettlingTime(&spring, 1.0, 0.0, 1e-3, (double)NAN, &seconds) ==
+                  mtwn_errorInvalid &&
+              seconds == 0.0,
+          "a NaN one too");
 }
 
 // The settling bounds, written again: |x| <= e^(-r t)
@@ -517,8 +578,8 @@ static bool SettlesAsBounded(const SettleCase* sc, Wide offsetTolerance, Wide ve
     double expected = LastAbove(&offset, (Wide)logl((long double)offsetTolerance) - shift);
     double speed = LastAbove(&velocity, (Wide)logl((long double)velocityTolerance) - shift);
     expected = speed > expected ? speed : expected;
-    double settle = mtwnSpringSettlingTime(&spring, sc->offset, sc->velocity,
-                                           (double)offsetTolerance, (double)velocityTolerance);
+    double settle = SpringSettlingTime(&spring, sc->offset, sc->velocity, (double)offsetTolerance,
+                                       (double)velocityTolerance);
     bool close = fabs(settle - expected) <= 1e-12 * expected + 1e-13;
     if (!close)
     {
@@ -557,10 +618,10 @@ static void TestSettlingTimesAreTheBounds(void)
         mtwnSpring spring;
         wrong +=
             mtwnMakeSpringFromFrequency(rising[c].hertz, rising[c].ratio, &spring) != mtwn_success;
-        wrong += mtwnSpringSettlingTime(&spring, rising[c].offset, rising[c].velocity,
-                                        (double)(peak * (Wide)(1.0 + 1e-9)), (double)fast) != 0.0;
-        wrong += !(mtwnSpringSettlingTime(&spring, rising[c].offset, rising[c].velocity,
-                                          (double)(peak * (Wide)(1.0 - 1e-6)), (double)fast) > 0.0);
+        wrong += SpringSettlingTime(&spring, rising[c].offset, rising[c].velocity,
+                                    (double)(peak * (Wide)(1.0 + 1e-9)), (double)fast) != 0.0;
+        wrong += !(SpringSettlingTime(&spring, rising[c].offset, rising[c].velocity,
+                                      (double)(peak * (Wide)(1.0 - 1e-6)), (double)fast) > 0.0);
     }
     CHECK(wrong == 0, "a start within both but rising is settled only if its peak is");
 }
@@ -576,7 +637,7 @@ static void TestSettlingAtTheEdges(void)
     CHECK(mtwnMakeSpringFromFrequency(flat.hertz, flat.ratio, &spring) == mtwn_success,
           "a critical spring");
     double settle =
-        mtwnSpringSettlingTime(&spring, flat.offset, flat.velocity, flat.offset, 0x1.4bfcp-1);
+        SpringSettlingTime(&spring, flat.offset, flat.velocity, flat.offset, 0x1.4bfcp-1);
     CHECK(isfinite(settle) && settle > 0.0, "a peak at nearly 0 settles");
     CHECK(SettlesAsBounded(&flat, (Wide)flat.offset, (Wide)0x1.4bfcp-1),
           "where its bounds cross the tolerances last");
@@ -584,9 +645,9 @@ static void TestSettlingAtTheEdges(void)
     // divided by 2^997 overflow nothing and cross at the same time.
     mtwnSpring stiff;
     CHECK(mtwnMakeSpring(1e300, 1e300, 1.0, &stiff) == mtwn_success, "a stiff spring");
-    settle = mtwnSpringSettlingTime(&stiff, 210.8154296875 - 1e300, 1e300, 0.5, 1.0);
-    double scaled = mtwnSpringSettlingTime(&stiff, ldexp(210.8154296875 - 1e300, -997),
-                                           ldexp(1e300, -997), ldexp(0.5, -997), ldexp(1.0, -997));
+    settle = SpringSettlingTime(&stiff, 210.8154296875 - 1e300, 1e300, 0.5, 1.0);
+    double scaled = SpringSettlingTime(&stiff, ldexp(210.8154296875 - 1e300, -997),
+                                       ldexp(1e300, -997), ldexp(0.5, -997), ldexp(1.0, -997));
     CHECK(isfinite(scaled) && scaled > 0.0 && fabs(settle - scaled) <= 1e-12 * scaled,
           "overflowing bounds settle when the start divided down does");
     // Overflowing a coefficient at, below and above critical damping, and
@@ -610,14 +671,14 @@ static void TestSettlingAtTheEdges(void)
     CHECK(wrong == 0, "and settle where their bounds cross the tolerances last");
     mtwnSpring undamped;
     CHECK(mtwnMakeSpringFromFrequency(1e4, 0.0, &undamped) == mtwn_success, "an undamped spring");
-    CHECK(mtwnSpringSettlingTime(&undamped, 1e300, 0.0, 0.5, 1.0) == HUGE_VAL,
+    CHECK(SpringSettlingTime(&undamped, 1e300, 0.0, 0.5, 1.0) == HUGE_VAL,
           "an undamped one never settles from there");
     // Damped so little that the time is past the doubles: infinity, on
     // both sides of the division.
     mtwnSpring faint;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0x1p-1060, &faint) == mtwn_success, "a faint spring");
-    CHECK(mtwnSpringSettlingTime(&faint, 1.0, 0.0, 1e-3, 1e-2) == HUGE_VAL &&
-              mtwnSpringSettlingTime(&faint, 1e300, 0.0, 1e-3, 1e-2) == HUGE_VAL,
+    CHECK(SpringSettlingTime(&faint, 1.0, 0.0, 1e-3, 1e-2) == HUGE_VAL &&
+              SpringSettlingTime(&faint, 1e300, 0.0, 1e-3, 1e-2) == HUGE_VAL,
           "a time past the doubles is infinity");
 }
 
@@ -650,12 +711,12 @@ static void TestSpringEasings(void)
         // The spring from -1 sampled through its own functions, divided by
         // its value at the duration.
         double end = 0.0;
-        mtwnSampleSpring(&spring, -1.0, ec->velocity, ec->duration, &end, NULL);
+        SampleSpring(&spring, -1.0, ec->velocity, ec->duration, &end, NULL);
         for (int k = 0; k <= 1000; ++k)
         {
             double p = (double)k / 1000.0;
             double offset = 0.0;
-            mtwnSampleSpring(&spring, -1.0, ec->velocity, p * ec->duration, &offset, NULL);
+            SampleSpring(&spring, -1.0, ec->velocity, p * ec->duration, &offset, NULL);
             double error = fabs(mtwnEase(&easing, p, false) - (1.0 + offset) / (1.0 + end));
             worst = error > worst ? error : worst;
         }
@@ -758,22 +819,25 @@ static void TestSlowSprings(void)
     CHECK(mtwnMakeSpring(0.5, 0.1, 1.0, &soft) == mtwn_success, "a stiffness of 0.5");
     mtwnSpring slow;
     CHECK(mtwnMakeSpringFromFrequency(0.1, 0.5, &slow) == mtwn_success, "a slow spring");
-    mtwnSpringMotion rest = mtwnSpringMotionAt(&slow, HUGE_VAL);
+    mtwnSpringMotion rest = SpringMotionAt(&slow, HUGE_VAL);
     CHECK(rest.offsetFromOffset == 0.0 && rest.offsetFromVelocity == 0.0 &&
               rest.velocityFromOffset == 0.0 && rest.velocityFromVelocity == 0.0,
           "a decay of 0.31 at rest at infinity");
     mtwnSpring critical;
     CHECK(mtwnMakeSpringFromFrequency(0.1, 1.0, &critical) == mtwn_success,
           "a slow critical spring");
-    double settle = mtwnSpringSettlingTime(&critical, 1.0, 0.0, 1e-3, 1e-3);
+    double settle = SpringSettlingTime(&critical, 1.0, 0.0, 1e-3, 1e-3);
     CHECK(isfinite(settle) && settle > 0.0, "settles at a finite time");
-    CHECK(mtwnSpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 1e-3) == 0.0, "from rest at once");
-    int never = 0;
-    never += mtwnSpringSettlingTime(&slow, 0.0, 0.0, 0.0, 1e-3) == HUGE_VAL;
-    never += mtwnSpringSettlingTime(&slow, 0.0, 0.0, 1e-3, 0.0) == HUGE_VAL;
-    never += mtwnSpringSettlingTime(&critical, 0.0, 0.0, 0.0, 1e-3) == HUGE_VAL;
-    never += mtwnSpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 0.0) == HUGE_VAL;
-    CHECK(never == 4, "a tolerance of 0 never met, from rest too");
+    CHECK(SpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 1e-3) == 0.0, "from rest at once");
+    double seconds = 0.0;
+    int refused = 0;
+    refused += mtwnSpringSettlingTime(&slow, 0.0, 0.0, 0.0, 1e-3, &seconds) == mtwn_errorInvalid;
+    refused += mtwnSpringSettlingTime(&slow, 0.0, 0.0, 1e-3, 0.0, &seconds) == mtwn_errorInvalid;
+    refused +=
+        mtwnSpringSettlingTime(&critical, 0.0, 0.0, 0.0, 1e-3, &seconds) == mtwn_errorInvalid;
+    refused +=
+        mtwnSpringSettlingTime(&critical, 0.0, 0.0, 1e-3, 0.0, &seconds) == mtwn_errorInvalid;
+    CHECK(refused == 4 && seconds == 0.0, "a tolerance of 0 refused, from rest too");
 }
 
 int main(int argc, char** argv)
@@ -790,6 +854,7 @@ int main(int argc, char** argv)
     TestRegimesMeet();
     TestEndsOfTime();
     TestRefusals();
+    TestForgedSprings();
     TestSettling();
     TestSettlingTimesAreTheBounds();
     TestSettlingAtTheEdges();

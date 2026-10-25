@@ -62,7 +62,7 @@ A paused player swept to the scroll's progress before each update plays as CSS's
 // At a scroll event: the chase from where it is, toward the new progress.
 double offset = 0.0;
 double speed = 0.0;
-mtwnSampleSpring(&chase, away, pace, now - since, &offset, &speed);
+mtwnResult chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, &speed);
 away = goal + offset - scrolled; // the same place, against the new goal
 pace = speed;
 goal = scrolled;
@@ -71,7 +71,7 @@ since = now;
 
 ```c
 // Each frame, before the update: the paused player swept to the chase.
-mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
+chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
 mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
 ```
 

@@ -16,7 +16,7 @@
 #include "elementary.h"
 #include "fpenv.h"
 #include "reserved_internal.h"
-#include "spring_internal.h"
+#include "valid.h"
 #include "work.h"
 
 #include <math.h>
@@ -54,13 +54,13 @@ static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
     case mtwn_transitionEasing:
         return true;
     case mtwn_transitionSpring:
-        return kind != mtwn_valueDiscrete && mtwnIsSpring(&def->spring) &&
+        return kind != mtwn_valueDiscrete && mtwnValidSpring(&def->spring) &&
                IsTolerance(def->restOffset) && IsTolerance(def->restSpeed);
     case mtwn_transitionDecay:
         // A scale decays in its logarithm; colors and rotations have no
         // line to coast along.
         return kind != mtwn_valueDiscrete && (!mtwnIsPathKind(kind) || kind == mtwn_valueScale) &&
-               IsTolerance(def->decay.rate) && IsTolerance(def->restSpeed);
+               mtwnValidDecay(&def->decay) && IsTolerance(def->restSpeed);
     default:
         return false;
     }
@@ -266,7 +266,7 @@ static bool Coast(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     {
         return true;
     }
-    else if (!mtwnIsSpring(&def->spring) || !IsTolerance(def->restOffset))
+    else if (!mtwnValidSpring(&def->spring) || !IsTolerance(def->restOffset))
     {
         return false;
     }

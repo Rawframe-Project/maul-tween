@@ -22,7 +22,10 @@ extern "C"
 
     // A spring: its natural frequency and damping ratio, with what the
     // samples need precomputed. Make one with a mtwnMakeSpring... function;
-    // its fields are the library's, and a host reads none of them.
+    // its fields are the library's, and a host reads none of them. Every
+    // call taking one refuses a spring no maker produced: its precomputed
+    // fields are derived again from the frequency and ratio and compared
+    // bit for bit.
     typedef struct mtwnSpring
     {
         double parameters[5];
@@ -91,26 +94,36 @@ extern "C"
     /// Computes how a spring moves any start over a time, for applying to
     /// every channel of a value.
     ///
-    /// @param spring   A spring made by this library.
-    /// @param seconds  The time since the start, at least 0; infinity gives
-    ///                 the rest, all four zero when the spring is damped.
-    /// @return The motion.
+    /// @param spring     A spring made by this library.
+    /// @param seconds    The time since the start, at least 0; infinity
+    ///                   gives the rest, all four zero when the spring is
+    ///                   damped.
+    /// @param motionOut  Receives the motion; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a spring
+    ///         no maker produced, or a time outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnSpringMotion mtwnSpringMotionAt(const mtwnSpring* spring, double seconds);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSpringMotionAt(const mtwnSpring* spring, double seconds,
+                                                          mtwnSpringMotion* motionOut);
 
     /// Samples a spring from a start.
     ///
     /// @param spring       A spring made by this library.
-    /// @param offset       The start's offset from the target.
-    /// @param velocity     The start's velocity, per second.
-    /// @param seconds      The time since the start, at least 0.
-    /// @param offsetOut    Receives the offset then; may be NULL.
-    /// @param velocityOut  Receives the velocity then; may be NULL.
+    /// @param offset       The start's offset from the target, finite.
+    /// @param velocity     The start's velocity, per second, finite.
+    /// @param seconds      The time since the start, at least 0; infinity
+    ///                     gives the rest.
+    /// @param offsetOut    Receives the offset then; may be NULL; unchanged
+    ///                     on failure.
+    /// @param velocityOut  Receives the velocity then; may be NULL;
+    ///                     unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null spring, a spring
+    ///         no maker produced, or a start or time outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API void mtwnSampleSpring(const mtwnSpring* spring, double offset, double velocity,
-                                   double seconds, double* offsetOut, double* velocityOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleSpring(const mtwnSpring* spring, double offset,
+                                                        double velocity, double seconds,
+                                                        double* offsetOut, double* velocityOut);
 
     /// Returns the time after which a spring from a start stays within
     /// both tolerances of its target and of rest, by bounds on its offset
@@ -118,18 +131,24 @@ extern "C"
     /// target.
     ///
     /// @param spring             A spring made by this library.
-    /// @param offset             The start's offset from the target.
-    /// @param velocity           The start's velocity, per second.
+    /// @param offset             The start's offset from the target, finite.
+    /// @param velocity           The start's velocity, per second, finite.
     /// @param offsetTolerance    How far from the target is at rest, above
     ///                           0.
     /// @param velocityTolerance  How fast is at rest, per second, above 0.
-    /// @return Seconds from the start: 0 when it starts within both;
-    ///         infinity for an undamped spring that does not, or a tolerance
-    ///         not above 0.
+    /// @param secondsOut         Receives the seconds from the start: 0
+    ///                           when it starts within both; infinity for an
+    ///                           undamped spring that does not. Unchanged on
+    ///                           failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a spring
+    ///         no maker produced, or a start or tolerance outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
-                                           double offsetTolerance, double velocityTolerance);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSpringSettlingTime(const mtwnSpring* spring,
+                                                              double offset, double velocity,
+                                                              double offsetTolerance,
+                                                              double velocityTolerance,
+                                                              double* secondsOut);
 
     /// Makes an easing of a spring over a duration: the spring from an
     /// offset of -1 with a start velocity, sampled at progress times the
@@ -144,9 +163,10 @@ extern "C"
     ///                   second, finite: 0 from rest.
     /// @param mode       The mode.
     /// @param easingOut  Receives the easing; unchanged on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
-    ///         unknown mode, a duration or velocity outside the above, or a
-    ///         spring back at its start at the duration.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
+    ///         spring no maker produced, an unknown mode, a duration or
+    ///         velocity outside the above, or a spring back at its start at
+    ///         the duration.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSpringEasing(const mtwnSpring* spring,
@@ -155,8 +175,9 @@ extern "C"
                                                             mtwnEasing* easingOut);
 
     // A decay: a velocity falling exponentially at a rate a second, as a
-    // fling coasts to rest. Make one with mtwnMakeDecay or
-    // mtwnMakeDecayFromDeceleration.
+    // fling coasts to rest. Make one with mtwnMakeDecay,
+    // mtwnMakeDecayFromDeceleration or mtwnMakeDecayToRest; every call
+    // taking one refuses a rate no maker gives, not finite and above 0.
     typedef struct mtwnDecay
     {
         double rate;
@@ -189,42 +210,55 @@ extern "C"
     /// (1 - e^(-k t)) / k, the velocity velocity e^(-k t).
     ///
     /// @param decay        A decay made by this library.
-    /// @param position     The start's position.
-    /// @param velocity     The start's velocity, per second.
+    /// @param position     The start's position, finite.
+    /// @param velocity     The start's velocity, per second, finite.
     /// @param seconds      The time since the start, at least 0; infinity
     ///                     gives the rest.
-    /// @param positionOut  Receives the position then; may be NULL.
-    /// @param velocityOut  Receives the velocity then; may be NULL.
+    /// @param positionOut  Receives the position then; may be NULL;
+    ///                     unchanged on failure.
+    /// @param velocityOut  Receives the velocity then; may be NULL;
+    ///                     unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null decay, a decay no
+    ///         maker produced, or a start or time outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API void mtwnSampleDecay(const mtwnDecay* decay, double position, double velocity,
-                                  double seconds, double* positionOut, double* velocityOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleDecay(const mtwnDecay* decay, double position,
+                                                       double velocity, double seconds,
+                                                       double* positionOut, double* velocityOut);
 
     /// Returns the time a decay's speed falls to a stop speed.
     ///
-    /// @param decay      A decay made by this library.
-    /// @param velocity   The start's velocity, per second.
-    /// @param stopSpeed  The speed counted as stopped, per second.
-    /// @return Seconds from the start: 0 when the start is no faster;
-    ///         infinity for a stop speed not above 0.
+    /// @param decay       A decay made by this library.
+    /// @param velocity    The start's velocity, per second, finite.
+    /// @param stopSpeed   The speed counted as stopped, per second, above 0.
+    /// @param secondsOut  Receives the seconds from the start: 0 when the
+    ///                    start is no faster. Unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a decay
+    ///         no maker produced, or a velocity or stop speed outside the
+    ///         above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnDecayStopTime(const mtwnDecay* decay, double velocity,
+                                                         double stopSpeed, double* secondsOut);
 
     /// Returns the time a decay reaches a position, where a host hands it
     /// over to a spring back from a limit.
     ///
-    /// @param decay     A decay made by this library.
-    /// @param position  The start's position.
-    /// @param velocity  The start's velocity, per second.
-    /// @param target    The position to reach.
-    /// @return Seconds from the start: 0 when it starts there; infinity when
-    ///         it never gets there, moving away or coming to rest short of
-    ///         it or exactly on it.
+    /// @param decay       A decay made by this library.
+    /// @param position    The start's position, finite.
+    /// @param velocity    The start's velocity, per second, finite.
+    /// @param target      The position to reach, finite.
+    /// @param secondsOut  Receives the seconds from the start: 0 when it
+    ///                    starts there; infinity when it never gets there,
+    ///                    moving away or coming to rest short of it or
+    ///                    exactly on it. Unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a decay
+    ///         no maker produced, or a value outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
-                                          double target);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnDecayCrossingTime(const mtwnDecay* decay,
+                                                             double position, double velocity,
+                                                             double target, double* secondsOut);
 
     /// Makes the decay that comes to rest at an end from a start, keeping
     /// the start's velocity: its rate is velocity / (end
@@ -268,9 +302,10 @@ extern "C"
     /// @param upper    The upper bound, at least the lower; may be
     ///                 infinity, for none.
     /// @param boundedOut  Receives the bounded decay; unchanged on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a NaN
-    ///         bound, a lower bound above the upper, a lower bound of
-    ///         infinity or an upper of -infinity.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a decay
+    ///         or spring no maker produced, a NaN bound, a lower bound above
+    ///         the upper, a lower bound of infinity or an upper of
+    ///         -infinity.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeBoundedDecay(const mtwnDecay* decay,
@@ -281,16 +316,22 @@ extern "C"
     /// Samples a bounded decay from a start.
     ///
     /// @param bounded      A bounded decay made by this library.
-    /// @param position     The start's position.
-    /// @param velocity     The start's velocity, per second.
-    /// @param seconds      The time since the start, at least 0.
-    /// @param positionOut  Receives the position then; may be NULL.
-    /// @param velocityOut  Receives the velocity then; may be NULL.
+    /// @param position     The start's position, finite.
+    /// @param velocity     The start's velocity, per second, finite.
+    /// @param seconds      The time since the start, at least 0; infinity
+    ///                     gives the rest.
+    /// @param positionOut  Receives the position then; may be NULL;
+    ///                     unchanged on failure.
+    /// @param velocityOut  Receives the velocity then; may be NULL;
+    ///                     unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null bounded decay,
+    ///         one no maker produced, or a start or time outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API void mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded, double position,
-                                         double velocity, double seconds, double* positionOut,
-                                         double* velocityOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded,
+                                                              double position, double velocity,
+                                                              double seconds, double* positionOut,
+                                                              double* velocityOut);
 
     /// Returns the time a bounded decay from a start comes to rest: a
     /// coast's stop at the stop speed, or the spring's settling within
@@ -298,19 +339,25 @@ extern "C"
     /// over (mtwnSpringSettlingTime).
     ///
     /// @param bounded          A bounded decay made by this library.
-    /// @param position         The start's position.
-    /// @param velocity         The start's velocity, per second.
+    /// @param position         The start's position, finite.
+    /// @param velocity         The start's velocity, per second, finite.
     /// @param offsetTolerance  How far from the bound the spring is at
     ///                         rest, above 0.
     /// @param stopSpeed        The speed counted as stopped, per second,
     ///                         above 0.
-    /// @return Seconds from the start; infinity for a tolerance not above
-    ///         0 or an undamped spring.
+    /// @param secondsOut       Receives the seconds from the start;
+    ///                         infinity for an undamped spring. Unchanged
+    ///                         on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
+    ///         bounded decay no maker produced, or a start or tolerance
+    ///         outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position,
-                                             double velocity, double offsetTolerance,
-                                             double stopSpeed);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded,
+                                                                double position, double velocity,
+                                                                double offsetTolerance,
+                                                                double stopSpeed,
+                                                                double* secondsOut);
 
     /// iOS's rubber band: how far content moves when dragged a distance
     /// past a limit, in a dimension (the view's size along the drag):

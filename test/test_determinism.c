@@ -18,6 +18,7 @@
 // on. Run with an argument, it prints the hash instead of checking it.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/event.h"
@@ -583,18 +584,18 @@ static void HashSprings(void)
         for (uint32_t k = 0; k < SAMPLES; ++k)
         {
             double seconds = 0.03125 * (double)k;
-            mtwnSpringMotion motion = mtwnSpringMotionAt(&springs[s], seconds);
+            mtwnSpringMotion motion = SpringMotionAt(&springs[s], seconds);
             HashDouble(motion.offsetFromOffset);
             HashDouble(motion.offsetFromVelocity);
             HashDouble(motion.velocityFromOffset);
             HashDouble(motion.velocityFromVelocity);
             double offset = 0.0;
             double velocity = 0.0;
-            mtwnSampleSpring(&springs[s], -1.0, 2.5, seconds, &offset, &velocity);
+            SampleSpring(&springs[s], -1.0, 2.5, seconds, &offset, &velocity);
             HashDouble(offset);
             HashDouble(velocity);
         }
-        HashDouble(mtwnSpringSettlingTime(&springs[s], -1.0, 2.5, 1e-3, 1e-2));
+        HashDouble(SpringSettlingTime(&springs[s], -1.0, 2.5, 1e-3, 1e-2));
     }
 }
 
@@ -681,18 +682,18 @@ static void HashDecays(void)
     {
         double seconds = 0.0625 * (double)k;
         double out[4];
-        mtwnSampleDecay(&decay, 10.0, 900.0, seconds, &out[0], &out[1]);
-        mtwnSampleDecay(&landing, 0.0, 900.0, seconds, &out[2], &out[3]);
+        SampleDecay(&decay, 10.0, 900.0, seconds, &out[0], &out[1]);
+        SampleDecay(&landing, 0.0, 900.0, seconds, &out[2], &out[3]);
         HashDoubles(out, 4);
-        mtwnSampleBoundedDecay(&bounded, 10.0, 900.0, seconds, &out[0], &out[1]);
+        SampleBoundedDecay(&bounded, 10.0, 900.0, seconds, &out[0], &out[1]);
         HashDoubles(out, 2);
         double distance = 40.0 * Progress(k);
         HashDouble(mtwnRubberBand(distance, 320.0, 0.55));
         HashDouble(mtwnRubberBandInverse(distance, 320.0, 0.55));
     }
-    HashDouble(mtwnDecayStopTime(&decay, 900.0, 0.5));
-    HashDouble(mtwnDecayCrossingTime(&decay, 10.0, 900.0, 150.0));
-    HashDouble(mtwnBoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
+    HashDouble(DecayStopTime(&decay, 900.0, 0.5));
+    HashDouble(DecayCrossingTime(&decay, 10.0, 900.0, 150.0));
+    HashDouble(BoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
 }
 
 // Inputs just below and just above each switch between two forms, which
@@ -751,7 +752,7 @@ static void HashEdges(void)
     static const double series[2][2] = {{1.1, 1.13}, {0.0288, 0.0289}};
     for (uint32_t i = 0; i < 3; ++i)
     {
-        mtwnSpringMotion motion = mtwnSpringMotionAt(&undamped, far[i]);
+        mtwnSpringMotion motion = SpringMotionAt(&undamped, far[i]);
         HashDouble(motion.offsetFromOffset);
         HashDouble(motion.offsetFromVelocity);
         HashDouble(motion.velocityFromOffset);
@@ -763,8 +764,8 @@ static void HashEdges(void)
         {
             double offset = 0.0;
             double velocity = 0.0;
-            mtwnSampleSpring(s == 0 ? &nearCritical : &over, -1.0, 2.5, series[s][i], &offset,
-                             &velocity);
+            SampleSpring(s == 0 ? &nearCritical : &over, -1.0, 2.5, series[s][i], &offset,
+                         &velocity);
             HashDouble(offset);
             HashDouble(velocity);
         }

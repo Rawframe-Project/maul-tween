@@ -7,6 +7,7 @@
 // apart from the decay, whose sampling it calls rather than copies.
 
 #include "fpenv.h"
+#include "valid.h"
 #include "work.h"
 
 #include "maul-tween/spring.h"
@@ -38,15 +39,26 @@ static MTWN_NOINLINE mtwnResult mtwnMakeBoundedDecayWork(const mtwnDecay* decay,
                                                          const mtwnSpring* spring, double lower,
                                                          double upper, mtwnBoundedDecay* boundedOut)
 {
-    // A lower bound of infinity or an upper of -infinity leaves nowhere
-    // finite to rest: a start short of it would bounce toward it forever.
-    if (decay == NULL || spring == NULL || boundedOut == NULL || !(lower <= upper) ||
-        lower == HUGE_VAL || upper == -HUGE_VAL)
+    if (decay == NULL || spring == NULL || boundedOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *boundedOut = (mtwnBoundedDecay){*decay, *spring, lower, upper};
+    mtwnBoundedDecay bounded = {*decay, *spring, lower, upper};
+    if (!mtwnValidBoundedDecay(&bounded))
+    {
+        return mtwn_errorInvalid;
+    }
+    *boundedOut = bounded;
     return mtwn_success;
+}
+
+MTWN_NOINLINE bool mtwnValidBoundedDecay(const mtwnBoundedDecay* bounded)
+{
+    // A lower bound of infinity or an upper of -infinity leaves nowhere
+    // finite to rest: a start short of it would bounce toward it forever.
+    return bounded != NULL && mtwnValidDecay(&bounded->decay) &&
+           mtwnValidSpring(&bounded->spring) && bounded->lower <= bounded->upper &&
+           bounded->lower != HUGE_VAL && bounded->upper != -HUGE_VAL;
 }
 
 mtwnResult mtwnMakeBoundedDecay(const mtwnDecay* decay, const mtwnSpring* spring, double lower,
@@ -114,12 +126,28 @@ MTWN_NOINLINE void mtwnSampleBoundedDecayWork(const mtwnBoundedDecay* bounded, d
     }
 }
 
-void mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded, double position, double velocity,
-                            double seconds, double* positionOut, double* velocityOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleBoundedDecayChecked(const mtwnBoundedDecay* bounded,
+                                                              double position, double velocity,
+                                                              double seconds, double* positionOut,
+                                                              double* velocityOut)
+{
+    if (!mtwnValidBoundedDecay(bounded) || !isfinite(position) || !isfinite(velocity) ||
+        !(seconds >= 0.0))
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnSampleBoundedDecayWork(bounded, position, velocity, seconds, positionOut, velocityOut);
+    return mtwn_success;
+}
+
+mtwnResult mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded, double position, double velocity,
+                                  double seconds, double* positionOut, double* velocityOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnSampleBoundedDecayWork(bounded, position, velocity, seconds, positionOut, velocityOut);
+    mtwnResult result = mtwnSampleBoundedDecayChecked(bounded, position, velocity, seconds,
+                                                      positionOut, velocityOut);
     mtwnFloatEnvLeave(env);
+    return result;
 }
 
 MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded, double position,
@@ -139,12 +167,29 @@ MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounde
                                                      handoff.velocity, offsetTolerance, stopSpeed);
 }
 
-double mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position, double velocity,
-                                double offsetTolerance, double stopSpeed)
+static MTWN_NOINLINE mtwnResult mtwnBoundedDecayStopTimeChecked(const mtwnBoundedDecay* bounded,
+                                                                double position, double velocity,
+                                                                double offsetTolerance,
+                                                                double stopSpeed,
+                                                                double* secondsOut)
+{
+    if (!mtwnValidBoundedDecay(bounded) || !isfinite(position) || !isfinite(velocity) ||
+        !(offsetTolerance > 0.0) || !(stopSpeed > 0.0) || secondsOut == NULL)
+    {
+        return mtwn_errorInvalid;
+    }
+    *secondsOut =
+        mtwnBoundedDecayStopTimeWork(bounded, position, velocity, offsetTolerance, stopSpeed);
+    return mtwn_success;
+}
+
+mtwnResult mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position,
+                                    double velocity, double offsetTolerance, double stopSpeed,
+                                    double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result =
-        mtwnBoundedDecayStopTimeWork(bounded, position, velocity, offsetTolerance, stopSpeed);
+    mtwnResult result = mtwnBoundedDecayStopTimeChecked(bounded, position, velocity,
+                                                        offsetTolerance, stopSpeed, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

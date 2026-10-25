@@ -11,11 +11,15 @@ mtwnSpring spring;
 mtwnResult made = mtwnMakeSpringFromDuration(0.4, 0.2, &spring); // 0.4 s, a little bounce
 double offset = 0.0;
 double speed = 0.0;
-mtwnSampleSpring(&spring, -1.0, 0.0, 0.1, &offset, &speed); // 0.1 s after starting 1 short
-double settled = mtwnSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2);
+// 0.1 s after starting 1 short of the target, at rest.
+mtwnResult sampled = mtwnSampleSpring(&spring, -1.0, 0.0, 0.1, &offset, &speed);
+double settled = 0.0;
+mtwnResult timed = mtwnSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
 ```
 
 `mtwnSpringSettlingTime` gives the time after which the motion stays within both tolerances of its target and of rest, by bounds that never end it early; the host then snaps it to the target. An undamped spring that does not start at rest never settles and gets infinity.
+
+Every call that takes a spring, a decay or a bounded decay returns a status and gives its results through pointers, left as they were on failure. It refuses a struct no maker produced (a spring's precomputed fields are derived again from its frequency and ratio, bit for bit), a start that is not finite, a time below 0 or NaN, and a tolerance or stop speed not above 0.
 
 To retarget a moving spring, sample it at the time of the change and start again from there: the velocity carries over and the offset is measured from the new target. `mtwnSpringMotionAt` gives the motion over one time as four coefficients, so a value of several channels costs one evaluation and four multiplications a channel.
 
@@ -31,8 +35,9 @@ A fling that snaps lands where the host chooses. The natural rest is the decay's
 mtwnDecay coast;
 mtwnResult made = mtwnMakeDecayFromDeceleration(0.998, &coast);
 double rest = 0.0;
-mtwnSampleDecay(&coast, 40.0, 1500.0, HUGE_VAL, &rest, NULL); // where it would stop
-double page = 320.0 * round(rest / 320.0);                    // the nearest page
+// Where it would stop: its sample at infinite time.
+mtwnResult sampled = mtwnSampleDecay(&coast, 40.0, 1500.0, HUGE_VAL, &rest, NULL);
+double page = 320.0 * round(rest / 320.0); // the nearest page
 mtwnDecay snap;
 made = mtwnMakeDecayToRest(40.0, 1500.0, page, &snap);
 
@@ -41,8 +46,9 @@ made = mtwnMakeSpring(500.0, 10.0, 1.0, &bounce);
 mtwnBoundedDecay scroll;
 made = mtwnMakeBoundedDecay(&coast, &bounce, 0.0, 600.0, &scroll); // content 0 to 600
 double at = 0.0;
-mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
-double still = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0);
+mtwnResult bounced = mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
+double still = 0.0;
+mtwnResult stopped = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &still);
 ```
 
 A start already past a bound is the spring's from the start. Either bound may be infinite, for none.
