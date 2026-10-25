@@ -121,8 +121,9 @@ extern "C"
     // refuses an easing whose fields its kind reads are not as its maker
     // sets them, or for an elastic and a spring easing outside the ranges
     // its maker gives them. It is a plain value, copied freely; what it
-    // references (a host function's context, linear() points) stays the
-    // host's and must outlive every copy.
+    // references stays the host's: a host function's context must outlive
+    // every copy, and linear() points every copy the host keeps, since a
+    // transition or a clip copies the points in when it takes the easing.
     typedef struct mtwnEasing
     {
         // The curve's numbers, precomputed by its maker.

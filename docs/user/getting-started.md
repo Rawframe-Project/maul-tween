@@ -50,7 +50,7 @@ Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negati
 |---|---|
 | `mtwn_errorInvalid` | An argument is invalid: a null pointer, a value out of range, a def not made by its default function. |
 | `mtwn_errorCapacity` | A caller buffer is too small, or the allocator failed. |
-| `mtwn_errorLimit` | A capacity the host set is full: targets, players, clips, a clip's nodes. |
+| `mtwn_errorLimit` | A capacity the host set is full: targets, players, clips, a clip's nodes, the `linear()` points a transition or a clip holds. |
 | `mtwn_errorVersion` | A context def was built against headers of another ABI version. |
 | `mtwn_errorStale` | An id names an object destroyed since it was handed out. |
 | `mtwn_errorBusy` | The object is in use: a clip a player plays. |

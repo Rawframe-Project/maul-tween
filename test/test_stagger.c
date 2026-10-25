@@ -262,6 +262,9 @@ static void TestMisuse(void)
     double kept[3];
     CHECK(mtwnComputeStagger(&bad, 3, kept) == mtwn_success && isfinite(kept[2]),
           "the same spacing as an amount, finite");
+    bad = good;
+    bad.easing.mode = 4;
+    CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid, "an easing no maker produced");
     CHECK(got[0] == -1.0 && got[1] == -1.0 && got[2] == -1.0, "nothing written");
 }
 

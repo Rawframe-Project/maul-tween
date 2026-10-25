@@ -1,6 +1,6 @@
 # Easing
 
-`easing.h` maps a timing's progress, from 0 to 1, onto eased progress. An `mtwnEasing` is a plain value: a maker checks its parameters and returns a status, and `mtwnEase` samples it, giving the eased progress through a pointer and its own status. It may be copied freely; what it references (a host function's context, the points of `linear()`) stays the host's and must outlive every copy.
+`easing.h` maps a timing's progress, from 0 to 1, onto eased progress. An `mtwnEasing` is a plain value: a maker checks its parameters and returns a status, and `mtwnEase` samples it, giving the eased progress through a pointer and its own status. It may be copied freely; what it references stays the host's: a host function's context must outlive every copy, and the points of `linear()` every copy the host keeps, since a transition or a clip copies the points in when it takes the easing.
 
 ## Making and sampling
 
@@ -39,7 +39,7 @@ Every kind takes the same four modes: in (the curve as defined), out (`1 - f(1 -
 - Penner's and tween.js's in-out back use 1.525 times the overshoot; pass that value to match them. GSAP's and tween.js's elastic miss 1 at the end by up to `a 2^-10` and set it there, so they differ from this one by at most `a (1 + a) 2^-10`.
 - CSS's curves follow CSS Easing Level 2 outside 0 to 1 (a cubic bezier extends along its end tangents); Penner's curves, springs and host functions see progress clamped to 0 to 1.
 - The last argument of `mtwnEase` is the timing's before flag: in the before phase, `steps()` landing exactly on a step takes the step below, as CSS says. Pass `false` when sampling a curve on its own.
-- `linear()` canonicalizes its points in place as CSS does (missing inputs spread, decreasing inputs raised), so the array is rewritten; an input of NaN is a stop given without a percentage. The easing reads the points where they are: changed afterwards, even out of order, while finite they give an unspecified but finite value.
+- `linear()` canonicalizes its points in place as CSS does (missing inputs spread, decreasing inputs raised), so the array is rewritten; an input of NaN is a stop given without a percentage. The easing reads the points where they are: changed afterwards, even out of order, while finite they give an unspecified but finite value. A transition or a clip copies them when it takes the easing, and refuses points the host put out of their canonical order.
 - Every curve but a host function's is finite at every finite progress. Where CSS's extend past the doubles' range (a steep end tangent far outside 0 to 1), they give the largest finite double of its sign.
 - Every call taking an easing refuses one whose fields are not as its maker sets them (`mtwn_errorInvalid`), and `mtwnEase` refuses a progress that is not finite. A host never writes an easing's fields; a struct it zeroes is the linear easing.
 - An elastic's amplitude is at most 512 and its period, once an amplitude below 1 has stretched it, at least 2^-10; a cubic bezier's y is at most 2^1000 in magnitude; a spring easing may oscillate at most once in 2^-10 of its duration. Past these a curve's normalization could overflow or a fit of `MTWN_MAX_FIT_POINTS` points could not follow it, and the makers refuse them.

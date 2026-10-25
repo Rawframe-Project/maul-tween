@@ -153,6 +153,24 @@ static double Progress(Bytes* in, double scale)
     return rare[f % 5];
 }
 
+// The host's points of the linear() easings a script hands in, wiped
+// (NaN) once the call that copies them returns: a context reading them
+// after would write values that are not finite.
+static mtwnLinearPoint s_timingPoints[4];
+static mtwnLinearPoint s_transitionPoints[4];
+
+static mtwnResult MakeLinear(mtwnLinearPoint* points, mtwnEasing* easingOut)
+{
+    static const mtwnLinearPoint s_rising[4] = {{0.0, 0.0}, {0.4, 0.3}, {0.7, 0.8}, {1.0, 1.0}};
+    memcpy(points, s_rising, sizeof s_rising);
+    return mtwnMakeLinearEasing(points, 4, easingOut);
+}
+
+static void Scribble(mtwnLinearPoint* points)
+{
+    memset(points, 0xFF, 4 * sizeof *points);
+}
+
 static mtwnTiming RandomTiming(Bytes* in)
 {
     mtwnTiming t = mtwnDefaultTiming();
@@ -175,6 +193,13 @@ static mtwnTiming RandomTiming(Bytes* in)
         if (power == 2)
         {
             (void)mtwnMakeHostEasing(mode, Watched, NULL, &t.easing);
+        }
+        else if (power == 1)
+        {
+            // linear(), whose points the clip copies: Scribble wipes them
+            // once the timing is added.
+            (void)MakeLinear(s_timingPoints, &t.easing);
+            (void)mtwnSetEaseMode(&t.easing, mode);
         }
         else
         {
@@ -252,6 +277,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         def.autoDuration = Below(in, 2) == 0;
         def.timing = RandomTiming(in);
         r = mtwnClip_AddTimeline(context, clip, &def, &node);
+        Scribble(s_timingPoints);
         if (r == mtwn_success && *timelineCount < 8)
         {
             timelines[(*timelineCount)++] = node;
@@ -296,6 +322,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         def.incremental = Below(in, 4) == 0;
         def.constantSpeed = Below(in, 4) == 0;
         r = mtwnClip_AddTrack(context, clip, &def, &node);
+        Scribble(s_timingPoints);
         break;
     }
     }
@@ -385,8 +412,14 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
             def.lower = (mtwnVec4){(float)Wild(in, 2.0), -1.0f, 0.0f, 0.0f};
             def.upper = (mtwnVec4){(float)Wild(in, 2.0), 1.0f, 1.0f, 1.0f};
         }
+        // A value drawn from 1 to 2 eases by linear(), copied as it starts.
+        if (def.spec == mtwn_transitionEasing && def.value.x >= 1.0f && def.value.x < 2.0f)
+        {
+            (void)MakeLinear(s_transitionPoints, &def.easing);
+        }
         mtwnPlayerId id = {0, 0};
         r = mtwnStartTransition(context, &def, &id);
+        Scribble(s_transitionPoints);
         break;
     }
     }

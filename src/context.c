@@ -40,7 +40,7 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
     bool valid = !oneFunction && IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
                  IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
-                 IsCount(def->sharedRecordCapacity) &&
+                 IsCount(def->sharedRecordCapacity) && IsCount(def->pointsPerTransition) &&
                  def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE && def->reserved == 0;
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
@@ -50,6 +50,7 @@ typedef struct Layout
 {
     uint64_t targets;
     uint64_t players;
+    uint64_t transitionPoints;
     uint64_t clips;
     uint64_t bindings;
     uint64_t events;
@@ -150,6 +151,8 @@ static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
     uint64_t end = sizeof(mtwnContext);
     bool placed = Place(&end, def->targetCapacity, sizeof(mtwnTargetSlot), &layout->targets) &&
                   Place(&end, def->playerCapacity, sizeof(mtwnPlayerSlot), &layout->players) &&
+                  Place(&end, (uint64_t)def->playerCapacity * def->pointsPerTransition,
+                        sizeof(mtwnLinearPoint), &layout->transitionPoints) &&
                   Place(&end, def->clipCapacity, sizeof(mtwnClipSlot), &layout->clips) &&
                   Place(&end, def->bindingCapacity, sizeof(mtwnBound), &layout->bindings) &&
                   Place(&end, def->eventCapacity, sizeof(mtwnEvent), &layout->events) &&
@@ -246,6 +249,7 @@ static MTWN_NOINLINE mtwnResult mtwnCreateContextWork(const mtwnContextDef* def,
         MakePool(block + layout.targets, sizeof(mtwnTargetSlot), def->targetCapacity);
     context->players =
         MakePool(block + layout.players, sizeof(mtwnPlayerSlot), def->playerCapacity);
+    context->transitionPoints = (mtwnLinearPoint*)(block + layout.transitionPoints);
     context->clips = MakePool(block + layout.clips, sizeof(mtwnClipSlot), def->clipCapacity);
     context->bindings = mtwnMakeRuns((mtwnBound*)(block + layout.bindings), def->bindingCapacity);
     context->events = (mtwnEvent*)(block + layout.events);
@@ -275,8 +279,9 @@ static bool Holds(const mtwnContextDef* def, const mtwnContext* context)
 {
     const mtwnContextDef* now = &context->def;
     return def->targetCapacity >= now->targetCapacity &&
-           def->playerCapacity >= now->playerCapacity && def->clipCapacity >= now->clipCapacity &&
-           def->eventCapacity >= now->eventCapacity &&
+           def->playerCapacity >= now->playerCapacity &&
+           def->pointsPerTransition >= now->pointsPerTransition &&
+           def->clipCapacity >= now->clipCapacity && def->eventCapacity >= now->eventCapacity &&
            def->bindingCapacity >= now->bindingCapacity &&
            def->clipStorageBytes >= now->clipStorageBytes &&
            SameAllocator(&def->allocator, &context->allocator);
@@ -290,6 +295,24 @@ static void MovePool(mtwnPool* to, const mtwnPool* from)
     to->free = from->free;
 }
 
+// Each transition's linear() points into the new block, at its player's
+// place in the new stride, its easing pointed at them. A slot freed since
+// keeps the old block's points it had, so moving them too is harmless.
+static void MoveTransitionPoints(mtwnContext* to)
+{
+    for (uint32_t i = 1; i <= to->players.high; ++i)
+    {
+        mtwnPlayerSlot* slot = mtwnPlayerAt(to, i);
+        if (slot->type == MTWN_PLAYER_TRANSITION && slot->spec == mtwn_transitionEasing &&
+            slot->easing.kind == mtwn_easingLinearPoints)
+        {
+            mtwnLinearPoint* points = mtwnTransitionPointsAt(to, i);
+            memcpy(points, slot->easing.points, (size_t)slot->easing.count * sizeof *points);
+            slot->easing.points = points;
+        }
+    }
+}
+
 // Moves what a context holds into a new block laid out for a larger def.
 static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* block,
                      const Layout* layout)
@@ -301,6 +324,8 @@ static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* bl
     MovePool(&to->targets, &from->targets);
     MovePool(&to->players, &from->players);
     MovePool(&to->clips, &from->clips);
+    to->transitionPoints = (mtwnLinearPoint*)(block + layout->transitionPoints);
+    MoveTransitionPoints(to);
     // The bindings keep their runs; the new tail is one more free run.
     uint32_t had = from->bindings.capacity;
     to->bindings = (mtwnRuns){(mtwnBound*)(block + layout->bindings), def->bindingCapacity,

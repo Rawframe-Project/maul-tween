@@ -181,11 +181,16 @@ extern "C"
     ///         value, a decay for a color or rotation, a scale's decay
     ///         stopping where a float is 0 or infinite, a decay both bounded
     ///         and landing, a lower bound above the upper or NaN, a scale's
-    ///         bound not above 0, or a landing whose velocity does not move
-    ///         a channel toward its value;
+    ///         bound not above 0, a landing whose velocity does not move
+    ///         a channel toward its value, an easing no maker produced, or
+    ///         linear() points the host changed from the order its maker
+    ///         left them in (not finite, or an input below one before it);
     ///         mtwn_errorStale for a target that is not alive;
     ///         mtwn_errorLimit when the context holds its capacity of
-    ///         players.
+    ///         players, or for a linear() easing of more points than the
+    ///         context's pointsPerTransition. A linear() easing's points are
+    ///         copied into the context: the host's may change or go once it
+    ///         starts.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnStartTransition(mtwnContext* context,

@@ -90,6 +90,10 @@ extern "C"
         uint32_t nodeCapacity;
         uint32_t keyframeCapacity;
         uint32_t slotCapacity;
+        // The points of CSS linear() its easings may have in all, the
+        // timings' and the keyframes', up to MTWN_MAX_COUNT: the clip
+        // copies them in, 16 bytes each.
+        uint32_t pointCapacity;
         // 0: a call refuses another value.
         uint32_t reserved;
     } mtwnClipDef;
@@ -98,7 +102,8 @@ extern "C"
 #define MTWN_CLIP_DEF_COOKIE 0x50494C43u
 
     /// Makes a clip def for a small clip: 16 nodes, 32 keyframes, 8 slots,
-    /// about 13 KB of clip storage (mtwnGetClipBytes says how much).
+    /// 64 points of linear(), about 14 KB of clip storage (mtwnGetClipBytes
+    /// says how much).
     ///
     /// @return The def.
     /// @par Thread safety
@@ -114,6 +119,7 @@ extern "C"
         def.nodeCapacity = 16;
         def.keyframeCapacity = 32;
         def.slotCapacity = 8;
+        def.pointCapacity = 64;
         return def;
     }
 
@@ -318,8 +324,12 @@ extern "C"
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie or outside the above; mtwn_errorStale for a
     ///         clip that is not alive; mtwn_errorState for a finished clip;
-    ///         mtwn_errorLimit when the clip holds its capacity of nodes or
-    ///         keyframes.
+    ///         mtwn_errorLimit when the clip holds its capacity of nodes,
+    ///         keyframes or points. The linear() points of its timing's
+    ///         and keyframes' easings are copied into the clip, so the
+    ///         host's may change or go once added; points the host changed
+    ///         from the order their maker left them in (not finite, or an
+    ///         input below one before it) are mtwn_errorInvalid.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_AddTrack(mtwnContext* context, mtwnClipId clip,
@@ -404,7 +414,9 @@ extern "C"
     /// @param node      A track node of the clip.
     /// @param trackOut  Receives the track, its timing, start, parent and slot;
     ///                  sample it with mtwnComputeTiming and mtwnSampleTrack
-    ///                  from any thread while the clip lives; zero on failure.
+    ///                  from any thread while the clip lives (its easings'
+    ///                  linear() points are the clip's copies); zero on
+    ///                  failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument or a node
     ///         that is not a track of the clip; mtwn_errorStale for a clip
     ///         that is not alive; mtwn_errorState for one not finished.

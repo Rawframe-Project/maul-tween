@@ -264,6 +264,9 @@ typedef struct mtwnClipSlot
     // The root is nodes[0].
     mtwnClipNode* nodes;
     mtwnKeyframe* keyframes;
+    // The points of the linear() easings of its timings and keyframes,
+    // copied in, which those easings reference.
+    mtwnLinearPoint* points;
     double* lengths;
     mtwnSegmentMix* mixes;
     // Each slot's value kind plus 1, 0 for a slot no track uses yet.
@@ -272,6 +275,7 @@ typedef struct mtwnClipSlot
     mtwnNodeTime* times;
     uint32_t nodeCount;
     uint32_t keyframeCount;
+    uint32_t pointCount;
     // The slots its tracks use: the largest plus 1.
     uint32_t slotCount;
     // The players playing it.
@@ -302,6 +306,9 @@ struct mtwnContext
     mtwnPool targets;
     mtwnPool players;
     mtwnPool clips;
+    // Each player's def.pointsPerTransition points, in index order: a
+    // transition's linear() easing copied in, which its easing references.
+    mtwnLinearPoint* transitionPoints;
     // The players in creation order, first and last; 0 for none.
     uint32_t firstPlayer;
     uint32_t lastPlayer;
@@ -418,6 +425,12 @@ static inline mtwnClipSlot* mtwnClipAt(const mtwnContext* context, uint32_t inde
 static inline mtwnPlayerSlot* mtwnPlayerAt(const mtwnContext* context, uint32_t index1)
 {
     return (mtwnPlayerSlot*)mtwnPoolAt(&context->players, index1);
+}
+
+// The points a player's transition copies its linear() easing to.
+static inline mtwnLinearPoint* mtwnTransitionPointsAt(const mtwnContext* context, uint32_t index1)
+{
+    return context->transitionPoints + (size_t)(index1 - 1) * context->def.pointsPerTransition;
 }
 
 // A player's id from its slot.

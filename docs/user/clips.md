@@ -126,3 +126,4 @@ Porting from GSAP: a grid with a short last row stays its columns wide, its cent
 - A clip a player plays cannot be destroyed (`mtwn_errorBusy`) until the player is freed.
 - A negative playback rate needs a finite active duration, whose end a backward play starts from.
 - Clip storage is allocated when the clip is made and freed when it is destroyed; the context's other capacities are not touched.
+- A track's and a timeline's `linear()` easings, in their timing and their keyframes, have their points copied into the clip's storage as they are added, within the clip def's `pointCapacity` (64 by default, 16 bytes each), so the host's arrays may change or go afterwards. Points past it are refused with `mtwn_errorLimit`.

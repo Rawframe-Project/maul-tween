@@ -42,13 +42,15 @@ PARTS = [
 # whole library's by what an overflowing start's exact settling time
 # costs, the values' and the whole library's by what refusing a timing
 # whose active duration or cycle overflows costs, and every part's by what
-# checking springs and decays, then easings, where they enter costs.
+# checking springs and decays, then easings, where they enter costs, and
+# the transitions', the clips' and the whole library's by what copying
+# linear() points into a context costs.
 BUDGETS = {
     "curves": 31500,
     "values": 63100,
-    "transitions": 66700,
-    "clips": 155700,
-    "everything": 173800,
+    "transitions": 67300,
+    "clips": 156600,
+    "everything": 175200,
 }
 
 
@@ -68,7 +70,8 @@ RAISED = {
     "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
     "or a decay checks it, 1.6 kB, and every call taking an easing, 2.0 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB",
-    "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB",
+    "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
+    "and a transition copies its linear() points, 0.6 kB",
 }
 
 

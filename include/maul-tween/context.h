@@ -99,6 +99,13 @@ extern "C"
         // work and in each group's with a task system.
         uint32_t sharedNodeCapacity;
         uint32_t sharedRecordCapacity;
+        // The most points of CSS linear() a transition's easing may have,
+        // up to MTWN_MAX_COUNT: a transition copies them into the context,
+        // which holds 16 bytes for each, for every player. A transition
+        // whose easing has more is refused with mtwn_errorLimit; a longer
+        // table belongs in a clip (mtwnClipDef's pointCapacity). 0 takes no
+        // linear() easing.
+        uint32_t pointsPerTransition;
         // 0: a call refuses another value.
         uint32_t reserved;
         // Bytes for the clips' contents, up to MTWN_MAX_CLIP_STORAGE.
@@ -108,9 +115,10 @@ extern "C"
 // The cookie mtwnDefaultContextDef sets and mtwnCreateContext checks.
 #define MTWN_CONTEXT_DEF_COOKIE 0x4E575454u
 
-    /// Makes a context def for a medium host: 1024 targets, 256 players, 16
-    /// clips, 256 events, 1024 bindings, sharing for clips of up to 128
-    /// nodes and 64 records, and 208 KiB of clip storage, which holds 16
+    /// Makes a context def for a medium host: 1024 targets, 256 players
+    /// with 64 points of linear() for each transition, 16 clips, 256
+    /// events, 1024 bindings, sharing for clips of up to 128 nodes and 64
+    /// records, and 224 KiB of clip storage, which holds 16
     /// clips of the default clip def, the C library's allocator and no task
     /// system.
     /// Built in the program, so it carries the version of the headers the
@@ -135,7 +143,8 @@ extern "C"
         def.bindingCapacity = 1024;
         def.sharedNodeCapacity = 128;
         def.sharedRecordCapacity = 64;
-        def.clipStorageBytes = 16u * 13312u;
+        def.pointsPerTransition = 64;
+        def.clipStorageBytes = 16u * 14336u;
         return def;
     }
 

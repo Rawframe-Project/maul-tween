@@ -17,6 +17,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <string.h>
 
 // The solver stops once x(t) is this close to x, or the bracket narrower
 // than an ulp of 1/2, or after this many steps.
@@ -376,6 +377,26 @@ static void SpreadRuns(mtwnLinearPoint* points, uint32_t count)
         }
         i = end;
     }
+}
+
+bool mtwnCanonicalLinearPoints(const mtwnLinearPoint* points, uint32_t count)
+{
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        bool ordered = i == 0 || points[i].input >= points[i - 1].input;
+        if (!isfinite(points[i].input) || !isfinite(points[i].output) || !ordered)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void mtwnCopyLinearPoints(mtwnEasing* easing, mtwnLinearPoint* to)
+{
+    // memmove: the points are the host's, wherever it put them.
+    memmove(to, easing->points, (size_t)easing->count * sizeof *to);
+    easing->points = to;
 }
 
 bool mtwnCanonicalizeLinearPoints(mtwnLinearPoint* points, uint32_t count)
