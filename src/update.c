@@ -272,9 +272,11 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
     {
         now[0] = round(now[0]);
     }
+    // Its velocity, not a clip's track's left lazy under it this update.
     mtwnTargetSlot* written = mtwnTargetAt(context, target);
     written->header.flags =
-        (uint8_t)((written->header.flags & ~MTWN_TARGET_UNWRITTEN) | MTWN_TARGET_LAZY);
+        (uint8_t)((written->header.flags & ~(MTWN_TARGET_UNWRITTEN | MTWN_TARGET_CLIP_LAZY)) |
+                  MTWN_TARGET_LAZY);
     // Numbers only (IsEasedNumbers): a scale is a path kind, written by
     // Sample.
     mtwnVec4 value =
