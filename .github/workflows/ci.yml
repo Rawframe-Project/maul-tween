@@ -49,7 +49,8 @@ jobs:
   # The rules no compiler checks: formatting, the family's source, module,
   # length, API documentation and snippet checks, the documentation site,
   # the generated sources and oracle tables against their generators,
-  # clang-tidy, and the code size of each part against its budget. It runs
+  # clang-tidy with the assertions compiled out and live, and the code size
+  # of each part against its budget. It runs
   # on documentation changes too, since the snippet check and the site
   # read docs/.
   checks:
@@ -85,13 +86,26 @@ jobs:
           python3 tools/oracle/timing_oracle.py --check
           python3 tools/oracle/exact_oracle.py --check
           python3 tools/oracle/zoom_oracle.py --check
-      - name: clang-tidy
+      # clang-tidy twice: on the Release preset, where the assertions
+      # compile out, and with them live. Each hides findings the other
+      # shows: a value read only by an assertion is a dead store once it
+      # compiles out, and a live assertion's branches count toward a
+      # function's complexity.
+      - name: clang-tidy, assertions compiled out
         run: |
           cmake --preset linux-clang-20 -B out/tidy -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_BUILD_BENCH=OFF -D${PREFIX}_BUILD_SAMPLES=OFF >/dev/null
           files=$(git ls-files 'src/*.c')
           [ -n "$files" ] || { echo "::error::git listed no sources"; exit 1; }
           echo "$files" | xargs -P 4 -n 1 clang-tidy-20 -p out/tidy --quiet --warnings-as-errors='*'
+      - name: clang-tidy, assertions live
+        run: |
+          cmake --preset linux-clang-20 -B out/tidy-asserts -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_BUILD_BENCH=OFF \
+            -D${PREFIX}_BUILD_SAMPLES=OFF >/dev/null
+          files=$(git ls-files 'src/*.c')
+          [ -n "$files" ] || { echo "::error::git listed no sources"; exit 1; }
+          echo "$files" | xargs -P 4 -n 1 clang-tidy-20 -p out/tidy-asserts --quiet --warnings-as-errors='*'
       - name: Code size within the budgets
         # GCC 14 Release on x86-64, each part's code against its budget in
         # tools/code_size.py.
