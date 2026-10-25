@@ -8,11 +8,11 @@ What verifies a change, locally and in CI, and the time each may take.
 
 | Tier | Runs | Budget |
 |---|---|---|
-| `changed` | The source, module, length, API documentation and snippet rules, the organization's documentation check, `clang-format` on the changed C files, and the `linux-clang-20-asan` preset (assertions on) with the CTest labels the changed files reach. | under 2 minutes |
+| `changed` | The source, module, length, API documentation, snippet and test hygiene rules (with the hygiene check's self-test), the organization's documentation check, `clang-format` on the changed C files, and the `linux-clang-20-asan` preset (assertions on) with the CTest labels the changed files reach. | under 2 minutes |
 | `pr` | Every rule on every file, the generators and oracles with `--check`, clang-tidy twice (below), the `linux-gcc-14` preset, the code size budgets, the `linux-clang-20-asan` preset, and 10 seconds of fuzzing per target. | under 10 minutes |
 | `full` | Also 60 seconds per fuzz target and every other Linux preset: ThreadSanitizer, the shared library with the package test, 32-bit x86, Clang Release, and `linux-clang-20-nightly`, which runs the nightly scenes too. | under 20 minutes |
 
-Run `changed` before every push. On the shared development machine, run `pr` and `full` through the workspace's heavy-job wrapper.
+Every preset a tier runs has its configured tests checked for a label (`check_test_hygiene.py --ctest`) before it builds. Run `changed` before every push. On the shared development machine, run `pr` and `full` through the workspace's heavy-job wrapper.
 
 ## In CI
 
@@ -21,9 +21,9 @@ Run `changed` before every push. On the shared development machine, run `pr` and
 | Job | What it guards |
 |---|---|
 | `changes` | Whether a pull request changes anything beyond documentation; when it does not, the build jobs are skipped. |
-| `docs` | The organization's documentation check: allowed files, the em dash, record numbers, page sizes, links. |
+| `docs` | The organization's documentation check, run by its action from the pinned commit of `.github`, so the pin fixes the rules: allowed files, the em dash, record numbers, page sizes, links. |
 | `zizmor` | The workflows: injection, persisted credentials, permissions, unpinned actions. |
-| `checks` | `clang-format`, the family's source rules, the module graph, lengths, API documentation, documentation snippets, that the documentation site builds, that the Python generators and oracles reproduce `src/generated/` and `test/generated/`, clang-tidy twice (below), and each part's code size against its budget. It runs on documentation changes too. |
+| `checks` | `clang-format`, the family's source rules, the module graph, lengths, API documentation, documentation snippets, test hygiene (no sleeps, wall clocks, retries or unexplained skips, and every test of the static and the shared configuration labeled), that the documentation site builds, that the Python generators and oracles reproduce `src/generated/` and `test/generated/`, clang-tidy twice (below), and each part's code size against its budget. It runs on documentation changes too. |
 | `build` | One call of the organization's `cpp.yml` per preset: GCC 14 (which builds every part: the library, every test, the samples and the bench) and Clang 20 in Release, Clang with AddressSanitizer and UBSan (each test repeated up to three times on a pull request, so a flaky one fails before it merges), Clang with ThreadSanitizer, the shared library with the package test, 32-bit x86 with SSE2, AArch64 on an Arm runner, macOS and `clang-cl` on Windows. All build with warnings as errors and leave out the tests labeled `nightly`. ccache is restored on every run and saved only from `main`. |
 | `nightly` | On `main` and at night only: the `linux-clang-20-nightly` preset, every test with the large random scenes. |
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
