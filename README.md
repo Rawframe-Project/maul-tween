@@ -21,7 +21,7 @@ The values layer needs no setup and allocates nothing. Everything else lives in 
 
 ## Quick start
 
-It builds with CMake 3.25 or newer and GCC 14 or newer, Clang 19 or newer, or Apple Clang. Ubuntu 24.04's default compiler is GCC 13, which the build refuses, so there install GCC 14, with Git and CMake, and name it first:
+It builds with CMake 3.25 or newer and GCC 14 or newer, Clang 19 or newer, or Apple Clang. Ubuntu 24.04's default compiler is GCC 13, which the build refuses, so there install GCC 14, with Git and CMake, and tell CMake to use it:
 
 ```sh
 sudo apt install git cmake gcc-14
@@ -39,7 +39,7 @@ ctest --test-dir build
 ./build/sample_button
 ```
 
-A `build/` that GCC 13 already configured keeps that compiler and fails again ("GCC 14 or newer is required"). Remove it and configure again, with `CC` exported as above:
+A `build/` that GCC 13 already configured keeps that compiler and fails again ("GCC 14 or newer is required"). Remove it and configure again, with `CC` exported as above, then carry on with the rest of the block from `cmake --build build`:
 
 ```sh
 rm -rf build && cmake -B build -DCMAKE_BUILD_TYPE=Release
