@@ -596,9 +596,18 @@ static void TestTrauma(void)
         // one clock that runs through every hit, so the noise never jumps.
         trauma = fmax(trauma - 0.5 * dt, 0.0);
         double shake = trauma * trauma;
-        double roll = 10.0 * shake * mtwnShakeNoise(&noise, 0, now); // degrees
-        double dx = 20.0 * shake * mtwnShakeNoise(&noise, 1, now);   // pixels
-        double dy = 20.0 * shake * mtwnShakeNoise(&noise, 2, now);
+        double n[3];
+        double roll = 0.0; // degrees
+        double dx = 0.0;   // pixels
+        double dy = 0.0;
+        if (mtwnShakeNoise(&noise, 0, now, &n[0]) == mtwn_success &&
+            mtwnShakeNoise(&noise, 1, now, &n[1]) == mtwn_success &&
+            mtwnShakeNoise(&noise, 2, now, &n[2]) == mtwn_success)
+        {
+            roll = 10.0 * shake * n[0];
+            dx = 20.0 * shake * n[1];
+            dy = 20.0 * shake * n[2];
+        }
         over += fabs(roll) > 10.0 * shake || fabs(dx) > 20.0 * shake || fabs(dy) > 20.0 * shake;
         moved += dx != 0.0;
         last = fabs(roll) + fabs(dx) + fabs(dy);

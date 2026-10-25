@@ -209,13 +209,15 @@ mtwnResult mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double
     return result;
 }
 
-static MTWN_NOINLINE double mtwnRubberBandWork(double distance, double dimension,
-                                               double coefficient)
+// Whether a rubber band takes a view's dimension and a coefficient: above
+// 0, an endless one too.
+static bool Bands(double dimension, double coefficient)
 {
-    if (!(dimension > 0.0) || !(coefficient > 0.0) || isnan(distance))
-    {
-        return 0.0;
-    }
+    return dimension > 0.0 && coefficient > 0.0;
+}
+
+static double RubberBand(double distance, double dimension, double coefficient)
+{
     double past = fabs(distance);
     // Nothing past the limit moves nothing, for any coefficient: an endless
     // one's c x would be NaN.
@@ -232,21 +234,27 @@ static MTWN_NOINLINE double mtwnRubberBandWork(double distance, double dimension
     return copysign(isinf(smaller) ? smaller : smaller / (1.0 + smaller / larger), distance);
 }
 
-double mtwnRubberBand(double distance, double dimension, double coefficient)
+static MTWN_NOINLINE mtwnResult mtwnRubberBandChecked(double distance, double dimension,
+                                                      double coefficient, double* offsetOut)
+{
+    if (offsetOut == NULL || !Bands(dimension, coefficient) || isnan(distance))
+    {
+        return mtwn_errorInvalid;
+    }
+    *offsetOut = RubberBand(distance, dimension, coefficient);
+    return mtwn_success;
+}
+
+mtwnResult mtwnRubberBand(double distance, double dimension, double coefficient, double* offsetOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnRubberBandWork(distance, dimension, coefficient);
+    mtwnResult result = mtwnRubberBandChecked(distance, dimension, coefficient, offsetOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-static MTWN_NOINLINE double mtwnRubberBandInverseWork(double offset, double dimension,
-                                                      double coefficient)
+static double RubberBandInverse(double offset, double dimension, double coefficient)
 {
-    if (!(dimension > 0.0) || !(coefficient > 0.0) || isnan(offset))
-    {
-        return 0.0;
-    }
     double moved = fabs(offset);
     if (moved >= dimension)
     {
@@ -257,10 +265,22 @@ static MTWN_NOINLINE double mtwnRubberBandInverseWork(double offset, double dime
     return copysign(resisted * moved / coefficient, offset);
 }
 
-double mtwnRubberBandInverse(double offset, double dimension, double coefficient)
+static MTWN_NOINLINE mtwnResult mtwnRubberBandInverseChecked(double offset, double dimension,
+                                                             double coefficient, double* dragOut)
+{
+    if (dragOut == NULL || !Bands(dimension, coefficient) || isnan(offset))
+    {
+        return mtwn_errorInvalid;
+    }
+    *dragOut = RubberBandInverse(offset, dimension, coefficient);
+    return mtwn_success;
+}
+
+mtwnResult mtwnRubberBandInverse(double offset, double dimension, double coefficient,
+                                 double* dragOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnRubberBandInverseWork(offset, dimension, coefficient);
+    mtwnResult result = mtwnRubberBandInverseChecked(offset, dimension, coefficient, dragOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

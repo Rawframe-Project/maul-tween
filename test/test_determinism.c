@@ -558,11 +558,11 @@ static void HashValues(void)
     for (uint32_t k = 0; k < SAMPLES; ++k)
     {
         double seconds = 0.03125 * (double)k;
-        HashDouble(mtwnSamplePunch(&punch, seconds));
+        HashDouble(SamplePunch(&punch, seconds));
         for (uint32_t channel = 0; channel < 4; ++channel)
         {
-            HashDouble(mtwnSampleShake(&shake, channel, seconds));
-            HashDouble(mtwnShakeNoise(&shake, channel, seconds));
+            HashDouble(SampleShake(&shake, channel, seconds));
+            HashDouble(ShakeNoise(&shake, channel, seconds));
         }
     }
 }
@@ -688,8 +688,8 @@ static void HashDecays(void)
         SampleBoundedDecay(&bounded, 10.0, 900.0, seconds, &out[0], &out[1]);
         HashDoubles(out, 2);
         double distance = 40.0 * Progress(k);
-        HashDouble(mtwnRubberBand(distance, 320.0, 0.55));
-        HashDouble(mtwnRubberBandInverse(distance, 320.0, 0.55));
+        HashDouble(RubberBand(distance, 320.0, 0.55));
+        HashDouble(RubberBandInverse(distance, 320.0, 0.55));
     }
     HashDouble(DecayStopTime(&decay, 900.0, 0.5));
     HashDouble(DecayCrossingTime(&decay, 10.0, 900.0, 150.0));
@@ -779,7 +779,7 @@ static void HashEdges(void)
     static const double noiseAt[4] = {7.5e14, 7.51e14, -0.0, -1e-300};
     for (uint32_t i = 0; i < 4; ++i)
     {
-        HashDouble(mtwnShakeNoise(&shake, 1, noiseAt[i]));
+        HashDouble(ShakeNoise(&shake, 1, noiseAt[i]));
     }
     mtwnResult inside = mtwnMakeShake(1.0, 0x1.fffffffffffffp52, 1.0, 1, &refused);
     mtwnResult past = mtwnMakeShake(1.0, 0x1p53, 1.0, 1, &refused);

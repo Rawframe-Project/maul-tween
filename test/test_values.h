@@ -11,6 +11,7 @@
 #include "test_harness.h"
 
 #include "maul-tween/easing.h"
+#include "maul-tween/interpolate.h"
 #include "maul-tween/path.h"
 #include "maul-tween/spring.h"
 
@@ -129,6 +130,43 @@ static inline mtwnVec4 SampleTrack(const mtwnTrack* track, double progress)
     mtwnVec4 value = {NAN, NAN, NAN, NAN};
     CHECK(mtwnSampleTrack(track, progress, &value) == mtwn_success, "a track's sample");
     return value;
+}
+
+static inline double SamplePunch(const mtwnPunch* punch, double seconds)
+{
+    double factor = (double)NAN;
+    CHECK(mtwnSamplePunch(punch, seconds, &factor) == mtwn_success, "a punch's sample");
+    return factor;
+}
+
+static inline double SampleShake(const mtwnShake* shake, uint32_t channel, double seconds)
+{
+    double factor = (double)NAN;
+    CHECK(mtwnSampleShake(shake, channel, seconds, &factor) == mtwn_success, "a shake's sample");
+    return factor;
+}
+
+static inline double ShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds)
+{
+    double factor = (double)NAN;
+    CHECK(mtwnShakeNoise(shake, channel, seconds, &factor) == mtwn_success, "a shake's noise");
+    return factor;
+}
+
+static inline double RubberBand(double distance, double dimension, double coefficient)
+{
+    double offset = (double)NAN;
+    CHECK(mtwnRubberBand(distance, dimension, coefficient, &offset) == mtwn_success,
+          "a rubber band");
+    return offset;
+}
+
+static inline double RubberBandInverse(double offset, double dimension, double coefficient)
+{
+    double drag = (double)NAN;
+    CHECK(mtwnRubberBandInverse(offset, dimension, coefficient, &drag) == mtwn_success,
+          "a rubber band's inverse");
+    return drag;
 }
 
 #endif

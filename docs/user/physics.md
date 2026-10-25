@@ -53,11 +53,11 @@ mtwnResult stopped = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &
 
 A start already past a bound is the spring's from the start. Either bound may be infinite, for none.
 
-`mtwnRubberBand` gives iOS's resistance when content is dragged past its edge, `c x d / (c x + d)` with iOS's coefficient `c` of 0.55, and `mtwnRubberBandInverse` the drag that moves content a given distance past it.
+`mtwnRubberBand` gives iOS's resistance when content is dragged past its edge, `c x d / (c x + d)` with iOS's coefficient `c` of 0.55, and `mtwnRubberBandInverse` the drag that moves content a given distance past it. Both give their result through a pointer and return a status: they refuse a dimension or a coefficient that is not above 0, and a NaN drag or offset, where they used to give 0.
 
 ## Punch and shake
 
-A punch (`mtwnMakePunch`) is a sine fading out over a duration; a shake (`mtwnMakeShake`) is smooth gradient noise, one per channel, fading over the same envelope, the same for a seed on every platform. Each sample is a factor from -1 to 1 the host scales by each channel's amplitude and adds to the value, exactly 0 at the start, at the end and outside them: a hit or a rumble that leaves nothing behind.
+A punch (`mtwnMakePunch`) is a sine fading out over a duration; a shake (`mtwnMakeShake`) is smooth gradient noise, one per channel, fading over the same envelope, the same for a seed on every platform. Each sample is a factor from -1 to 1 the host scales by each channel's amplitude and adds to the value, exactly 0 at the start, at the end and outside them: a hit or a rumble that leaves nothing behind. A sample gives its factor through a pointer and returns a status: it refuses a NaN time, and a punch or a shake whose fields are not ones its maker takes.
 
 A camera shake driven by trauma, as Eiserloh's talk on game cameras has it, takes the noise alone (`mtwnShakeNoise`) on one clock that runs on through every hit, and multiplies it by the trauma squared, which the host raises at each hit and lets decay. The noise never jumps where the amplitude changes:
 
@@ -71,9 +71,18 @@ trauma = fmin(trauma + 0.4, 1.0);
 // one clock that runs through every hit, so the noise never jumps.
 trauma = fmax(trauma - 0.5 * dt, 0.0);
 double shake = trauma * trauma;
-double roll = 10.0 * shake * mtwnShakeNoise(&noise, 0, now); // degrees
-double dx = 20.0 * shake * mtwnShakeNoise(&noise, 1, now);   // pixels
-double dy = 20.0 * shake * mtwnShakeNoise(&noise, 2, now);
+double n[3];
+double roll = 0.0; // degrees
+double dx = 0.0;   // pixels
+double dy = 0.0;
+if (mtwnShakeNoise(&noise, 0, now, &n[0]) == mtwn_success &&
+    mtwnShakeNoise(&noise, 1, now, &n[1]) == mtwn_success &&
+    mtwnShakeNoise(&noise, 2, now, &n[2]) == mtwn_success)
+{
+    roll = 10.0 * shake * n[0];
+    dx = 20.0 * shake * n[1];
+    dy = 20.0 * shake * n[2];
+}
 ```
 
 ## Not obvious

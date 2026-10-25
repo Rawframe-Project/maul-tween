@@ -44,11 +44,12 @@ PARTS = [
 # whose active duration or cycle overflows costs, and every part's by what
 # checking springs and decays, then easings, where they enter costs, the
 # transitions', the clips' and the whole library's by what copying
-# linear() points into a context costs, and the values', the clips' and
-# the whole library's by what checking paths and tracks costs.
+# linear() points into a context costs, the values', the clips' and the
+# whole library's by what checking paths and tracks costs, and the
+# values' by what checking punches, shakes and the rubber band costs.
 BUDGETS = {
     "curves": 31500,
-    "values": 64500,
+    "values": 64900,
     "transitions": 67300,
     "clips": 157900,
     "everything": 176700,
@@ -70,8 +71,9 @@ RAISED = {
     "curves": "every public call that computes enters the float environment through a "
     "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
     "or a decay checks it, 1.6 kB, and every call taking an easing, 2.0 kB",
-    "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, and every "
-    "call taking a path or a track, 1.4 kB",
+    "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
+    "call taking a path or a track, 1.4 kB, and a punch, a shake or the rubber band's "
+    "arguments, 0.4 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "and a transition copies its linear() points, 0.6 kB",
 }

@@ -476,14 +476,21 @@ static void Decays(Bytes* in)
     double distance = Param(in, 1e4);
     double dimension = Param(in, 2000.0);
     double coefficient = Param(in, 1.0);
-    double band = mtwnRubberBand(distance, dimension, coefficient);
-    if (isnan(band) || (in->ordinary && isinf(band)) ||
-        (band != 0.0 && (band > 0.0) != (distance > 0.0)))
+    // Refused exactly where its arguments are outside what it takes.
+    bool bands = dimension > 0.0 && coefficient > 0.0 && !isnan(distance);
+    double band = 0.0;
+    if ((mtwnRubberBand(distance, dimension, coefficient, &band) == mtwn_success) != bands)
+    {
+        Fail("the rubber band's refusal", distance);
+    }
+    if (bands && (isnan(band) || (in->ordinary && isinf(band)) ||
+                  (band != 0.0 && (band > 0.0) != (distance > 0.0))))
     {
         Fail("the rubber band", band);
     }
-    double back = mtwnRubberBandInverse(band, dimension, coefficient);
-    if (isnan(back))
+    double back = 0.0;
+    if (bands &&
+        (mtwnRubberBandInverse(band, dimension, coefficient, &back) != mtwn_success || isnan(back)))
     {
         Fail("the rubber band's inverse", back);
     }
@@ -529,6 +536,49 @@ static void Decays(Bytes* in)
     if (stilled != finite || isnan(still) || still < 0.0)
     {
         Fail("a bounded decay's stop", still);
+    }
+}
+
+// A made punch or shake with one field a host wrote, from a generator
+// seeded by the input so far, so it consumes no more: each call refuses
+// it, or gives a factor from -1 to 1; never an undefined cast (UBSan),
+// whatever the frequency times the time.
+static void ForgedSignals(const Bytes* in, const mtwnPunch* punch, const mtwnShake* shake)
+{
+    static const double s_wild[] = {0.0,       -0.0,   -1.0,   (double)NAN, (double)INFINITY,
+                                    0x1p-1074, 0x1p53, 0x1p64, 0x1p100,     DBL_MAX,
+                                    1e-300,    0.5};
+    uint64_t state = 0x2545F4914F6CDD1Du;
+    for (size_t i = 0; i < in->at; ++i)
+    {
+        state = (state ^ in->data[i]) * 0x100000001B3u;
+    }
+    static const double s_times[] = {-1.0, 0.0, 1e-3, 0.5, 2.0, 1e30};
+    for (int round = 0; round < 3; ++round)
+    {
+        state = state * 6364136223846793005u + 1442695040888963407u;
+        uint32_t field = (uint32_t)((state >> 33) % 3);
+        double wild = s_wild[(state >> 40) % (sizeof s_wild / sizeof s_wild[0])];
+        mtwnPunch p = punch != NULL ? *punch : (mtwnPunch){1.0, 1.0, 1.0};
+        mtwnShake k = shake != NULL ? *shake : (mtwnShake){1.0, 1.0, 1.0, 0};
+        *(field == 0 ? &p.frequency : field == 1 ? &p.duration : &p.exponent) = wild;
+        *(field == 0 ? &k.frequency : field == 1 ? &k.duration : &k.exponent) = wild;
+        for (size_t t = 0; t < sizeof s_times / sizeof s_times[0]; ++t)
+        {
+            double f = 0.0;
+            if (punch != NULL && mtwnSamplePunch(&p, s_times[t] * p.duration, &f) == mtwn_success &&
+                !(fabs(f) <= 1.0))
+            {
+                Fail("a forged punch taken and out of range", f);
+            }
+            double seconds = s_times[t] * k.duration;
+            if (shake != NULL &&
+                ((mtwnSampleShake(&k, 1, seconds, &f) == mtwn_success && !(fabs(f) <= 1.0)) ||
+                 (mtwnShakeNoise(&k, 1, seconds, &f) == mtwn_success && !(fabs(f) <= 1.0))))
+            {
+                Fail("a forged shake taken and out of range", f);
+            }
+        }
     }
 }
 
@@ -595,13 +645,15 @@ static void Values(Bytes* in)
         double times[] = {-1.0, 0.0, 0.25 * duration, 0.5 * duration, duration, duration + 1.0};
         for (int i = 0; i < 6; ++i)
         {
-            double f = mtwnSamplePunch(&punch, times[i]);
+            double f = 0.0;
             bool rests = i == 0 || i == 1 || i >= 4;
-            if (isnan(f) || fabs(f) > 1.0 || (rests && f != 0.0))
+            if (mtwnSamplePunch(&punch, times[i], &f) != mtwn_success || isnan(f) ||
+                fabs(f) > 1.0 || (rests && f != 0.0))
             {
                 Fail("a punch", f);
             }
         }
+        ForgedSignals(in, &punch, NULL);
     }
     in->ordinary = true;
     in->finite = true;
@@ -613,12 +665,16 @@ static void Values(Bytes* in)
     {
         for (uint32_t channel = 0; channel < 4; ++channel)
         {
-            double f = mtwnSampleShake(&shake, channel, Param(in, 3.0));
-            if (isnan(f) || fabs(f) > 1.0)
+            double seconds = Param(in, 3.0);
+            double f = 0.0;
+            mtwnResult sampled = mtwnSampleShake(&shake, channel, seconds, &f);
+            if ((sampled == mtwn_success) == isnan(seconds) ||
+                (sampled == mtwn_success && (isnan(f) || fabs(f) > 1.0)))
             {
                 Fail("a shake", f);
             }
         }
+        ForgedSignals(in, NULL, &shake);
     }
 }
 
