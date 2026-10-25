@@ -97,8 +97,13 @@ static void SilentlySet(mtwnClipPlay* play, double now, double seek)
 
 void mtwnSetClipTime(mtwnClipPlay* play, double now, double end, double seek)
 {
+    // A seek's time is resolved: a finite argument, a label's start, or the
+    // time a rate change keeps.
+    MTWN_ASSERT(!isnan(seek));
     SilentlySet(play, now, seek);
     UpdateFinished(play, now, end, true);
+    // Held there or running from there, the player's time is resolved.
+    MTWN_ASSERT(!isnan(mtwnCurrentTime(play, now)));
 }
 
 // Level 1's play with auto-rewind; the pending play is resolved by the next
@@ -141,6 +146,8 @@ mtwnResult mtwnPlayClip(mtwnClipPlay* play, double now, double end)
     }
     play->pending = true;
     UpdateFinished(play, now, end, false);
+    // A pending play holds its time until the next update starts it.
+    MTWN_ASSERT(isnan(play->startTime) && !isnan(play->holdTime));
     return mtwn_success;
 }
 
@@ -163,6 +170,9 @@ mtwnResult mtwnPauseClip(mtwnClipPlay* play, double now, double end)
     mtwnApplyPendingRate(play);
     play->startTime = (double)NAN;
     UpdateFinished(play, now, end, false);
+    // A paused player holds its time, with nothing pending.
+    MTWN_ASSERT(isnan(play->startTime) && !isnan(play->holdTime) && !play->pending &&
+                isnan(play->pendingRate));
     return mtwn_success;
 }
 
@@ -190,6 +200,8 @@ mtwnResult mtwnFinishClip(mtwnClipPlay* play, double now, double end)
     // Held exactly at the limit, as Level 1's exact arithmetic leaves it:
     // a start rebased by limit / rate can round the time just short of it.
     Hold(play, now, end, true, limit);
+    // A finished player holds its limit, its start resolved.
+    MTWN_ASSERT(play->holdTime == limit && !isnan(play->startTime) && !play->pending);
     play->previousTime = mtwnCurrentTime(play, now);
     return mtwn_success;
 }

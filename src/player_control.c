@@ -68,6 +68,8 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
 static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, uint32_t player,
                                               Control control, double argument, uint32_t key)
 {
+    // RunControl refused a transition: a clip's player has a play.
+    MTWN_ASSERT(mtwnPlayerAt(context, player)->type == MTWN_PLAYER_CLIP);
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
     double now = mtwnTimelineNow(context);
     double end = mtwnEffectEnd(context, play);
