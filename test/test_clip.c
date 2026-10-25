@@ -793,6 +793,16 @@ static void TestOverflowingChildren(void)
     track.timing.duration = 1.0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "1e300 iterations of 1 s");
+    group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = true;
+    group.timing.delay = 1e308;
+    mtwnNode late;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &late) == mtwn_success,
+          "a 1e308 s delay, lasting as its children");
+    track.timing.duration = 1e308;
+    track.parent = late;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "a 1e308 s child after it: an end past a double");
     mtwnClipNodeInfo info;
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
               mtwnClip_GetNode(context, clip, repeating, &info) == mtwn_success &&

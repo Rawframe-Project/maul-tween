@@ -234,6 +234,24 @@ static void TestOverflowingTimings(void)
         {0.0, 1e308, 1e308, 1.0, "an iteration and its repeat delay overflowing"},
         {0.0, 1e308, 1e308, -1.0, "the same backwards"},
     };
+    struct
+    {
+        double delay;
+        double duration;
+        double endDelay;
+        const char* name;
+    } endless[] = {
+        {1e308, 1e308, 0.0, "a delay and an active duration overflowing the end"},
+        {0.0, 1e308, 1e308, "an active duration and an end delay overflowing the end"},
+    };
+    for (size_t i = 0; i < sizeof endless / sizeof endless[0]; ++i)
+    {
+        mtwnTiming timing = mtwnDefaultTiming();
+        timing.delay = endless[i].delay;
+        timing.duration = endless[i].duration;
+        timing.endDelay = endless[i].endDelay;
+        CHECK(mtwnValidateTiming(&timing) == mtwn_errorInvalid, endless[i].name);
+    }
     for (size_t i = 0; i < sizeof refused / sizeof refused[0]; ++i)
     {
         mtwnTiming timing = mtwnDefaultTiming();
@@ -252,6 +270,14 @@ static void TestOverflowingTimings(void)
     timing.duration = HUGE_VAL;
     timing.playbackRate = 1e-300;
     CHECK(mtwnValidateTiming(&timing) == mtwn_success, "an endless iteration, forwards");
+    timing = mtwnDefaultTiming();
+    timing.delay = 1e308;
+    timing.duration = 1e307;
+    CHECK(mtwnValidateTiming(&timing) == mtwn_success, "a 1e308 s delay before 1e307 s");
+    timing.delay = -1e308;
+    timing.endDelay = -1e308;
+    CHECK(mtwnValidateTiming(&timing) == mtwn_success,
+          "delays below a double's range: the end time held at 0");
 }
 
 static void TestValidation(void)
