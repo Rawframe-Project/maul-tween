@@ -132,7 +132,11 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
     for (int way = 0; way < 2; ++way)
     {
         double n = way == 0 ? crossings.same : crossings.opposite;
-        if (n < 1.0)
+        // Never NaN: what a later time reaches includes what an earlier one
+        // does (src/crossing.c). Were it NaN, it would make no record, as
+        // converting it to the record's count would be undefined.
+        MTWN_ASSERT(!isnan(n));
+        if (!(n >= 1.0))
         {
             continue;
         }
