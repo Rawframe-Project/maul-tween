@@ -14,6 +14,7 @@
 #include "maul-tween/interpolate.h"
 #include "maul-tween/path.h"
 #include "maul-tween/spring.h"
+#include "maul-tween/timing.h"
 
 #include <math.h>
 
@@ -202,6 +203,15 @@ static inline double ZoomLength(const mtwnZoomMix* mix)
     double length = (double)NAN;
     CHECK(mtwnZoomLength(mix, &length) == mtwn_success, "a zoom mix's length");
     return length;
+}
+
+static inline mtwnTimingResult ComputeTiming(const mtwnTiming* timing, double localTime,
+                                             bool backwards)
+{
+    mtwnTimingResult result = {0};
+    CHECK(mtwnComputeTiming(timing, localTime, backwards, &result) == mtwn_success,
+          "a timing's computation");
+    return result;
 }
 
 #endif

@@ -80,15 +80,14 @@ static uint64_t Work(void)
             hash = Mix(Mix(hash, offset), speed);
             mtwnColor color = MixColor(&s_shared.mix, p);
             hash = Mix(Mix(Mix(hash, (double)color.red), (double)color.green), (double)color.blue);
-            mtwnTimingResult timed;
-            mtwnComputeTiming(&s_shared.track.timing, p * 2.0, false, &timed);
+            mtwnTimingResult timed = ComputeTiming(&s_shared.track.timing, p * 2.0, false);
             // After its run, without fill, the track has no progress to sample.
             if (isfinite(timed.transformedProgress))
             {
                 mtwnVec4 value = SampleTrack(&s_shared.track.track, timed.transformedProgress);
                 hash = Mix(Mix(hash, (double)value.x), (double)value.y);
             }
-            mtwnComputeTiming(&s_shared.timing, p * 3.0, false, &timed);
+            timed = ComputeTiming(&s_shared.timing, p * 3.0, false);
             hash = Mix(hash, timed.transformedProgress);
         }
         if (mtwnComputeStagger(&s_shared.stagger, s_items, offsets) != mtwn_success)
