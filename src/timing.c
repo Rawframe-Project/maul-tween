@@ -186,6 +186,14 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     // lies before it; rounded up to k it leaves a position an ulp before
     // k's start, in the delay before it.
     double k = floor(position / cycle);
+    // A position past the doubles' cycles, at a time or a rate near the
+    // largest double, or an active time past the active duration (a
+    // negative delay's before phase): its iteration is past them too, as
+    // without a repeat delay, where the quotient overflows to infinity.
+    if (isinf(k))
+    {
+        return HUGE_VAL;
+    }
     k = k < floor(start) ? floor(start) : k;
     double within = position - k * cycle;
     if (within < 0.0)
@@ -243,10 +251,6 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     double ends = start + timing->iterations;
     double overall = result->overallProgress;
     overall = overall > ends ? ends : (overall < start ? start : overall);
-    result->overallProgress = overall;
-    // fmod(x, 1) for the x >= +0 these are: a double's fraction is a
-    // double, so x - floor(x) is exact.
-    double simple = isinf(overall) ? start - floor(start) : overall - floor(overall);
     // The iterations' end: the active end, or for a negative rate (which
     // begins there, Level 2) the active start; or, in the phases the end
     // lies in, an overall progress rounded to the end from a time beside
@@ -259,6 +263,15 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     bool atEnd =
         endPhase && isfinite(result->activeDuration) &&
         (forwardRate ? result->activeTime == result->activeDuration : result->activeTime == 0.0);
+    // At the active end the progress is the iterations' end, even where
+    // rounding left it at the start: an active duration rounded to 0
+    // (iterations or a duration below the normal doubles, or a rate near
+    // the largest), or an active time a repeat delay's cycle swallowed.
+    overall = atEnd && overall == start ? ends : overall;
+    result->overallProgress = overall;
+    // fmod(x, 1) for the x >= +0 these are: a double's fraction is a
+    // double, so x - floor(x) is exact.
+    double simple = isinf(overall) ? start - floor(start) : overall - floor(overall);
     atEnd = atEnd || (endPhase && overall == ends && ends > start);
     if (result->inRepeatDelay || (simple == 0.0 && atEnd && timing->iterations != 0.0))
     {
@@ -311,7 +324,12 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
     }
     else
     {
-        result->iteration = simple == 1.0 ? floor(overall) - 1.0 : floor(overall);
+        // An end held at 1 is the iteration before the overall progress's,
+        // a whole number then, but never one before the start's: at the
+        // start itself, where the iterations' end rounds to it (a start too
+        // large to keep them), the end is the start's own iteration.
+        result->iteration = simple == 1.0 && overall > timing->iterationStart ? floor(overall) - 1.0
+                                                                              : floor(overall);
     }
     // The directed and transformed progress.
     bool forwards = mtwnIterationForwards(timing->direction, result->iteration);
