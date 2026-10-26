@@ -8,6 +8,7 @@
 
 #include "crossing.h"
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/timing.h"
 
@@ -74,8 +75,7 @@ static void TestTimings(void)
     {
         const ExactTimingCase* c = &s_exactTimings[i];
         mtwnTiming timing = MakeTiming(&c->timing);
-        mtwnTimingResult r;
-        mtwnComputeTiming(&timing, c->local, false, &r);
+        mtwnTimingResult r = ComputeTiming(&timing, c->local, false);
         bool ok = r.phase == mtwn_phaseActive && r.iteration >= c->iterationLow &&
                   r.iteration <= c->iterationHigh &&
                   (c->inDelay < 0 || (int)r.inRepeatDelay == c->inDelay);

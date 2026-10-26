@@ -67,8 +67,7 @@ static double ParentTime(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
     }
     mtwnClipNodeInfo info;
     CHECK(mtwnClip_GetNode(context, clip, parent, &info) == mtwn_success, "a timeline");
-    mtwnTimingResult result;
-    mtwnComputeTiming(&info.timing, t - info.start, false, &result);
+    mtwnTimingResult result = ComputeTiming(&info.timing, t - info.start, false);
     return result.transformedProgress * info.timing.duration;
 }
 
@@ -78,9 +77,13 @@ static float Expected(mtwnContext* context, mtwnClipId clip, mtwnNode node, doub
 {
     mtwnClipTrack track;
     CHECK(mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success, "the track");
+    // A parent with no effect gives no time, and so no effect either.
     double local = ParentTime(context, clip, track.parent, t) - track.start;
-    mtwnTimingResult result;
-    mtwnComputeTiming(&track.timing, local, false, &result);
+    if (isnan(local))
+    {
+        return 0.0f;
+    }
+    mtwnTimingResult result = ComputeTiming(&track.timing, local, false);
     if (isnan(result.transformedProgress))
     {
         return 0.0f;

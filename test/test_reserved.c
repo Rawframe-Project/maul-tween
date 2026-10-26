@@ -7,6 +7,7 @@
 // library writes, outputs and made values alike, has them 0 though the
 // buffer held other bytes.
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/context.h"
@@ -288,7 +289,7 @@ static void TestOutputs(void)
     timing.duration = 1.0;
     mtwnTimingResult result;
     FILLED(result);
-    mtwnComputeTiming(&timing, 0.5, false, &result);
+    result = ComputeTiming(&timing, 0.5, false);
     CHECK(CLEAR(result.reserved), "a timing's result");
 
     mtwnContextDef def = mtwnDefaultContextDef();

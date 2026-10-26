@@ -354,10 +354,12 @@ static void Timings(Out* out)
     PUT(out, r);
     for (int i = 0; i < (int)(sizeof s_local / sizeof s_local[0]); ++i)
     {
-        mtwnTimingResult result;
-        mtwnComputeTiming(&timing, s_local[i], false, &result);
+        mtwnTimingResult result = {0};
+        r = mtwnComputeTiming(&timing, s_local[i], false, &result);
+        PUT(out, r);
         PUT(out, result);
-        mtwnComputeTiming(&timing, s_local[i], true, &result);
+        r = mtwnComputeTiming(&timing, s_local[i], true, &result);
+        PUT(out, r);
         PUT(out, result);
     }
     mtwnStagger stagger = mtwnDefaultStagger();

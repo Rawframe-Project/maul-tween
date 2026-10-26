@@ -31,4 +31,4 @@ A finished player held at its end that is given a lower rate keeps its start tim
 
 - A timeline's easing must be monotonic: it shapes the time its children see, and the crossing count assumes that time moves one way through each iteration.
 - The rate limit, the depth limit and the other `MTWN_MAX_` limits are part of the API: what is accepted stays accepted.
-- `mtwnComputeTiming` returns NaN for what a phase leaves undefined (Web Animations' unresolved); a caller tests with `isnan`, never with equality.
+- `mtwnComputeTiming` gives NaN in its result for what a phase leaves undefined (Web Animations' unresolved); a caller tests with `isnan`, never with equality.

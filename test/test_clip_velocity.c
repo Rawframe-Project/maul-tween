@@ -92,8 +92,7 @@ static float Sample(const Scene* s, double t)
 {
     mtwnClipTrack track;
     CHECK(mtwnClip_GetTrack(s->context, s->clip, s->track, &track) == mtwn_success, "the track");
-    mtwnTimingResult result;
-    mtwnComputeTiming(&track.timing, t - track.start, false, &result);
+    mtwnTimingResult result = ComputeTiming(&track.timing, t - track.start, false);
     return SampleTrack(&track.track, result.transformedProgress).x;
 }
 

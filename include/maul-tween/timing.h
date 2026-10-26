@@ -160,11 +160,15 @@ extern "C"
     /// @param backwards  Whether the time is running backwards (the
     ///                   playing animation's rate is negative), which moves
     ///                   the active interval's boundaries.
-    /// @param resultOut  Receives the result.
+    /// @param resultOut  Receives the result; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a timing
+    ///         mtwnValidateTiming refuses, or a local time that is NaN or
+    ///         negative infinity.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
-                                    mtwnTimingResult* resultOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeTiming(const mtwnTiming* timing, double localTime,
+                                                         bool backwards,
+                                                         mtwnTimingResult* resultOut);
 
     // Where a stagger begins: the items nearest it get the first offsets.
     typedef uint8_t mtwnStaggerOrigin;

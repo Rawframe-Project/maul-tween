@@ -12,6 +12,7 @@
 // reduced motion nothing that can finish is left moving.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/clip.h"
 #include "maul-tween/event.h"
@@ -134,8 +135,7 @@ static void TestTiming(void)
         {
             continue;
         }
-        mtwnTimingResult shape;
-        mtwnComputeTiming(&t, 0.0, false, &shape);
+        mtwnTimingResult shape = ComputeTiming(&t, 0.0, false);
         // Every phase's boundary exactly, and times around them; local
         // times are finite, so an endless node's end stands far off.
         double active = isinf(shape.activeDuration) ? 1e6 : shape.activeDuration;
@@ -152,8 +152,7 @@ static void TestTiming(void)
         {
             for (int way = 0; way < 2; ++way)
             {
-                mtwnTimingResult r;
-                mtwnComputeTiming(&t, times[k], way != 0, &r);
+                mtwnTimingResult r = ComputeTiming(&t, times[k], way != 0);
                 failures += Holds(&t, &r) ? 0u : 1u;
                 ++checked;
             }
@@ -167,7 +166,7 @@ static void TestTiming(void)
             {
                 mtwnTimingResult r;
                 double local = (isinf(shape.endTime) ? 8.0 : shape.endTime) * k / 64.0;
-                mtwnComputeTiming(&t, local, false, &r);
+                r = ComputeTiming(&t, local, false);
                 failures += r.overallProgress >= last ? 0u : 1u;
                 last = r.overallProgress;
             }
@@ -214,8 +213,7 @@ static void TestPositionNeverStepsBack(void)
         static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};
         t.playbackRate = rates[Next() % 6];
         t.fill = mtwn_fillBoth;
-        mtwnTimingResult shape;
-        mtwnComputeTiming(&t, 0.0, false, &shape);
+        mtwnTimingResult shape = ComputeTiming(&t, 0.0, false);
         double d = t.duration;
         double cycle = d + t.repeatDelay;
         double s = t.iterationStart;
@@ -247,8 +245,7 @@ static void TestPositionNeverStepsBack(void)
             double progress = 0.0;
             for (int k = 0; k < 80; ++k, x = nextafter(x, HUGE_VAL))
             {
-                mtwnTimingResult r;
-                mtwnComputeTiming(&t, x, false, &r);
+                mtwnTimingResult r = ComputeTiming(&t, x, false);
                 bool back = sign * r.iteration < sign * iteration ||
                             (r.iteration == iteration && sign * r.simpleProgress < sign * progress);
                 steps += back ? 1u : 0u;

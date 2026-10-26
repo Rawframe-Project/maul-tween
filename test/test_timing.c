@@ -6,6 +6,7 @@
 // to the bit, and the specification's own examples written out.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/timing.h"
 
@@ -85,8 +86,7 @@ static void TestOracleCases(void)
             printf("  case %d refused\n", i);
             continue;
         }
-        mtwnTimingResult r;
-        mtwnComputeTiming(&timing, c->localTime, c->input.backwards != 0, &r);
+        mtwnTimingResult r = ComputeTiming(&timing, c->localTime, c->input.backwards != 0);
         double got[8] = {r.activeDuration, r.endTime,   r.activeTime,       r.overallProgress,
                          r.simpleProgress, r.iteration, r.directedProgress, r.transformedProgress};
         bool ok = r.phase == c->phase && (int)r.before == c->before &&
@@ -118,8 +118,7 @@ static void TestOracleCases(void)
 
 static mtwnTimingResult At(const mtwnTiming* timing, double time)
 {
-    mtwnTimingResult r;
-    mtwnComputeTiming(timing, time, false, &r);
+    mtwnTimingResult r = ComputeTiming(timing, time, false);
     return r;
 }
 
@@ -356,22 +355,64 @@ static void TestInfiniteLocalTime(void)
     endless.duration = HUGE_VAL;
     endless.iterations = 2.0;
     endless.iterationStart = 0.25;
-    mtwnComputeTiming(&endless, HUGE_VAL, false, &r);
+    r = ComputeTiming(&endless, HUGE_VAL, false);
     CHECK(r.phase == mtwn_phaseActive && r.iteration == 0.0 && r.simpleProgress == 0.25 &&
               r.transformedProgress == 0.25,
           "an endless iteration at its start's progress");
     mtwnTiming repeating = mtwnDefaultTiming();
     repeating.duration = 1.0;
     repeating.iterations = HUGE_VAL;
-    mtwnComputeTiming(&repeating, HUGE_VAL, false, &r);
+    r = ComputeTiming(&repeating, HUGE_VAL, false);
     CHECK(r.phase == mtwn_phaseActive && isinf(r.iteration) && !isnan(r.transformedProgress),
           "endless iterations at the last");
     mtwnTiming finite = mtwnDefaultTiming();
     finite.duration = 1.0;
     finite.fill = mtwn_fillForwards;
-    mtwnComputeTiming(&finite, HUGE_VAL, false, &r);
+    r = ComputeTiming(&finite, HUGE_VAL, false);
     CHECK(r.phase == mtwn_phaseAfter && r.iteration == 0.0 && r.transformedProgress == 1.0,
           "a finite one past its end");
+}
+
+// The computation checks what it is given: a null pointer, a timing
+// mtwnValidateTiming refuses and a local time that is NaN or negative
+// infinity are refused, the result unchanged; positive infinity, the
+// limit, is taken.
+static bool ComputeRefused(const mtwnTiming* timing, double localTime)
+{
+    mtwnTimingResult result = {0};
+    result.activeTime = 7.0;
+    return mtwnComputeTiming(timing, localTime, false, &result) == mtwn_errorInvalid &&
+           result.activeTime == 7.0;
+}
+
+static void TestComputeRefusals(void)
+{
+    mtwnTiming timing = mtwnDefaultTiming();
+    timing.duration = 2.0;
+    mtwnTimingResult result = {0};
+    int refused = 0;
+    refused += ComputeRefused(NULL, 0.5);
+    refused += mtwnComputeTiming(&timing, 0.5, false, NULL) == mtwn_errorInvalid;
+    refused += ComputeRefused(&timing, (double)NAN);
+    refused += ComputeRefused(&timing, -(double)INFINITY);
+    mtwnTiming stopped = timing;
+    stopped.playbackRate = 0.0;
+    refused += ComputeRefused(&stopped, 0.5);
+    mtwnTiming padded = timing;
+    padded.reserved[2] = 1;
+    refused += ComputeRefused(&padded, 0.5);
+    mtwnTiming eased = timing;
+    eased.easing.kind = (mtwnEasingKind)200;
+    refused += ComputeRefused(&eased, 0.5);
+    CHECK(refused == 7, "a null timing or result, a NaN or negatively infinite time, and a "
+                        "timing mtwnValidateTiming refuses (a rate of 0, padding, an easing no "
+                        "maker gives) refused, the result unchanged");
+    CHECK(mtwnComputeTiming(&timing, HUGE_VAL, false, &result) == mtwn_success &&
+              result.phase == mtwn_phaseAfter,
+          "positive infinity taken, after the active interval");
+    CHECK(mtwnComputeTiming(&timing, -1e300, true, &result) == mtwn_success &&
+              result.phase == mtwn_phaseBefore,
+          "a finite time far before taken, backwards too");
 }
 
 int main(void)
@@ -380,5 +421,6 @@ int main(void)
     TestExamples();
     TestValidation();
     TestInfiniteLocalTime();
+    TestComputeRefusals();
     return s_failures == 0 ? 0 : 1;
 }

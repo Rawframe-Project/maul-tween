@@ -49,9 +49,9 @@ PARTS = [
 # values' by what checking punches, shakes and the rubber band costs.
 BUDGETS = {
     "curves": 31500,
-    "values": 67300,
+    "values": 67400,
     "transitions": 67200,
-    "clips": 158900,
+    "clips": 159000,
     "everything": 179300,
 }
 
@@ -73,11 +73,12 @@ RAISED = {
     "or a decay checks it, 1.6 kB, and every call taking an easing, 2.0 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
     "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
-    "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, and a color, rotation, "
-    "scale or zoom mix, 2.0 kB",
+    "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, a color, rotation, "
+    "scale or zoom mix, 2.0 kB, and a timing's computation checks it, 0.1 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "and a transition copies its linear() points, 0.6 kB",
-    "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB",
+    "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, and a "
+    "timing's computation checks it, 0.1 kB",
     "everything": "the raises of the parts above",
 }
 

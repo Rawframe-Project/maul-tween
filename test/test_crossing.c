@@ -10,6 +10,7 @@
 
 #include "crossing.h"
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/easing.h"
 
@@ -297,8 +298,7 @@ static void TestCountNeverFalls(void)
         node.timing.direction = (mtwnDirection)(int)(Uniform() * 4.0);
         static const double rates[] = {1.0, 2.0, 0.5, 3.0, -1.0, -1.5};
         node.timing.playbackRate = rates[(int)(Uniform() * 6.0)];
-        mtwnTimingResult shape;
-        mtwnComputeTiming(&node.timing, 0.0, false, &shape);
+        mtwnTimingResult shape = ComputeTiming(&node.timing, 0.0, false);
         double d = node.timing.duration;
         double cycle = d + node.timing.repeatDelay;
         double s = node.timing.iterationStart;
@@ -347,8 +347,7 @@ static State Eval(const mtwnLevel* levels, uint32_t count, double t)
     double x = t - levels[0].start;
     for (uint32_t i = 0; i < count; ++i)
     {
-        mtwnTimingResult r;
-        mtwnComputeTiming(&levels[i].timing, x, false, &r);
+        mtwnTimingResult r = ComputeTiming(&levels[i].timing, x, false);
         state.iteration[i] = r.iteration;
         state.phase[i] = (int)r.phase;
         double child = isinf(levels[i].timing.duration)
@@ -377,8 +376,7 @@ static bool Same(const State* a, const State* b, uint32_t count)
 // that child time.
 static double NodeIteration(const mtwnLeaf* leaf, double value)
 {
-    mtwnTimingResult r;
-    mtwnComputeTiming(&leaf->timing, value - leaf->at, false, &r);
+    mtwnTimingResult r = ComputeTiming(&leaf->timing, value - leaf->at, false);
     return r.iteration;
 }
 
@@ -635,8 +633,7 @@ static void TestOracle(int part, int parts)
         mtwnCrossingMemo memo;
         memo.count = 0;
         memo.next = 0;
-        mtwnTimingResult root;
-        mtwnComputeTiming(&levels[0].timing, 0.0, false, &root);
+        mtwnTimingResult root = ComputeTiming(&levels[0].timing, 0.0, false);
         double span = root.endTime + 1.0;
         for (int sweep = 0; sweep < 12; ++sweep)
         {

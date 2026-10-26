@@ -57,7 +57,7 @@ The previous child is the last track or timeline added to the parent; labels and
 
 ## Timing and timelines
 
-Every track and timeline has a Web Animations timing (`mtwnTiming`): delay and end delay, iterations (fractional or infinite) from an iteration start, duration, direction, fill and an easing, plus a playback rate of its own, a repeat delay between iterations and a choice of how reverse iterations ease (time running back, Web Animations' way, or the shape repeated). `mtwnComputeTiming` gives the phase, iteration and progress at a local time for a host that samples on its own.
+Every track and timeline has a Web Animations timing (`mtwnTiming`): delay and end delay, iterations (fractional or infinite) from an iteration start, duration, direction, fill and an easing, plus a playback rate of its own, a repeat delay between iterations and a choice of how reverse iterations ease (time running back, Web Animations' way, or the shape repeated). `mtwnComputeTiming` gives the phase, iteration and progress at a local time for a host that samples on its own. It returns a status: it refuses a timing `mtwnValidateTiming` refuses and a local time that is NaN or negative infinity, leaving its result as it was.
 
 `mtwnClip_AddTimeline` nests a group with timing of its own. By default its duration is its latest child's end, kept as children arrive (endless after an endless child); with `autoDuration` off its timing's duration clips them. Timelines nest at most `MTWN_MAX_CLIP_DEPTH` (32) below the root. `mtwnClip_AddLabel` names a time to seek to, and `mtwnClip_AddMark` an instant that gives an event each time playback crosses it.
 

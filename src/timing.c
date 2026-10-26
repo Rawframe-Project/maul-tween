@@ -331,10 +331,24 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
     }
 }
 
-void mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
-                       mtwnTimingResult* resultOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeTimingChecked(const mtwnTiming* timing, double localTime,
+                                                         bool backwards,
+                                                         mtwnTimingResult* resultOut)
+{
+    if (resultOut == NULL || mtwnValidateTimingWork(timing) != mtwn_success || isnan(localTime) ||
+        localTime == -HUGE_VAL)
+    {
+        return mtwn_errorInvalid;
+    }
+    mtwnComputeTimingWork(timing, localTime, backwards, resultOut);
+    return mtwn_success;
+}
+
+mtwnResult mtwnComputeTiming(const mtwnTiming* timing, double localTime, bool backwards,
+                             mtwnTimingResult* resultOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnComputeTimingWork(timing, localTime, backwards, resultOut);
+    mtwnResult result = mtwnComputeTimingChecked(timing, localTime, backwards, resultOut);
     mtwnFloatEnvLeave(env);
+    return result;
 }
