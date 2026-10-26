@@ -234,6 +234,60 @@ static void TestJumpsEnd(void)
     CHECK(worst <= 1e-3, "within the tolerance away from the jump");
 }
 
+// Spikes to 1 at x_k = (28/33)^k, k from 1, and 0 elsewhere. The chord of
+// [0, x_k] rises from 0 to 1, so its last probe misses most; held to the
+// 28th, the split falls on x_(k+1), the probe's own point, each segment
+// 28/33 of the one before: the deepest a fit goes.
+enum
+{
+    s_chainLength = 110,
+};
+
+static double s_chain[s_chainLength];
+
+static double Chain(void* context, double progress)
+{
+    (void)context;
+    for (int k = 1; k < s_chainLength; ++k)
+    {
+        if (progress == s_chain[k])
+        {
+            return 1.0;
+        }
+    }
+    return 0.0;
+}
+
+// The fit splits [0, x_(k-1)] while it is at least 2^-24 wide: x_101 is
+// 2^-23.94 and x_102 2^-24.18, so the points reach x_102 and stop, 102
+// segments deep, within the 104 the fit keeps pending.
+static void TestFitAsDeepAsItGoes(void)
+{
+    s_chain[0] = 1.0;
+    for (int k = 1; k < s_chainLength; ++k)
+    {
+        s_chain[k] = s_chain[k - 1] * (28.0 / 33.0);
+    }
+    mtwnEasing chain;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Chain, NULL, &chain) == mtwn_success, "a chain");
+    uint32_t count = 0;
+    CHECK(mtwnFitLinearEasing(&chain, 0.5, s_points, s_capacity, &count) == mtwn_success &&
+              count <= s_capacity,
+          "the chain is fitted");
+    int deepest = 0;
+    for (uint32_t i = 0; i < count && i < s_capacity; ++i)
+    {
+        for (int k = 1; k < s_chainLength; ++k)
+        {
+            if (s_points[i].input == s_chain[k] && s_points[i].output == 1.0 && k > deepest)
+            {
+                deepest = k;
+            }
+        }
+    }
+    CHECK(deepest == 102, "split down to the narrowest segment, and no further");
+}
+
 // Infinite in the middle, where its miss makes the fit split, NaN at the
 // start, infinite at the end: kept points no linear() holds. (A NaN
 // inside never misses most, so it is never kept.)
@@ -306,6 +360,7 @@ int main(void)
     TestFitCounts();
     TestToleranceMetExactly();
     TestJumpsEnd();
+    TestFitAsDeepAsItGoes();
     TestFitRefusals();
     return s_failures == 0 ? 0 : 1;
 }
