@@ -126,7 +126,8 @@ double mtwnSampleCubicBezier(const double control[4], double x)
     double low = 0.0;
     double high = 1.0;
     double t = x;
-    // The returns above leave x strictly between 0 and 1, NaN excluded.
+    // The returns above take 0, 1 and everything outside; NaN passes them,
+    // but no caller passes it, as mtwnEase refuses a progress not finite.
     MTWN_ASSERT(StrictlyInside(x));
     for (int i = 0; i < s_bezierSteps; ++i)
     {
