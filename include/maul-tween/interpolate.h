@@ -303,7 +303,9 @@ extern "C"
                                                        double rho, mtwnZoomMix* mixOut);
 
     /// Samples a zoom mix: exactly from at 0 and to at 1, between them the
-    /// path at that share of its length; outside 0 to 1 it extends.
+    /// path at that share of its length; outside 0 to 1 it extends, its
+    /// width going to 0 as its centre settles on a point either way (an
+    /// infinity where that point is past the doubles' range), never NaN.
     ///
     /// @param mix       A mix made by this library.
     /// @param progress  The progress, finite.

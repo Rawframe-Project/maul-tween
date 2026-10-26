@@ -49,10 +49,10 @@ PARTS = [
 # values' by what checking punches, shakes and the rubber band costs.
 BUDGETS = {
     "curves": 31500,
-    "values": 64900,
+    "values": 65300,
     "transitions": 67300,
     "clips": 157900,
-    "everything": 176700,
+    "everything": 177200,
 }
 
 
@@ -72,10 +72,11 @@ RAISED = {
     "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
     "or a decay checks it, 1.6 kB, and every call taking an easing, 2.0 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
-    "call taking a path or a track, 1.4 kB, and a punch, a shake or the rubber band's "
-    "arguments, 0.4 kB",
+    "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
+    "arguments, 0.4 kB, and a zoom's share far past its ends, 0.4 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "and a transition copies its linear() points, 0.6 kB",
+    "everything": "the raises of the curves, the values and the transitions above",
 }
 
 

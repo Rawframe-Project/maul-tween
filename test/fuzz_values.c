@@ -582,6 +582,54 @@ static void ForgedSignals(const Bytes* in, const mtwnPunch* punch, const mtwnSha
     }
 }
 
+// The next of a generator's doubles: a sign, 53 bits and a power of two
+// within 2^20 of 1 or anywhere from 2^-1074 to 2^1023.
+static double Drawn(uint64_t* state)
+{
+    *state = *state * 6364136223846793005u + 1442695040888963407u;
+    uint64_t bits = *state;
+    *state = *state * 6364136223846793005u + 1442695040888963407u;
+    uint64_t spread = *state >> 32;
+    int exponent = spread % 2 == 0 ? (int)(spread % 41) - 20 : (int)(spread % 2098) - 1074;
+    double value = ldexp((double)(bits >> 11) * 0x1p-53, exponent);
+    return (bits & 1u) != 0 ? -value : value;
+}
+
+// Zooms a maker gives, from a generator seeded by the input so far, so
+// that it takes no bytes and the seeds keep their paths: no field NaN at
+// any progress, out to the largest double either way.
+static void Zooms(const Bytes* in)
+{
+    uint64_t state = 0x9E3779B97F4A7C15u;
+    for (size_t i = 0; i < in->at; ++i)
+    {
+        state = (state ^ in->data[i]) * 0x100000001B3u;
+    }
+    for (int round = 0; round < 4; ++round)
+    {
+        mtwnZoomView from = {Drawn(&state), Drawn(&state), fabs(Drawn(&state))};
+        mtwnZoomView to = {Drawn(&state), Drawn(&state), fabs(Drawn(&state))};
+        double rho = fabs(Drawn(&state));
+        // A pan along one axis, or none.
+        to.y = round == 1 ? from.y : to.y;
+        to.x = round == 2 ? from.x : to.x;
+        mtwnZoomMix mix;
+        if (mtwnMakeZoomMix(from, to, rho, &mix) != mtwn_success)
+        {
+            continue;
+        }
+        for (int i = 0; i < 12; ++i)
+        {
+            double progress = i < 4 ? s_farProgress[i] : Drawn(&state);
+            mtwnZoomView v = mtwnMixZoom(&mix, progress);
+            if (isnan(v.x) || isnan(v.y) || isnan(v.width))
+            {
+                Fail("a zoom's view NaN", progress);
+            }
+        }
+    }
+}
+
 static void Values(Bytes* in)
 {
     in->ordinary = true;
@@ -676,6 +724,7 @@ static void Values(Bytes* in)
         }
         ForgedSignals(in, NULL, &shake);
     }
+    Zooms(in);
 }
 
 // A monotone segment's value lies between its keyframes' in every

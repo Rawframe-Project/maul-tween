@@ -3,14 +3,18 @@
 //
 // Scales and zooms: against 60-digit decimals
 // (tools/oracle/zoom_oracle.py), van Wijk and Nuij's path written as the
-// paper writes it; ends exact, equal ratios for equal steps, the zoom of
-// equal centres the limit of a pan going to 0, and the refusals.
+// paper writes it, out to the doubles' largest progress; ends exact, equal
+// ratios for equal steps, the zoom of equal centres the limit of a pan
+// going to 0, no NaN however far a path extends, and the refusals.
 
 #include "test_harness.h"
 
 #include "maul-tween/interpolate.h"
 
+#include <float.h>
 #include <math.h>
+#include <stdint.h>
+#include <string.h>
 
 typedef struct ScaleCase
 {
@@ -132,6 +136,122 @@ static void TestZoomCases(void)
     CHECK(worstLength <= 1e-12, "every path's length within 1e-12 relative");
 }
 
+// Far past the ends: the decimals' view at progress 16, just past where
+// sinh and cosh overflow for a share past the doubles' range, and from
+// 1000 to the largest double either way, where the path settles; the
+// width, going to 0, against the larger of itself and the views' widths.
+// At 16 the path's parameters near -391 each carry about an ulp,
+// 5.7e-14; the point along the path carries 16 times both, and the view
+// twice that, 3.6e-12: within 1e-11. A NaN fails.
+static void TestZoomFarCases(void)
+{
+    double worst = 0.0;
+    int count = (int)(sizeof s_zoomFarCases / sizeof s_zoomFarCases[0]);
+    for (int i = 0; i < count; ++i)
+    {
+        const ZoomCase* c = &s_zoomFarCases[i];
+        mtwnZoomMix mix;
+        mtwnZoomView from = {c->x0, c->y0, c->w0};
+        mtwnZoomView to = {c->x1, c->y1, c->w1};
+        if (mtwnMakeZoomMix(from, to, c->rho, &mix) != mtwn_success)
+        {
+            worst = 1.0;
+            continue;
+        }
+        mtwnZoomView v = mtwnMixZoom(&mix, c->progress);
+        // A centre settled far from the views is measured against itself.
+        double scale = fmax(hypot(c->x1 - c->x0, c->y1 - c->y0), fmax(c->w0, c->w1));
+        double x = Beyond(v.x, c->x) / fmax(scale, fabs(c->x));
+        double y = Beyond(v.y, c->y) / fmax(scale, fabs(c->y));
+        double width = fabs(v.width - c->width) / fmax(c->width, fmax(c->w0, c->w1));
+        double error = fmax(fmax(x, y), width);
+        worst = !(error <= worst) ? error : worst;
+    }
+    if (!(worst <= 1e-11))
+    {
+        printf("  far zooms: %.3g\n", worst);
+    }
+    CHECK(worst <= 1e-11, "every far view within 1e-11 of its decimals");
+}
+
+typedef struct ZoomFar
+{
+    mtwnZoomView from;
+    mtwnZoomView to;
+    double rho;
+    // The first k from which 0.7.0's view at 2^k, and at -2^k, was not
+    // finite: 1024 stands for the largest double, 1025 for none.
+    int above;
+    int below;
+} ZoomFar;
+
+// Paths a maker gives, at progress 2^k and -2^k for k from 0 to 1023 and
+// at the largest double either way. No field is NaN at any of them. Where
+// 0.7.0 gave a finite view, the view is the same to the bit: the hash of
+// those views is the one 0.7.0's build gives.
+static const ZoomFar s_zoomFar[] = {
+    // #78's example.
+    {{0.0, 0.0, 1.0}, {10.0, 0.0, 2.0}, 1.4142135623730951, 8, 8},
+    // A zoom in, Mapbox's rho.
+    {{0.0, 0.0, 1.0}, {100.0, 50.0, 0.01}, 1.42, 6, 6},
+    {{3.0, 2.0, 8.0}, {-5.0, 7.0, 0.125}, 0.5, 8, 8},
+    // A pan along x whose share passes the doubles' range.
+    {{0.0, 0.0, 1.0}, {0x1p-500, 0.0, 0x1p33}, 1.0, 4, 4},
+    {{1e6, -1e6, 1e3}, {2e6, 0.0, 1e5}, 3.0, 6, 6},
+    // Widths near the doubles' largest, a small rho.
+    {{0.0, 0.0, 0x1p1000}, {0x1p1000, 0.0, 0x1p999}, 0x1p-10, 10, 4},
+    // A pan alone, a small rho.
+    {{-7.0, 3.0, 1.0}, {-7.0, 9.0, 1.0}, 0.05, 16, 16},
+    // A pan far under the width.
+    {{0.0, 0.0, 1.0}, {0x1p-60, 0.0, 1.0 + 0x1p-52}, 2.0, 60, 60},
+    // A zoom alone, to an infinite width below.
+    {{5.0, 5.0, 8.0}, {5.0, 5.0, 1.0}, 2.0, 1025, 9},
+    // A path the maker gives no length, where rho times the progress
+    // overflows from 2^1023 on.
+    {{0.0, 0.0, 1.0}, {0x1p-66, 0.0, 1.0 + 0x1p-52}, 2.0, 1023, 1023},
+};
+static const uint64_t s_zoomFarHash = 0xf984cedb9957c536u;
+
+static uint64_t HashDouble(uint64_t hash, double value)
+{
+    uint64_t bits = 0;
+    memcpy(&bits, &value, sizeof bits);
+    for (int i = 0; i < 8; ++i)
+    {
+        hash = (hash ^ ((bits >> (8 * i)) & 0xffu)) * 0x100000001b3u;
+    }
+    return hash;
+}
+
+static void TestZoomFar(void)
+{
+    uint64_t hash = 0xcbf29ce484222325u;
+    int nan = 0;
+    int count = (int)(sizeof s_zoomFar / sizeof s_zoomFar[0]);
+    for (int i = 0; i < count; ++i)
+    {
+        const ZoomFar* f = &s_zoomFar[i];
+        mtwnZoomMix mix;
+        CHECK(mtwnMakeZoomMix(f->from, f->to, f->rho, &mix) == mtwn_success, "a far zoom");
+        for (int sign = 0; sign < 2; ++sign)
+        {
+            int finite = sign == 0 ? f->above : f->below;
+            for (int k = 0; k <= 1024; ++k)
+            {
+                double progress = k == 1024 ? DBL_MAX : ldexp(1.0, k);
+                mtwnZoomView v = mtwnMixZoom(&mix, sign == 0 ? progress : -progress);
+                nan += isnan(v.x) || isnan(v.y) || isnan(v.width);
+                if (k < finite)
+                {
+                    hash = HashDouble(HashDouble(HashDouble(hash, v.x), v.y), v.width);
+                }
+            }
+        }
+    }
+    CHECK(nan == 0, "no NaN out to the largest progress either way");
+    CHECK(hash == s_zoomFarHash, "every view 0.7.0 gave finite the same to the bit");
+}
+
 static void TestZoomShape(void)
 {
     mtwnZoomMix mix;
@@ -239,6 +359,8 @@ int main(void)
     TestScaleCases();
     TestScaleShape();
     TestZoomCases();
+    TestZoomFarCases();
+    TestZoomFar();
     TestZoomShape();
     TestZoomRefusals();
     TestZoomRange();

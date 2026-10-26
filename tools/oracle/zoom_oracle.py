@@ -16,15 +16,16 @@
 #
 # The library computes u another way (without the cancellation near 0)
 # and in units of w0; at 60 digits the paper's form loses nothing that
-# matters. It writes test/generated/zoom_cases.h, inputs from its own
-# SplitMix64.
+# matters. Far past the ends, out to the doubles' largest progress, the
+# paper's u cancels by up to e^(2 |r0|), so those cases take 800 digits.
+# It writes test/generated/zoom_cases.h, inputs from its own SplitMix64.
 #
 # usage: zoom_oracle.py [--check]
 
 import math
 import os
 import sys
-from decimal import Decimal as D, getcontext
+from decimal import Decimal as D, getcontext, localcontext
 
 PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "test",
                     "generated", "zoom_cases.h")
@@ -33,6 +34,20 @@ getcontext().prec = 60
 MASK = 2 ** 64 - 1
 PROGRESS = [0.001, 0.1, 0.25, 1.0 / 3.0, 0.5, 0.75, 0.9, 0.999, -0.25, 1.25]
 RHOS = [math.sqrt(2.0), 1.42, 0.5, 3.0, 0.05]
+FAR_PROGRESS = [16.0, 1e3, 1e4, 1e10, 1e300, sys.float_info.max,
+                -16.0, -1e3, -1e4, -1e300, -sys.float_info.max]
+# Views whose paths are followed far past their ends: the example of #78,
+# a zoom in, a small rho, a pan along x whose share passes the doubles'
+# range, and far centres.
+FAR_VIEWS = [
+    ((0.0, 0.0, 1.0), (10.0, 0.0, 2.0), math.sqrt(2.0)),
+    ((0.0, 0.0, 1.0), (100.0, 50.0, 0.01), 1.42),
+    ((3.0, 2.0, 8.0), (-5.0, 7.0, 0.125), 0.5),
+    ((0.0, 0.0, 1.0), (2.0 ** -500, 0.0, 2.0 ** 33), 1.0),
+    ((1e6, -1e6, 1e3), (2e6, 0.0, 1e5), 3.0),
+]
+# Where tanh is +-1 and 1 / cosh is 0 to every digit kept.
+FLAT = D(5000)
 
 
 class SplitMix64:
@@ -54,6 +69,8 @@ class SplitMix64:
 
 
 def cosh(x):
+    if abs(x) > FLAT * 20:
+        return D("Infinity")
     e = x.exp()
     return (e + 1 / e) / 2
 
@@ -64,6 +81,8 @@ def sinh(x):
 
 
 def tanh(x):
+    if abs(x) > FLAT:
+        return D(1) if x > 0 else D(-1)
     e = (2 * x).exp()
     return (e - 1) / (e + 1)
 
@@ -160,6 +179,15 @@ def render():
             x, y, w = at(p)
             values = list(v0) + list(v1) + [rho, p, x, y, w, length]
             lines.append("    {" + ", ".join(number(v) for v in values) + "},")
+    lines += ["};", "", "static const ZoomCase s_zoomFarCases[] = {"]
+    with localcontext() as far:
+        far.prec = 800
+        for v0, v1, rho in FAR_VIEWS:
+            length, at = zoom(v0, v1, rho)
+            for p in FAR_PROGRESS:
+                x, y, w = at(p)
+                values = list(v0) + list(v1) + [rho, p, x, y, w, length]
+                lines.append("    {" + ", ".join(number(v) for v in values) + "},")
     lines += ["};", "", "#endif", ""]
     return "\n".join(lines)
 
