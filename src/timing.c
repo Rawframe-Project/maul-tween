@@ -306,6 +306,19 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
            result->directedProgress >= 0.0 && result->directedProgress <= 1.0;
 }
 
+// Fills a result without an effect: NaN from the overall progress on.
+static void NoEffect(const mtwnTiming* timing, double localTime, mtwnTimingResult* result)
+{
+    // No effect only where the fill leaves the phase, or at a local time
+    // of NaN, a parent's own lack of effect.
+    MTWN_ASSERT(isnan(localTime) || Unfilled(timing, result->phase));
+    result->overallProgress = (double)NAN;
+    result->simpleProgress = (double)NAN;
+    result->iteration = (double)NAN;
+    result->directedProgress = (double)NAN;
+    result->transformedProgress = (double)NAN;
+}
+
 // Every caller passes a timing mtwnValidateTimingWork accepted: the public
 // call checks it, and a clip checks each node's where it is added, an
 // automatic duration included (Raise in src/clip.c).
@@ -332,14 +345,7 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
     result->activeTime = ActiveTime(timing, result->phase, localTime, active);
     if (isnan(result->activeTime))
     {
-        // No effect only where the fill leaves the phase, or at a local
-        // time of NaN, a parent's own lack of effect.
-        MTWN_ASSERT(isnan(localTime) || Unfilled(timing, result->phase));
-        result->overallProgress = (double)NAN;
-        result->simpleProgress = (double)NAN;
-        result->iteration = (double)NAN;
-        result->directedProgress = (double)NAN;
-        result->transformedProgress = (double)NAN;
+        NoEffect(timing, localTime, result);
         return;
     }
     double n = timing->iterations;
