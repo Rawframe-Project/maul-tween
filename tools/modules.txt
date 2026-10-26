@@ -3,11 +3,11 @@
 base:
 elementary:
 elementary_float:
-css_easing: fpenv
+css_easing: fpenv invariant
 easing: css_easing easing_internal elementary spring_easing fpenv valid work
 easing_internal: work
 inertia: fpenv valid work
-sample: valid work fpenv
+sample: fpenv invariant valid work
 rough: fpenv valid work
 spring_easing:
 valid:

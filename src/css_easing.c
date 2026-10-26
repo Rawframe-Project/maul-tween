@@ -14,6 +14,7 @@
 #include "css_easing.h"
 
 #include "fpenv.h"
+#include "invariant.h"
 
 #include <float.h>
 #include <math.h>
@@ -80,6 +81,18 @@ bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2)
            fabs(y2) <= MTWN_LARGEST_BEZIER_Y;
 }
 
+// Whether x is strictly between 0 and 1. Only an assertion calls it.
+[[maybe_unused]] static inline bool StrictlyInside(double x)
+{
+    return x > 0.0 && x < 1.0;
+}
+
+// Whether t lies in a bracket within [0, 1]. Only an assertion calls it.
+[[maybe_unused]] static inline bool WithinBracket(double low, double t, double high)
+{
+    return 0.0 <= low && low <= t && t <= high && high <= 1.0;
+}
+
 double mtwnSampleCubicBezier(const double control[4], double x)
 {
     double x1 = control[0];
@@ -113,6 +126,8 @@ double mtwnSampleCubicBezier(const double control[4], double x)
     double low = 0.0;
     double high = 1.0;
     double t = x;
+    // The returns above leave x strictly between 0 and 1, NaN excluded.
+    MTWN_ASSERT(StrictlyInside(x));
     for (int i = 0; i < s_bezierSteps; ++i)
     {
         double error = Evaluate(&xs, t) - x;
@@ -131,6 +146,9 @@ double mtwnSampleCubicBezier(const double control[4], double x)
         double slope = Slope(&xs, t);
         double next = t - error / slope;
         t = (slope > 0.0 && next >= low && next <= high) ? next : 0.5 * (low + high);
+        // The bracket only narrows within [0, 1], and the step or the
+        // midpoint stays inside it.
+        MTWN_ASSERT(WithinBracket(low, t, high));
     }
     return Evaluate(&ys, t);
 }
@@ -284,6 +302,8 @@ double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, dou
     {
         index -= 1;
     }
+    // A linear() easing has at least two points, so the next one exists.
+    MTWN_ASSERT(count >= 2 && index + 1 < count);
     const mtwnLinearPoint* a = &points[index];
     const mtwnLinearPoint* b = &points[index + 1];
     if (a->input == b->input)

@@ -13,6 +13,7 @@
 #include "maul-tween/sample.h"
 
 #include "fpenv.h"
+#include "invariant.h"
 #include "valid.h"
 #include "work.h"
 
@@ -92,8 +93,19 @@ static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe
 {
     probe = probe < s_firstSplit ? s_firstSplit : (probe > s_lastSplit ? s_lastSplit : probe);
     split->x = start.x + (next.x - start.x) * ((double)probe / (double)(s_probes + 1));
+    // At least 5/33 of a segment no narrower than s_narrowest from each
+    // end, far more than the rounding of x within [0, 1].
+    MTWN_ASSERT(split->x > start.x && split->x < next.x);
     split->y = mtwnEaseWork(easing, split->x, false);
     return isfinite(split->y);
+}
+
+// Whether the segment to next lies past start and, when wide enough to
+// split, less than s_stackDepth deep: it is at most 102 deep, so the
+// stack's own bound never stops a split. Only an assertion calls it.
+[[maybe_unused]] static inline bool PendingWithin(Point start, Point next, int depth)
+{
+    return next.x > start.x && (next.x - start.x < s_narrowest || depth < s_stackDepth);
 }
 
 static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing, double tolerance,
@@ -125,6 +137,7 @@ static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing
     while (depth > 0)
     {
         Point next = stack[depth - 1];
+        MTWN_ASSERT(PendingWithin(start, next, depth));
         int probe = -1;
         if (next.x - start.x >= s_narrowest && depth < s_stackDepth)
         {
@@ -152,6 +165,7 @@ static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing
         }
         depth += 1;
     }
+    MTWN_ASSERT(count <= MTWN_MAX_FIT_POINTS);
     *countOut = count;
     return count <= capacity ? mtwn_success : mtwn_errorCapacity;
 }
