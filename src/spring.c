@@ -321,10 +321,12 @@ static double BoundTime(const Bound* bound)
     }
     if (isfinite(bound->cap))
     {
-        // Past the cap the bound is a pure exponential.
+        // Past the cap the bound is a pure exponential. NaN, a bound that
+        // overflowed at the cap against an infinite tolerance, is the
+        // caller's to take, at a rate of 0 too.
         double flat =
             (mtwnLog(bound->a + bound->b * bound->cap) - bound->logTolerance) / bound->rate;
-        if (flat >= bound->cap)
+        if (!(flat < bound->cap))
         {
             return flat;
         }

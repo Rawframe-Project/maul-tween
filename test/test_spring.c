@@ -687,6 +687,16 @@ static void TestSettlingAtTheEdges(void)
     CHECK(mtwnMakeSpringFromFrequency(0.5, 0.5, &gentle) == mtwn_success, "a gentle spring");
     settle = SpringSettlingTime(&gentle, 2.0, -0.5, nextafter(2.0, 0.0), 1e300);
     CHECK(settle > 0.0 && settle < 1e-12, "a tolerance an ulp below the start settles at once");
+    // Undamped, so its rate is 0, with an offset bound that overflows at
+    // its cap of 1 / w0 = 3.5e148 against an infinite tolerance: the
+    // offset is always within, and the velocity, swinging up to 1e300,
+    // never settles to 0.5 but is always within an infinite tolerance.
+    mtwnSpring slow;
+    CHECK(mtwnMakeSpring(800.0, 0.0, 1e300, &slow) == mtwn_success, "a slow undamped spring");
+    CHECK(SpringSettlingTime(&slow, 10.0, 1e300, HUGE_VAL, 0.5) == HUGE_VAL,
+          "an undamped velocity never settles");
+    CHECK(SpringSettlingTime(&slow, 10.0, 1e300, HUGE_VAL, HUGE_VAL) == 0.0,
+          "infinite tolerances hold at once");
 }
 
 // Starts whose bounds fall below the normal doubles: a product of a part
