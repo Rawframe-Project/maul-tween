@@ -10,6 +10,7 @@
 
 #include "elementary.h"
 #include "fpenv.h"
+#include "invariant.h"
 #include "valid.h"
 #include "work.h"
 
@@ -69,7 +70,8 @@ static double TravelShare(double y)
     }
     // The sum of (-y)^n / (n + 1)! for n from 0 to 17, nested as 1 + (-y)
     // / 2 (1 + (-y) / 3 (1 + ...)); the next term is under 1e-20 at
-    // y = 1/2.
+    // y = 1/2. y is a rate times a time, both at least 0.
+    MTWN_ASSERT(y >= 0.0);
     double sum = 1.0;
     for (int k = 18; k >= 2; --k)
     {
@@ -244,6 +246,9 @@ MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double po
     // 2 atanh(s) with s = share / (2 - share) <= 1/3: s^2 <= 1/9, so 17
     // terms leave under 1e-17.
     double s = share / (2.0 - share);
+    // A target ahead with a share at most 1/2; 0 for a share below the
+    // least subnormal.
+    MTWN_ASSERT(s >= 0.0 && s <= 1.0 / 3.0);
     double z = s * s;
     double sum = 0.0;
     for (int n = 16; n >= 0; --n)

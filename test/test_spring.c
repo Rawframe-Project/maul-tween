@@ -680,6 +680,13 @@ static void TestSettlingAtTheEdges(void)
     CHECK(SpringSettlingTime(&faint, 1.0, 0.0, 1e-3, 1e-2) == HUGE_VAL &&
               SpringSettlingTime(&faint, 1e300, 0.0, 1e-3, 1e-2) == HUGE_VAL,
           "a time past the doubles is infinity");
+    // A tolerance an ulp below a start at the bound's largest value, at 0:
+    // the excess is within rounding of 0, so rounding sends Newton's steps
+    // before the peak, which go halfway to it instead.
+    mtwnSpring gentle;
+    CHECK(mtwnMakeSpringFromFrequency(0.5, 0.5, &gentle) == mtwn_success, "a gentle spring");
+    settle = SpringSettlingTime(&gentle, 2.0, -0.5, nextafter(2.0, 0.0), 1e300);
+    CHECK(settle > 0.0 && settle < 1e-12, "a tolerance an ulp below the start settles at once");
 }
 
 // Starts whose bounds fall below the normal doubles: a product of a part

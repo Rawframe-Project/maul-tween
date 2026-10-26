@@ -17,6 +17,7 @@
 
 #include "elementary.h"
 #include "fpenv.h"
+#include "invariant.h"
 #include "spring_easing.h"
 #include "valid.h"
 #include "work.h"
@@ -337,6 +338,11 @@ static double BoundTime(const Bound* bound)
     {
         t = peak >= 1.0 / (3.0 * bound->rate) ? 2.0 * peak : peak + 1.0 / bound->rate;
     }
+    // A rate of 0 has a finite cap, past which the flat time is infinite
+    // and returned above; an infinite cap is critical damping's, whose
+    // rate is w0. NaN, a bound overflowing on the way, is the caller's to
+    // take, and passes each check here.
+    MTWN_ASSERT(bound->rate > 0.0 && !(t < peak));
     for (int i = 0; i < s_newtonSteps; ++i)
     {
         double slope = bound->b / (bound->a + bound->b * t) - bound->rate;
@@ -354,6 +360,7 @@ static double BoundTime(const Bound* bound)
         {
             t -= step;
         }
+        MTWN_ASSERT(!(t < peak));
         if (fabs(step) <= s_newtonStop * t)
         {
             break;
