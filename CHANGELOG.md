@@ -6,6 +6,20 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.8.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.7.0...v0.8.0) (2026-10-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **value:** mtwnMixColor(mix, progress, colorOut), mtwnMixRotation(mix, progress, rotationOut), mtwnMixScale(mix, progress, scaleOut) and mtwnMixZoom(mix, progress, viewOut) return mtwnResult and give their value through the new out; they refuse with mtwn_errorInvalid a null pointer, a progress that is not finite and a mix outside its check. mtwnZoomLength(mix, lengthOut) returns mtwnResult and refuses a null pointer and a mix mtwnMixZoom refuses. mtwnSampleTrack refuses a segment whose color or rotation mix, where it reads one, fails that check. A mix that passes the check gives no undefined behavior and no NaN; it is not promised to equal what a maker would give. A color or rotation is finite, held within the floats as a target holds it; a scale or zoom reaches infinity or 0 only past the doubles' range, as a maker's mix does. Every output is unchanged on refusal.
+* **value:** mtwnSamplePunch(punch, seconds, factorOut), mtwnSampleShake(shake, channel, seconds, factorOut) and mtwnShakeNoise(shake, channel, seconds, factorOut) return mtwnResult and give their factor through the new factorOut; they refuse with mtwn_errorInvalid a null pointer, a punch or shake whose fields its maker would refuse, and a NaN time. mtwnRubberBand(distance, dimension, coefficient, offsetOut) and mtwnRubberBandInverse(offset, dimension, coefficient, dragOut) return mtwnResult and give their result through the new offsetOut and dragOut; they refuse with mtwn_errorInvalid a null out, a dimension or coefficient not above 0, and a NaN drag or offset, where they gave 0. Every output is unchanged on refusal, and every input still taken gives the same bits.
+
+### Fixed
+
+* **value:** keep a zoom mix's extrapolation free of NaN ([#81](https://github.com/Rawframe-Project/maul-tween/issues/81)) ([750bcb2](https://github.com/Rawframe-Project/maul-tween/commit/750bcb2a5ef132b6b3546ebcbf62edfecbd397dc)), closes [#78](https://github.com/Rawframe-Project/maul-tween/issues/78)
+* **value:** validate color, rotation, scale and zoom mixes ([#82](https://github.com/Rawframe-Project/maul-tween/issues/82)) ([e884765](https://github.com/Rawframe-Project/maul-tween/commit/e8847652b35e38a2f5561c6d0789d25180b8d73f)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+* **value:** validate punches, shakes and the rubber band's arguments ([#76](https://github.com/Rawframe-Project/maul-tween/issues/76)) ([c217456](https://github.com/Rawframe-Project/maul-tween/commit/c2174569e2f7fdd351192bc14cf009f935386f26)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
+
 ## [0.7.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.6.0...v0.7.0) (2026-10-25)
 
 ### Changed
