@@ -6,6 +6,61 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.8.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.7.0...v0.8.0) (2026-10-26)
+
+### Changed
+
+- **Breaking: punches, shakes and the rubber band check their
+  arguments.** `mtwnSamplePunch`, `mtwnSampleShake` and
+  `mtwnShakeNoise` return `mtwnResult` and give their factor through
+  the new `factorOut`. Each refuses with `mtwn_errorInvalid` a null
+  pointer, a punch or shake whose fields its maker would refuse, and a
+  NaN time; an infinite time stays taken. A shake of 2^53 lattice
+  points or more over its duration is refused, where a forged one of
+  2^64 or more cast an index past `uint64_t`'s range, which was
+  undefined behavior in every build. `mtwnRubberBand` and
+  `mtwnRubberBandInverse` return `mtwnResult` and give their result
+  through the new `offsetOut` and `dragOut`. They refuse with
+  `mtwn_errorInvalid` a null out, a dimension or coefficient not above
+  0, and a NaN drag or offset, exactly the inputs that gave 0 before.
+  Every output is unchanged on refusal, and every input still taken
+  gives the same bits. A call costs up to about 11 ns more
+  ([#76](https://github.com/Rawframe-Project/maul-tween/pull/76)).
+- **Breaking: color, rotation, scale and zoom mixes are checked where
+  they are sampled.** `mtwnMixColor`, `mtwnMixRotation`,
+  `mtwnMixScale` and `mtwnMixZoom` return `mtwnResult` and give their
+  value through the new `colorOut`, `rotationOut`, `scaleOut` and
+  `viewOut`; `mtwnZoomLength` returns `mtwnResult` and gives the length
+  through `lengthOut`. Each refuses with `mtwn_errorInvalid` a null
+  pointer and a mix whose fields are outside their ranges, and the
+  samplers also refuse a progress that is not finite.
+  `mtwnSampleTrack` refuses a segment whose color or rotation mix,
+  where it reads one, fails that check. A mix that
+  passes gives no undefined behavior and no NaN, but is not promised to
+  equal what a maker would give: a color or rotation is finite, held
+  within the floats, and a scale or zoom reaches infinity or 0 only
+  past the doubles' range. Every output is unchanged on refusal. A
+  rotation, here and wherever transitions, tracks and layers slerp, is
+  held within the finite floats; a maker's rotation changes no bits
+  except where a float would have been infinite. Results for a maker's
+  mix are otherwise unchanged. A checked call costs about 4 to 17 ns
+  more. Transitions, layers and clips pay nothing per sample beyond the
+  rotation's hold; `mtwnSampleTrack` pays the check of the segment's
+  mix it reads. This completes the mixes, punches and shakes part of
+  [#60](https://github.com/Rawframe-Project/maul-tween/issues/60); its
+  timing part is still to come
+  ([#82](https://github.com/Rawframe-Project/maul-tween/pull/82)).
+
+### Fixed
+
+- `mtwnMixZoom` no longer gives a NaN centre for a maker's mix far
+  outside progress 0 to 1. Past about 710 along the path the centre
+  settles on its limit, as the header says the path extends, and the
+  width is unchanged everywhere. Results change only where a field was
+  NaN or infinite before; no finite field changes a bit. A sample
+  costs up to about 3 ns more
+  ([#81](https://github.com/Rawframe-Project/maul-tween/pull/81)).
+
 ## [0.7.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.6.0...v0.7.0) (2026-10-25)
 
 ### Changed
