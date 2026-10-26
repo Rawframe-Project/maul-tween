@@ -45,14 +45,15 @@ PARTS = [
 # checking springs and decays, then easings, where they enter costs, the
 # transitions', the clips' and the whole library's by what copying
 # linear() points into a context costs, the values', the clips' and the
-# whole library's by what checking paths and tracks costs, and the
-# values' by what checking punches, shakes and the rubber band costs.
+# whole library's by what checking paths and tracks costs, the values' by
+# what checking punches, shakes and the rubber band costs, and every
+# part's by what redoing a settling time's underflowed bound costs.
 BUDGETS = {
-    "curves": 31500,
-    "values": 67400,
-    "transitions": 67200,
-    "clips": 159000,
-    "everything": 179300,
+    "curves": 32700,
+    "values": 68600,
+    "transitions": 68400,
+    "clips": 160300,
+    "everything": 180500,
 }
 
 
@@ -70,15 +71,19 @@ GROWTH = 0.10
 RAISED = {
     "curves": "every public call that computes enters the float environment through a "
     "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
-    "or a decay checks it, 1.6 kB, and every call taking an easing, 2.0 kB",
+    "or a decay checks it, 1.6 kB, every call taking an easing, 2.0 kB, and a "
+    "spring's settling time redoes a bound that underflowed, 1.2 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
     "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
     "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, a color, rotation, "
-    "scale or zoom mix, 2.0 kB, and a timing's computation checks it, 0.1 kB",
+    "scale or zoom mix, 2.0 kB, a timing's computation checks it, 0.1 kB, and a "
+    "spring's settling time redoes a bound that underflowed, 1.2 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
-    "and a transition copies its linear() points, 0.6 kB",
-    "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, and a "
-    "timing's computation checks it, 0.1 kB",
+    "a transition copies its linear() points, 0.6 kB, and a spring's settling time "
+    "redoes a bound that underflowed, 1.2 kB",
+    "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
+    "timing's computation checks it, 0.1 kB, and a spring's settling time redoes a bound "
+    "that underflowed, 1.2 kB",
     "everything": "the raises of the parts above",
 }
 

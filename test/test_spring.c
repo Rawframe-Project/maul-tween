@@ -682,6 +682,78 @@ static void TestSettlingAtTheEdges(void)
           "a time past the doubles is infinity");
 }
 
+// Starts whose bounds fall below the normal doubles: a product of a part
+// of the start with a coefficient, or a bound's b t, rounded to a
+// subnormal or to 0, which loses a bound's digits or all of a term.
+static void TestSettlingPastUnderflow(void)
+{
+    // From a start and to tolerances below the normal doubles, and on a
+    // spring so fast and so damped that its time is short.
+    static const SettleCase tiny = {10.0, 0.5, 0.0, 0x1p-1060};
+    CHECK(SettlesAsBounded(&tiny, (Wide)1.0, (Wide)0x1p-1070),
+          "a start below the normal doubles settles where its bounds cross last");
+    static const SettleCase fast = {5e9, 1e10, 0.0, 1e-300};
+    CHECK(SettlesAsBounded(&fast, (Wide)5e-323, (Wide)DBL_MAX), "and on a fast heavy spring");
+    // Springs so slow that w0^2 times the start falls below the normal
+    // doubles: their velocity bound lost its b, and the time was 0 while
+    // the motion went far out of the tolerances. Sampled past it, it stays
+    // within, and it is out just before.
+    static const SettleCase slow[] = {
+        {1e-160, 1.0, -1e-10, 0.0},
+        {1e-160, 0.3, 1e-10, 0.0},
+    };
+    static const double tolerances[][2] = {{1000.0, 1e-300}, {1e100, 0x1p-1074}};
+    for (size_t c = 0; c < sizeof slow / sizeof slow[0]; ++c)
+    {
+        mtwnSpring spring;
+        CHECK(mtwnMakeSpringFromFrequency(slow[c].hertz, slow[c].ratio, &spring) == mtwn_success,
+              "a slow spring");
+        double settle = SpringSettlingTime(&spring, slow[c].offset, slow[c].velocity,
+                                           tolerances[c][0], tolerances[c][1]);
+        bool within = isfinite(settle) && settle > 0.0;
+        double lastOut = 0.0;
+        for (int k = 0; k <= 4000 && within; ++k)
+        {
+            double t = 3.0 * settle * (double)k / 4000.0;
+            double offset = 0.0;
+            double velocity = 0.0;
+            SampleSpring(&spring, slow[c].offset, slow[c].velocity, t, &offset, &velocity);
+            bool out = fabs(offset) > tolerances[c][0] || fabs(velocity) > tolerances[c][1];
+            lastOut = out ? t : lastOut;
+            within = !(out && t >= settle);
+        }
+        if (!within || settle > 1.2 * lastOut)
+        {
+            printf("  slow case %zu: %.6g, last out %.6g\n", c, settle, lastOut);
+        }
+        CHECK(within && settle <= 1.2 * lastOut,
+              "a slow spring stays settled from its settling time, out just before");
+    }
+    // A slow spring whose decay times the offset is subnormal: its offset
+    // bound's b has few digits left, where b t is most of the bound.
+    static const SettleCase drifting = {3e-17, 0.5, 1e-300, 0.0};
+    CHECK(SettlesAsBounded(&drifting, (Wide)1e-302, (Wide)DBL_MAX),
+          "an offset bound whose b underflowed settles where it crosses last");
+    // A spring whose w0^2 is itself subnormal, 2^-1060 exactly: a start
+    // and tolerances multiplied by 2^600 cross at the same time, and there
+    // w0^2 times the start is normal, where below 1 it would round.
+    mtwnSpring faintest;
+    CHECK(mtwnMakeSpring(0x1p-1060, 0x1p-530, 1.0, &faintest) == mtwn_success,
+          "a spring of w0 2^-530");
+    double low = SpringSettlingTime(&faintest, 0.7, 0.0, 1.0, 0x1p-540);
+    double high = SpringSettlingTime(&faintest, ldexp(0.7, 600), 0.0, 0x1p600, 0x1p60);
+    CHECK(isfinite(high) && high > 0.0 && fabs(low - high) <= 1e-12 * high,
+          "a subnormal w0^2 times a start settles as the start multiplied up does");
+    // Damped so little that its rate is below the normal doubles: 1 / rate
+    // and a / b both overflow, and the bound's peak is found without them.
+    mtwnSpring faint;
+    CHECK(mtwnMakeSpringFromFrequency(1e-20, 1e-300, &faint) == mtwn_success, "a faint spring");
+    CHECK(SpringSettlingTime(&faint, 7.0, 0.0, 1000.0, 1e-12) == 0.0,
+          "a start whose swing stays within both is settled at once");
+    CHECK(SpringSettlingTime(&faint, 1000.0, 0.0, 1.0, 1e-12) == HUGE_VAL,
+          "one that swings out of them settles only past the doubles");
+}
+
 typedef struct EasingCase
 {
     double hertz;
@@ -984,6 +1056,7 @@ int main(int argc, char** argv)
     TestSettling();
     TestSettlingTimesAreTheBounds();
     TestSettlingAtTheEdges();
+    TestSettlingPastUnderflow();
     TestSpringEasings();
     TestSpringEasingFitsLinear();
     TestSpringEasingRefusals();
