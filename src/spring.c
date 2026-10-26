@@ -343,8 +343,10 @@ static double BoundTime(const Bound* bound)
         double step = Excess(bound, t) / slope;
         if (t - step < peak)
         {
-            // Halfway to the peak instead, at or after it however rounded.
-            double half = 0.5 * t + 0.5 * peak;
+            // Halfway to the peak instead, at or after it however rounded:
+            // the peak plus a share at least 0, where halving t and the peak
+            // apart would round a subnormal half below it.
+            double half = peak + 0.5 * (t - peak);
             step = t - half;
             t = half;
         }
