@@ -279,26 +279,41 @@ static double Excess(const Bound* bound, double t)
     return mtwnLog(bound->a + bound->b * t) - bound->rate * t - bound->logTolerance;
 }
 
-// The time after which the bound stays at most the tolerance. Its
-// logarithm is concave, so it crosses the tolerance last where it is
-// falling; Newton's first step from anywhere past the peak lands at or
-// after that time, as the tangent lies above the curve, and its iterates
-// then approach it from the right.
-// A bound of 0 is within at once; one that never decays, past its cap,
-// never.
-static double BoundTime(const Bound* bound)
+// The time of the bound's largest value, where its logarithm's slope is 0.
+// A rate below the normal doubles can overflow both 1 / rate and a / b,
+// whose difference is then NaN: a rate a at least b is falling from 0,
+// else rising past any time a double holds, so to the cap.
+static double Peak(const Bound* bound)
 {
-    // The bound's largest value, where its logarithm's slope is 0.
     double peak = 0.0;
     if (bound->b > 0.0 && bound->rate > 0.0)
     {
         peak = 1.0 / bound->rate - bound->a / bound->b;
+        if (isnan(peak))
+        {
+            peak = bound->a * bound->rate >= bound->b ? 0.0 : bound->cap;
+        }
         peak = peak < 0.0 ? 0.0 : (peak > bound->cap ? bound->cap : peak);
     }
     else if (bound->b > 0.0)
     {
         peak = bound->cap;
     }
+    return peak;
+}
+
+// The time after which the bound stays at most the tolerance. Its
+// logarithm is concave, so it crosses the tolerance last where it is
+// falling; Newton's first step from anywhere past the peak lands at or
+// after that time, as the tangent lies above the curve, and its iterates
+// then approach it from the right. Where the bound is nearly flat at the
+// tolerance, rounding can still send a step to before the peak, even
+// before 0; such a step goes halfway to the peak instead.
+// A bound of 0 is within at once; one that never decays, past its cap,
+// never.
+static double BoundTime(const Bound* bound)
+{
+    double peak = Peak(bound);
     if (Excess(bound, peak) <= 0.0)
     {
         return 0.0;
@@ -326,7 +341,17 @@ static double BoundTime(const Bound* bound)
     {
         double slope = bound->b / (bound->a + bound->b * t) - bound->rate;
         double step = Excess(bound, t) / slope;
-        t -= step;
+        if (t - step < peak)
+        {
+            // Halfway to the peak instead, at or after it however rounded.
+            double half = 0.5 * t + 0.5 * peak;
+            step = t - half;
+            t = half;
+        }
+        else
+        {
+            t -= step;
+        }
         if (fabs(step) <= s_newtonStop * t)
         {
             break;
@@ -335,33 +360,73 @@ static double BoundTime(const Bound* bound)
     return t;
 }
 
-// The time both bounds of a start stay within their tolerances, given by
-// their logarithms.
-MTWN_NOINLINE static double SettleFrom(const mtwnSpring* spring, const Bound* bound, double offset,
-                                       double velocity, double logOffsetTolerance,
-                                       double logVelocityTolerance)
+// Whether a product of nonzero factors fell below the normal doubles,
+// rounded by up to half the least subnormal or to 0. A sum of such
+// products at least the least normal double is still within an ulp.
+static bool Underflows(double factor, double other)
 {
-    double decay = spring->parameters[s_decay];
-    Bound offsetBound = *bound;
-    offsetBound.a = fabs(offset);
-    offsetBound.b = fabs(velocity + decay * offset);
-    offsetBound.logTolerance = logOffsetTolerance;
-    Bound velocityBound = *bound;
-    velocityBound.a = fabs(velocity);
-    velocityBound.b = fabs(decay * velocity + spring->parameters[s_squared] * offset);
-    velocityBound.logTolerance = logVelocityTolerance;
-    // A decaying bound ends, so an infinite or NaN time overflowed: a
-    // coefficient, two of its products with opposite signs, or the bound on
-    // the way; or the time itself is past the doubles. NaN tells the
-    // caller so.
-    if (!(offsetBound.b < HUGE_VAL) || !(velocityBound.b < HUGE_VAL))
+    return fabs(factor * other) < DBL_MIN && factor != 0.0 && other != 0.0;
+}
+
+// Whether a bound's time rests on its value a + b t below the normal
+// doubles with b t rounded there: at its peak for a time of 0, else at the
+// time, or the cap past it.
+MTWN_NOINLINE static bool Lost(const Bound* bound, double time)
+{
+    double t = time == 0.0 ? Peak(bound) : (time < bound->cap ? time : bound->cap);
+    return Underflows(bound->b, t) && bound->a + bound->b * t < DBL_MIN;
+}
+
+// A bound's time; NaN where it overflowed, as a decaying bound ends: a
+// coefficient, two of its products with opposite signs, or the bound on
+// the way; or the time itself is past the doubles. For a start not yet
+// scaled, lost tells whether the bound lost digits to underflow: its b,
+// with a product underflowed in it, or its value at its time below the
+// normal doubles.
+MTWN_NOINLINE static double TimeOf(const Bound* bound, bool underflowed, bool* lost)
+{
+    if (!(bound->b < HUGE_VAL))
     {
         return (double)NAN;
     }
-    double offsetTime = BoundTime(&offsetBound);
-    double velocityTime = BoundTime(&velocityBound);
-    double time = offsetTime > velocityTime ? offsetTime : velocityTime;
+    double time = BoundTime(bound);
+    *lost = (underflowed && bound->b < DBL_MIN) || Lost(bound, time);
     return bound->rate > 0.0 && !(time < HUGE_VAL) ? (double)NAN : time;
+}
+
+// The times the two bounds of a start, its offset's and its velocity's,
+// stay within their tolerances, given by their logarithms, for each time
+// still NaN; true when one overflowed. A start not yet scaled leaves NaN
+// for a bound that overflowed or lost digits to underflow; a scaled one
+// gives infinity for a time still past the doubles.
+MTWN_NOINLINE static bool SettleFrom(const mtwnSpring* spring, const Bound* bound, bool scaled,
+                                     double offset, double velocity, double logOffsetTolerance,
+                                     double logVelocityTolerance, double times[2])
+{
+    double decay = spring->parameters[s_decay];
+    double squared = spring->parameters[s_squared];
+    Bound bounds[2] = {*bound, *bound};
+    bounds[0].a = fabs(offset);
+    bounds[0].b = fabs(velocity + decay * offset);
+    bounds[0].logTolerance = logOffsetTolerance;
+    bounds[1].a = fabs(velocity);
+    bounds[1].b = fabs(decay * velocity + squared * offset);
+    bounds[1].logTolerance = logVelocityTolerance;
+    bool underflowed[2] = {Underflows(decay, offset),
+                           Underflows(decay, velocity) || Underflows(squared, offset)};
+    bool overflowed = false;
+    for (int k = 0; k < 2; ++k)
+    {
+        if (!isnan(times[k]))
+        {
+            continue;
+        }
+        bool lost = false;
+        double time = TimeOf(&bounds[k], underflowed[k], &lost);
+        overflowed = overflowed || isnan(time);
+        times[k] = scaled ? (isnan(time) ? HUGE_VAL : time) : (lost ? (double)NAN : time);
+    }
+    return overflowed;
 }
 
 MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
@@ -389,11 +454,17 @@ MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double
     }
     double logOffsetTolerance = mtwnLog(offsetTolerance);
     double logVelocityTolerance = mtwnLog(velocityTolerance);
-    double time =
-        SettleFrom(spring, &bound, offset, velocity, logOffsetTolerance, logVelocityTolerance);
-    if (!isnan(time))
+    double times[2] = {(double)NAN, (double)NAN};
+    if (SettleFrom(spring, &bound, false, offset, velocity, logOffsetTolerance,
+                   logVelocityTolerance, times))
     {
-        return time;
+        // An overflow redoes both bounds, an underflow only its own.
+        times[0] = (double)NAN;
+        times[1] = (double)NAN;
+    }
+    if (!isnan(times[0]) && !isnan(times[1]))
+    {
+        return times[0] > times[1] ? times[0] : times[1];
     }
     if (!isfinite(offset) || !isfinite(velocity))
     {
@@ -403,15 +474,18 @@ MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double
     // by 2^e, for e the exponent of the start's larger part: the start is
     // then below 1 and every coefficient at most decay + w0^2. Dividing it
     // is exact but for a part too small beside the other to count, and the
-    // tolerances' logarithms move by e ln 2. A time still past the doubles
-    // is infinity.
+    // tolerances' logarithms move by e ln 2. A w0^2 below the normal
+    // doubles keeps its product with a start below 1 there too, so the
+    // start is left 2^53 larger: such a spring's decay is below 2^513, as
+    // its w0 is below 2^-511 and its ratio below 2^1024.
     int exponent = 0;
     (void)frexp(fabs(offset) > fabs(velocity) ? offset : velocity, &exponent);
+    exponent -= spring->parameters[s_squared] < DBL_MIN ? 53 : 0;
     double shift = (double)exponent * MTWN_LN2_HI + (double)exponent * MTWN_LN2_LO;
-    double scale = ldexp(1.0, -exponent);
-    time = SettleFrom(spring, &bound, offset * scale, velocity * scale, logOffsetTolerance - shift,
-                      logVelocityTolerance - shift);
-    return isnan(time) ? HUGE_VAL : time;
+    // ldexp, as 2^-e overflows for a start below the normal doubles.
+    (void)SettleFrom(spring, &bound, true, ldexp(offset, -exponent), ldexp(velocity, -exponent),
+                     logOffsetTolerance - shift, logVelocityTolerance - shift, times);
+    return times[0] > times[1] ? times[0] : times[1];
 }
 
 static MTWN_NOINLINE mtwnResult mtwnSpringSettlingTimeChecked(const mtwnSpring* spring,
