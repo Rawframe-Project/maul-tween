@@ -201,6 +201,74 @@ static void TestDecayCrossings(void)
     CHECK(fabs(position - 3.9) <= 1e-14, "the motion is at the target then");
 }
 
+// Starts whose products and quotients on the way leave the doubles while
+// the result does not; each reference in a form that stays within them.
+static void TestDecayPastTheRange(void)
+{
+    // A share of 2^-1074: s = share / (2 - share) rounds to 0, and the
+    // time, d / v (1 + share / 2 + ...), is 1.
+    mtwnDecay faint;
+    CHECK(mtwnMakeDecay(0x1p-1074, &faint) == mtwn_success, "the faintest decay");
+    CHECK(DecayCrossingTime(&faint, 0.0, 1.0, 1.0) == 1.0, "a subnormal share's time is d / v");
+    // A share of 2^-1076 rounds to 0, but the target is ahead.
+    CHECK(DecayCrossingTime(&faint, 0.0, 4.0, 1.0) == 0.25, "a share below the least subnormal");
+    // d k = 1e-400 underflows to 0 though the share is 1e-200.
+    mtwnDecay slow;
+    CHECK(mtwnMakeDecay(1e-200, &slow) == mtwn_success, "a slow decay");
+    CHECK(Relative(DecayCrossingTime(&slow, 0.0, 1e-200, 1e-200), (Wide)1.0) <= 2e-16,
+          "a share whose d k underflows");
+    // target - position overflows; the share is 0.02.
+    mtwnDecay gentle;
+    CHECK(mtwnMakeDecay(1e-10, &gentle) == mtwn_success, "a gentle decay");
+    double share = 2.0 * (1e308 * 1e-10) / 1e300;
+    CHECK(Relative(DecayCrossingTime(&gentle, -1e308, 1e300, 1e308),
+                   -WIDE_LOG1P(-(Wide)share) / (Wide)1e-10) <= 4e-16 + s_slack,
+          "a distance past the doubles");
+    // The speed ratio 1e600 overflows: ln 1e300 - ln 1e-300.
+    mtwnDecay unit;
+    CHECK(mtwnMakeDecay(1.0, &unit) == mtwn_success, "a unit decay");
+    CHECK(Relative(DecayStopTime(&unit, 1e300, 1e-300), (Wide)log(1e300) - (Wide)log(1e-300)) <=
+              2e-16 + s_slack,
+          "a stop speed ratio past the doubles");
+    // v t = 1e310 overflows; the travel is v (1 - e^(-1e10)) = 1e300.
+    double position = 0.0;
+    double velocity = 0.0;
+    SampleDecay(&unit, 0.0, 1e300, 1e10, &position, NULL);
+    CHECK(position == 1e300, "a v t past the doubles");
+    // v t = 1.1 DBL_MAX overflows at y = 0.44, below the series' 1/2, yet
+    // the travel is 0.89 DBL_MAX.
+    mtwnDecay mild;
+    CHECK(mtwnMakeDecay(0.4, &mild) == mtwn_success, "a mild decay");
+    SampleDecay(&mild, 0.0, DBL_MAX, 1.1, &position, NULL);
+    CHECK(Relative(position, (Wide)DBL_MAX * -WIDE_EXPM1((Wide)-0.4 * (Wide)1.1) / (Wide)0.4) <=
+              4e-16 + s_slack,
+          "a v t past the doubles at a small k t");
+    // From -DBL_MAX a travel of 1.97 DBL_MAX at k t = 0.22: half the
+    // velocity's v t still overflows, and its own half does not.
+    mtwnDecay tenth;
+    CHECK(mtwnMakeDecay(0.1, &tenth) == mtwn_success, "a tenth decay");
+    SampleDecay(&tenth, -DBL_MAX, DBL_MAX, 2.2, &position, NULL);
+    CHECK(Relative(position, (Wide)DBL_MAX * (-WIDE_EXPM1((Wide)-0.1 * (Wide)2.2) / (Wide)0.1 -
+                                              1)) <= 4e-16 + s_slack,
+          "a v t past twice the doubles at a small k t, from beyond its end");
+    // k t = 1e310 overflows; the travel is v / k.
+    mtwnDecay sharp;
+    CHECK(mtwnMakeDecay(1e300, &sharp) == mtwn_success, "a sharp decay");
+    SampleDecay(&sharp, 0.0, 1.0, 1e10, &position, NULL);
+    CHECK(Relative(position, (Wide)1e-300) <= 2e-16, "a k t past the doubles");
+    // From -DBL_MAX a travel of 1.55 DBL_MAX lands within the doubles.
+    mtwnDecay half;
+    CHECK(mtwnMakeDecay(0.5, &half) == mtwn_success, "a half decay");
+    SampleDecay(&half, -DBL_MAX, DBL_MAX, 3.0, &position, NULL);
+    CHECK(Relative(position, (Wide)DBL_MAX * (2 * -WIDE_EXPM1((Wide)-1.5) - 1)) <= 4e-16 + s_slack,
+          "a travel past the doubles from beyond its end");
+    // e^(-1000) is below the least subnormal; 1e300 times it is not.
+    SampleDecay(&unit, 0.0, 1e300, 1000.0, NULL, &velocity);
+    CHECK(Relative(velocity, (Wide)1e300 * WIDE_EXP((Wide)-500) * WIDE_EXP((Wide)-500)) <=
+              4e-16 + s_slack,
+          "a velocity whose e^(-k t) underflows");
+}
+
 // Whether the rubber band and its inverse both refuse their arguments,
 // leaving their outs as they were.
 static bool BandRefused(double distance, double dimension, double coefficient)
@@ -329,6 +397,7 @@ int main(void)
     TestDecayFromIos();
     TestDecayRestAndStop();
     TestDecayCrossings();
+    TestDecayPastTheRange();
     TestRubberBand();
     return s_failures == 0 ? 0 : 1;
 }

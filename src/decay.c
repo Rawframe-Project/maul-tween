@@ -15,6 +15,7 @@
 
 #include "maul-tween/spring.h"
 
+#include <float.h>
 #include <math.h>
 
 static const double s_seriesBelow = 0.5;
@@ -77,28 +78,56 @@ static double TravelShare(double y)
     return sum;
 }
 
+// The travel at a velocity over seconds, y = k t of them, kept within the
+// doubles on the way wherever it is itself.
+MTWN_NOINLINE static double Travel(double rate, double velocity, double seconds, double y)
+{
+    if (isinf(seconds))
+    {
+        return velocity / rate;
+    }
+    double distance = velocity * seconds;
+    if (isfinite(distance) && isfinite(y))
+    {
+        return distance * TravelShare(y);
+    }
+    if (!(y < s_seriesBelow))
+    {
+        // v t or k t past the doubles, the travel from its closed form,
+        // whose v (1 - e^(-y)) cannot overflow.
+        return velocity * (1.0 - mtwnExp(-y)) / rate;
+    }
+    // v t past the doubles at a small y: from half of it, which overflows
+    // only for a travel past the doubles too.
+    return 2.0 * (0.5 * velocity * seconds * TravelShare(y));
+}
+
 MTWN_NOINLINE void mtwnSampleDecayWork(const mtwnDecay* decay, double position, double velocity,
                                        double seconds, double* positionOut, double* velocityOut)
 {
     double rate = decay->rate;
-    double travel = 0.0;
-    double kept = 0.0;
-    if (isinf(seconds))
-    {
-        travel = velocity / rate;
-    }
-    else
-    {
-        double y = rate * seconds;
-        travel = velocity * seconds * TravelShare(y);
-        kept = velocity * mtwnExp(-y);
-    }
+    double y = rate * seconds;
     if (positionOut != NULL)
     {
-        *positionOut = position + travel;
+        // A travel past the doubles from a start on the other side may end
+        // within them: then from half of each.
+        double moved = position + Travel(rate, velocity, seconds, y);
+        *positionOut = isfinite(moved)
+                           ? moved
+                           : 2.0 * (0.5 * position + Travel(rate, 0.5 * velocity, seconds, y));
     }
     if (velocityOut != NULL)
     {
+        double kept = 0.0;
+        if (!isinf(seconds))
+        {
+            // e^(-y) falls below the normal doubles past y = 708, rounding
+            // to few digits or 0 where the velocity need not; its halves do
+            // not.
+            double decayed = mtwnExp(-y);
+            double half = decayed < DBL_MIN ? mtwnExp(-0.5 * y) : 0.0;
+            kept = decayed < DBL_MIN ? velocity * half * half : velocity * decayed;
+        }
         *velocityOut = kept;
     }
 }
@@ -133,7 +162,13 @@ MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double veloci
         return HUGE_VAL;
     }
     double speed = fabs(velocity);
-    return speed <= stopSpeed ? 0.0 : mtwnLog(speed / stopSpeed) / decay->rate;
+    if (speed <= stopSpeed)
+    {
+        return 0.0;
+    }
+    // A ratio past the doubles, as the logarithms' difference.
+    double ratio = speed / stopSpeed;
+    return (isfinite(ratio) ? mtwnLog(ratio) : mtwnLog(speed) - mtwnLog(stopSpeed)) / decay->rate;
 }
 
 static MTWN_NOINLINE mtwnResult mtwnDecayStopTimeChecked(const mtwnDecay* decay, double velocity,
@@ -156,6 +191,20 @@ mtwnResult mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double sto
     return result;
 }
 
+// d 2^doubled k / v from the operands' mantissas and exponents, which no
+// product on the way leaves the doubles from.
+static double ScaledShare(double distance, int doubled, double rate, double velocity)
+{
+    int distanceExponent = 0;
+    int rateExponent = 0;
+    int velocityExponent = 0;
+    double distanceMantissa = frexp(distance, &distanceExponent);
+    double rateMantissa = frexp(rate, &rateExponent);
+    double velocityMantissa = frexp(velocity, &velocityExponent);
+    return ldexp(distanceMantissa * rateMantissa / velocityMantissa,
+                 distanceExponent + doubled + rateExponent - velocityExponent);
+}
+
 MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double position,
                                                double velocity, double target)
 {
@@ -164,9 +213,26 @@ MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double po
     {
         return 0.0;
     }
+    // A distance past the doubles, halved: both ends are then even.
+    int doubled = 0;
+    if (isinf(distance))
+    {
+        distance = 0.5 * target - 0.5 * position;
+        doubled = 1;
+    }
     // The share of the whole travel, velocity / k, the target lies at.
-    double share = distance * decay->rate / velocity;
-    if (!(share > 0.0 && share < 1.0))
+    // Where d k or the share falls below the normal doubles, or d was
+    // halved, it comes from the operands' mantissas and exponents
+    // instead.
+    double product = distance * decay->rate;
+    double share = product / velocity;
+    if (doubled != 0 || fabs(product) < DBL_MIN || fabs(share) < DBL_MIN)
+    {
+        share = ScaledShare(distance, doubled, decay->rate, velocity);
+    }
+    // Toward the target by the signs, as a share below the least
+    // subnormal rounds to 0.
+    if (velocity == 0.0 || (distance > 0.0) != (velocity > 0.0) || !(share < 1.0))
     {
         return HUGE_VAL;
     }
@@ -183,6 +249,17 @@ MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double po
     for (int n = 16; n >= 0; --n)
     {
         sum = sum * z + 1.0 / (double)(2 * n + 1);
+    }
+    if (s < DBL_MIN)
+    {
+        // An s below the normal doubles keeps few digits or none: 2 s / k
+        // is 2 (d / v) / (2 - share), with d doubled back if it was halved,
+        // scaling a small d before the quotient can fall below the normal
+        // doubles and a large one after.
+        double twice = doubled != 0 ? 4.0 : 2.0;
+        double lead =
+            fabs(distance) < 1.0 ? twice * distance / velocity : distance / velocity * twice;
+        return lead / (2.0 - share) * sum;
     }
     return 2.0 * s * sum / decay->rate;
 }
