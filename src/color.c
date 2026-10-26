@@ -9,11 +9,10 @@
 // premultiplied, so a sample costs one conversion back.
 
 #include "bounds_internal.h"
+#include "color_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
 #include "mix_internal.h"
-#include "reserved_internal.h"
-#include "valid.h"
 #include "work.h"
 
 #include "generated/color_matrices.h"
@@ -55,17 +54,6 @@ static void Multiply(const double m[3][3], const double in[3], double out[3])
     {
         out[i] = m[i][0] * in[0] + m[i][1] * in[1] + m[i][2] * in[2];
     }
-}
-
-static bool IsSpace(mtwnColorSpace space)
-{
-    return space <= mtwn_colorSrgb;
-}
-
-static bool IsColor(mtwnColor color)
-{
-    return isfinite(color.red) && isfinite(color.green) && isfinite(color.blue) &&
-           color.alpha >= 0.0f && color.alpha <= 1.0f;
 }
 
 // A color's coordinates in a space, alpha last.
@@ -184,8 +172,8 @@ static void FixHues(mtwnHueMethod method, double* first, double* second)
 MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwnColorSpace space,
                                               mtwnHueMethod hue, mtwnColorMix* mixOut)
 {
-    if (mixOut == NULL || !IsSpace(space) || hue > mtwn_hueDecreasing || !IsColor(from) ||
-        !IsColor(to))
+    if (mixOut == NULL || !mtwnIsColorSpace(space) || hue > mtwn_hueDecreasing ||
+        !mtwnIsColor(from) || !mtwnIsColor(to))
     {
         return mtwn_errorInvalid;
     }
@@ -222,24 +210,6 @@ mtwnResult mtwnMakeColorMix(mtwnColor from, mtwnColor to, mtwnColorSpace space, 
     return result;
 }
 
-// A mix's end in its space: finite coordinates, premultiplied or not,
-// its alpha its color's, and an OkLCh hue within the two turns the
-// fix-ups reach from a hue of 0 to a turn.
-static MTWN_NOINLINE bool IsEnd(const double end[4], mtwnColor color, mtwnColorSpace space)
-{
-    return isfinite(end[0]) && isfinite(end[1]) && isfinite(end[2]) &&
-           end[3] == (double)color.alpha &&
-           (space != mtwn_colorOklch || (end[2] >= 0.0 && end[2] <= 2.0 * s_turn));
-}
-
-MTWN_NOINLINE bool mtwnValidColorMix(const mtwnColorMix* mix)
-{
-    return mix != NULL && IsSpace(mix->space) &&
-           mtwnReservedClear(mix->reserved, sizeof mix->reserved) && IsColor(mix->fromColor) &&
-           IsColor(mix->toColor) && IsEnd(mix->from, mix->fromColor, mix->space) &&
-           IsEnd(mix->to, mix->toColor, mix->space);
-}
-
 MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progress)
 {
     if (progress == 0.0)
@@ -268,29 +238,10 @@ MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progres
     return FromSpace(at, mix->space);
 }
 
-static MTWN_NOINLINE mtwnResult mtwnMixColorChecked(const mtwnColorMix* mix, double progress,
-                                                    mtwnColor* colorOut)
-{
-    if (colorOut == NULL || !mtwnValidColorMix(mix) || !isfinite(progress))
-    {
-        return mtwn_errorInvalid;
-    }
-    *colorOut = mtwnMixColorWork(mix, progress);
-    return mtwn_success;
-}
-
-mtwnResult mtwnMixColor(const mtwnColorMix* mix, double progress, mtwnColor* colorOut)
-{
-    uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnMixColorChecked(mix, progress, colorOut);
-    mtwnFloatEnvLeave(env);
-    return result;
-}
-
 MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
                                               double coordinatesOut[4])
 {
-    if (coordinatesOut == NULL || !IsSpace(space) || !IsColor(color))
+    if (coordinatesOut == NULL || !mtwnIsColorSpace(space) || !mtwnIsColor(color))
     {
         return mtwn_errorInvalid;
     }
@@ -309,7 +260,7 @@ mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordi
 static MTWN_NOINLINE mtwnResult mtwnColorFromSpaceWork(const double coordinates[4],
                                                        mtwnColorSpace space, mtwnColor* colorOut)
 {
-    if (coordinates == NULL || colorOut == NULL || !IsSpace(space))
+    if (coordinates == NULL || colorOut == NULL || !mtwnIsColorSpace(space))
     {
         return mtwn_errorInvalid;
     }

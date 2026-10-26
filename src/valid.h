@@ -8,7 +8,8 @@
 // host holds it and may write any bytes into it, so every public call
 // taking one checks it, and so does every path taking one into a context.
 // Both call these, so the two cannot drift. Each lives in its kind's
-// module.
+// module; a color's, a rotation's and a scale's mix's in its kind's check
+// module, apart from the mix a transition links.
 
 #ifndef MAUL_TWEEN_SRC_VALID_H
 #define MAUL_TWEEN_SRC_VALID_H
@@ -57,7 +58,7 @@ bool mtwnValidTrack(const mtwnTrack* track);
 bool mtwnValidColorMix(const mtwnColorMix* mix);
 
 // A rotation mix's ends of unit length to within the rounding of their
-// normalization (s_unitTolerance in rotation.c), its rotations their ends'
+// normalization (s_unitTolerance in rotation_check.c), its rotations their ends'
 // floats, and its angle from 0 to pi. The angle is not taken again from
 // the ends, a root and an arctangent a sample does not pay for.
 bool mtwnValidRotationMix(const mtwnRotationMix* mix);

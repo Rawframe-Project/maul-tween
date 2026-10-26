@@ -52,6 +52,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/compose.c
     src/coast.c
     src/color.c
+    src/color_check.c
     src/context.c
     src/crossing.c
     src/css_easing.c
@@ -60,8 +61,10 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/fpenv.c
     src/inertia.c
     src/rotation.c
+    src/rotation_check.c
     src/rough.c
     src/scale.c
+    src/scale_check.c
     src/zoom.c
     src/path.c
     src/path_direction.c
