@@ -50,8 +50,8 @@ PARTS = [
 BUDGETS = {
     "curves": 31500,
     "values": 67300,
-    "transitions": 68600,
-    "clips": 159300,
+    "transitions": 67200,
+    "clips": 158900,
     "everything": 179300,
 }
 
@@ -76,10 +76,8 @@ RAISED = {
     "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, and a color, rotation, "
     "scale or zoom mix, 2.0 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
-    "a transition copies its linear() points, 0.6 kB, and the color, rotation and scale "
-    "objects it links carry their mixes' checks, 1.1 kB",
-    "clips": "the color, rotation and scale objects a clip links carry their mixes' checks, "
-    "and a track's sample checks its segment's mix, 1.4 kB",
+    "and a transition copies its linear() points, 0.6 kB",
+    "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB",
     "everything": "the raises of the parts above",
 }
 
