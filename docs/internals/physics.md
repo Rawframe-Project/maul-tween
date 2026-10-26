@@ -33,6 +33,13 @@ A rate below the normal doubles, damping so slight that the bound decays only pa
 
 A decay at rate `k` moves `velocity (1 - e^(-k t)) / k` from its start ([`src/decay.c`](../../src/decay.c)). For a small `y = k t`, `1 - e^(-y)` loses its digits, so below `y = 1/2` the factor comes from its series; the crossing time `-ln(1 - f) / k` is likewise `2 atanh(f / (2 - f)) / k` by the atanh series for `f <= 1/2`. iOS's per-millisecond deceleration `r` is the rate `-1000 ln r`.
 
+Each result keeps to the doubles on the way wherever it lies within them itself, by a second form for where the first leaves them; where the first does not, its bits are what they were:
+
+- **The crossing's share** `f = d k / v` comes from the operands' mantissas and exponents, so `d k` neither overflows nor underflows. A distance `target - position` past the doubles is taken halved. Whether the target is ahead comes from the signs, as a share below the least subnormal rounds to 0. Where `s = f / (2 - f)` falls below the normal doubles, `2 s / k` is `2 (d / v) / (2 - f)`.
+- **The stop time** `ln(speed / stop) / k` is `(ln speed - ln stop) / k` where the ratio overflows.
+- **The travel** is `v (1 - e^(-y)) / k` where `v t` or `y` overflows, and from half of `v t` where `v t` overflows at a small `y`. A travel past the doubles from a start on the other side may end within them: the position then comes from half the start and half the travel.
+- **The velocity** `v e^(-y)` is `v e^(-y/2) e^(-y/2)` where `e^(-y)` is subnormal, past `y = 708`.
+
 Inertia ([`src/inertia.c`](../../src/inertia.c)) builds on the decay without changing it:
 
 - **Landing.** The decay that comes to rest on a chosen end with the start's velocity has rate `velocity / (end - position)`. The natural rest is the decay at infinite time, iOS's projection, so the snapping rule (the nearest page, a grid, a list) stays the host's.
