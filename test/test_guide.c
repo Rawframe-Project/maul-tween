@@ -98,9 +98,10 @@ static void TestValues(void)
     mtwnColor blue = {0.0f, 0.0f, 1.0f, 1.0f};
     mtwnColorMix mix;
     mtwnResult made = mtwnMakeColorMix(red, blue, mtwn_colorOklch, mtwn_hueShorter, &mix);
-    mtwnColor between = mtwnMixColor(&mix, 0.5); // half way, in OkLCh
-    CHECK(made == mtwn_success && between.alpha == 1.0f && between.red > 0.0f &&
-              between.blue > 0.0f,
+    mtwnColor between;
+    mtwnResult mixed = mtwnMixColor(&mix, 0.5, &between); // half way, in OkLCh
+    CHECK(made == mtwn_success && mixed == mtwn_success && between.alpha == 1.0f &&
+              between.red > 0.0f && between.blue > 0.0f,
           "a color between red and blue");
 }
 
@@ -108,8 +109,10 @@ static void TestScales(void)
 {
     mtwnScaleMix zoom;
     mtwnResult made = mtwnMakeScaleMix(1.0, 100.0, &zoom);
-    double half = mtwnMixScale(&zoom, 0.5); // 10, not 50.5
-    CHECK(made == mtwn_success && fabs(half - 10.0) <= 1e-12, "halfway from 1 to 100 is 10");
+    double half = 0.0;
+    mtwnResult mixed = mtwnMixScale(&zoom, 0.5, &half); // 10, not 50.5
+    CHECK(made == mtwn_success && mixed == mtwn_success && fabs(half - 10.0) <= 1e-12,
+          "halfway from 1 to 100 is 10");
 }
 
 static void TestZoom(void)
@@ -118,10 +121,14 @@ static void TestZoom(void)
     mtwnZoomView to = {50.0, 20.0, 2.0};
     mtwnZoomMix flight;
     mtwnResult made = mtwnMakeZoomMix(from, to, 1.42, &flight);
-    double seconds = mtwnZoomLength(&flight) * 1.42 / sqrt(2.0); // d3's pace
+    double length = 0.0;
+    mtwnResult measured = mtwnZoomLength(&flight, &length);
+    double seconds = length * 1.42 / sqrt(2.0); // d3's pace
     // Halfway it is wider than both ends.
-    mtwnZoomView view = mtwnMixZoom(&flight, 0.5);
-    CHECK(made == mtwn_success && seconds > 0.0 && view.width > 2.0,
+    mtwnZoomView view;
+    mtwnResult mixed = mtwnMixZoom(&flight, 0.5, &view);
+    CHECK(made == mtwn_success && measured == mtwn_success && mixed == mtwn_success &&
+              seconds > 0.0 && view.width > 2.0,
           "a flight that zooms out to pan");
 }
 

@@ -169,4 +169,39 @@ static inline double RubberBandInverse(double offset, double dimension, double c
     return drag;
 }
 
+static inline mtwnColor MixColor(const mtwnColorMix* mix, double progress)
+{
+    mtwnColor color = {NAN, NAN, NAN, NAN};
+    CHECK(mtwnMixColor(mix, progress, &color) == mtwn_success, "a color mix's sample");
+    return color;
+}
+
+static inline mtwnQuat MixRotation(const mtwnRotationMix* mix, double progress)
+{
+    mtwnQuat rotation = {NAN, NAN, NAN, NAN};
+    CHECK(mtwnMixRotation(mix, progress, &rotation) == mtwn_success, "a rotation mix's sample");
+    return rotation;
+}
+
+static inline double MixScale(const mtwnScaleMix* mix, double progress)
+{
+    double scale = (double)NAN;
+    CHECK(mtwnMixScale(mix, progress, &scale) == mtwn_success, "a scale mix's sample");
+    return scale;
+}
+
+static inline mtwnZoomView MixZoom(const mtwnZoomMix* mix, double progress)
+{
+    mtwnZoomView view = {(double)NAN, (double)NAN, (double)NAN};
+    CHECK(mtwnMixZoom(mix, progress, &view) == mtwn_success, "a zoom mix's sample");
+    return view;
+}
+
+static inline double ZoomLength(const mtwnZoomMix* mix)
+{
+    double length = (double)NAN;
+    CHECK(mtwnZoomLength(mix, &length) == mtwn_success, "a zoom mix's length");
+    return length;
+}
+
 #endif

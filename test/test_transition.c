@@ -197,7 +197,7 @@ static void TestKinds(void)
     CHECK(mtwnMakeColorMix(redColor, blueColor, mtwn_colorOklab, mtwn_hueShorter, &mix) ==
               mtwn_success,
           "a mix");
-    mtwnColor want = mtwnMixColor(&mix, 0.5);
+    mtwnColor want = MixColor(&mix, 0.5);
     mtwnVec4 got = State(context, color).value;
     CHECK(got.x == want.red && got.y == want.green && got.z == want.blue && got.w == want.alpha,
           "the color as the values layer mixes it");
@@ -205,7 +205,7 @@ static void TestKinds(void)
     CHECK(mtwnMakeRotationMix((mtwnQuat){0, 0, 0, 1.0f}, (mtwnQuat){0, 0, s, c},
                               mtwn_rotationShortest, &turn) == mtwn_success,
           "a rotation mix");
-    mtwnQuat q = mtwnMixRotation(&turn, 0.5);
+    mtwnQuat q = MixRotation(&turn, 0.5);
     got = State(context, rotation).value;
     CHECK(got.x == q.x && got.y == q.y && got.z == q.z && got.w == q.w, "the rotation by slerp");
     Update(context, s_second);
@@ -628,7 +628,7 @@ static void TestPathSprings(void)
     CHECK(mtwnMakeColorMix((mtwnColor){at.x, at.y, at.z, at.w}, (mtwnColor){0.0f, 1.0f, 1.0f, 1.0f},
                            mtwn_colorSrgb, mtwn_hueShorter, &mix) == mtwn_success,
           "the mix");
-    mtwnColor want = mtwnMixColor(&mix, 1.0 + offset);
+    mtwnColor want = MixColor(&mix, 1.0 + offset);
     mtwnVec4 got = State(context, color).value;
     CHECK(got.x == want.red && got.y == want.green && got.z == want.blue,
           "the color at the spring's progress along its path");
@@ -661,7 +661,7 @@ static void TestScales(void)
     mtwnScaleMix mix;
     CHECK(mtwnMakeScaleMix(1.0, 100.0, &mix) == mtwn_success, "the mix");
     mtwnTargetState state = State(context, s);
-    CHECK(state.value.x == (float)mtwnMixScale(&mix, 0.5), "halfway from 1 to 100 is 10");
+    CHECK(state.value.x == (float)MixScale(&mix, 0.5), "halfway from 1 to 100 is 10");
     // d/dt 100^t at 1/2 is 10 ln 100, measured over the last millisecond:
     // a backward difference, under it by about 10 ln(100)^2 / 2000, 0.11.
     CHECK(fabs((double)state.velocity.x - 10.0 * log(100.0)) <= 0.15, "its velocity, 46");
@@ -676,7 +676,7 @@ static void TestScales(void)
     double offset = 0.0;
     SampleSpring(&spring.spring, -1.0, progress, 0.5, &offset, NULL);
     CHECK(mtwnMakeScaleMix(from, 4.0, &mix) == mtwn_success, "the spring's mix");
-    CHECK(State(context, s).value.x == (float)mtwnMixScale(&mix, 1.0 + offset),
+    CHECK(State(context, s).value.x == (float)MixScale(&mix, 1.0 + offset),
           "the scale at the spring's progress along its mix");
     Update(context, 30 * s_second);
     CHECK(State(context, s).base.x == 4.0f, "it ends exactly on 4");
@@ -1267,7 +1267,7 @@ static void TestPathVelocity(void)
                            (mtwnColor){to[0], to[1], to[2], to[3]}, def.colorSpace, def.hueMethod,
                            &mix) == mtwn_success,
           "the mix");
-    mtwnColor want = mtwnMixColor(&mix, 1.0 + offset);
+    mtwnColor want = MixColor(&mix, 1.0 + offset);
     mtwnTargetState state;
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnUpdate(context, s_second / 10, NULL, 0, NULL) == mtwn_success &&

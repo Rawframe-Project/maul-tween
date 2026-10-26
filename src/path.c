@@ -900,6 +900,23 @@ MTWN_NOINLINE bool mtwnValidTrack(const mtwnTrack* track)
            (track->mixes != NULL) == mixed && (path->lengths == NULL || measured);
 }
 
+// Whether a track's sample in segment i may read its mix there, which is
+// the host's as its keyframes are: a color's unless the segment steps, a
+// rotation's where it is linear.
+static bool MixReads(const mtwnTrack* track, uint32_t i)
+{
+    mtwnSegmentKind kind = track->path.keyframes[i].kind;
+    if (track->kind == mtwn_valueColor)
+    {
+        return kind == mtwn_segmentStep || mtwnValidColorMix(&track->mixes[i].color);
+    }
+    if (track->kind == mtwn_valueRotation)
+    {
+        return kind != mtwn_segmentLinear || mtwnValidRotationMix(&track->mixes[i].rotation);
+    }
+    return true;
+}
+
 static MTWN_NOINLINE mtwnResult mtwnSampleTrackChecked(const mtwnTrack* track, double progress,
                                                        mtwnVec4* valueOut)
 {
@@ -908,7 +925,7 @@ static MTWN_NOINLINE mtwnResult mtwnSampleTrackChecked(const mtwnTrack* track, d
         return mtwn_errorInvalid;
     }
     uint32_t i = SegmentAt(&track->path, progress);
-    if (!Reads(&track->path, i))
+    if (!Reads(&track->path, i) || !MixReads(track, i))
     {
         return mtwn_errorInvalid;
     }

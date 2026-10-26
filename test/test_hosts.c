@@ -220,7 +220,9 @@ static void Values(Out* out)
     mtwnColor back = {0};
     for (int i = 0; i < s_progressCount; ++i)
     {
-        mtwnColor color = mtwnMixColor(&mix, s_progress[i]);
+        mtwnColor color = {0};
+        r = mtwnMixColor(&mix, s_progress[i], &color);
+        PUT(out, r);
         PUT(out, color);
         r = mtwnColorToSpace(color, mtwn_colorOklch, lch);
         PUT(out, r);
@@ -246,13 +248,19 @@ static void Values(Out* out)
     r = mtwnMakeZoomMix((mtwnZoomView){0.0, 0.0, 1.0}, (mtwnZoomView){10.0, 3.0, 0.25}, 1.41,
                         &zoom);
     PUT(out, r);
-    double length = mtwnZoomLength(&zoom);
+    double length = 0.0;
+    r = mtwnZoomLength(&zoom, &length);
+    PUT(out, r);
     PUT(out, length);
     for (int i = 0; i < s_progressCount; ++i)
     {
-        mtwnQuat q = mtwnMixRotation(&rotation, s_progress[i]);
-        double scaled = mtwnMixScale(&scale, s_progress[i]);
-        mtwnZoomView view = mtwnMixZoom(&zoom, s_progress[i]);
+        mtwnQuat q = {0};
+        double scaled = 0.0;
+        mtwnZoomView view = {0};
+        mtwnResult mixed[3] = {mtwnMixRotation(&rotation, s_progress[i], &q),
+                               mtwnMixScale(&scale, s_progress[i], &scaled),
+                               mtwnMixZoom(&zoom, s_progress[i], &view)};
+        PUT(out, mixed);
         PUT(out, q);
         PUT(out, scaled);
         PUT(out, view);

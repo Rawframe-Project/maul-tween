@@ -6,6 +6,13 @@
 // named space as CSS Color 4 interpolates them, angles with CSS's hue
 // methods, rotations by slerp, integers and discrete values, and punch
 // and shake, the signals a host adds to a value.
+//
+// A mix's sampler checks its fields by their ranges, not by making the mix
+// again, which would cost as much as the sample. A mix that passes the
+// check gives no undefined behavior and no NaN; it is not promised to
+// equal what a maker would give. A color or rotation is finite, held
+// within the floats as a target holds it; a scale or zoom reaches
+// infinity or 0 only past the doubles' range, as a maker's mix does.
 
 #ifndef MAUL_TWEEN_INTERPOLATE_H
 #define MAUL_TWEEN_INTERPOLATE_H
@@ -94,12 +101,19 @@ extern "C"
     /// below. Progress outside 0 to 1 extends the line, with alpha clamped
     /// to 0 to 1; the channels are not clamped.
     ///
-    /// @param mix       A mix made by this library.
+    /// @param mix       A mix made by this library, or one whose fields pass
+    ///                  its check (this header's opening).
     /// @param progress  The progress, finite.
-    /// @return The color.
+    /// @param colorOut  Receives the color; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
+    ///         progress not finite, or a mix whose space is unknown, whose
+    ///         padding is not 0, whose colors mtwnMakeColorMix would
+    ///         refuse, or whose ends have a coordinate not finite, an
+    ///         alpha not their color's, or an OkLCh hue outside 0 to 4 pi.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnColor mtwnMixColor(const mtwnColorMix* mix, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixColor(const mtwnColorMix* mix, double progress,
+                                                    mtwnColor* colorOut);
 
     /// Converts a color to a space's coordinates and its alpha, for a host
     /// that springs or composes in the space.
@@ -218,12 +232,19 @@ extern "C"
     /// (the second negated when the path needed it), between and beyond
     /// them slerp, of unit length to a float's rounding.
     ///
-    /// @param mix       A mix made by this library.
-    /// @param progress  The progress, finite.
-    /// @return The rotation.
+    /// @param mix          A mix made by this library, or one whose fields
+    ///                     pass its check (this header's opening).
+    /// @param progress     The progress, finite.
+    /// @param rotationOut  Receives the rotation; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
+    ///         progress not finite, or a mix whose ends are not of unit
+    ///         length to within their normalization's rounding (12 times
+    ///         2^-53 in the squared length) or not stored as their floats,
+    ///         or whose angle is outside 0 to pi.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixRotation(const mtwnRotationMix* mix, double progress,
+                                                       mtwnQuat* rotationOut);
 
     // A scale: a positive number moved in its logarithm, so equal steps of
     // progress multiply it by equal ratios, where a linear mix from 1 to
@@ -253,12 +274,17 @@ extern "C"
     /// to at 1; outside 0 to 1 it extends, to infinity or 0 past the
     /// doubles' range.
     ///
-    /// @param mix       A mix made by this library.
+    /// @param mix       A mix made by this library, or one whose fields pass
+    ///                  its check (this header's opening).
     /// @param progress  The progress, finite.
-    /// @return The scale.
+    /// @param scaleOut  Receives the scale; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
+    ///         progress not finite, or a mix whose ends are not finite and
+    ///         above 0 or whose logarithms are not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnMixScale(const mtwnScaleMix* mix, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixScale(const mtwnScaleMix* mix, double progress,
+                                                    double* scaleOut);
 
     // A view of a plane: the point at its centre and the width it shows.
     typedef struct mtwnZoomView
@@ -307,22 +333,35 @@ extern "C"
     /// width going to 0 as its centre settles on a point either way (an
     /// infinity where that point is past the doubles' range), never NaN.
     ///
-    /// @param mix       A mix made by this library.
+    /// @param mix       A mix made by this library, or one whose fields pass
+    ///                  its check (this header's opening).
     /// @param progress  The progress, finite.
-    /// @return The view.
+    /// @param viewOut   Receives the view; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
+    ///         progress not finite, or a mix outside its check: views as
+    ///         mtwnMakeZoomMix takes them with a finite difference between
+    ///         their centres, rho finite and above 0, a length finite and
+    ///         not below 0, r0 within 700 of 0, cosh r0 finite and at
+    ///         least 1, a finite pan's scale, and with a pan's scale of 0
+    ///         widths whose scale mix passes its check and runs from one
+    ///         view's width to the other's.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixZoom(const mtwnZoomMix* mix, double progress,
+                                                   mtwnZoomView* viewOut);
 
     /// A zoom mix's path length, the paper's S: a zoom by a factor of e with
     /// no pan is 1 / rho long. The measure a duration is taken from (d3
     /// takes S rho / sqrt(2) seconds); 0 for equal views.
     ///
-    /// @param mix  A mix made by this library.
-    /// @return The length.
+    /// @param mix        A mix made by this library, or one whose fields
+    ///                   pass its check (this header's opening).
+    /// @param lengthOut  Receives the length; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null pointer or a mix
+    ///         mtwnMixZoom refuses.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnZoomLength(const mtwnZoomMix* mix);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnZoomLength(const mtwnZoomMix* mix, double* lengthOut);
 
     /// Interpolates an integer: the interpolation in double, rounded to
     /// nearest with ties away from zero, so it passes through every integer

@@ -19,6 +19,7 @@
 
 #include "elementary.h"
 #include "fpenv.h"
+#include "valid.h"
 #include "work.h"
 
 #include "maul-tween/interpolate.h"
@@ -178,23 +179,57 @@ static MTWN_NOINLINE mtwnZoomView mtwnMixZoomWork(const mtwnZoomMix* mix, double
     return (mtwnZoomView){a->x + mix->panScale * dx * far, a->y + mix->panScale * dy * far, width};
 }
 
-mtwnZoomView mtwnMixZoom(const mtwnZoomMix* mix, double progress)
+MTWN_NOINLINE bool mtwnValidZoomMix(const mtwnZoomMix* mix)
+{
+    if (mix == NULL || !IsView(mix->from) || !IsView(mix->to) || !isfinite(mix->rho) ||
+        !(mix->rho > 0.0) || !isfinite(mix->length) || !(mix->length >= 0.0) ||
+        !(fabs(mix->r0) < s_expRange) || !isfinite(mix->coshR0) || !(mix->coshR0 >= 1.0) ||
+        !isfinite(mix->panScale))
+    {
+        return false;
+    }
+    const mtwnZoomView* a = &mix->from;
+    const mtwnZoomView* b = &mix->to;
+    // The pan finite, as the maker's distance is; with no pan the widths'
+    // mix between the views' widths.
+    return isfinite(b->x - a->x) && isfinite(b->y - a->y) &&
+           (mix->panScale != 0.0 || (mtwnValidScaleMix(&mix->widths) &&
+                                     mix->widths.from == a->width && mix->widths.to == b->width));
+}
+
+static MTWN_NOINLINE mtwnResult mtwnMixZoomChecked(const mtwnZoomMix* mix, double progress,
+                                                   mtwnZoomView* viewOut)
+{
+    if (viewOut == NULL || !mtwnValidZoomMix(mix) || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *viewOut = mtwnMixZoomWork(mix, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMixZoom(const mtwnZoomMix* mix, double progress, mtwnZoomView* viewOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnZoomView result = mtwnMixZoomWork(mix, progress);
+    mtwnResult result = mtwnMixZoomChecked(mix, progress, viewOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-static MTWN_NOINLINE double mtwnZoomLengthWork(const mtwnZoomMix* mix)
+static MTWN_NOINLINE mtwnResult mtwnZoomLengthChecked(const mtwnZoomMix* mix, double* lengthOut)
 {
-    return mix->length;
+    if (lengthOut == NULL || !mtwnValidZoomMix(mix))
+    {
+        return mtwn_errorInvalid;
+    }
+    *lengthOut = mix->length;
+    return mtwn_success;
 }
 
-double mtwnZoomLength(const mtwnZoomMix* mix)
+mtwnResult mtwnZoomLength(const mtwnZoomMix* mix, double* lengthOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnZoomLengthWork(mix);
+    mtwnResult result = mtwnZoomLengthChecked(mix, lengthOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

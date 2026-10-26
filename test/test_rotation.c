@@ -7,6 +7,7 @@
 // the shortest way and the longest.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -160,7 +161,7 @@ static void TestRotationsAgainstSlerp(void)
         for (int k = 1; k < 64; ++k)
         {
             double t = (double)k / 64.0;
-            mtwnQuat q = mtwnMixRotation(&mix, t);
+            mtwnQuat q = MixRotation(&mix, t);
             Wide reference[4];
             SlerpWide(from, to, (Wide)t, reference);
             double e = fabs((double)q.x - (double)reference[0]) +
@@ -190,7 +191,7 @@ static void TestPaths(void)
     mtwnRotationMix mix;
     CHECK(mtwnMakeRotationMix(identity, quarter, mtwn_rotationLongest, &mix) == mtwn_success,
           "a quarter turn the long way");
-    mtwnQuat middle = mtwnMixRotation(&mix, 0.5);
+    mtwnQuat middle = MixRotation(&mix, 0.5);
     // Three quarters the other way, half of it at the middle: 135 degrees
     // about -z.
     double expected = 3.0 * s_pi / 4.0;
@@ -200,29 +201,29 @@ static void TestPaths(void)
     mtwnQuat negated = {-quarter.x, -quarter.y, -quarter.z, -quarter.w};
     CHECK(mtwnMakeRotationMix(identity, negated, mtwn_rotationShortest, &mix) == mtwn_success,
           "the same quarter, given as -q");
-    middle = mtwnMixRotation(&mix, 0.5);
+    middle = MixRotation(&mix, 0.5);
     CHECK(fabs((double)middle.z - sin(s_pi / 8.0)) <= 1e-6, "still the short way");
-    mtwnQuat end = mtwnMixRotation(&mix, 1.0);
+    mtwnQuat end = MixRotation(&mix, 1.0);
     CHECK(end.x == quarter.x && end.y == quarter.y && end.z == quarter.z && end.w == quarter.w,
           "the end negated back where the path needed it");
-    mtwnQuat start = mtwnMixRotation(&mix, 0.0);
+    mtwnQuat start = MixRotation(&mix, 0.0);
     CHECK(start.w == 1.0f && start.z == 0.0f, "the start exactly");
     CHECK(mtwnMakeRotationMix((mtwnQuat){0.0f, 0.0f, 0.0f, 3.0f}, quarter, mtwn_rotationShortest,
                               &mix) == mtwn_success &&
-              mtwnMixRotation(&mix, 0.0).w == 1.0f,
+              MixRotation(&mix, 0.0).w == 1.0f,
           "an end given unnormalized comes out normalized");
     CHECK(mtwnMakeRotationMix(identity, identity, mtwn_rotationShortest, &mix) == mtwn_success &&
-              mtwnMixRotation(&mix, 0.3).w == 1.0f,
+              MixRotation(&mix, 0.3).w == 1.0f,
           "the same rotation holds still");
     CHECK(mtwnMakeRotationMix(identity, identity, mtwn_rotationLongest, &mix) == mtwn_errorInvalid,
           "the long way between equal rotations has no axis");
     mtwnQuat scaled = {0.0f, 0.0f, 0.0f, 3.0f};
     CHECK(mtwnMakeRotationMix(scaled, quarter, mtwn_rotationShortest, &mix) == mtwn_success &&
-              fabsf(mtwnMixRotation(&mix, 0.5).w - (float)cos(s_pi / 8.0)) <= 1e-6f,
+              fabsf(MixRotation(&mix, 0.5).w - (float)cos(s_pi / 8.0)) <= 1e-6f,
           "ends are normalized");
     CHECK(mtwnMakeRotationMix(identity, quarter, mtwn_rotationShortest, &mix) == mtwn_success,
           "made");
-    mtwnQuat past = mtwnMixRotation(&mix, 2.0);
+    mtwnQuat past = MixRotation(&mix, 2.0);
     CHECK(fabs((double)past.z - sin(s_pi / 2.0)) <= 1e-6 && fabs((double)past.w) <= 1e-6,
           "past the end it keeps turning: half a turn at 2");
     double norm =
@@ -261,14 +262,15 @@ static void TestFarExtrapolation(void)
     const double far[] = {-1.5e300, 1.5e300, 1.7e308, 1e18 / (0.5 * s_pi)};
     for (int i = 0; i < 4; ++i)
     {
-        mtwnQuat q = mtwnMixRotation(&mix, far[i]);
+        mtwnQuat q = MixRotation(&mix, far[i]);
         double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
                            (double)q.z * (double)q.z + (double)q.w * (double)q.w);
         bounded = bounded && fabs(norm - 1.0) < 1e-6;
     }
     CHECK(bounded, "far past its ends, a unit rotation");
-    mtwnQuat lost = mtwnMixRotation(&mix, (double)NAN);
-    CHECK(isnan(lost.w), "a NaN progress is NaN, not a reduction");
+    mtwnQuat lost = {2.0f, 2.0f, 2.0f, 2.0f};
+    CHECK(mtwnMixRotation(&mix, (double)NAN, &lost) == mtwn_errorInvalid && lost.w == 2.0f,
+          "a NaN progress refused, not reduced");
 }
 
 static void TestRefusals(void)
@@ -299,6 +301,133 @@ static void TestAngleFarProgress(void)
           "equal ends, far out: the end");
 }
 
+// An end's squared length summed as the mix's check sums it.
+static double Squared(const double e[4])
+{
+    return e[0] * e[0] + e[1] * e[1] + e[2] * e[2] + e[3] * e[3];
+}
+
+static bool RotationRefused(const mtwnRotationMix* mix, double progress)
+{
+    mtwnQuat q = {2.0f, 2.0f, 2.0f, 2.0f};
+    return mtwnMixRotation(mix, progress, &q) == mtwn_errorInvalid && q.x == 2.0f && q.w == 2.0f;
+}
+
+static bool RotationTaken(const mtwnRotationMix* mix, double progress)
+{
+    mtwnQuat q = {0};
+    return mtwnMixRotation(mix, progress, &q) == mtwn_success && isfinite(q.x) && isfinite(q.y) &&
+           isfinite(q.z) && isfinite(q.w);
+}
+
+// An end forged as e, stored as its floats.
+static void ForgeFrom(mtwnRotationMix* mix, double w, double z)
+{
+    double e[4] = {0.0, 0.0, z, w};
+    for (int i = 0; i < 4; ++i)
+    {
+        mix->from[i] = e[i];
+    }
+    mix->fromRotation = (mtwnQuat){0.0f, 0.0f, (float)z, (float)w};
+}
+
+// The check's unit length on both sides of its tolerance, 12u (u = 2^-53)
+// in the squared length: the worst a maker's rounding gave in 2e8 random
+// rotations, 6u either way, taken; 12u either way taken; past it, 14u
+// above (the next double) and 13u below, refused.
+static void TestMixUnitLength(void)
+{
+    const double u = 0x1p-53;
+    mtwnQuat identity = {0.0f, 0.0f, 0.0f, 1.0f};
+    const mtwnQuat worst[2] = {{0x1.307dccp+14f, 0x1.ea25a6p-1f, 0x1.f8588cp-1f, 0x1.1d21eap-2f},
+                               {0x1.103718p+11f, -0x1.9af9fep-1f, 0x1.447cd8p-2f, 0x1.c5cffap-3f}};
+    mtwnRotationMix mix;
+    for (int i = 0; i < 2; ++i)
+    {
+        CHECK(mtwnMakeRotationMix(worst[i], identity, mtwn_rotationShortest, &mix) == mtwn_success,
+              "a rotation at a maker's worst rounding");
+        CHECK(Squared(mix.from) == 1.0 + (i == 0 ? 6.0 : -6.0) * u, "its squared length 6u off");
+        CHECK(RotationTaken(&mix, 0.5), "taken");
+    }
+    mtwnRotationMix made;
+    CHECK(mtwnMakeRotationMix(identity, (mtwnQuat){0.0f, 0.6f, 0.0f, 0.8f}, mtwn_rotationShortest,
+                              &made) == mtwn_success,
+          "a rotation mix");
+    mix = made;
+    ForgeFrom(&mix, 1.0 + 6.0 * u, 0.0);
+    CHECK(Squared(mix.from) == 1.0 + 12.0 * u && RotationTaken(&mix, 0.5), "12u above taken");
+    ForgeFrom(&mix, 1.0 + 6.0 * u, 0x1p-26);
+    CHECK(Squared(mix.from) == 1.0 + 14.0 * u && RotationRefused(&mix, 0.5), "14u above refused");
+    ForgeFrom(&mix, 1.0 - 6.0 * u, 0.0);
+    CHECK(Squared(mix.from) == 1.0 - 12.0 * u && RotationTaken(&mix, 0.5), "12u below taken");
+    ForgeFrom(&mix, 1.0 - 7.0 * u, 0x1.6a09e667f3bcdp-27);
+    CHECK(Squared(mix.from) == 1.0 - 13.0 * u && RotationRefused(&mix, 0.5), "13u below refused");
+    mix = made;
+    mix.to[1] = 0.6 * (1.0 + 0x1p-40);
+    mix.toRotation.y = (float)mix.to[1];
+    CHECK(RotationRefused(&mix, 0.5), "the other end likewise");
+}
+
+static void TestMixChecks(void)
+{
+    mtwnQuat identity = {0.0f, 0.0f, 0.0f, 1.0f};
+    mtwnRotationMix made;
+    CHECK(mtwnMakeRotationMix(identity, (mtwnQuat){1.0f, 0.0f, 0.0f, 0.0f}, mtwn_rotationShortest,
+                              &made) == mtwn_success,
+          "a quarter turn's mix, pi / 2 apart as quaternions");
+    mtwnQuat out = {2.0f, 2.0f, 2.0f, 2.0f};
+    int refused = 0;
+    refused += mtwnMixRotation(NULL, 0.5, &out) == mtwn_errorInvalid && out.w == 2.0f;
+    refused += mtwnMixRotation(&made, 0.5, NULL) == mtwn_errorInvalid;
+    refused += RotationRefused(&made, (double)INFINITY);
+    refused += RotationRefused(&made, -(double)INFINITY);
+    CHECK(refused == 4, "a null mix or out and an infinite progress refused");
+
+    refused = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        mtwnRotationMix m = made;
+        float* from[4] = {&m.fromRotation.x, &m.fromRotation.y, &m.fromRotation.z,
+                          &m.fromRotation.w};
+        // One ulp toward 0, or off 0 by 2^-20.
+        *from[i] = *from[i] == 0.0f ? 0x1p-20f : nextafterf(*from[i], 0.0f);
+        refused += RotationRefused(&m, 0.5);
+        m = made;
+        float* to[4] = {&m.toRotation.x, &m.toRotation.y, &m.toRotation.z, &m.toRotation.w};
+        *to[i] = *to[i] == 0.0f ? -0x1p-20f : nextafterf(*to[i], 0.0f);
+        refused += RotationRefused(&m, 0.5);
+    }
+    mtwnRotationMix m = made;
+    m.from[0] = (double)NAN;
+    refused += RotationRefused(&m, 0.5);
+    CHECK(refused == 9, "a rotation not its end's floats, each, and a NaN end refused");
+
+    // The angle from 0 to pi.
+    m = made;
+    refused = 0;
+    m.angle = -0x1p-1074;
+    refused += RotationRefused(&m, 0.5);
+    m.angle = nextafter(3.141592653589793, 4.0);
+    refused += RotationRefused(&m, 0.5);
+    m.angle = (double)NAN;
+    refused += RotationRefused(&m, 0.5);
+    CHECK(refused == 3, "an angle below 0, past pi or NaN refused");
+    m.angle = 0.0;
+    bool taken = RotationTaken(&m, 0.5);
+    m.angle = 3.141592653589793;
+    CHECK(taken && RotationTaken(&m, 0.5) && RotationTaken(&m, 1e300), "angles of 0 and pi taken");
+
+    // An angle not its ends': 1e-300 for ends pi / 2 apart weighs them by
+    // about 1e300 at progress 1e300, held within the floats.
+    m = made;
+    m.angle = 1e-300;
+    mtwnQuat held = {0};
+    CHECK(mtwnMixRotation(&m, 1e300, &held) == mtwn_success &&
+              (fabsf(held.x) == FLT_MAX || fabsf(held.w) == FLT_MAX) && isfinite(held.x) &&
+              isfinite(held.w),
+          "a forged angle's weights held within the floats");
+}
+
 int main(void)
 {
     TestAngleFarProgress();
@@ -308,5 +437,7 @@ int main(void)
     TestRotationsAgainstSlerp();
     TestPaths();
     TestRefusals();
+    TestMixUnitLength();
+    TestMixChecks();
     return s_failures == 0 ? 0 : 1;
 }

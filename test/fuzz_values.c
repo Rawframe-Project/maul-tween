@@ -595,16 +595,132 @@ static double Drawn(uint64_t* state)
     return (bits & 1u) != 0 ? -value : value;
 }
 
-// Zooms a maker gives, from a generator seeded by the input so far, so
-// that it takes no bytes and the seeds keep their paths: no field NaN at
-// any progress, out to the largest double either way.
-static void Zooms(const Bytes* in)
+// A generator's state seeded by the input so far, so that what it draws
+// takes no bytes and the seeds keep their paths.
+static uint64_t Seeded(const Bytes* in, uint64_t seed)
 {
-    uint64_t state = 0x9E3779B97F4A7C15u;
     for (size_t i = 0; i < in->at; ++i)
     {
-        state = (state ^ in->data[i]) * 0x100000001B3u;
+        seed = (seed ^ in->data[i]) * 0x100000001B3u;
     }
+    return seed;
+}
+
+static uint64_t Next(uint64_t* state)
+{
+    *state = *state * 6364136223846793005u + 1442695040888963407u;
+    return *state >> 16;
+}
+
+// The values a forged mix's field takes: refusals' edges, a mix's own
+// bounds (pi, two turns, 700, a squared length an ulp past 1) and wild
+// ones.
+static const double s_wildMix[] = {0.0,
+                                   -0.0,
+                                   -1.0,
+                                   (double)NAN,
+                                   (double)INFINITY,
+                                   -(double)INFINITY,
+                                   0x1p-1074,
+                                   1e-300,
+                                   0.5,
+                                   1.0,
+                                   1.0 + 0x1p-50,
+                                   3.141592653589793,
+                                   3.1415926535897936,
+                                   12.566370614359172,
+                                   700.0,
+                                   -700.0,
+                                   0x1p53,
+                                   0x1p100,
+                                   1e300,
+                                   DBL_MAX,
+                                   -DBL_MAX};
+
+// One of a mix's fields written by a host: a double among its first ones,
+// a float among those after them, or a byte after those.
+static void Overwrite(void* mix, size_t doubles, size_t floats, size_t bytes, uint64_t* state)
+{
+    unsigned char* at = (unsigned char*)mix;
+    double wild = s_wildMix[Next(state) % (sizeof s_wildMix / sizeof s_wildMix[0])];
+    size_t field = (size_t)(Next(state) % (doubles + floats + bytes));
+    if (field < doubles)
+    {
+        memcpy(at + field * sizeof(double), &wild, sizeof wild);
+    }
+    else if (field < doubles + floats)
+    {
+        float narrow = (float)fmax(fmin(wild, (double)FLT_MAX), -(double)FLT_MAX);
+        narrow = isnan(wild) ? (float)NAN : narrow;
+        memcpy(at + doubles * sizeof(double) + (field - doubles) * sizeof(float), &narrow,
+               sizeof narrow);
+    }
+    else
+    {
+        at[doubles * sizeof(double) + floats * sizeof(float) + (field - doubles - floats)] =
+            (unsigned char)Next(state);
+    }
+}
+
+// The progresses a forged mix is sampled at.
+static double ForgedProgress(int i, uint64_t* state)
+{
+    if (i < 4)
+    {
+        return s_farProgress[i];
+    }
+    if (i < 4 + (int)(sizeof s_progress / sizeof s_progress[0]))
+    {
+        return s_progress[i - 4];
+    }
+    return Drawn(state);
+}
+
+static bool Finite4(double a, double b, double c, double d)
+{
+    return isfinite(a) && isfinite(b) && isfinite(c) && isfinite(d);
+}
+
+// A made color or rotation mix with fields a host wrote, three rounds of
+// one each: refused, or as the check promises, finite.
+static void ForgedTurns(const Bytes* in, const mtwnColorMix* colors,
+                        const mtwnRotationMix* rotations)
+{
+    uint64_t state = Seeded(in, 0x6A09E667F3BCC909u);
+    int count = 4 + (int)(sizeof s_progress / sizeof s_progress[0]) + 4;
+    for (int round = 0; round < 3; ++round)
+    {
+        mtwnColorMix c = colors != NULL ? *colors : (mtwnColorMix){0};
+        mtwnRotationMix r = rotations != NULL ? *rotations : (mtwnRotationMix){0};
+        Overwrite(&c, 8, 8, 8, &state);
+        Overwrite(&r, 9, 8, 0, &state);
+        for (int i = 0; i < count; ++i)
+        {
+            double progress = ForgedProgress(i, &state);
+            mtwnColor color = {0};
+            if (colors != NULL && mtwnMixColor(&c, progress, &color) == mtwn_success &&
+                !Finite4((double)color.red, (double)color.green, (double)color.blue,
+                         (double)color.alpha))
+            {
+                Fail("a forged color mix taken and not finite", progress);
+            }
+            mtwnQuat q = {0};
+            if (rotations != NULL && mtwnMixRotation(&r, progress, &q) == mtwn_success &&
+                !Finite4((double)q.x, (double)q.y, (double)q.z, (double)q.w))
+            {
+                Fail("a forged rotation mix taken and not finite", progress);
+            }
+        }
+    }
+}
+
+// Scales and zooms a maker gives, from a generator seeded by the input so
+// far: no NaN at any progress, out to the largest double either way; then
+// each with fields a host wrote, refused or with no NaN either.
+static void Zooms(const Bytes* in)
+{
+    uint64_t state = Seeded(in, 0x9E3779B97F4A7C15u);
+    int count = 4 + (int)(sizeof s_progress / sizeof s_progress[0]) + 4;
     for (int round = 0; round < 4; ++round)
     {
         mtwnZoomView from = {Drawn(&state), Drawn(&state), fabs(Drawn(&state))};
@@ -613,18 +729,57 @@ static void Zooms(const Bytes* in)
         // A pan along one axis, or none.
         to.y = round == 1 ? from.y : to.y;
         to.x = round == 2 ? from.x : to.x;
-        mtwnZoomMix mix;
-        if (mtwnMakeZoomMix(from, to, rho, &mix) != mtwn_success)
+        mtwnScaleMix scale;
+        if (mtwnMakeScaleMix(from.width, to.width, &scale) == mtwn_success)
+        {
+            for (int forged = 0; forged < 4; ++forged)
+            {
+                mtwnScaleMix s = scale;
+                if (forged > 0)
+                {
+                    Overwrite(&s, 4, 0, 0, &state);
+                }
+                for (int i = 0; i < count; ++i)
+                {
+                    double progress = ForgedProgress(i, &state);
+                    double v = 0.0;
+                    mtwnResult r = mtwnMixScale(&s, progress, &v);
+                    if ((forged == 0 && r != mtwn_success) || (r == mtwn_success && isnan(v)))
+                    {
+                        Fail("a scale refused or NaN", progress);
+                    }
+                }
+            }
+        }
+        mtwnZoomMix zoom;
+        if (mtwnMakeZoomMix(from, to, rho, &zoom) != mtwn_success)
         {
             continue;
         }
-        for (int i = 0; i < 12; ++i)
+        for (int forged = 0; forged < 4; ++forged)
         {
-            double progress = i < 4 ? s_farProgress[i] : Drawn(&state);
-            mtwnZoomView v = mtwnMixZoom(&mix, progress);
-            if (isnan(v.x) || isnan(v.y) || isnan(v.width))
+            mtwnZoomMix z = zoom;
+            if (forged > 0)
             {
-                Fail("a zoom's view NaN", progress);
+                Overwrite(&z, 15, 0, 0, &state);
+            }
+            double length = 0.0;
+            mtwnResult measured = mtwnZoomLength(&z, &length);
+            if ((forged == 0 && measured != mtwn_success) ||
+                (measured == mtwn_success && isnan(length)))
+            {
+                Fail("a zoom's length refused or NaN", length);
+            }
+            for (int i = 0; i < count; ++i)
+            {
+                double progress = ForgedProgress(i, &state);
+                mtwnZoomView v = {0};
+                mtwnResult r = mtwnMixZoom(&z, progress, &v);
+                if ((forged == 0 && r != mtwn_success) ||
+                    (r == mtwn_success && (isnan(v.x) || isnan(v.y) || isnan(v.width))))
+                {
+                    Fail("a zoom's view refused or NaN", progress);
+                }
             }
         }
     }
@@ -640,11 +795,17 @@ static void Values(Bytes* in)
     mtwnColor to = {b.x, b.y, b.z, b.w};
     mtwnColorSpace space = (mtwnColorSpace)Below(in, 5);
     mtwnColorMix colors;
-    if (mtwnMakeColorMix(from, to, space, (mtwnHueMethod)Below(in, 5), &colors) == mtwn_success)
+    bool coloured =
+        mtwnMakeColorMix(from, to, space, (mtwnHueMethod)Below(in, 5), &colors) == mtwn_success;
+    if (coloured)
     {
         for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
         {
-            mtwnColor c = mtwnMixColor(&colors, s_progress[i]);
+            mtwnColor c = {0};
+            if (mtwnMixColor(&colors, s_progress[i], &c) != mtwn_success)
+            {
+                Fail("a color mix refused", s_progress[i]);
+            }
             CheckEach(
                 in, "a color",
                 (const double[]){(double)c.red, (double)c.green, (double)c.blue, (double)c.alpha},
@@ -658,11 +819,17 @@ static void Values(Bytes* in)
     mtwnQuat qa = {c.x, c.y, c.z, c.w};
     mtwnQuat qb = {d.x, d.y, d.z, d.w};
     mtwnRotationMix rotations;
-    if (mtwnMakeRotationMix(qa, qb, (mtwnRotationPath)Below(in, 3), &rotations) == mtwn_success)
+    bool turned =
+        mtwnMakeRotationMix(qa, qb, (mtwnRotationPath)Below(in, 3), &rotations) == mtwn_success;
+    if (turned)
     {
         for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
         {
-            mtwnQuat q = mtwnMixRotation(&rotations, s_progress[i]);
+            mtwnQuat q = {0};
+            if (mtwnMixRotation(&rotations, s_progress[i], &q) != mtwn_success)
+            {
+                Fail("a rotation mix refused", s_progress[i]);
+            }
             double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
                                (double)q.z * (double)q.z + (double)q.w * (double)q.w);
             if (!(fabs(norm - 1.0) < 1e-5))
@@ -671,6 +838,7 @@ static void Values(Bytes* in)
             }
         }
     }
+    ForgedTurns(in, coloured ? &colors : NULL, turned ? &rotations : NULL);
     in->ordinary = true;
     in->finite = true;
     double angles[3];

@@ -8,6 +8,7 @@
 // the ends of a mix; the powerless threshold against the CSS sample code.
 
 #include "test_harness.h"
+#include "test_values.h"
 
 #include "maul-tween/interpolate.h"
 
@@ -216,7 +217,7 @@ static void Middle(const double first[3], const double second[3], mtwnHueMethod 
     if (mtwnColorFromSpace(a, mtwn_colorOklch, &from) != mtwn_success ||
         mtwnColorFromSpace(b, mtwn_colorOklch, &to) != mtwn_success ||
         mtwnMakeColorMix(from, to, mtwn_colorOklch, method, &mix) != mtwn_success ||
-        mtwnColorToSpace(mtwnMixColor(&mix, 0.5), mtwn_colorOklch, out) != mtwn_success)
+        mtwnColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, out) != mtwn_success)
     {
         out[0] = out[1] = out[2] = (double)NAN;
     }
@@ -257,7 +258,7 @@ static void TestPremultiplication(void)
     mtwnColor blue = {0.0f, 0.0f, 1.0f, 1.0f};
     CHECK(mtwnMakeColorMix(clear, blue, mtwn_colorOklab, mtwn_hueShorter, &mix) == mtwn_success,
           "transparent red to blue");
-    mtwnColor middle = mtwnMixColor(&mix, 0.5);
+    mtwnColor middle = MixColor(&mix, 0.5);
     CHECK(fabsf(middle.red) <= 1e-6f && fabsf(middle.green) <= 1e-6f &&
               fabsf(middle.blue - 1.0f) <= 1e-6f && middle.alpha == 0.5f,
           "a transparent end lends no color: half-transparent blue");
@@ -265,7 +266,7 @@ static void TestPremultiplication(void)
     CHECK(mtwnMakeColorMix(clear, invisible, mtwn_colorOklab, mtwn_hueShorter, &mix) ==
               mtwn_success,
           "two transparent ends");
-    middle = mtwnMixColor(&mix, 0.5);
+    middle = MixColor(&mix, 0.5);
     CHECK(middle.red == 0.0f && middle.green == 0.0f && middle.blue == 0.0f && middle.alpha == 0.0f,
           "at alpha 0 the premultiplied value, as CSS says");
 }
@@ -277,25 +278,25 @@ static void TestMixes(void)
     mtwnColor white = {1.0f, 1.0f, 1.0f, 1.0f};
     CHECK(mtwnMakeColorMix(black, white, mtwn_colorSrgb, mtwn_hueShorter, &mix) == mtwn_success,
           "gamma sRGB");
-    mtwnColor middle = mtwnMixColor(&mix, 0.5);
+    mtwnColor middle = MixColor(&mix, 0.5);
     CHECK(middle.red == 0.5f && middle.green == 0.5f && middle.blue == 0.5f, "gray 0.5");
     CHECK(mtwnMakeColorMix(black, white, mtwn_colorLinearSrgb, mtwn_hueShorter, &mix) ==
               mtwn_success,
           "linear sRGB");
-    middle = mtwnMixColor(&mix, 0.5);
+    middle = MixColor(&mix, 0.5);
     CHECK(fabsf(middle.red - 0.7353569830524495f) <= 1e-7f, "half the light, gamma 0.735");
     mtwnColor from = {0.2f, 0.4f, 0.6f, 0.3f};
     mtwnColor to = {0.9f, 0.1f, 0.3f, 0.8f};
     CHECK(mtwnMakeColorMix(from, to, mtwn_colorOklch, mtwn_hueLonger, &mix) == mtwn_success,
           "OkLCh, longer");
-    mtwnColor start = mtwnMixColor(&mix, 0.0);
-    mtwnColor end = mtwnMixColor(&mix, 1.0);
+    mtwnColor start = MixColor(&mix, 0.0);
+    mtwnColor end = MixColor(&mix, 1.0);
     CHECK(start.red == from.red && start.green == from.green && start.blue == from.blue &&
               start.alpha == from.alpha && end.red == to.red && end.alpha == to.alpha,
           "the ends exactly");
-    CHECK(mtwnMixColor(&mix, 1.5).alpha == 1.0f && mtwnMixColor(&mix, -1.0).alpha == 0.0f,
+    CHECK(MixColor(&mix, 1.5).alpha == 1.0f && MixColor(&mix, -1.0).alpha == 0.0f,
           "alpha clamped past the ends");
-    mtwnColor near = mtwnMixColor(&mix, 1e-9);
+    mtwnColor near = MixColor(&mix, 1e-9);
     CHECK(fabsf(near.red - from.red) <= 1e-6f && fabsf(near.alpha - from.alpha) <= 1e-6f,
           "continuous at the ends");
     // White's hue is powerless: blue's hue all the way, no turn.
@@ -306,7 +307,7 @@ static void TestMixes(void)
     double midLch[4];
     CHECK(mtwnColorToSpace((mtwnColor){0.0f, 0.0f, 1.0f, 1.0f}, mtwn_colorOklch, blueLch) ==
                   mtwn_success &&
-              mtwnColorToSpace(mtwnMixColor(&mix, 0.5), mtwn_colorOklch, midLch) == mtwn_success &&
+              mtwnColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, midLch) == mtwn_success &&
               fabs(midLch[2] - blueLch[2]) <= 2e-5,
           "a powerless hue takes the other end's");
 }
@@ -317,7 +318,7 @@ static double MiddleHue(mtwnColor from, mtwnColor to, mtwnHueMethod method)
     mtwnColorMix mix;
     double lch[4] = {0.0, 0.0, (double)NAN, 0.0};
     if (mtwnMakeColorMix(from, to, mtwn_colorOklch, method, &mix) != mtwn_success ||
-        mtwnColorToSpace(mtwnMixColor(&mix, 0.5), mtwn_colorOklch, lch) != mtwn_success)
+        mtwnColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, lch) != mtwn_success)
     {
         return (double)NAN;
     }
@@ -383,8 +384,7 @@ static void TestEqualHues(void)
     mtwnColorMix mix;
     double quarter[4] = {0.0, 0.0, (double)NAN, 0.0};
     CHECK(mtwnMakeColorMix(blue, blue, mtwn_colorOklch, mtwn_hueLonger, &mix) == mtwn_success &&
-              mtwnColorToSpace(mtwnMixColor(&mix, 0.25), mtwn_colorOklch, quarter) ==
-                  mtwn_success &&
+              mtwnColorToSpace(MixColor(&mix, 0.25), mtwn_colorOklch, quarter) == mtwn_success &&
               fabs(quarter[2] - fmod(h + 0.5 * s_pi, 2.0 * s_pi)) <= 2e-5,
           "the long way round turning up");
 }
@@ -403,7 +403,7 @@ static void TestBelowZeroAlpha(void)
     double premultiplied[4] = {-0.5 * lab[0], -0.5 * lab[1], -0.5 * lab[2], 0.0};
     mtwnColor expected;
     CHECK(mtwnColorFromSpace(premultiplied, mtwn_colorOklab, &expected) == mtwn_success, "made");
-    mtwnColor past = mtwnMixColor(&mix, 1.5);
+    mtwnColor past = MixColor(&mix, 1.5);
     CHECK(fabsf(past.red - expected.red) <= 1e-6f && fabsf(past.green - expected.green) <= 1e-6f &&
               past.alpha == 0.0f,
           "at 1.5 the premultiplied channels, alpha 0");
@@ -462,9 +462,9 @@ static void TestFarProgress(void)
     CHECK(mtwnMakeColorMix((mtwnColor){0, 0, 0, 1.0f}, (mtwnColor){1.0f, 1.0f, 1.0f, 1.0f},
                            mtwn_colorOklab, mtwn_hueShorter, &mix) == mtwn_success,
           "black to white");
-    mtwnColor far = mtwnMixColor(&mix, 1e20);
+    mtwnColor far = MixColor(&mix, 1e20);
     CHECK(far.alpha == 1.0f && isfinite(far.red) && far.red > 1e20f, "1e20 on: alpha still 1");
-    mtwnColor farther = mtwnMixColor(&mix, 1e44);
+    mtwnColor farther = MixColor(&mix, 1e44);
     CHECK(farther.red == 0x1.fffffep127f && farther.green == 0x1.fffffep127f &&
               farther.blue == 0x1.fffffep127f && farther.alpha == 1.0f,
           "1e44 on: held at the largest float");
@@ -496,7 +496,7 @@ static bool MiddleIs(mtwnColor from, mtwnColor to, const double css[3])
     {
         return false;
     }
-    mtwnColor middle = mtwnMixColor(&mix, 0.5);
+    mtwnColor middle = MixColor(&mix, 0.5);
     const double got[3] = {(double)middle.red, (double)middle.green, (double)middle.blue};
     return fabs(got[0] - css[0]) <= 0x1p-24 && fabs(got[1] - css[1]) <= 0x1p-24 &&
            fabs(got[2] - css[2]) <= 0x1p-24;
@@ -529,6 +529,107 @@ static void TestPowerlessThreshold(void)
     CHECK(MiddleIs(below, light, zero), "both powerless: hue 0");
 }
 
+// A color mix's check, each field forged on its own: refused with the
+// output unchanged, or, where the field stays in its range, taken and
+// finite though no maker gave it.
+static int MixRefused(const mtwnColorMix* mix, double progress)
+{
+    mtwnColor color = {2.0f, 2.0f, 2.0f, 2.0f};
+    mtwnResult r = mtwnMixColor(mix, progress, &color);
+    return r == mtwn_errorInvalid && color.red == 2.0f && color.alpha == 2.0f;
+}
+
+static bool MixFinite(const mtwnColorMix* mix, double progress)
+{
+    mtwnColor c = {0};
+    return mtwnMixColor(mix, progress, &c) == mtwn_success && isfinite(c.red) &&
+           isfinite(c.green) && isfinite(c.blue) && isfinite(c.alpha);
+}
+
+static void TestMixChecks(void)
+{
+    mtwnColor red = {1.0f, 0.0f, 0.0f, 1.0f};
+    mtwnColor blue = {0.0f, 0.0f, 1.0f, 0.5f};
+    mtwnColorMix made;
+    CHECK(mtwnMakeColorMix(red, blue, mtwn_colorOklch, mtwn_hueLonger, &made) == mtwn_success,
+          "an OkLCh mix");
+    mtwnColor out = {2.0f, 2.0f, 2.0f, 2.0f};
+    int refused = 0;
+    refused += mtwnMixColor(NULL, 0.5, &out) == mtwn_errorInvalid && out.red == 2.0f;
+    refused += mtwnMixColor(&made, 0.5, NULL) == mtwn_errorInvalid;
+    refused += MixRefused(&made, (double)NAN);
+    refused += MixRefused(&made, (double)INFINITY);
+    refused += MixRefused(&made, -(double)INFINITY);
+    CHECK(refused == 5, "a null mix or out and a progress not finite refused");
+
+    mtwnColorMix m = made;
+    refused = 0;
+    m.space = 4;
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.reserved[3] = 1;
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.fromColor.alpha = 1.5f;
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.toColor.green = (float)INFINITY;
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.from[0] = (double)NAN;
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.to[1] = (double)INFINITY;
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.from[3] = nextafter(m.from[3], 0.0);
+    refused += MixRefused(&m, 0.5);
+    m = made;
+    m.to[3] = 1.0;
+    refused += MixRefused(&m, 0.5);
+    CHECK(refused == 8, "an unknown space, padding, a color its maker refuses, a coordinate "
+                        "not finite and an alpha not its color's refused");
+
+    // The hue from 0 to the two turns the fix-ups reach, in OkLCh alone.
+    double turns = 4.0 * 3.141592653589793;
+    m = made;
+    m.from[2] = 0.0;
+    m.to[2] = turns;
+    CHECK(MixFinite(&m, 0.5) && MixFinite(&m, 1e300), "hues of 0 and two turns taken");
+    refused = 0;
+    m.from[2] = -0x1p-1074;
+    refused += MixRefused(&m, 0.5);
+    m.from[2] = 0.0;
+    m.to[2] = nextafter(turns, HUGE_VAL);
+    refused += MixRefused(&m, 0.5);
+    CHECK(refused == 2, "a hue below 0 or past two turns refused");
+    mtwnColorMix lab;
+    CHECK(mtwnMakeColorMix(red, blue, mtwn_colorOklab, mtwn_hueShorter, &lab) == mtwn_success,
+          "an Oklab mix");
+    lab.to[2] = -100.0;
+    CHECK(MixFinite(&lab, 0.5), "outside OkLCh the third coordinate is any finite b");
+    lab.from[2] = (double)NAN;
+    refused = MixRefused(&lab, 0.5);
+    lab.from[2] = 0.0;
+    lab.to[2] = -(double)INFINITY;
+    refused += MixRefused(&lab, 0.5);
+    CHECK(refused == 2, "but finite");
+
+    // Coordinates no maker gives, in range: taken, and finite at every
+    // progress, held within the floats.
+    m = made;
+    m.from[0] = 1e300;
+    m.from[1] = -DBL_MAX;
+    m.to[0] = -1e300;
+    bool finite = true;
+    const double progress[] = {-DBL_MAX, -1e300, -2.0, 0.25, 0.5, 2.0, 1e300, DBL_MAX};
+    for (int i = 0; i < 8; ++i)
+    {
+        finite = finite && MixFinite(&m, progress[i]);
+    }
+    CHECK(finite, "forged coordinates in range give a finite color");
+}
+
 int main(void)
 {
     TestConversionsAgainstConversionsJs();
@@ -544,5 +645,6 @@ int main(void)
     TestFarProgress();
     TestPowerlessHue();
     TestPowerlessThreshold();
+    TestMixChecks();
     return s_failures == 0 ? 0 : 1;
 }

@@ -11,9 +11,11 @@
 // unit ends give a unit result to an ulp of double, far below a float's,
 // so it is not normalized again.
 
+#include "bounds_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
 #include "mix_internal.h"
+#include "valid.h"
 #include "work.h"
 
 #include "generated/math_constants.h"
@@ -26,6 +28,14 @@ static const double s_turn = 4.0 * MTWN_PIO2_HI;
 static const double s_halfTurn = 2.0 * MTWN_PIO2_HI;
 // Below this |q0 + q1| the longest way has no defined axis.
 static const double s_degenerate = 1e-6;
+// How far a normalized end's squared length, as mtwnValidRotationMix sums
+// it, can be from 1, in units of u = 2^-53. Normalize squares a float's
+// components exactly, sums them with three roundings (within 3u), takes
+// the root (u, so the norm is within 2.5u) and divides each component
+// (u each): the true squared length of what it stores is within
+// (1 + u)^2 / ((1 - 3u) (1 - u)^2), about 7u, of 1. The check's own four
+// products and three sums add 4u: 11u and terms in u^2, so 12u.
+static const double s_unitTolerance = 12.0 * 0x1.0p-53;
 // A phase from 2^52 radians on has an ulp of a radian or more, so it holds
 // no angle: a slerp extrapolated that far is taken at its phase reduced by
 // whole turns exactly (fmod), an infinite one's at 0, so it stays a unit
@@ -174,6 +184,21 @@ mtwnResult mtwnMakeRotationMix(mtwnQuat from, mtwnQuat to, mtwnRotationPath path
     return result;
 }
 
+// An end of unit length to Normalize's rounding, stored as its floats.
+static MTWN_NOINLINE bool IsUnitEnd(const double end[4], mtwnQuat rotation)
+{
+    double squared = end[0] * end[0] + end[1] * end[1] + end[2] * end[2] + end[3] * end[3];
+    return fabs(squared - 1.0) <= s_unitTolerance && rotation.x == (float)end[0] &&
+           rotation.y == (float)end[1] && rotation.z == (float)end[2] &&
+           rotation.w == (float)end[3];
+}
+
+MTWN_NOINLINE bool mtwnValidRotationMix(const mtwnRotationMix* mix)
+{
+    return mix != NULL && IsUnitEnd(mix->from, mix->fromRotation) &&
+           IsUnitEnd(mix->to, mix->toRotation) && mix->angle >= 0.0 && mix->angle <= s_halfTurn;
+}
+
 MTWN_NOINLINE mtwnQuat mtwnMixRotationWork(const mtwnRotationMix* mix, double progress)
 {
     if (progress == 0.0)
@@ -202,13 +227,27 @@ MTWN_NOINLINE mtwnQuat mtwnMixRotationWork(const mtwnRotationMix* mix, double pr
     {
         q[i] = a * mix->from[i] + b * mix->to[i];
     }
-    return (mtwnQuat){(float)q[0], (float)q[1], (float)q[2], (float)q[3]};
+    // Held within the floats as a target holds a value, which changes no
+    // bit in range: an angle not its ends' can weigh them past it.
+    mtwnVec4 held = mtwnNumbersHeld((mtwnVec4){(float)q[0], (float)q[1], (float)q[2], (float)q[3]});
+    return (mtwnQuat){held.x, held.y, held.z, held.w};
 }
 
-mtwnQuat mtwnMixRotation(const mtwnRotationMix* mix, double progress)
+static MTWN_NOINLINE mtwnResult mtwnMixRotationChecked(const mtwnRotationMix* mix, double progress,
+                                                       mtwnQuat* rotationOut)
+{
+    if (rotationOut == NULL || !mtwnValidRotationMix(mix) || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *rotationOut = mtwnMixRotationWork(mix, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMixRotation(const mtwnRotationMix* mix, double progress, mtwnQuat* rotationOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnQuat result = mtwnMixRotationWork(mix, progress);
+    mtwnResult result = mtwnMixRotationChecked(mix, progress, rotationOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
