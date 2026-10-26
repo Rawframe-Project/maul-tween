@@ -11,8 +11,8 @@ sample: valid work fpenv
 rough: fpenv valid work
 spring_easing:
 valid:
-spring: elementary spring_easing valid fpenv work
-decay: elementary fpenv valid work
+spring: elementary invariant spring_easing valid fpenv work
+decay: elementary fpenv invariant valid work
 color: bounds_internal color_internal elementary mix_internal fpenv work
 color_check: color_internal fpenv reserved_internal valid work
 color_internal:
