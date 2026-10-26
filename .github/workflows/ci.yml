@@ -32,7 +32,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       pull-requests: read
 
@@ -47,10 +47,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       contents: read
 
@@ -152,7 +152,7 @@ jobs:
           - { preset: linux-arm64-gcc-14, runner: ubuntu-24.04-arm }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       contents: read
     with:
@@ -166,7 +166,7 @@ jobs:
   nightly:
     needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       contents: read
     with:
@@ -249,19 +249,16 @@ jobs:
           exit "$status"
       - name: Minimize the corpus
         if: github.event_name != 'pull_request'
+        # A merge reruns every input, and libFuzzer's exits 0 on a crash:
+        # tools/fuzz_target.sh --merge keeps the log on the runner, fails
+        # on a finding and prints only its report, so the step after saves
+        # nothing.
         run: |
-          mkdir -p out/merged
-          # A merge reruns every input, so a crash here would dump one:
-          # its output is discarded, and a failure names only the target.
           status=0
-          ./out/fuzz/fuzz_"$TARGET" -merge=1 -max_len=1024 out/merged out/corpus >/dev/null 2>&1 ||
-            status=$?
-          if [ "$status" -ne 0 ]; then
-            echo "::error::fuzz_$TARGET's corpus merge failed, exit $status"
-            exit 1
-          fi
+          tools/fuzz_target.sh --merge out/fuzz/fuzz_"$TARGET" out/merged out/corpus || status=$?
+          cat out/fuzz-reports/*.txt 2>/dev/null || true
+          [ "$status" -eq 0 ] || exit "$status"
           rm -rf out/corpus && mv out/merged out/corpus
-          echo "$(ls out/corpus | wc -l) inputs kept"
       - name: Save the corpus
         if: github.event_name != 'pull_request'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
