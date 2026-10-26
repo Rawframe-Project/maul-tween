@@ -32,7 +32,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       pull-requests: read
 
@@ -47,10 +47,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       contents: read
 
@@ -152,7 +152,7 @@ jobs:
           - { preset: linux-arm64-gcc-14, runner: ubuntu-24.04-arm }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       contents: read
     with:
@@ -166,7 +166,7 @@ jobs:
   nightly:
     needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       contents: read
     with:
@@ -195,7 +195,12 @@ jobs:
   # not finite and implementations that disagree: briefly on a pull
   # request, longer on main and at night. The corpus carries from run to
   # run in an Actions cache per target, the committed seeds its floor; main
-  # and the nightly run minimize it with the fuzzer's merge and save it.
+  # and the nightly run restore it, minimize it with the fuzzer's merge and
+  # save it when they found nothing. A pull request starts from the
+  # committed seeds alone: the cache is not secret, since a fork's pull
+  # request can run its own workflow and restore it. tools/fuzz_target.sh
+  # runs the target and reports a finding without its input; nothing a run
+  # finds, logs or keeps is uploaded.
   fuzz:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -222,31 +227,39 @@ jobs:
             -D${PREFIX}_WERROR=ON
           cmake --build out/fuzz --target "fuzz_$TARGET"
       - name: Restore the corpus
+        if: github.event_name != 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
           restore-keys: fuzz-corpus-${{ matrix.target }}-
       - name: Run
-        # The committed seeds join whatever the cache brought. The output
-        # goes to a log, printed when the target finds something.
+        # The committed seeds join whatever the cache brought. The runner
+        # keeps the log and any finding on the machine and prints only the
+        # report, by the step pattern in its header.
         run: |
-          mkdir -p out/corpus out/fuzz-logs out/fuzz-crashes
+          mkdir -p out/corpus
           python3 tools/fuzz_seeds.py extract "$TARGET" out/corpus
           [ -n "$(ls out/corpus)" ] || { echo "::error::no seeds for fuzz_$TARGET"; exit 1; }
-          if ./out/fuzz/fuzz_"$TARGET" -max_total_time="$FUZZ_SECONDS" -max_len=1024 \
-            -artifact_prefix=out/fuzz-crashes/ out/corpus >out/fuzz-logs/"$TARGET".log 2>&1; then
-            echo "fuzz_$TARGET: no finding"
-          else
-            tail -n 60 out/fuzz-logs/"$TARGET".log
-            echo "::error::fuzz_$TARGET found something"
-            exit 1
-          fi
+          rm -rf out/fuzz-reports
+          status=0
+          tools/fuzz_target.sh out/fuzz/fuzz_"$TARGET" -max_total_time="$FUZZ_SECONDS" \
+            -max_len=1024 out/corpus || status=$?
+          cat out/fuzz-reports/*.txt 2>/dev/null || true
+          exit "$status"
       - name: Minimize the corpus
         if: github.event_name != 'pull_request'
         run: |
           mkdir -p out/merged
-          ./out/fuzz/fuzz_"$TARGET" -merge=1 -max_len=1024 out/merged out/corpus >/dev/null 2>&1
+          # A merge reruns every input, so a crash here would dump one:
+          # its output is discarded, and a failure names only the target.
+          status=0
+          ./out/fuzz/fuzz_"$TARGET" -merge=1 -max_len=1024 out/merged out/corpus >/dev/null 2>&1 ||
+            status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::error::fuzz_$TARGET's corpus merge failed, exit $status"
+            exit 1
+          fi
           rm -rf out/corpus && mv out/merged out/corpus
           echo "$(ls out/corpus | wc -l) inputs kept"
       - name: Save the corpus
@@ -255,16 +268,6 @@ jobs:
         with:
           path: out/corpus
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
-      - name: Fuzz logs and crash inputs
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: fuzz-${{ matrix.target }}
-          path: |
-            out/fuzz-logs/
-            out/fuzz-crashes/
-          if-no-files-found: ignore
-          retention-days: 7
 
   # The library and its tests under Emscripten and Node, and the size of
   # the static library. The CI image has no Emscripten, so this job uses
