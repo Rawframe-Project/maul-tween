@@ -145,7 +145,8 @@ static const double s_farProgress[] = {-DBL_MAX, -0x1.8p1023, 0x1.8p1023, DBL_MA
 // target's time on a few fits near the limit (19 inputs a second): most
 // draws are from 2^-2 to 2^-16 now, one in sixteen is one the fit
 // refuses, and only an input drawn deep may take one that runs the fit
-// to MTWN_MAX_FIT_POINTS, once.
+// to MTWN_MAX_FIT_POINTS, once. An easing of a wild parameter is the
+// other way to the limit (Easings).
 static double FitTolerance(Bytes* in, bool* deep)
 {
     uint32_t b = Byte(in);
@@ -343,6 +344,17 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     if (!fit)
     {
         return;
+    }
+    // A wild parameter the makers take, a back's overshoot or a Bezier's
+    // y or a linear() output of 1e300, runs the fit to its limit at any
+    // tolerance: such an easing is fitted only on the deep draw, once.
+    if (!in->ordinary)
+    {
+        if (!*deep)
+        {
+            return;
+        }
+        *deep = false;
     }
     static mtwnLinearPoint fitted[256];
     uint32_t fittedCount = 0;
