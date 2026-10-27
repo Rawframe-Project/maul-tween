@@ -534,7 +534,6 @@ static void SampleIn(const mtwnPath* path, uint32_t i, double progress, double v
 void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueOut[4],
                             double tangentOut[4], uint32_t* lengths)
 {
-    MTWN_ASSERT(mtwnValidPath(path));
     SampleIn(path, SegmentAt(path, progress), progress, valueOut, tangentOut, lengths);
 }
 
