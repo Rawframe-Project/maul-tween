@@ -25,7 +25,9 @@ static const double s_slack = 0.0;
 typedef double Wide;
 #define WIDE_SIN sin
 #define WIDE_POW pow
-static const double s_slack = 4.0 * DBL_EPSILON;
+// A double reference's sine and power add 0.7 ulps of 1 to the worst
+// error on macOS, Windows and the web; one is allowed.
+static const double s_slack = DBL_EPSILON;
 #endif
 
 static void TestIntegers(void)

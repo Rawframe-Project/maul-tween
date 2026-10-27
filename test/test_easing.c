@@ -38,9 +38,9 @@ typedef double Wide;
 #define WIDE_ASIN asin
 // A double reference adds its own error: its reflections lose digits
 // forming 1 - p, which circ's vertical tangent and elastic's fast sine
-// magnify to about ten ulps of 1. The tight bounds hold where long
-// double is wider.
-static const double s_slack = 16.0 * DBL_EPSILON;
+// magnify to 10.4 ulps of 1 on macOS, Windows and the web. The tight
+// bounds hold where long double is wider.
+static const double s_slack = 12.0 * DBL_EPSILON;
 #endif
 
 // A literal in the reference's width.

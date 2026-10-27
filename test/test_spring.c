@@ -3,10 +3,9 @@
 //
 // Springs against an
 // independent reference: the oscillator x'' = -2 a x' - w0^2 x
-// integrated by fourth-order Runge-Kutta in small fixed steps, in long
-// double where the platform has one wider than double. Then the makers'
-// mappings, the ends of time, and settling times checked by sampling
-// past them.
+// integrated by fourth-order Runge-Kutta in small fixed steps, in
+// double-double on every platform. Then the makers' mappings, the ends of
+// time, and settling times checked by sampling past them.
 
 #include "test_harness.h"
 #include "test_values.h"
@@ -22,11 +21,8 @@
 
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
-static const double s_slack = 0.0;
 #else
 typedef double Wide;
-// A double integration's own rounding, over many steps.
-static const double s_slack = 2e-11;
 #endif
 
 static const double s_twoPi = 6.283185307179586;
@@ -37,9 +33,6 @@ typedef struct Case
     double ratio;
     // The largest error allowed, each entry of the motion scaled to 1.
     double bound;
-    // Integrated only in the dense test (`test_spring dense`): its
-    // fastest rate takes the most steps.
-    bool dense;
 } Case;
 
 // An undamped spring turns the double rounding of 2 pi f into phase,
@@ -48,48 +41,144 @@ typedef struct Case
 // the steps. A ratio of 1.01 crosses from the series to the closed form
 // within the samples, where the closed form would cancel early.
 static const Case s_cases[] = {
-    {1.0, 0.5, 3e-16, false},      {2.0, 0.1, 8e-16, false},      {1.5, 1.0, 3e-16, false},
-    {1.0, 0.999999, 3e-16, false}, {1.0, 1.000001, 4e-16, false}, {1.0, 3.0, 4e-16, false},
-    {0.5, 50.0, 4e-16, true},      {3.0, 0.0, 1.2e-14, false},    {10.0, 0.05, 1.5e-15, true},
-    {0.05, 50.0, 3e-16, false},    {1.0, 1.01, 3e-16, false},
+    {1.0, 0.5, 3e-16},      {2.0, 0.1, 8e-16},   {1.5, 1.0, 3e-16},  {1.0, 0.999999, 3e-16},
+    {1.0, 1.000001, 4e-16}, {1.0, 3.0, 4e-16},   {0.5, 50.0, 4e-16}, {3.0, 0.0, 1.2e-14},
+    {10.0, 0.05, 1.5e-15},  {0.05, 50.0, 3e-16}, {1.0, 1.01, 3e-16},
 };
 
-// Whether this run is the dense test, which integrates every case and
-// samples the settling ten times as finely.
+// Whether this run is the dense test, which samples the settling ten
+// times as finely.
 static bool s_dense = false;
 
+// A double-double: the unevaluated sum hi + lo, lo within half an ulp of
+// hi. Its sums and products are exact transformations (Knuth's two-sum,
+// Dekker's split product) in IEEE double with contraction off, so it
+// carries about 106 bits on every platform, wider than any long double.
+typedef struct Dd
+{
+    double hi;
+    double lo;
+} Dd;
+
+static Dd QuickSum(double a, double b)
+{
+    double s = a + b;
+    return (Dd){s, b - (s - a)};
+}
+
+static Dd TwoSum(double a, double b)
+{
+    double s = a + b;
+    double c = s - a;
+    return (Dd){s, (a - (s - c)) + (b - c)};
+}
+
+static Dd TwoProduct(double a, double b)
+{
+    double p = a * b;
+    double ca = 134217729.0 * a;
+    double ah = ca - (ca - a);
+    double al = a - ah;
+    double cb = 134217729.0 * b;
+    double bh = cb - (cb - b);
+    double bl = b - bh;
+    return (Dd){p, ((ah * bh - p) + ah * bl + al * bh) + al * bl};
+}
+
+static Dd DdAdd(Dd x, Dd y)
+{
+    Dd s = TwoSum(x.hi, y.hi);
+    Dd t = TwoSum(x.lo, y.lo);
+    s = QuickSum(s.hi, s.lo + t.hi);
+    return QuickSum(s.hi, s.lo + t.lo);
+}
+
+static Dd DdMul(Dd x, Dd y)
+{
+    Dd p = TwoProduct(x.hi, y.hi);
+    return QuickSum(p.hi, p.lo + (x.hi * y.lo + x.lo * y.hi));
+}
+
+static Dd DdScale(Dd x, double d)
+{
+    Dd p = TwoProduct(x.hi, d);
+    return QuickSum(p.hi, p.lo + x.lo * d);
+}
+
+static Dd DdDivide(Dd x, double d)
+{
+    double q = x.hi / d;
+    Dd r = DdAdd(x, DdScale((Dd){q, 0.0}, -d));
+    return QuickSum(q, r.hi / d);
+}
+
+// A 2 by 2 matrix of double-doubles.
+typedef struct Matrix
+{
+    Dd m[2][2];
+} Matrix;
+
+static const Matrix s_identity = {{{{1.0, 0.0}, {0.0, 0.0}}, {{0.0, 0.0}, {1.0, 0.0}}}};
+
+static Matrix MatrixProduct(const Matrix* x, const Matrix* y)
+{
+    Matrix p;
+    for (int i = 0; i < 2; ++i)
+    {
+        for (int j = 0; j < 2; ++j)
+        {
+            p.m[i][j] = DdAdd(DdMul(x->m[i][0], y->m[0][j]), DdMul(x->m[i][1], y->m[1][j]));
+        }
+    }
+    return p;
+}
+
 // The motion's four entries at times k / 100 for k from 0 to 300, by
-// integrating from (1, 0) and from (0, 1).
+// classical Runge-Kutta from (1, 0) and from (0, 1), in steps of at most
+// 2.5e-4 over the fastest rate. On the linear system y' = A y every step
+// multiplies by the same matrix, I + hA + (hA)^2/2 + (hA)^3/6 + (hA)^4/24,
+// so a sample's steps are its power, taken by squaring.
 static void Integrate(double hertz, double ratio, double motion[301][4])
 {
-    Wide w0 = (Wide)s_twoPi * (Wide)hertz;
-    Wide a = (Wide)ratio * w0;
-    Wide fastest = a + w0 + (Wide)ratio * w0;
-    int perSample = (int)ceil((double)(fastest * (Wide)(0.01L / 2.5e-4L)));
+    Dd w0 = TwoProduct(s_twoPi, hertz);
+    Dd a = DdScale(w0, ratio);
+    double fastest = a.hi + w0.hi + ratio * w0.hi;
+    int perSample = (int)ceil(fastest * (0.01 / 2.5e-4));
     perSample = perSample < 1 ? 1 : perSample;
-    Wide h = (Wide)0.01L / (Wide)perSample;
-    for (int column = 0; column < 2; ++column)
+    Dd h = DdDivide(DdDivide((Dd){1.0, 0.0}, 100.0), (double)perSample);
+    Matrix step = {
+        {{{0.0, 0.0}, h}, {DdScale(DdMul(h, DdMul(w0, w0)), -1.0), DdScale(DdMul(h, a), -2.0)}}};
+    // By Horner: I + hA (I + hA/2 (I + hA/3 (I + hA/4))).
+    Matrix taylor = s_identity;
+    for (int n = 4; n >= 1; --n)
     {
-        Wide x = column == 0 ? 1 : 0;
-        Wide v = column == 0 ? 0 : 1;
-        for (int k = 0; k <= 300; ++k)
+        Matrix term = MatrixProduct(&step, &taylor);
+        for (int i = 0; i < 2; ++i)
         {
-            motion[k][column] = (double)x;
-            motion[k][2 + column] = (double)v;
-            for (int s = 0; s < perSample; ++s)
+            for (int j = 0; j < 2; ++j)
             {
-                Wide k1x = v;
-                Wide k1v = -2 * a * v - w0 * w0 * x;
-                Wide k2x = v + h / 2 * k1v;
-                Wide k2v = -2 * a * k2x - w0 * w0 * (x + h / 2 * k1x);
-                Wide k3x = v + h / 2 * k2v;
-                Wide k3v = -2 * a * k3x - w0 * w0 * (x + h / 2 * k2x);
-                Wide k4x = v + h * k3v;
-                Wide k4v = -2 * a * k4x - w0 * w0 * (x + h * k3x);
-                x += h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x);
-                v += h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v);
+                taylor.m[i][j] = DdAdd(DdDivide(term.m[i][j], (double)n), s_identity.m[i][j]);
             }
         }
+    }
+    Matrix sample = s_identity;
+    for (int left = perSample; left > 0; left /= 2)
+    {
+        if (left % 2 == 1)
+        {
+            sample = MatrixProduct(&sample, &taylor);
+        }
+        taylor = MatrixProduct(&taylor, &taylor);
+    }
+    Matrix at = s_identity;
+    for (int k = 0; k <= 300; ++k)
+    {
+        for (int e = 0; e < 4; ++e)
+        {
+            Dd entry = at.m[e / 2][e % 2];
+            motion[k][e] = entry.hi + entry.lo;
+        }
+        at = MatrixProduct(&sample, &at);
     }
 }
 
@@ -99,10 +188,6 @@ static void TestAgainstIntegration(void)
 {
     for (size_t c = 0; c < sizeof s_cases / sizeof s_cases[0]; ++c)
     {
-        if (s_cases[c].dense && !s_dense)
-        {
-            continue;
-        }
         mtwnSpring spring;
         CHECK(mtwnMakeSpringFromFrequency(s_cases[c].hertz, s_cases[c].ratio, &spring) ==
                   mtwn_success,
@@ -124,11 +209,11 @@ static void TestAgainstIntegration(void)
                 worst = errors[e] > worst ? errors[e] : worst;
             }
         }
-        if (!(worst <= s_cases[c].bound + s_slack))
+        if (!(worst <= s_cases[c].bound))
         {
             printf("  %g Hz, ratio %g: %.3g\n", s_cases[c].hertz, s_cases[c].ratio, worst);
         }
-        CHECK(worst <= s_cases[c].bound + s_slack, "a spring within its bound of integration");
+        CHECK(worst <= s_cases[c].bound, "a spring within its bound of integration");
     }
 }
 
