@@ -18,17 +18,10 @@
 
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
-// The bisection's own error is far below the bounds.
-static const double s_scale = 1.0;
-static const double s_slack = 0.0;
+static const bool s_wide = true;
 #else
 typedef double Wide;
-// A double bisection carries x's rounding into y, magnified by the slope
-// and, where the slope of x vanishes, by the conditioning that sets the
-// bounds. The library's results are the same bits everywhere, so the
-// tight bounds, held where long double is wider, hold here too.
-static const double s_scale = 16.0;
-static const double s_slack = 1e-13;
+static const bool s_wide = false;
 #endif
 
 // y at x on cubic-bezier(x1, y1, x2, y2), by bisecting x(t) = x.
@@ -67,6 +60,13 @@ typedef struct BezierCase
 {
     double control[4];
     double bound;
+    // The bound against a double bisection, where long double is no wider
+    // (macOS on arm64, Windows under clang-cl, the web). It carries x's
+    // rounding into y, magnified by the conditioning: within the bound,
+    // but where the slope of x vanishes inside the curve, about the cube
+    // root of an ulp. The bisection uses no C library function, so its
+    // error is the same on each.
+    double doubleBound;
 } BezierCase;
 
 // The eight curves the solver was measured on: the
@@ -74,11 +74,11 @@ typedef struct BezierCase
 // nearly does, where conditioning sets the floor; then two whose x slope
 // vanishes at an end, where a Newton step from t = x leaves the bracket.
 static const BezierCase s_beziers[] = {
-    {{0.25, 0.1, 0.25, 1.0}, 3e-14},     {{0.42, 0.0, 1.0, 1.0}, 2.5e-14},
-    {{0.0, 0.0, 0.58, 1.0}, 2.5e-14},    {{0.42, 0.0, 0.58, 1.0}, 2.5e-14},
-    {{0.68, -0.55, 0.265, 1.55}, 7e-14}, {{0.0, 1.0, 1.0, 0.0}, 4e-13},
-    {{1.0, 0.0, 0.0, 1.0}, 3.5e-7},      {{0.05, 0.7, 0.1, 1.0}, 2e-13},
-    {{1.0, 0.0, 1.0, 1.0}, 2.5e-13},     {{0.0, 0.0, 0.0, 1.0}, 2.5e-13},
+    {{0.25, 0.1, 0.25, 1.0}, 3e-14, 3e-14},     {{0.42, 0.0, 1.0, 1.0}, 2.5e-14, 2.5e-14},
+    {{0.0, 0.0, 0.58, 1.0}, 2.5e-14, 2.5e-14},  {{0.42, 0.0, 0.58, 1.0}, 2.5e-14, 2.5e-14},
+    {{0.68, -0.55, 0.265, 1.55}, 7e-14, 7e-14}, {{0.0, 1.0, 1.0, 0.0}, 4e-13, 4e-13},
+    {{1.0, 0.0, 0.0, 1.0}, 3.5e-7, 4e-6},       {{0.05, 0.7, 0.1, 1.0}, 2e-13, 2e-13},
+    {{1.0, 0.0, 1.0, 1.0}, 2.5e-13, 2.5e-13},   {{0.0, 0.0, 0.0, 1.0}, 2.5e-13, 2.5e-13},
 };
 
 static void TestBezierAgainstBisection(void)
@@ -95,7 +95,7 @@ static void TestBezierAgainstBisection(void)
             double error = fabs(EaseAt(&easing, x, false) - BezierWide(q, x));
             worst = error > worst ? error : worst;
         }
-        double allowed = s_beziers[c].bound * s_scale + s_slack;
+        double allowed = s_wide ? s_beziers[c].bound : s_beziers[c].doubleBound;
         if (!(worst <= allowed))
         {
             printf("  bezier %zu: %.3g\n", c, worst);

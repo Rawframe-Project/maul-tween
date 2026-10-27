@@ -16,20 +16,21 @@
 #include <math.h>
 #include <stdint.h>
 
+// The bounds hold with a double reference too, where long double is no
+// wider (macOS on arm64, Windows under clang-cl, the web): its worst error
+// there is two thirds of a bound.
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
 #define WIDE_POW   powl
 #define WIDE_CBRT  cbrtl
 #define WIDE_ATAN2 atan2l
 #define WIDE_SQRT  sqrtl
-static const double s_slack = 0.0;
 #else
 typedef double Wide;
 #define WIDE_POW   pow
 #define WIDE_CBRT  cbrt
 #define WIDE_ATAN2 atan2
 #define WIDE_SQRT  sqrt
-static const double s_slack = 1e-14;
 #endif
 
 static const Wide s_srgbToXyz[3][3] = {
@@ -137,12 +138,12 @@ static void TestConversionsAgainstConversionsJs(void)
         worstLch = e > worstLch ? e : worstLch;
         CHECK(lab[3] == (double)c.alpha && lch[3] == (double)c.alpha, "alpha passes through");
     }
-    if (!(worstLab <= 2e-15 + s_slack) || !(worstLch <= 2e-15 + s_slack))
+    if (!(worstLab <= 2e-15) || !(worstLch <= 2e-15))
     {
         printf("  Oklab %.3g, OkLCh %.3g\n", worstLab, worstLch);
     }
-    CHECK(worstLab <= 2e-15 + s_slack, "Oklab within 2e-15 of conversions.js in long double");
-    CHECK(worstLch <= 2e-15 + s_slack, "OkLCh too, the hue as arc length");
+    CHECK(worstLab <= 2e-15, "Oklab within 2e-15 of conversions.js in long double");
+    CHECK(worstLch <= 2e-15, "OkLCh too, the hue as arc length");
 }
 
 static void TestKnownValues(void)

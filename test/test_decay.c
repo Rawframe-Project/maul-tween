@@ -16,19 +16,19 @@
 #include <math.h>
 #include <stdint.h>
 
+// The bounds hold with a double reference too, where long double is no
+// wider (macOS on arm64, Windows under clang-cl, the web): its worst error
+// there is 0.57 of a bound.
 #if LDBL_MANT_DIG >= 64 && !defined(__EMSCRIPTEN__)
 typedef long double Wide;
 #define WIDE_EXP   expl
 #define WIDE_EXPM1 expm1l
 #define WIDE_LOG1P log1pl
-static const double s_slack = 0.0;
 #else
 typedef double Wide;
 #define WIDE_EXP   exp
 #define WIDE_EXPM1 expm1
 #define WIDE_LOG1P log1p
-// The C library's double functions add an ulp or two of their own.
-static const double s_slack = 4.0 * DBL_EPSILON;
 #endif
 
 static double Relative(double value, Wide reference)
@@ -72,12 +72,12 @@ static void TestDecayAgainstTheFormula(void)
             }
         }
     }
-    if (!(worstTravel <= 1e-15 + s_slack) || !(worstVelocity <= 1e-15 + s_slack))
+    if (!(worstTravel <= 1e-15) || !(worstVelocity <= 1e-15))
     {
         printf("  travel %.3g, velocity %.3g\n", worstTravel, worstVelocity);
     }
-    CHECK(worstTravel <= 1e-15 + s_slack, "the position within 1e-15 at every time");
-    CHECK(worstVelocity <= 1e-15 + s_slack, "the velocity too");
+    CHECK(worstTravel <= 1e-15, "the position within 1e-15 at every time");
+    CHECK(worstVelocity <= 1e-15, "the velocity too");
 }
 
 static void TestDecayTravelAlone(void)
@@ -96,7 +96,7 @@ static void TestDecayTravelAlone(void)
         double error = Relative(position, -WIDE_EXPM1(-y) / 2);
         worst = error > worst ? error : worst;
     }
-    CHECK(worst <= 1e-15 + s_slack, "travel from 0 within 1e-15 relative, subnormal times too");
+    CHECK(worst <= 1e-15, "travel from 0 within 1e-15 relative, subnormal times too");
 }
 
 static void TestDecayFromIos(void)
@@ -172,18 +172,16 @@ static void TestDecayCrossings(void)
             worst = error > worst ? error : worst;
         }
     }
-    if (!(worst <= 2e-15 + s_slack))
+    if (!(worst <= 2e-15))
     {
         printf("  crossing %.3g\n", worst);
     }
-    CHECK(worst <= 2e-15 + s_slack,
-          "crossing times within 2e-15 of their conditioning, near the start too");
+    CHECK(worst <= 2e-15, "crossing times within 2e-15 of their conditioning, near the start too");
     // From 0 a tiny target makes a share that is no multiple of 2^-53, so
     // 1 - f rounds: the series keeps its digits.
     double tiny = DecayCrossingTime(&decay, 0.0, 7.0, 1e-12);
     Wide tinyShare = (Wide)1e-12 * 3 / 7;
-    CHECK(Relative(tiny, -WIDE_LOG1P(-tinyShare) / 3) <= 2e-15 + s_slack,
-          "a target next to the start");
+    CHECK(Relative(tiny, -WIDE_LOG1P(-tinyShare) / 3) <= 2e-15, "a target next to the start");
     // Half the travel is the series' last share: its bits, the same on
     // every platform (1 ulp below ln 2 correctly rounded, within the bound).
     mtwnDecay unit;
@@ -222,13 +220,13 @@ static void TestDecayPastTheRange(void)
     CHECK(mtwnMakeDecay(1e-10, &gentle) == mtwn_success, "a gentle decay");
     double share = 2.0 * (1e308 * 1e-10) / 1e300;
     CHECK(Relative(DecayCrossingTime(&gentle, -1e308, 1e300, 1e308),
-                   -WIDE_LOG1P(-(Wide)share) / (Wide)1e-10) <= 4e-16 + s_slack,
+                   -WIDE_LOG1P(-(Wide)share) / (Wide)1e-10) <= 4e-16,
           "a distance past the doubles");
     // The speed ratio 1e600 overflows: ln 1e300 - ln 1e-300.
     mtwnDecay unit;
     CHECK(mtwnMakeDecay(1.0, &unit) == mtwn_success, "a unit decay");
     CHECK(Relative(DecayStopTime(&unit, 1e300, 1e-300), (Wide)log(1e300) - (Wide)log(1e-300)) <=
-              2e-16 + s_slack,
+              2e-16,
           "a stop speed ratio past the doubles");
     // v t = 1e310 overflows; the travel is v (1 - e^(-1e10)) = 1e300.
     double position = 0.0;
@@ -241,15 +239,15 @@ static void TestDecayPastTheRange(void)
     CHECK(mtwnMakeDecay(0.4, &mild) == mtwn_success, "a mild decay");
     SampleDecay(&mild, 0.0, DBL_MAX, 1.1, &position, NULL);
     CHECK(Relative(position, (Wide)DBL_MAX * -WIDE_EXPM1((Wide)-0.4 * (Wide)1.1) / (Wide)0.4) <=
-              4e-16 + s_slack,
+              4e-16,
           "a v t past the doubles at a small k t");
     // From -DBL_MAX a travel of 1.97 DBL_MAX at k t = 0.22: half the
     // velocity's v t still overflows, and its own half does not.
     mtwnDecay tenth;
     CHECK(mtwnMakeDecay(0.1, &tenth) == mtwn_success, "a tenth decay");
     SampleDecay(&tenth, -DBL_MAX, DBL_MAX, 2.2, &position, NULL);
-    CHECK(Relative(position, (Wide)DBL_MAX * (-WIDE_EXPM1((Wide)-0.1 * (Wide)2.2) / (Wide)0.1 -
-                                              1)) <= 4e-16 + s_slack,
+    CHECK(Relative(position,
+                   (Wide)DBL_MAX * (-WIDE_EXPM1((Wide)-0.1 * (Wide)2.2) / (Wide)0.1 - 1)) <= 4e-16,
           "a v t past twice the doubles at a small k t, from beyond its end");
     // k t = 1e310 overflows; the travel is v / k.
     mtwnDecay sharp;
@@ -260,12 +258,11 @@ static void TestDecayPastTheRange(void)
     mtwnDecay half;
     CHECK(mtwnMakeDecay(0.5, &half) == mtwn_success, "a half decay");
     SampleDecay(&half, -DBL_MAX, DBL_MAX, 3.0, &position, NULL);
-    CHECK(Relative(position, (Wide)DBL_MAX * (2 * -WIDE_EXPM1((Wide)-1.5) - 1)) <= 4e-16 + s_slack,
+    CHECK(Relative(position, (Wide)DBL_MAX * (2 * -WIDE_EXPM1((Wide)-1.5) - 1)) <= 4e-16,
           "a travel past the doubles from beyond its end");
     // e^(-1000) is below the least subnormal; 1e300 times it is not.
     SampleDecay(&unit, 0.0, 1e300, 1000.0, NULL, &velocity);
-    CHECK(Relative(velocity, (Wide)1e300 * WIDE_EXP((Wide)-500) * WIDE_EXP((Wide)-500)) <=
-              4e-16 + s_slack,
+    CHECK(Relative(velocity, (Wide)1e300 * WIDE_EXP((Wide)-500) * WIDE_EXP((Wide)-500)) <= 4e-16,
           "a velocity whose e^(-k t) underflows");
 }
 
@@ -298,11 +295,11 @@ static void TestRubberBand(void)
         double round = fabs(back - x) / x;
         worstInverse = round > worstInverse ? round : worstInverse;
     }
-    if (!(worst <= 6e-16 + s_slack) || !(worstInverse <= 1e-13))
+    if (!(worst <= 6e-16) || !(worstInverse <= 1e-13))
     {
         printf("  band %.3g, inverse %.3g\n", worst, worstInverse);
     }
-    CHECK(worst <= 6e-16 + s_slack, "iOS's rubber band, small drags keeping their digits");
+    CHECK(worst <= 6e-16, "iOS's rubber band, small drags keeping their digits");
     CHECK(worstInverse <= 1e-13, "its inverse takes the band back to the drag");
     CHECK(RubberBand(-30.0, 600.0, 0.55) == -RubberBand(30.0, 600.0, 0.55), "signed");
     CHECK(RubberBand(0.0, 600.0, 0.55) == 0.0, "nothing past the limit");
