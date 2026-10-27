@@ -29,7 +29,20 @@ static mtwnResult Finished(mtwnContext* context, mtwnClipId clip, mtwnClipSlot**
     {
         return Misuse(context, mtwn_errorState);
     }
+    // Its nodes hold the root, a timeline, and at most nodeCapacity more
+    // (clip.c's HasRoom), which every read indexes within.
+    MTWN_ASSERT((*slotOut)->nodeCount >= 1 &&
+                (*slotOut)->nodeCount <= (*slotOut)->def.nodeCapacity + 1);
+    MTWN_ASSERT((*slotOut)->nodes[0].kind == mtwn_nodeTimeline);
     return mtwn_success;
+}
+
+// Whether a node's parent is as clip.c's Attach puts it: none for the
+// root, otherwise a timeline before it. Only an assertion calls it.
+[[maybe_unused]] static inline bool ParentBefore(const mtwnClipSlot* slot, uint32_t node)
+{
+    uint32_t parent = mtwnClipNodeAt(slot, node)->parent;
+    return node == MTWN_ROOT_NODE ? parent == 0 : mtwnClipIsTimeline(slot, parent) && parent < node;
 }
 
 static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNode node,
@@ -55,6 +68,10 @@ static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNod
         return Misuse(context, mtwn_errorInvalid);
     }
     const mtwnClipNode* n = &slot->nodes[node - 1];
+    MTWN_ASSERT(ParentBefore(slot, node));
+    // The slots its tracks use are below slotCount (clip.c's
+    // AddTrackWorker raises it to each).
+    MTWN_ASSERT(n->slot < slot->slotCount);
     *trackOut = (mtwnClipTrack){n->track, n->timing, n->start, n->parent, n->slot};
     return mtwn_success;
 }
@@ -108,6 +125,10 @@ static mtwnResult RunClipGetNode(mtwnContext* context, mtwnClipId clip, mtwnNode
         return Misuse(context, mtwn_errorInvalid);
     }
     const mtwnClipNode* n = mtwnClipNodeAt(slot, node);
+    MTWN_ASSERT(ParentBefore(slot, node));
+    // A timeline's children end starts at 0 and only rises to an end
+    // (clip.c's Raise), so it is never negative or NaN.
+    MTWN_ASSERT(n->kind != mtwn_nodeTimeline || n->childrenEnd >= 0.0);
     infoOut->timing =
         n->kind == mtwn_nodeTimeline ? mtwnClipTimelineTiming(n, n->childrenEnd) : n->timing;
     infoOut->start = n->start;
@@ -168,6 +189,8 @@ static mtwnResult RunClipFindLabel(mtwnContext* context, mtwnClipId clip, mtwnNo
     {
         return Misuse(context, mtwn_errorInvalid);
     }
+    // The parent's children are its own nodes, within the clip.
+    MTWN_ASSERT(label <= slot->nodeCount && mtwnClipNodeAt(slot, label)->parent == parent);
     *secondsOut = mtwnClipNodeAt(slot, label)->start;
     return mtwn_success;
 }
@@ -214,6 +237,8 @@ static mtwnResult RunClipGetDuration(mtwnContext* context, mtwnClipId clip, doub
     mtwnResult result = Finished(context, clip, &slot);
     if (result == mtwn_success)
     {
+        // As every timeline's children end (clip.c's Raise).
+        MTWN_ASSERT(slot->nodes[0].childrenEnd >= 0.0);
         *secondsOut = slot->nodes[0].childrenEnd;
     }
     return result;
