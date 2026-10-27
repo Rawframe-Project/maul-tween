@@ -6,6 +6,20 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.9.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.8.0...v0.9.0) (2026-10-27)
+
+### Changed
+
+- **Breaking:** `mtwnComputeTiming(timing, localTime, backwards, resultOut)` returns `mtwnResult` (`MTWN_NODISCARD`) where it returned `void`. It refuses with `mtwn_errorInvalid`, leaving the result as it was, a null timing or result, a timing `mtwnValidateTiming` refuses (a playback rate of 0, nonzero padding, an easing of an unknown kind or with fields no maker gives), and a local time that is NaN or negative infinity. A caller takes the returned status; a refused call leaves the result as it was. Every call it still takes gives the same bits ([#87](https://github.com/Rawframe-Project/maul-tween/pull/87)).
+- On WebAssembly the float environment's entries compile away, so each wrapper compiles to its worker alone: the web build's library is about 8 KB smaller, with the same results. Other targets are unchanged ([#108](https://github.com/Rawframe-Project/maul-tween/pull/108)).
+
+### Fixed
+
+- `mtwnComputeTiming`, and the clips' timelines and tracks that compute the same way, keep the iterations at their end where rounding lost them. An active duration that rounds to 0, or a repeat delay's cycle that swallows the active time, no longer leaves the overall progress at the start with the iteration before it. A start so large that adding the iterations rounds back to it no longer holds the iteration before the start's. A repeat delay no longer gives NaN where an effect is due. A clip's values, directions and event iterations follow ([#100](https://github.com/Rawframe-Project/maul-tween/pull/100)).
+- `mtwnSpringSettlingTime` no longer returns a time before the motion settles when a product of the start with a coefficient underflows, for a spring with a subnormal `w0^2`, or when one bound's time is NaN. A start already settled on a spring of subnormal rate gets 0 where it got infinity. A spring transition that ends by it ends at the new time. Elsewhere a time moves only within rounding, where a tolerance lies at a bound's peak, and never early ([#90](https://github.com/Rawframe-Project/maul-tween/pull/90)).
+- An undamped spring with an infinite offset tolerance no longer stops a build with assertions in `mtwnSpringSettlingTime`; every settling time keeps its bits ([#95](https://github.com/Rawframe-Project/maul-tween/pull/95)).
+- `mtwnDecayCrossingTime`, `mtwnDecayStopTime` and `mtwnSampleDecay` stay within the doubles on the way to results that lie within them, where they used to give infinity, 0 or a value with few digits. Every input that worked before keeps its bits ([#92](https://github.com/Rawframe-Project/maul-tween/pull/92)).
+
 ## [0.8.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.7.0...v0.8.0) (2026-10-26)
 
 ### Changed
