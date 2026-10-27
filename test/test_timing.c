@@ -422,6 +422,29 @@ static void TestIterationsLostToRounding(void)
               r.simpleProgress == without.simpleProgress && r.iteration == without.iteration &&
               r.transformedProgress == without.transformedProgress && !r.inRepeatDelay,
           "a repeat delay whose cycles overflow the quotient gives what none gives");
+    // 2.5 iterations of about 1e308 s before the first: its start's
+    // cycles pass the doubles, but the time into them does not. Its
+    // iteration is 2, as without the repeat delay, not infinity.
+    mtwnTiming late = mtwnDefaultTiming();
+    late.iterations = HUGE_VAL;
+    late.duration = 1e308;
+    late.iterationStart = 2.5;
+    late.playbackRate = 0.5;
+    late.repeatDelay = 0x1.5p-4;
+    plain = late;
+    plain.repeatDelay = 0.0;
+    r = ComputeTiming(&late, 1.4, false);
+    without = ComputeTiming(&plain, 1.4, false);
+    CHECK(r.phase == mtwn_phaseActive && r.iteration == 2.0 && r.overallProgress == 2.5 &&
+              r.overallProgress == without.overallProgress && r.iteration == without.iteration &&
+              r.simpleProgress == without.simpleProgress && !r.inRepeatDelay,
+          "a start whose cycles pass the doubles counted from the first's: iteration 2");
+    // One such iteration at rate 1, whose active duration a double holds.
+    late.iterations = 1.0;
+    late.playbackRate = 1.0;
+    r = ComputeTiming(&late, 1.4, false);
+    CHECK(r.phase == mtwn_phaseActive && r.iteration == 2.0 && r.simpleProgress == 0.5,
+          "one such iteration, the same");
 }
 
 // The computation checks what it is given: a null pointer, a timing

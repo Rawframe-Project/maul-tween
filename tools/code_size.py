@@ -47,14 +47,16 @@ PARTS = [
 # linear() points into a context costs, the values', the clips' and the
 # whole library's by what checking paths and tracks costs, the values' by
 # what checking punches, shakes and the rubber band costs, every part's by
-# what redoing a settling time's underflowed bound costs, and every part
-# but the values' by what keeping a decay within the doubles costs.
+# what redoing a settling time's underflowed bound costs, every part but
+# the values' by what keeping a decay within the doubles costs, and the
+# values', the clips' and the whole library's by what counting a start's
+# cycles past the doubles costs.
 BUDGETS = {
     "curves": 33900,
-    "values": 68600,
+    "values": 69200,
     "transitions": 69600,
-    "clips": 161500,
-    "everything": 181800,
+    "clips": 162100,
+    "everything": 182400,
 }
 
 
@@ -78,16 +80,17 @@ RAISED = {
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
     "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
     "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, a color, rotation, "
-    "scale or zoom mix, 2.0 kB, a timing's computation checks it, 0.1 kB, and a "
-    "spring's settling time redoes a bound that underflowed, 1.2 kB",
+    "scale or zoom mix, 2.0 kB, a timing's computation checks it, 0.1 kB, a spring's "
+    "settling time redoes a bound that underflowed, 1.2 kB, and a timing counts a "
+    "start's cycles past the doubles, 0.6 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "a transition copies its linear() points, 0.6 kB, a spring's settling time redoes a "
     "bound that underflowed, 1.2 kB, and a decay keeps its times and samples within the "
     "doubles on the way, 1.3 kB",
     "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
     "timing's computation checks it, 0.1 kB, a spring's settling time redoes a bound that "
-    "underflowed, 1.2 kB, and a decay keeps its times and samples within the doubles on "
-    "the way, 1.3 kB",
+    "underflowed, 1.2 kB, a decay keeps its times and samples within the doubles on the "
+    "way, 1.3 kB, and a timing counts a start's cycles past the doubles, 0.6 kB",
     "everything": "the raises of the parts above",
 }
 

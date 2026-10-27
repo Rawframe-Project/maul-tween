@@ -92,6 +92,7 @@ labels_for() {
     test/generated/timing_cases.h) echo timing ;;
     test/generated/exact_cases.h) echo exact ;;
     test/generated/zoom_cases.h) echo scale ;;
+    test/generated/cycle_cases.h) echo crossing ;;
     test/generated/rival_*.h) echo "rival_easing rival_spring rival_color" ;;
     tools/oracle/* | test/fuzz_regressions/* | bench/* | tools/fuzz_seeds.py) ;;
     samples/*) echo samples ;;
@@ -180,6 +181,7 @@ python3 tools/gen_color_matrices.py --check
 python3 tools/oracle/timing_oracle.py --check
 python3 tools/oracle/exact_oracle.py --check
 python3 tools/oracle/zoom_oracle.py --check
+python3 tools/oracle/cycle_oracle.py --check
 
 # As CI's checks job: on the Release preset, where the assertions compile
 # out, and with them live. Each hides findings the other shows.
