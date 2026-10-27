@@ -151,6 +151,50 @@ static double ScaledTime(const mtwnTiming* timing, double activeTime, double act
     return rate < 0.0 ? (activeTime - activeDuration) * rate : activeTime * rate;
 }
 
+// Out of line, one copy for the timing and the crossings.
+MTWN_NOINLINE double mtwnCycleOf(double scaled, double start, double duration, double cycle,
+                                 double* withinOut)
+{
+    double first = floor(start);
+    int m = 0;
+    double position = scaled + first * cycle + (start - first) * duration;
+    if (isinf(position) && isfinite(scaled))
+    {
+        // A position past the doubles whose cycles are not (2.5 iterations
+        // of 1e308 s): the same steps with every term scaled by 2^-m, which
+        // commutes with rounding in the normal range, so the iteration and
+        // the time into it are what an exponent without bounds gives. m
+        // puts the start's whole cycles, or the doubles' largest, at 2^960;
+        // the terms that fall below the normal doubles are below the
+        // position's rounding too.
+        int product = 0;
+        int factor = 0;
+        (void)frexp(first, &product);
+        (void)frexp(cycle, &factor);
+        m = (product + factor > 1024 ? product + factor : 1024) - 960;
+        cycle = ldexp(cycle, -m);
+        position = ldexp(scaled, -m) + first * cycle + (start - first) * ldexp(duration, -m);
+    }
+    double k = floor(position / cycle);
+    k = k < first ? first : k;
+    double within = position - k * cycle;
+    if (m != 0)
+    {
+        // Kept infinite where the quotient passes the doubles, or the time
+        // into its cycle lies outside one, as a start past 2^53 cycles
+        // rounds the count by more than one and the step back from a
+        // quotient rounded up assumes it within one.
+        if (isinf(k) || !(fabs(within) <= cycle))
+        {
+            *withinOut = (double)NAN;
+            return HUGE_VAL;
+        }
+        within = ldexp(within, m);
+    }
+    *withinOut = within;
+    return k;
+}
+
 // The overall progress (Level 1, with Level 2's rate). Within a repeat
 // delay it sets the flag, and held to the iteration whose end holds.
 static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result, double* held)
@@ -180,13 +224,8 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
         return scaled / d + start;
     }
     double cycle = d + timing->repeatDelay;
-    double position = scaled + floor(start) * cycle + (start - floor(start)) * d;
-    // The quotient rounds either way. Below the first iteration it is
-    // that one (339 times 0.2 over 0.2 floors to 338), where the
-    // position holds the first's start as the same product, so nothing
-    // lies before it; rounded up to k it leaves a position an ulp before
-    // k's start, in the delay before it.
-    double k = floor(position / cycle);
+    double within = 0.0;
+    double k = mtwnCycleOf(scaled, start, d, cycle, &within);
     // A position past the doubles' cycles, at a time or a rate near the
     // largest double, or an active time past the active duration (a
     // negative delay's before phase): its iteration is past them too, as
@@ -195,8 +234,6 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     {
         return HUGE_VAL;
     }
-    k = k < floor(start) ? floor(start) : k;
-    double within = position - k * cycle;
     if (within < 0.0)
     {
         k -= 1.0;

@@ -11,6 +11,7 @@
 #include "crossing.h"
 #include "test_harness.h"
 #include "test_values.h"
+#include "timing_internal.h"
 
 #include "maul-tween/easing.h"
 
@@ -818,6 +819,45 @@ static void TestPassedLevels(int trials)
 // the passed levels' fewer trials; "passed": the passed levels' every
 // trial; "oracle K N": slice K of N of the oracle's, so ctest runs the
 // slices side by side.
+typedef struct CycleCase
+{
+    double scaled;
+    double start;
+    double duration;
+    double cycle;
+    double k;
+    double within;
+} CycleCase;
+
+#include "generated/cycle_cases.h"
+
+// The cycles a scaled time is in where its position passes the doubles,
+// which the timing and the crossings share: bit for bit what the same
+// steps give with an exponent without bounds (tools/oracle/cycle_oracle.py),
+// and the count left infinite, as before, where the quotient passes the
+// doubles or a start past 2^53 cycles rounds it by more than one.
+static void TestCyclesPastTheDoubles(void)
+{
+    uint32_t wrong = 0;
+    uint32_t kept = 0;
+    size_t count = sizeof s_cycleCases / sizeof s_cycleCases[0];
+    for (size_t i = 0; i < count; ++i)
+    {
+        const CycleCase* c = &s_cycleCases[i];
+        double within = 0.0;
+        double k = mtwnCycleOf(c->scaled, c->start, c->duration, c->cycle, &within);
+        bool same = isinf(c->k) ? isinf(k) && isnan(within)
+                                : SameBits(k, c->k) && SameBits(within, c->within);
+        kept += isinf(c->k) ? 1u : 0u;
+        if (!same && wrong++ < 5)
+        {
+            printf("  case %zu: %a %a, want %a %a\n", i, k, within, c->k, c->within);
+        }
+    }
+    CHECK(wrong == 0 && kept == 2 && count == 384,
+          "every case's cycle and time into it the oracle's, the two kept infinite");
+}
+
 int main(int argc, char** argv)
 {
     bool exact = argc == 1 || (argc == 2 && strcmp(argv[1], "exact") == 0);
@@ -841,6 +881,7 @@ int main(int argc, char** argv)
         TestDelaysAndRates();
         TestIterations();
         TestStartBelowItsQuotient();
+        TestCyclesPastTheDoubles();
         TestCountNeverFalls();
         TestExactEdges();
         TestTimes();

@@ -27,6 +27,8 @@ A finished player held at its end that is given a lower rate keeps its start tim
 
 `tools/oracle/timing_oracle.py` computes the steps again in Python, from the specifications' text, on dyadic inputs where the arithmetic is exact, and writes the expected results into `test/generated/timing_cases.h`; the tests match them to the bit. `tools/oracle/exact_oracle.py` computes the discrete answers (phases, iterations, crossing counts) in exact rationals on inputs that are not dyadic, so the library rounds where the reference does not.
 
+With a repeat delay, the position on the cycles, `scaled + floor(start) * cycle + fraction * duration`, can pass the doubles where the cycles it counts do not: 2.5 iterations of 1e308 s. There `mtwnCycleOf` (`src/timing.c`) takes the same steps with every term scaled by a power of 2, which commutes with rounding in the normal range, so the iteration and the time into it are what the steps give with an exponent without bounds. Two cases keep the count infinite, as a position past the doubles always gave: a quotient past the doubles, and a start past 2^53 cycles whose count rounds by more than one. `tools/oracle/cycle_oracle.py` emulates those steps in exact rationals, rounding each to 53 bits, and `test/generated/cycle_cases.h` holds its results.
+
 ## Traps
 
 - A timeline's easing must be monotonic: it shapes the time its children see, and the crossing count assumes that time moves one way through each iteration.
