@@ -18,6 +18,7 @@
 #include "bounds_internal.h"
 #include "elementary.h"
 #include "fpenv.h"
+#include "invariant.h"
 #include "path_internal.h"
 #include "path_length.h"
 #include "reserved_internal.h"
@@ -129,6 +130,9 @@ static void CatmullRom(const mtwnPath* path, uint32_t i, const double p1[4], con
     d01 = d01 > least ? d01 : least;
     d12 = d12 > least ? d12 : least;
     d23 = d23 > least ? d23 : least;
+    // Every gap divides: raised to least, which is positive, even where a
+    // host's changed keyframes made a gap NaN.
+    MTWN_ASSERT(d01 > 0.0 && d12 > 0.0 && d23 > 0.0);
     double m1[4];
     double m2[4];
     for (int c = 0; c < 4; ++c)
@@ -155,7 +159,12 @@ static double Steffen(double a, double b, double ha, double hb)
     double p = (a * hb + b * ha) / (ha + hb);
     double least = fabs(a) < fabs(b) ? fabs(a) : fabs(b);
     least = 0.5 * fabs(p) < least ? 0.5 * fabs(p) : least;
-    return (SignOf(a) + SignOf(b)) * least;
+    double slope = (SignOf(a) + SignOf(b)) * least;
+    // Steffen's bound, which keeps the segment monotone: at most twice the
+    // lesser secant, and not against either's sign. NaN secants pass.
+    MTWN_ASSERT(!(fabs(slope) > 2.0 * fabs(a)) && !(fabs(slope) > 2.0 * fabs(b)) &&
+                !(slope * a < 0.0) && !(slope * b < 0.0));
+    return slope;
 }
 
 // Whether a keyframe's neighbour on one side leaves a width to measure a
@@ -209,6 +218,9 @@ static void Monotone(const mtwnPath* path, uint32_t i, const double p1[4], const
                         i + 2 < path->count ? k[i + 2].offset - k[i + 1].offset : 0.0};
     bool measured = Measured(widths[1]);
     bool has[2] = {measured && Measured(widths[0]), measured && Measured(widths[2])};
+    // A width past the ends is 0, never measured, so a neighbour read is
+    // a keyframe of the path.
+    MTWN_ASSERT((!has[0] || i > 0) && (!has[1] || i + 2 < path->count));
     double p0[4] = {0.0, 0.0, 0.0, 0.0};
     double p3[4] = {0.0, 0.0, 0.0, 0.0};
     if (has[0])
@@ -230,6 +242,7 @@ static void Monotone(const mtwnPath* path, uint32_t i, const double p1[4], const
 // Segment i, from keyframe i to keyframe i + 1, as a cubic.
 static void SegmentCubic(const mtwnPath* path, uint32_t i, mtwnCubic* out)
 {
+    MTWN_ASSERT(i + 1 < path->count);
     const mtwnKeyframe* k = path->keyframes;
     memset(out, 0, sizeof *out);
     double p0[4];
@@ -384,6 +397,9 @@ static uint32_t FindSegment(const mtwnPath* path, double key, bool byLength)
             hi = mid - 1;
         }
     }
+    // A segment of the path whatever the key and the values, NaN or out of
+    // order as a host's changed keyframes may leave them.
+    MTWN_ASSERT(lo + 1 < path->count);
     return lo;
 }
 
@@ -518,6 +534,7 @@ static void SampleIn(const mtwnPath* path, uint32_t i, double progress, double v
 void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueOut[4],
                             double tangentOut[4], uint32_t* lengths)
 {
+    MTWN_ASSERT(mtwnValidPath(path));
     SampleIn(path, SegmentAt(path, progress), progress, valueOut, tangentOut, lengths);
 }
 
@@ -556,6 +573,8 @@ mtwnResult mtwnSamplePath(const mtwnPath* path, double progress, double valueOut
 void mtwnLocatePath(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
                     mtwnCubic* cubic)
 {
+    // Its callers checked the path (src/path_direction.c).
+    MTWN_ASSERT(mtwnValidPath(path));
     Locate(path, progress, segmentOut, uOut, cubic, NULL);
 }
 
@@ -708,6 +727,8 @@ MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe
     // a float before it, a control held), so the path's check after it
     // refuses nothing the check before it passed.
     Canonicalize(def, keyframes, count);
+    MTWN_ASSERT(
+        IsValid(keyframes, count, s_kindChannels[def->kind], def->alpha, lengthsOut != NULL));
     bool mixed = def->kind == mtwn_valueColor || def->kind == mtwn_valueRotation;
     for (uint32_t i = 0; mixed && i + 1 < count; ++i)
     {
@@ -880,9 +901,16 @@ static mtwnVec4 TrackIn(const mtwnTrack* track, uint32_t i, double progress)
     return Normalized(value, k[i].value);
 }
 
+static bool MixReads(const mtwnTrack* track, uint32_t i);
+
+// A clip's own track (src/clip_sample.c), made from the keyframes it
+// copied: every segment reads, whatever the progress.
 MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress)
 {
-    return TrackIn(track, SegmentAt(&track->path, progress), progress);
+    MTWN_ASSERT(mtwnValidTrack(track));
+    uint32_t i = SegmentAt(&track->path, progress);
+    MTWN_ASSERT(Reads(&track->path, i) && MixReads(track, i));
+    return TrackIn(track, i, progress);
 }
 
 MTWN_NOINLINE bool mtwnValidTrack(const mtwnTrack* track)

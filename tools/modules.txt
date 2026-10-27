@@ -39,7 +39,7 @@ context: allocator context_internal invariant pool reserved_internal fpenv
 target: context_internal pool fpenv
 transition: bounds_internal coast context_internal css_easing easing_internal elementary fpenv pool valid work
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
-path: elementary fpenv path_internal path_length bounds_internal reserved_internal valid work
+path: elementary fpenv invariant path_internal path_length bounds_internal reserved_internal valid work
 path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length fpenv valid
