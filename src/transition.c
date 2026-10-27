@@ -488,7 +488,7 @@ static MTWN_NOINLINE mtwnResult mtwnStartTransitionWork(mtwnContext* context,
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunStartTransition(context, def, playerOut);
     mtwnLeave(context);
@@ -595,7 +595,7 @@ static MTWN_NOINLINE mtwnResult mtwnMeasureTransitionWork(mtwnContext* context,
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunMeasureTransition(context, def, distanceOut);
     mtwnLeave(context);

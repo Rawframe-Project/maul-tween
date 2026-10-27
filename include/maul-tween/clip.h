@@ -254,7 +254,7 @@ extern "C"
     /// @param bytesOut    Receives the bytes; 0 on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument or a
     ///         def without its cookie; mtwn_errorLimit for a capacity past
-    ///         MTWN_MAX_COUNT; mtwn_errorState while the context is busy.
+    ///         MTWN_MAX_COUNT; mtwn_errorBusy while the context is busy.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(mtwnContext* context,

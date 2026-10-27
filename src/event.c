@@ -161,7 +161,7 @@ static MTWN_NOINLINE mtwnResult mtwnReadEventsWork(mtwnContext* context, mtwnEve
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunReadEvents(context, eventsOut, capacity, countOut, droppedOut);
     mtwnLeave(context);

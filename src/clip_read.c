@@ -86,7 +86,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_GetTrackWork(mtwnContext* context, mtwn
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipGetTrack(context, clip, node, trackOut);
     mtwnLeave(context);
@@ -150,7 +150,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_GetNodeWork(mtwnContext* context, mtwnC
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipGetNode(context, clip, node, infoOut);
     mtwnLeave(context);
@@ -206,7 +206,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_FindLabelWork(mtwnContext* context, mtw
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipFindLabel(context, clip, parent, key, secondsOut);
     mtwnLeave(context);
@@ -254,7 +254,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_GetDurationWork(mtwnContext* context, m
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipGetDuration(context, clip, secondsOut);
     mtwnLeave(context);

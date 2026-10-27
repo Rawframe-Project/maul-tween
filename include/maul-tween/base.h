@@ -93,8 +93,9 @@ extern "C"
         // An id names an object that has been destroyed since it was
         // handed out.
         mtwn_errorStale = -3,
-        // The call is not allowed in the object's current state: a clip
-        // not finished, a context busy with a call that calls back in.
+        // The call is not allowed in the object's current state, which only
+        // another call changes: a clip not finished or already finished, a
+        // player at a rate or a time the control cannot start from.
         mtwn_errorState = -6,
         // A def was built against headers of another release before 1.0,
         // or another major or minor version from 1.0 on.
@@ -102,8 +103,9 @@ extern "C"
         // An argument passes a bound published as a named constant
         // (MTWN_MAX_* or MTWN_*_LIMIT). More room would not help.
         mtwn_errorLimit = -9,
-        // The object is in use by work the library runs, a clip a player
-        // plays, and the same call succeeds once that work ends.
+        // The object is in use by work under way, and the same call
+        // succeeds once that work ends: a context inside the host's code it
+        // runs (a call back in), a clip a player still holds.
         mtwn_errorBusy = -10,
     };
 

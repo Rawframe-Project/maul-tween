@@ -399,7 +399,7 @@ static MTWN_NOINLINE mtwnResult mtwnGrowContextWork(mtwnContext** contextInOut,
     // The context moves: what it was enters, what it is leaves.
     if (!mtwnEnter(contextInOut == NULL ? NULL : *contextInOut))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunGrowContext(contextInOut, def);
     mtwnLeave(contextInOut == NULL ? NULL : *contextInOut);
@@ -465,7 +465,7 @@ static MTWN_NOINLINE mtwnResult mtwnContext_SetReducedMotionWork(mtwnContext* co
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunContextSetReducedMotion(context, reduced);
     mtwnLeave(context);

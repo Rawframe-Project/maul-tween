@@ -51,10 +51,10 @@ Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negati
 | `mtwn_errorInvalid` | -1 | An argument a correct program never passes: a null pointer, a value outside its documented range, a def not made by its default function. |
 | `mtwn_errorCapacity` | -2 | Storage is too small: a capacity the host set is full (targets, players, clips, bindings, a clip's nodes, keyframes or `linear()` points, a transition's points), a caller's buffer, or the allocator. More room would succeed. |
 | `mtwn_errorStale` | -3 | An id names an object destroyed since it was handed out. |
-| `mtwn_errorState` | -6 | The call is not allowed now: a finished clip changed, a call back in from the host's code. |
+| `mtwn_errorState` | -6 | The call is not allowed in the object's state, which another call changes: a clip not finished or already finished, a player control its rate or time does not allow. |
 | `mtwn_errorVersion` | -7 | A context def was built against headers of another ABI version. |
 | `mtwn_errorLimit` | -9 | An argument passes a bound published as a named constant: `MTWN_MAX_COUNT`, `MTWN_MAX_CLIP_STORAGE`, `MTWN_MAX_CLIP_DEPTH`, `MTWN_MAX_FIT_POINTS`, `MTWN_RATE_LIMIT`, `MTWN_SEEK_LIMIT`. More room would not help. |
-| `mtwn_errorBusy` | -10 | The object is in use: a clip a player plays, until the player is freed. |
+| `mtwn_errorBusy` | -10 | The object is in use, and the same call succeeds once that ends: a call back in from the host's code the context runs, a clip a player plays until the player is freed. |
 
 The values are the Maul family's, the same in every library, so a log of a raw value reads one way.
 
@@ -68,7 +68,7 @@ A call on a context clears its outputs when it fails (a null id, a zero value, a
 
 ## Calls back in
 
-The host's code that the library runs (a host easing, the allocator, the task system's functions) must not call the context it serves. Such a call is refused with `mtwn_errorState` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying.
+The host's code that the library runs (a host easing, the allocator, the task system's functions) must not call the context it serves. Such a call is refused with `mtwn_errorBusy` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying.
 
 ## Where to go next
 

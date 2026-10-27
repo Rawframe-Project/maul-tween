@@ -195,8 +195,8 @@ extern "C"
     /// @param player   A clip's player.
     /// @return mtwn_success; mtwn_errorInvalid for a null context;
     ///         mtwn_errorStale for an id that names no live player;
-    ///         mtwn_errorState for a transition, or backwards from an end
-    ///         that is infinite.
+    ///         mtwn_errorInvalid for a transition; mtwn_errorState
+    ///         backwards from an end that is infinite.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Play(mtwnContext* context, mtwnPlayerId player);
@@ -281,7 +281,7 @@ extern "C"
     /// @param progress  The share, finite; the duration must be finite.
     /// @return As mtwnPlayer_Seek, mtwn_errorLimit for a time, the share
     ///         times the duration, past MTWN_SEEK_LIMIT in size;
-    ///         mtwn_errorState also for an infinite duration.
+    ///         mtwn_errorInvalid also for an infinite duration.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SeekProgress(mtwnContext* context,

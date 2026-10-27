@@ -116,7 +116,7 @@ static MTWN_NOINLINE mtwnResult mtwnGetClipBytesWork(mtwnContext* context, const
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunGetClipBytes(context, def, bytesOut);
     mtwnLeave(context);
@@ -200,7 +200,7 @@ static MTWN_NOINLINE mtwnResult mtwnCreateClipWork(mtwnContext* context, const m
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunCreateClip(context, def, clipOut);
     mtwnLeave(context);
@@ -244,7 +244,7 @@ static MTWN_NOINLINE mtwnResult mtwnDestroyClipWork(mtwnContext* context, mtwnCl
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunDestroyClip(context, clip);
     mtwnLeave(context);
@@ -670,7 +670,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_AddTrackWork(mtwnContext* context, mtwn
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipAddTrack(context, clip, def, nodeOut);
     mtwnLeave(context);
@@ -717,7 +717,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_AddTimelineWork(mtwnContext* context, m
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipAddTimeline(context, clip, def, nodeOut);
     mtwnLeave(context);
@@ -769,7 +769,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_AddLabelWork(mtwnContext* context, mtwn
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipAddLabel(context, clip, parent, position, key, nodeOut);
     mtwnLeave(context);
@@ -802,7 +802,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_AddMarkWork(mtwnContext* context, mtwnC
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipAddMark(context, clip, parent, position, key, nodeOut);
     mtwnLeave(context);
@@ -905,7 +905,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_FinishWork(mtwnContext* context, mtwnCl
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunClipFinish(context, clip);
     mtwnLeave(context);

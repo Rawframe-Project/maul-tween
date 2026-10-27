@@ -9,7 +9,7 @@
 // The host's code a context's functions run (a host easing, the
 // allocator, the task system's functions and tasks) calls no function of
 // that context: while one runs, those taking the context non-const refuse
-// with mtwn_errorState and count one misuse, and the const ones read it in
+// with mtwn_errorBusy and count one misuse, and the const ones read it in
 // the middle of a call.
 
 #ifndef MAUL_TWEEN_CONTEXT_H

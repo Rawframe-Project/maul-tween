@@ -108,7 +108,7 @@ static MTWN_NOINLINE mtwnResult mtwnCreateTargetWork(mtwnContext* context, mtwnV
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunCreateTarget(context, kind, value, targetOut);
     mtwnLeave(context);
@@ -169,7 +169,7 @@ static MTWN_NOINLINE mtwnResult mtwnDestroyTargetWork(mtwnContext* context, mtwn
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunDestroyTarget(context, target);
     mtwnLeave(context);
@@ -236,7 +236,7 @@ static MTWN_NOINLINE mtwnResult mtwnTarget_SetBaseWork(mtwnContext* context, mtw
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunTargetSetBase(context, target, value);
     mtwnLeave(context);
@@ -281,7 +281,7 @@ static MTWN_NOINLINE mtwnResult mtwnTarget_GetValueWork(mtwnContext* context, mt
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunTargetGetValue(context, target, valueOut);
     mtwnLeave(context);
@@ -330,7 +330,7 @@ static MTWN_NOINLINE mtwnResult mtwnTarget_GetStateWork(mtwnContext* context, mt
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunTargetGetState(context, target, stateOut);
     mtwnLeave(context);
@@ -378,7 +378,7 @@ static MTWN_NOINLINE mtwnResult mtwnReadTargetsWork(mtwnContext* context,
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunReadTargets(context, targets, count, valuesOut);
     mtwnLeave(context);

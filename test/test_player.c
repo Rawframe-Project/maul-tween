@@ -258,7 +258,7 @@ static void TestFinishReverse(void)
     CHECK(mtwnPlayer_Reverse(f.context, p) == mtwn_errorState, "refused");
     CHECK(State(&f, p).rate == 1.0 && State(&f, p).state == mtwn_playIdle, "and nothing changed");
     CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_errorState, "no end to finish at");
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.5) == mtwn_errorState, "no progress of it");
+    CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.5) == mtwn_errorInvalid, "no progress of it");
     mtwnDestroyContext(f.context);
 }
 
@@ -613,10 +613,10 @@ static void TestOrder(void)
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
-    CHECK(mtwnPlayer_Pause(f.context, transition) == mtwn_errorState,
+    CHECK(mtwnPlayer_Pause(f.context, transition) == mtwn_errorInvalid,
           "transitions take no controls");
     mtwnPlayerState s;
-    CHECK(mtwnPlayer_GetState(f.context, transition, &s) == mtwn_errorState, "nor report a state");
+    CHECK(mtwnPlayer_GetState(f.context, transition, &s) == mtwn_errorInvalid, "nor report a state");
     CHECK(mtwnPlayer_Play(f.context, (mtwnPlayerId){9, 9}) == mtwn_errorStale, "a stale player");
     mtwnDestroyContext(f.context);
 }

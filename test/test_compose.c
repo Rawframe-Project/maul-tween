@@ -245,7 +245,7 @@ static void TestCommitAndRefusals(void)
     move.value = (mtwnVec4){1.0f, 0, 0, 0};
     mtwnPlayerId t;
     CHECK(mtwnStartTransition(w.context, &move, &t) == mtwn_success &&
-              mtwnPlayer_SetWeight(w.context, t, 0.5) == mtwn_errorState,
+              mtwnPlayer_SetWeight(w.context, t, 0.5) == mtwn_errorInvalid,
           "a transition has no weight");
     mtwnDestroyContext(w.context);
 }

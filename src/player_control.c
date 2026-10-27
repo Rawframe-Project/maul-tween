@@ -159,9 +159,11 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
     double target = argument;
     if (control == s_seekProgress)
     {
+        // A share of an endless clip names no time, and no call changes a
+        // finished clip's end.
         if (!isfinite(end))
         {
-            return mtwn_errorState;
+            return mtwn_errorInvalid;
         }
         target = argument * end;
     }
@@ -214,9 +216,10 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     {
         return Misuse(context, mtwn_errorStale);
     }
+    // A transition's player is the wrong kind for a clip's controls.
     if (slot->type != MTWN_PLAYER_CLIP)
     {
-        return Misuse(context, mtwn_errorState);
+        return Misuse(context, mtwn_errorInvalid);
     }
     if (control == s_setWeight && !mtwnIsWeight(argument))
     {
@@ -241,7 +244,7 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunControl(context, player, control, argument, key);
     mtwnLeave(context);

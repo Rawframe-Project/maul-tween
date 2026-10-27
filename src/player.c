@@ -562,7 +562,7 @@ static MTWN_NOINLINE mtwnResult mtwnCreatePlayerWork(mtwnContext* context, const
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunCreatePlayer(context, def, playerOut);
     mtwnLeave(context);
@@ -619,7 +619,7 @@ static MTWN_NOINLINE mtwnResult mtwnDestroyPlayerWork(mtwnContext* context, mtwn
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunDestroyPlayer(context, player);
     mtwnLeave(context);
@@ -655,9 +655,10 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
     {
         return Misuse(context, mtwn_errorInvalid);
     }
+    // A transition's player is the wrong kind for a clip's state.
     if (slot->type != MTWN_PLAYER_CLIP)
     {
-        return Misuse(context, mtwn_errorState);
+        return Misuse(context, mtwn_errorInvalid);
     }
     const mtwnClipPlay* play = &slot->play;
     double now = mtwnTimelineNow(context);
@@ -682,7 +683,7 @@ static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mt
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunPlayerGetState(context, player, stateOut);
     mtwnLeave(context);
