@@ -186,7 +186,7 @@ extern "C"
     ///         linear() points the host changed from the order its maker
     ///         left them in (not finite, or an input below one before it);
     ///         mtwn_errorStale for a target that is not alive;
-    ///         mtwn_errorLimit when the context holds its capacity of
+    ///         mtwn_errorCapacity when the context holds its capacity of
     ///         players, or for a linear() easing of more points than the
     ///         context's pointsPerTransition. A linear() easing's points are
     ///         copied into the context: the host's may change or go once it

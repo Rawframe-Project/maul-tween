@@ -36,12 +36,16 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
     }
     bool oneFunction = (def->allocator.alloc == NULL) != (def->allocator.free == NULL) ||
                        (def->enqueueTask == NULL) != (def->finishTask == NULL);
-    bool valid = !oneFunction && IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
-                 IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
-                 IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
-                 IsCount(def->sharedRecordCapacity) && IsCount(def->pointsPerTransition) &&
-                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
-    return valid ? mtwn_success : mtwn_errorInvalid;
+    if (oneFunction)
+    {
+        return mtwn_errorInvalid;
+    }
+    bool within = IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
+                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
+                  IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
+                  IsCount(def->sharedRecordCapacity) && IsCount(def->pointsPerTransition) &&
+                  def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
+    return within ? mtwn_success : mtwn_errorLimit;
 }
 
 // Where each part of the block starts, and its size.

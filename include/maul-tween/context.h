@@ -104,7 +104,7 @@ extern "C"
         // The most points of CSS linear() a transition's easing may have,
         // up to MTWN_MAX_COUNT: a transition copies them into the context,
         // which holds 16 bytes for each, for every player. A transition
-        // whose easing has more is refused with mtwn_errorLimit; a longer
+        // whose easing has more is refused with mtwn_errorCapacity; a longer
         // table belongs in a clip (mtwnClipDef's pointCapacity). 0 takes no
         // linear() easing.
         uint32_t pointsPerTransition;
@@ -157,9 +157,10 @@ extern "C"
     ///         without its cookie; then mtwn_errorVersion for a def stamped
     ///         by headers of another ABI version than the library's, before
     ///         anything else in it is read; mtwn_errorInvalid for an
-    ///         allocator or a task system with one function of the two, or a
-    ///         capacity past its maximum; mtwn_errorCapacity when the
-    ///         allocator fails or the block's size does not fit.
+    ///         allocator or a task system with one function of the two;
+    ///         mtwn_errorLimit for a capacity past MTWN_MAX_COUNT or clip
+    ///         storage past MTWN_MAX_CLIP_STORAGE; mtwn_errorCapacity when
+    ///         the allocator fails or the block's size does not fit.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateContext(const mtwnContextDef* def,
@@ -183,9 +184,10 @@ extern "C"
     /// @param contextInOut  The context; receives the grown one.
     /// @param def           The capacities: start from the context's own.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie, a capacity below the context's or past
-    ///         its limit, another allocator, or a task system with one
-    ///         function of the two; mtwn_errorVersion for a def of another
+    ///         without its cookie, a capacity below the context's, another
+    ///         allocator, or a task system with one function of the two;
+    ///         mtwn_errorLimit for a capacity past its maximum, as
+    ///         mtwnCreateContext; mtwn_errorVersion for a def of another
     ///         ABI version; mtwn_errorCapacity when the allocator fails.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.

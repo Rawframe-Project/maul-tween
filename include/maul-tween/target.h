@@ -41,8 +41,9 @@ extern "C"
     ///                  as given.
     /// @param targetOut Receives the target's id, or the null id on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, an
-    ///         unknown kind or a value outside the above; mtwn_errorLimit
-    ///         when the context holds its capacity of targets.
+    ///         unknown kind or a value outside the above;
+    ///         mtwn_errorCapacity when the context holds its capacity of
+    ///         targets.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateTarget(mtwnContext* context, mtwnValueKind kind,

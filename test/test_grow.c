@@ -98,7 +98,7 @@ static void TestGrow(void)
     mtwnTargetId c = {0, 0};
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &a) == mtwn_success &&
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &b) == mtwn_success &&
-              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &c) == mtwn_errorLimit,
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &c) == mtwn_errorCapacity,
           "two targets fill it");
     // A clip playing on a, a transition on b.
     mtwnClipDef clipDef = mtwnDefaultClipDef();

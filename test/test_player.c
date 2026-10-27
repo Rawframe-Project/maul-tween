@@ -390,7 +390,7 @@ static void TestOwnBindings(void)
           "a clip of a mark alone");
     def = mtwnDefaultPlayerDef();
     def.clip = marks;
-    CHECK(mtwnCreatePlayer(f.context, &def, &alone) == mtwn_errorLimit, "the pool full");
+    CHECK(mtwnCreatePlayer(f.context, &def, &alone) == mtwn_errorCapacity, "the pool full");
     Update(&f, 1.0);
     Update(&f, 2.0);
     CHECK(mtwnTarget_GetValue(f.context, f.target, &value) == mtwn_success && value.x == 0.5f,
@@ -499,7 +499,7 @@ static void TestBindings(void)
     CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorInvalid, "a slot the clip lacks");
     def.bindingCount = 0;
     def.rate = HUGE_VAL;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorInvalid, "an infinite rate");
+    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorLimit, "an infinite rate");
     def.rate = 1.0;
     mtwnPlayerId players[4];
     for (int i = 0; i < 4; ++i)
@@ -507,7 +507,7 @@ static void TestBindings(void)
         CHECK(mtwnCreatePlayer(f.context, &def, &players[i]) == mtwn_success,
               "unbound slots: one binding each");
     }
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorLimit, "the bindings full");
+    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorCapacity, "the bindings full");
     mtwnClipId busy = f.clip;
     CHECK(mtwnDestroyClip(f.context, busy) == mtwn_errorBusy, "the clip busy");
     for (int i = 0; i < 4; ++i)
@@ -549,7 +549,7 @@ static void TestGrowFromNoBindings(void)
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId refused = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorLimit, "a fifth refused");
+    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity, "a fifth refused");
     mtwnDestroyContext(f.context);
 }
 
@@ -568,7 +568,7 @@ static void TestFullPoolKeepsBindings(void)
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId refused = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorLimit &&
+    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity &&
               refused.index1 == 0,
           "no player's slot left");
     def.playerCapacity = 2;
@@ -780,10 +780,10 @@ static void TestRateLimit(void)
     mtwnPlayerState before;
     CHECK(mtwnPlayer_GetState(f.context, p, &before) == mtwn_success, "read");
     CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(MTWN_RATE_LIMIT, HUGE_VAL)) ==
-                  mtwn_errorInvalid &&
-              mtwnPlayer_SetRate(f.context, p, -1e300) == mtwn_errorInvalid &&
+                  mtwn_errorLimit &&
+              mtwnPlayer_SetRate(f.context, p, -1e300) == mtwn_errorLimit &&
               mtwnPlayer_SetRate(f.context, p, (double)NAN) == mtwn_errorInvalid &&
-              mtwnPlayer_SetRate(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
+              mtwnPlayer_SetRate(f.context, p, HUGE_VAL) == mtwn_errorLimit,
           "past the limit, NaN and infinity refused");
     mtwnPlayerState after;
     CHECK(mtwnPlayer_GetState(f.context, p, &after) == mtwn_success && after.rate == before.rate &&
@@ -793,7 +793,7 @@ static void TestRateLimit(void)
     def.clip = f.clip;
     def.rate = 1e300;
     mtwnPlayerId refused;
-    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorInvalid && refused.index1 == 0,
+    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorLimit && refused.index1 == 0,
           "a def past the limit refused");
     def.rate = -MTWN_RATE_LIMIT;
     CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_success, "a def at the limit");
@@ -805,12 +805,12 @@ static void TestRateLimit(void)
               mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success,
           "the smallest rate, either way, and 0");
     CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(1.0 / MTWN_RATE_LIMIT, 0.0)) ==
-                  mtwn_errorInvalid &&
-              mtwnPlayer_SetRate(f.context, p, -0x1p-1074) == mtwn_errorInvalid &&
-              mtwnPlayer_SetRate(f.context, p, 1e-300) == mtwn_errorInvalid,
+                  mtwn_errorLimit &&
+              mtwnPlayer_SetRate(f.context, p, -0x1p-1074) == mtwn_errorLimit &&
+              mtwnPlayer_SetRate(f.context, p, 1e-300) == mtwn_errorLimit,
           "below it refused");
     def.rate = 0x1p-1074;
-    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorInvalid &&
+    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorLimit &&
               mtwnGetContextMisuse(f.context) == misuse + 4,
           "a def below it too, each counted as misuse");
     mtwnDestroyContext(f.context);
@@ -826,13 +826,13 @@ static void TestSeekLimit(void)
     Update(&f, 1.0);
     Update(&f, 2.0);
     uint64_t misuse = mtwnGetContextMisuse(f.context);
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, 1e308) == mtwn_errorInvalid &&
-              mtwnPlayer_SeekProgress(f.context, p, DBL_MAX) == mtwn_errorInvalid &&
-              mtwnPlayer_SeekProgress(f.context, p, -1e308) == mtwn_errorInvalid &&
+    CHECK(mtwnPlayer_SeekProgress(f.context, p, 1e308) == mtwn_errorLimit &&
+              mtwnPlayer_SeekProgress(f.context, p, DBL_MAX) == mtwn_errorLimit &&
+              mtwnPlayer_SeekProgress(f.context, p, -1e308) == mtwn_errorLimit &&
               mtwnPlayer_Seek(f.context, p, nextafter(MTWN_SEEK_LIMIT, HUGE_VAL)) ==
-                  mtwn_errorInvalid &&
-              mtwnPlayer_Seek(f.context, p, -1e308) == mtwn_errorInvalid &&
-              mtwnPlayer_Sweep(f.context, p, 1e308) == mtwn_errorInvalid,
+                  mtwn_errorLimit &&
+              mtwnPlayer_Seek(f.context, p, -1e308) == mtwn_errorLimit &&
+              mtwnPlayer_Sweep(f.context, p, 1e308) == mtwn_errorLimit,
           "a progress of 1e308 or DBL_MAX, and times past the limit, refused");
     CHECK(State(&f, p).currentTime == 1.0 && mtwnGetContextMisuse(f.context) == misuse + 6,
           "the player where it was, each counted as misuse");
@@ -867,7 +867,7 @@ static void TestSeekLimit(void)
     def.play = false;
     mtwnPlayerId q;
     CHECK(mtwnCreatePlayer(f.context, &def, &q) == mtwn_success &&
-              mtwnPlayer_SeekLabel(f.context, q, 1) == mtwn_errorInvalid &&
+              mtwnPlayer_SeekLabel(f.context, q, 1) == mtwn_errorLimit &&
               mtwnPlayer_SeekLabel(f.context, q, 2) == mtwn_success &&
               State(&f, q).currentTime == MTWN_SEEK_LIMIT,
           "a seek to the far label refused, to the one at the limit taken");

@@ -473,14 +473,18 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorState);
     }
-    if (!mtwnIsRate(def->rate) || !mtwnIsWeight(def->weight) || !AreBindings(context, def, clip))
+    if (isnan(def->rate) || !mtwnIsWeight(def->weight) || !AreBindings(context, def, clip))
     {
         return Misuse(context, mtwn_errorInvalid);
+    }
+    if (!mtwnIsRate(def->rate))
+    {
+        return Misuse(context, mtwn_errorLimit);
     }
     uint32_t start = 0;
     if (clip->slotCount > 0 && !mtwnTakeRun(&context->bindings, clip->slotCount, &start))
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_CLIP);
     if (index1 == 0)
@@ -489,7 +493,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
         {
             mtwnGiveRun(&context->bindings, start, clip->slotCount);
         }
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     mtwnBound* bound = &context->bindings.entries[start];
     for (uint32_t s = 0; s < clip->slotCount; ++s)

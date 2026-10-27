@@ -88,7 +88,7 @@ static mtwnResult RunCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwn
     uint32_t index1 = mtwnPoolAcquire(&context->targets);
     if (index1 == 0)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
     slot->base = accepted;

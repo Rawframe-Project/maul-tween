@@ -82,26 +82,29 @@ extern "C"
     {
         // The call did what was asked.
         mtwn_success = 0,
-        // An argument is invalid: a null pointer where one is required, a
-        // value out of range, a def not made by its default function.
+        // An argument a correct program never passes: a null pointer where
+        // one is required, a value outside its documented range, a def not
+        // made by its default function.
         mtwn_errorInvalid = -1,
-        // A caller buffer is too small for the result, or the allocator
-        // failed.
+        // Storage is too small for the result: a pool or a room the def
+        // sized, a caller's buffer, or the allocator. More room would
+        // succeed.
         mtwn_errorCapacity = -2,
-        // A named limit the caller set was reached: the work it bounds was
-        // not done.
-        mtwn_errorLimit = -3,
-        // A def was built against headers of another major or minor
-        // version.
-        mtwn_errorVersion = -4,
         // An id names an object that has been destroyed since it was
         // handed out.
-        mtwn_errorStale = -5,
-        // The object is in use by another and cannot be destroyed or
-        // changed now.
-        mtwn_errorBusy = -6,
-        // The call is not allowed in the object's current state.
-        mtwn_errorState = -7,
+        mtwn_errorStale = -3,
+        // The call is not allowed in the object's current state: a clip
+        // not finished, a context busy with a call that calls back in.
+        mtwn_errorState = -6,
+        // A def was built against headers of another release before 1.0,
+        // or another major or minor version from 1.0 on.
+        mtwn_errorVersion = -7,
+        // An argument passes a bound published as a named constant
+        // (MTWN_MAX_* or MTWN_*_LIMIT). More room would not help.
+        mtwn_errorLimit = -9,
+        // The object is in use by work the library runs, a clip a player
+        // plays, and the same call succeeds once that work ends.
+        mtwn_errorBusy = -10,
     };
 
     // A version: major, minor and patch.

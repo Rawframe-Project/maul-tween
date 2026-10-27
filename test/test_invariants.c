@@ -390,7 +390,7 @@ static bool KeyframesLeft(mtwnContext* context, mtwnClipId clip, const mtwnClipD
     track.keyframes = keys;
     track.keyframeCount = left + 1;
     mtwnNode node = 0;
-    bool over = mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorLimit;
+    bool over = mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorCapacity;
     bool fits = true;
     if (left >= 2)
     {

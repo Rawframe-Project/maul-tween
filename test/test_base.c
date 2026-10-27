@@ -22,23 +22,32 @@ static void TestResultNames(void)
     static const struct
     {
         mtwnResult result;
+        mtwnResult value;
         const char* name;
     } cases[] = {
-        {mtwn_success, "mtwn_success"},
-        {mtwn_errorInvalid, "mtwn_errorInvalid"},
-        {mtwn_errorCapacity, "mtwn_errorCapacity"},
-        {mtwn_errorLimit, "mtwn_errorLimit"},
-        {mtwn_errorVersion, "mtwn_errorVersion"},
-        {mtwn_errorStale, "mtwn_errorStale"},
-        {mtwn_errorBusy, "mtwn_errorBusy"},
-        {mtwn_errorState, "mtwn_errorState"},
+        {mtwn_success, 0, "mtwn_success"},
+        {mtwn_errorInvalid, -1, "mtwn_errorInvalid"},
+        {mtwn_errorCapacity, -2, "mtwn_errorCapacity"},
+        {mtwn_errorStale, -3, "mtwn_errorStale"},
+        {mtwn_errorState, -6, "mtwn_errorState"},
+        {mtwn_errorVersion, -7, "mtwn_errorVersion"},
+        {mtwn_errorLimit, -9, "mtwn_errorLimit"},
+        {mtwn_errorBusy, -10, "mtwn_errorBusy"},
     };
     for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i)
     {
-        CHECK(strcmp(mtwnResultName(cases[i].result), cases[i].name) == 0, cases[i].name);
+        CHECK(cases[i].result == cases[i].value &&
+                  strcmp(mtwnResultName(cases[i].result), cases[i].name) == 0,
+              cases[i].name);
     }
-    CHECK(strcmp(mtwnResultName(12345), "unknown result") == 0, "unknown name");
-    CHECK(strcmp(mtwnResultName(-8), "unknown result") == 0, "one past the last error");
+    // The family's shared errors maul-tween never returns, and past them.
+    static const mtwnResult unknown[] = {-4, -5, -8, -11, -32, 12345};
+    bool none = true;
+    for (size_t i = 0; i < sizeof unknown / sizeof unknown[0]; ++i)
+    {
+        none = none && strcmp(mtwnResultName(unknown[i]), "unknown result") == 0;
+    }
+    CHECK(none, "the family's values it does not define, and others, unknown");
 }
 
 int main(void)

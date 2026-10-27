@@ -128,7 +128,7 @@ static void TestDefRefusals(void)
         uint32_t* field = (uint32_t*)((char*)&def + ((char*)counts[i] - (char*)&def));
         *field = MTWN_MAX_COUNT + 1;
         def.allocator = (mtwnAllocator){CountAlloc, CountFree, &refusing};
-        CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "a count past its maximum");
+        CHECK(mtwnCreateContext(&def, &context) == mtwn_errorLimit, "a count past its maximum");
         def.allocator = mtwnDefaultContextDef().allocator;
         *field = 0;
         CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a count of 0");
@@ -142,7 +142,7 @@ static void TestDefRefusals(void)
           "the maxima themselves are accepted, then the allocator asked");
     def = mtwnDefaultContextDef();
     def.clipStorageBytes = (uint64_t)MTWN_MAX_CLIP_STORAGE + 1;
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "clip storage past its maximum");
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorLimit, "clip storage past its maximum");
 }
 
 // The block's bytes for a def, its sharing's capacities set.
@@ -226,7 +226,7 @@ static void TestIds(void)
               mtwnCreateTarget(context, mtwn_valueScalar, one, &c) == mtwn_success,
           "three");
     CHECK(a.index1 == 1 && b.index1 == 2 && c.index1 == 3 && a.generation == 1, "in order, from 1");
-    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &d) == mtwn_errorLimit &&
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, one, &d) == mtwn_errorCapacity &&
               d.index1 == 0 && d.generation == 0,
           "the capacity reached");
     CHECK(mtwnGetContextMisuse(context) == 0, "a full pool is not misuse");

@@ -183,10 +183,11 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
         target = clip->nodes[child - 1].start;
     }
     // A time beyond the limit, a product that overflowed among them, would
-    // overflow the start time (MTWN_SEEK_LIMIT).
+    // overflow the start time (MTWN_SEEK_LIMIT). The time is never NaN: a
+    // finite argument, its product with a finite end, or a label's start.
     if (!(fabs(target) <= MTWN_SEEK_LIMIT))
     {
-        return mtwn_errorInvalid;
+        return mtwn_errorLimit;
     }
     double before = mtwnCurrentTime(play, now);
     mtwnSetClipTime(play, now, end, target);
@@ -221,9 +222,9 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    if (control == s_setRate && !mtwnIsRate(argument))
+    if (control == s_setRate && mtwnCheckRate(argument) != mtwn_success)
     {
-        return Misuse(context, mtwn_errorInvalid);
+        return Misuse(context, mtwnCheckRate(argument));
     }
     if ((control == s_seek || control == s_seekProgress || control == s_sweep) &&
         !isfinite(argument))

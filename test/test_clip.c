@@ -96,7 +96,7 @@ static void TestStorage(void)
               counter.live - before >= one,
           "its block holds what the def takes");
     CHECK(mtwnCreateClip(context, &def, &b) == mtwn_success, "a second");
-    CHECK(mtwnCreateClip(context, &def, &c) == mtwn_errorLimit && c.index1 == 0,
+    CHECK(mtwnCreateClip(context, &def, &c) == mtwn_errorCapacity && c.index1 == 0,
           "the pool of clips full");
     CHECK(mtwnDestroyClip(context, a) == mtwn_success && counter.frees == 1,
           "destroyed, its block freed");
@@ -109,7 +109,7 @@ static void TestStorage(void)
     counter = (Counter){0};
     context = Make(&counter, 4, one + one / 2);
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "one fits");
-    CHECK(mtwnCreateClip(context, &def, &b) == mtwn_errorLimit && counter.allocations == 2,
+    CHECK(mtwnCreateClip(context, &def, &b) == mtwn_errorCapacity && counter.allocations == 2,
           "a second would pass the clip storage, nothing allocated");
     CHECK(mtwnGetContextMisuse(context) == 0, "a limit is not misuse");
     mtwnDestroyContext(context);
@@ -298,10 +298,10 @@ static void TestRefusals(void)
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "no cookie");
     clipDef = mtwnDefaultClipDef();
     clipDef.keyframeCapacity = MTWN_MAX_COUNT + 1;
-    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "a capacity too large");
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorLimit, "a capacity too large");
     clipDef = mtwnDefaultClipDef();
     clipDef.pointCapacity = MTWN_MAX_COUNT + 1;
-    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid,
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorLimit,
           "a point capacity too large");
     clipDef = mtwnDefaultClipDef();
     clipDef.nodeCapacity = 1;
@@ -366,7 +366,7 @@ static void TestRefusals(void)
         keys[1].value.x = (float)(i + 1);
         CHECK(mtwnClip_AddTrack(context, clip, &def, &filled[i]) == mtwn_success, "added");
     }
-    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorLimit, "the nodes full");
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorCapacity, "the nodes full");
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
     int intact = 1;
     for (int i = 0; i < 3; ++i)
@@ -386,7 +386,8 @@ static void TestRefusals(void)
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     def.slot = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "two keyframes");
-    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorLimit, "two more do not fit");
+    CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorCapacity,
+          "two more do not fit");
     clipDef.keyframeCapacity = 8;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "another");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "a scalar on slot 0");
@@ -651,11 +652,22 @@ static void TestDepth(void)
     CHECK(nested, "timelines nest to the deepest");
     group.parent = parent;
     mtwnNode deeper;
-    CHECK(mtwnClip_AddTimeline(context, clip, &group, &deeper) == mtwn_errorLimit && deeper == 0,
-          "and no deeper");
+    uint64_t misuse = mtwnGetContextMisuse(context);
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &deeper) == mtwn_errorLimit && deeper == 0 &&
+              mtwnGetContextMisuse(context) == misuse + 1,
+          "and no deeper: past MTWN_MAX_CLIP_DEPTH, counted as misuse");
     CHECK(mtwnClip_AddMark(context, clip, parent, At(mtwn_positionAbsolute, 0.0), 1, &deeper) ==
               mtwn_success,
           "though instants go in the deepest");
+    // A full clip refuses a timeline for room, which is not misuse.
+    mtwnClipId full;
+    clipDef.nodeCapacity = 0;
+    group.parent = MTWN_ROOT_NODE;
+    misuse = mtwnGetContextMisuse(context);
+    CHECK(mtwnCreateClip(context, &clipDef, &full) == mtwn_success &&
+              mtwnClip_AddTimeline(context, full, &group, &deeper) == mtwn_errorCapacity &&
+              deeper == 0 && mtwnGetContextMisuse(context) == misuse,
+          "a clip of no room refuses a timeline, not as misuse");
     mtwnDestroyContext(context);
 }
 
@@ -696,7 +708,7 @@ static void TestTimelineRefusals(void)
               mtwn_success,
           "the third node");
     CHECK(mtwnClip_AddLabel(context, clip, backward, At(mtwn_positionAbsolute, 0.0), 1, &node) ==
-              mtwn_errorLimit,
+              mtwn_errorCapacity,
           "labels count among the nodes");
     group = mtwnDefaultClipTimelineDef();
     group.cookie = 0;
@@ -844,11 +856,11 @@ static void TestEndLimit(void)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "a track ending at the limit");
     track.timing.duration = nextafter(MTWN_SEEK_LIMIT, HUGE_VAL);
-    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid && node == 0,
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorLimit && node == 0,
           "one ending an ulp past it, refused");
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
     group.timing.delay = 1e308;
-    CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid,
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorLimit,
           "a timeline whose delay takes the end past it, refused");
     track.position = (mtwnPosition){0};
     track.position.kind = mtwn_positionAbsolute;
@@ -857,7 +869,7 @@ static void TestEndLimit(void)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "a track of 1 s from the limit, whose end rounds to it");
     track.timing.duration = MTWN_SEEK_LIMIT * 0x1p-52;
-    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorLimit,
           "one lasting an ulp of the limit, ending past it, refused");
     track.position.offset = 0.0;
     track.timing.duration = 1.0;
@@ -967,7 +979,7 @@ static void TestLimitEdges(void)
     track.keyframes = three;
     track.keyframeCount = 3;
     track.slot = 1;
-    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorLimit,
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorCapacity,
           "three more past the last refused");
     track.keyframes = two;
     track.keyframeCount = 2;
@@ -987,7 +999,7 @@ static void TestLimitEdges(void)
     CHECK(mtwnGetClipBytes(context, &largest, &bytes) == mtwn_success && bytes > MTWN_MAX_COUNT,
           "a capacity of MTWN_MAX_COUNT sized");
     largest.keyframeCapacity = MTWN_MAX_COUNT + 1;
-    CHECK(mtwnGetClipBytes(context, &largest, &bytes) == mtwn_errorInvalid, "one past it refused");
+    CHECK(mtwnGetClipBytes(context, &largest, &bytes) == mtwn_errorLimit, "one past it refused");
     mtwnDestroyContext(context);
 }
 
@@ -1023,7 +1035,7 @@ static void TestDefaults(void)
         ++fitted;
     }
     CHECK(fitted == def.clipCapacity - 1 &&
-              mtwnCreateClip(short_, &clipDef, &clip) == mtwn_errorLimit,
+              mtwnCreateClip(short_, &clipDef, &clip) == mtwn_errorCapacity,
           "each counted as said");
     mtwnDestroyContext(short_);
     // Bigger defs take more; bad defs are refused, each a misuse, and no
@@ -1041,8 +1053,7 @@ static void TestDefaults(void)
           "a def without its cookie");
     clipDef = mtwnDefaultClipDef();
     clipDef.slotCapacity = MTWN_MAX_COUNT + 1;
-    CHECK(mtwnGetClipBytes(context, &clipDef, &more) == mtwn_errorInvalid,
-          "a count past the limit");
+    CHECK(mtwnGetClipBytes(context, &clipDef, &more) == mtwn_errorLimit, "a count past the limit");
     CHECK(mtwnGetContextMisuse(context) == misuse + 4, "each counted");
     CHECK(mtwnGetClipBytes(NULL, &clipDef, &more) == mtwn_errorInvalid && more == 0,
           "no context, no def read");
@@ -1111,7 +1122,7 @@ static void TestLinearPointsCopied(void)
     def.timing.easing = easings[3];
     keys[0].easing = easings[2];
     uint64_t misuse = mtwnGetContextMisuse(context);
-    CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_errorLimit && node == 0 &&
+    CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_errorCapacity && node == 0 &&
               mtwnGetContextMisuse(context) == misuse,
           "6 points past 5 refused, not misuse");
     keptTiming[1].input = 1.5;
@@ -1128,7 +1139,7 @@ static void TestLinearPointsCopied(void)
     CHECK(mtwnClip_AddTimeline(context, small, &timeline, &node) == mtwn_errorInvalid,
           "a timeline whose points the host made decrease refused");
     keptTiming[1].output = 0.2;
-    CHECK(mtwnClip_AddTimeline(context, small, &timeline, &node) == mtwn_errorLimit,
+    CHECK(mtwnClip_AddTimeline(context, small, &timeline, &node) == mtwn_errorCapacity,
           "a timeline's points past what is left refused");
     // A timeline's copies are kept: a track added after takes the points
     // after them.

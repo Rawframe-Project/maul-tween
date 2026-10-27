@@ -84,7 +84,7 @@ static mtwnResult CheckClipDef(const mtwnClipDef* def)
     }
     bool counts = IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) &&
                   IsCount(def->slotCapacity) && IsCount(def->pointCapacity);
-    return counts ? mtwn_success : mtwn_errorInvalid;
+    return counts ? mtwn_success : mtwn_errorLimit;
 }
 
 static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
@@ -151,12 +151,12 @@ static mtwnResult RunCreateClip(mtwnContext* context, const mtwnClipDef* def, mt
     if (!PlanClip(def, &layout) || ckd_add(&used, context->clipStorageUsed, layout.bytes) ||
         used > context->def.clipStorageBytes)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     uint32_t index1 = mtwnPoolAcquire(&context->clips);
     if (index1 == 0)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     unsigned char* block =
         mtwnAllocate(&context->allocator, (size_t)layout.bytes, s_blockAlignment);
@@ -306,12 +306,13 @@ static double EndOf(double start, const mtwnTiming* timing)
 
 // Carries a child's end up its ancestors: each timeline's children end
 // rises to it, and a timeline lasting as long as its children moves its
-// own end. False, with nothing written, when the duration a timeline
-// would take makes its timing one mtwnValidateTiming refuses: played
-// backwards and infinitely long, which leaves it no end to start from, or
-// with an active duration or a cycle past a double; or when the clip's
-// end would be finite and past MTWN_SEEK_LIMIT.
-static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
+// own end. Nothing is written on a refusal: mtwn_errorInvalid when the
+// duration a timeline would take makes its timing one mtwnValidateTiming
+// refuses (played backwards and infinitely long, which leaves it no end to
+// start from, or with an active duration or a cycle past a double), and
+// mtwn_errorLimit when the clip's end would be finite and past
+// MTWN_SEEK_LIMIT.
+static mtwnResult Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
 {
     while (parent != 0)
     {
@@ -323,7 +324,7 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
         // limit, it would overflow the start time (MTWN_SEEK_LIMIT).
         if (parent == MTWN_ROOT_NODE && isfinite(childrenEnd) && childrenEnd > MTWN_SEEK_LIMIT)
         {
-            return false;
+            return mtwn_errorLimit;
         }
         if (write)
         {
@@ -331,12 +332,12 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
         }
         if (!timeline->autoDuration || parent == MTWN_ROOT_NODE)
         {
-            return true;
+            return mtwn_success;
         }
         mtwnTiming timing = mtwnClipTimelineTiming(timeline, childrenEnd);
         if (mtwnValidateTimingWork(&timing) != mtwn_success)
         {
-            return false;
+            return mtwn_errorInvalid;
         }
         end = EndOf(timeline->start, &timing);
         if (write)
@@ -345,7 +346,7 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
         }
         parent = timeline->parent;
     }
-    return true;
+    return mtwn_success;
 }
 
 // Whether there is room for one more node.
@@ -376,7 +377,7 @@ static uint32_t Attach(mtwnClipSlot* clip, const mtwnClipNode* node)
     if (node->kind == mtwn_nodeTrack || node->kind == mtwn_nodeTimeline)
     {
         parent->previous = index1;
-        if (!Raise(clip, node->parent, node->end, true))
+        if (Raise(clip, node->parent, node->end, true) != mtwn_success)
         {
             // Its caller raised the same end without writing, which
             // succeeded, so writing it cannot fail.
@@ -421,7 +422,7 @@ static uint32_t PointsOf(const mtwnEasing* easing)
 // easings at the copies, so the host's may change once added; the count
 // it then holds in countOut, for the caller to keep once the node is.
 // mtwn_errorInvalid when the host changed points from what their maker
-// left, mtwn_errorLimit when they do not fit; the easings valid.
+// left, mtwn_errorCapacity when they do not fit; the easings valid.
 static mtwnResult CopyPoints(mtwnClipSlot* clip, mtwnEasing* timing, mtwnKeyframe* keyframes,
                              uint32_t keyframeCount, uint32_t* countOut)
 {
@@ -439,7 +440,7 @@ static mtwnResult CopyPoints(mtwnClipSlot* clip, mtwnEasing* timing, mtwnKeyfram
     }
     if (needed > clip->def.pointCapacity - clip->pointCount)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     uint32_t at = clip->pointCount;
     if (PointsOf(timing) > 0)
@@ -483,7 +484,7 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
     }
     if (!HasRoom(clip) || def->keyframeCount > clip->def.keyframeCapacity - clip->keyframeCount)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     return mtwn_success;
 }
@@ -525,9 +526,10 @@ static MTWN_NOINLINE mtwnResult AddTrackWorker(mtwnClipSlot* clip, const mtwnCli
     {
         node.step = Turn(keyframes[0].value, keyframes[def->keyframeCount - 1].value);
     }
-    if (!Raise(clip, def->parent, node.end, false))
+    mtwnResult raised = Raise(clip, def->parent, node.end, false);
+    if (raised != mtwn_success)
     {
-        return mtwn_errorInvalid;
+        return raised;
     }
     *nodeOut = Attach(clip, &node);
     clip->keyframeCount += def->keyframeCount;
@@ -551,9 +553,13 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
         return mtwn_errorInvalid;
     }
     node.depth = (uint8_t)(mtwnClipNodeAt(clip, def->parent)->depth + 1);
-    if (!HasRoom(clip) || node.depth > MTWN_MAX_CLIP_DEPTH)
+    if (node.depth > MTWN_MAX_CLIP_DEPTH)
     {
         return mtwn_errorLimit;
+    }
+    if (!HasRoom(clip))
+    {
+        return mtwn_errorCapacity;
     }
     uint32_t points = 0;
     mtwnResult copied = CopyPoints(clip, &node.timing.easing, NULL, 0, &points);
@@ -565,9 +571,10 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     node.end = EndOf(node.start, &resolved);
     node.parent = def->parent;
     node.kind = mtwn_nodeTimeline;
-    if (!Raise(clip, def->parent, node.end, false))
+    mtwnResult raised = Raise(clip, def->parent, node.end, false);
+    if (raised != mtwn_success)
     {
-        return mtwn_errorInvalid;
+        return raised;
     }
     *nodeOut = Attach(clip, &node);
     clip->pointCount = points;
@@ -585,7 +592,7 @@ static MTWN_NOINLINE mtwnResult AddInstantWorker(mtwnClipSlot* clip, mtwnNodeKin
     }
     if (!HasRoom(clip))
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     mtwnClipNode node = {0};
     node.start = StartOf(clip, parent, position);
@@ -625,10 +632,12 @@ static mtwnClipSlot* Adding(mtwnContext* context, mtwnClipId clip, bool given, b
     return result == mtwn_success ? slot : NULL;
 }
 
-// A worker's result, an invalid argument counted as misuse.
+// A worker's result, an invalid argument or one past a named bound counted
+// as misuse; a full clip is not.
 static mtwnResult Counted(mtwnContext* context, mtwnResult result)
 {
-    return result == mtwn_errorInvalid ? Misuse(context, result) : result;
+    return result == mtwn_errorInvalid || result == mtwn_errorLimit ? Misuse(context, result)
+                                                                    : result;
 }
 
 static mtwnResult RunClipAddTrack(mtwnContext* context, mtwnClipId clip,
