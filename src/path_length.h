@@ -47,9 +47,7 @@ mtwnMinima mtwnSpeedMinima(const mtwnCubic* cubic, uint8_t channels);
 double mtwnArcLength(const mtwnCubic* cubic, uint8_t channels, const mtwnMinima* minima, double a,
                      double b);
 
-// The parameter at a length into a segment of that total; the lengths it
-// measures counted in *lengths when not NULL.
-double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, double total,
-                       uint32_t* lengths);
+// The parameter at a length into a segment of that total.
+double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, double total);
 
 #endif // MAUL_TWEEN_SRC_PATH_LENGTH_H

@@ -317,10 +317,8 @@ double mtwnArcLength(const mtwnCubic* cubic, uint8_t channels, const mtwnMinima*
 }
 
 // The parameter at a length into a segment of that total, by Newton on
-// the length, kept within a shrinking bracket; the lengths it measures
-// counted in *lengths when not NULL.
-double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, double total,
-                       uint32_t* lengths)
+// the length, kept within a shrinking bracket.
+double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, double total)
 {
     if (target <= 0.0 || target >= total)
     {
@@ -334,7 +332,6 @@ double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, 
     // Measured from the nearer end, the shorter way.
     double at = u <= 0.5 ? mtwnArcLength(cubic, channels, &minima, 0.0, u)
                          : total - mtwnArcLength(cubic, channels, &minima, u, 1.0);
-    uint32_t measured = 1;
     for (int step = 0; step < s_newtonSteps; ++step)
     {
         double error = at - target;
@@ -380,13 +377,8 @@ double mtwnParameterAt(const mtwnCubic* cubic, uint8_t channels, double target, 
         {
             at += next > u ? mtwnArcLength(cubic, channels, &minima, u, next)
                            : -mtwnArcLength(cubic, channels, &minima, next, u);
-            ++measured;
         }
         u = next;
-    }
-    if (lengths != NULL)
-    {
-        *lengths += measured;
     }
     return u;
 }

@@ -13,11 +13,6 @@
 
 #include <stdint.h>
 
-// mtwnSamplePath, adding to *lengths, when not NULL, each arc length it
-// measures (at constant speed, finding the parameter at a length).
-void mtwnSamplePathCounting(const mtwnPath* path, double progress, double valueOut[4],
-                            double tangentOut[4], uint32_t* lengths);
-
 // The segment a progress falls in, its parameter there and its cubic, as
 // the path's sample finds them.
 void mtwnLocatePath(const mtwnPath* path, double progress, uint32_t* segmentOut, double* uOut,
