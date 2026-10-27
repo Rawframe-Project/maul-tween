@@ -76,8 +76,6 @@ extern "C"
         // For mtwn_positionAtLabel: the label's key.
         uint32_t label;
         mtwnPositionKind kind;
-        // 0: a call refuses another value.
-        uint8_t reserved[3];
     } mtwnPosition;
 
     // What a clip may hold. Start from mtwnDefaultClipDef.
@@ -94,8 +92,6 @@ extern "C"
         // timings' and the keyframes', up to MTWN_MAX_COUNT: the clip
         // copies them in, 16 bytes each.
         uint32_t pointCapacity;
-        // 0: a call refuses another value.
-        uint32_t reserved;
     } mtwnClipDef;
 
 // The cookie mtwnDefaultClipDef sets and mtwnCreateClip checks.
@@ -153,8 +149,6 @@ extern "C"
         // Numbers, vectors, angles, integers and rotations; not endless
         // iterations of no duration, which pass at once.
         bool incremental;
-        // 0: a call refuses another value.
-        uint8_t reserved[6];
     } mtwnClipTrackDef;
 
 // The cookie mtwnDefaultClipTrackDef sets and mtwnClip_AddTrack checks.
@@ -194,8 +188,6 @@ extern "C"
         // children arrive (infinite after an endless child, which makes the
         // timeline endless); otherwise the timing's duration, which clips.
         bool autoDuration;
-        // 0: a call refuses another value.
-        uint8_t reserved[7];
         mtwnPosition position;
         // Its timing; its easing must be monotonic.
         mtwnTiming timing;
@@ -238,8 +230,6 @@ extern "C"
         uint32_t slot;
         uint32_t key;
         mtwnNodeKind kind;
-        // Written 0.
-        uint8_t reserved[3];
     } mtwnClipNodeInfo;
 
     // A finished clip's track, for sampling through the values layer: it

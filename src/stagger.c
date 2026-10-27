@@ -11,7 +11,6 @@
 // inside-out shuffle driven by SplitMix64 of the seed.
 
 #include "fpenv.h"
-#include "reserved_internal.h"
 #include "stagger_internal.h"
 #include "valid.h"
 #include "work.h"
@@ -54,9 +53,7 @@ static bool IsValid(const mtwnStagger* stagger, uint32_t count, const double* of
     bool finite = isfinite(stagger->start) && isfinite(stagger->spacing) &&
                   fabs(stagger->pointX) <= s_pointLimit && fabs(stagger->pointY) <= s_pointLimit;
     bool index = stagger->origin != mtwn_staggerIndex || count == 0 || stagger->index < count;
-    return known && finite && index &&
-           mtwnReservedClear(stagger->reserved, sizeof stagger->reserved) &&
-           mtwnValidEasing(&stagger->easing);
+    return known && finite && index && mtwnValidEasing(&stagger->easing);
 }
 
 static Grid MakeGrid(const mtwnStagger* stagger, uint32_t count)

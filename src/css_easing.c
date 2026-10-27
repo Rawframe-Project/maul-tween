@@ -193,8 +193,7 @@ static double EaseCubicBezier(const mtwnEasing* easing, double progress)
 static MTWN_NOINLINE mtwnResult mtwnEaseCubicBezierWork(const mtwnEasing* easing, double progress,
                                                         double* easedOut)
 {
-    if (easing == NULL || easing->reserved != 0 || easing->mode > mtwn_easeOutIn ||
-        !isfinite(progress) || easedOut == NULL)
+    if (easing == NULL || easing->mode > mtwn_easeOutIn || !isfinite(progress) || easedOut == NULL)
     {
         return mtwn_errorInvalid;
     }

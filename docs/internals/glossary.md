@@ -35,4 +35,3 @@ Terms the code, the tests and the documentation use with one meaning.
 - **Reduced motion:** a context's setting under which what can finish finishes at the next update. **Essential:** marked to play on all the same.
 - **Group (tasks):** one of up to 16 work items an update hands the host's task system, each advancing some clips' players with its own scratch.
 - **In step:** players of one clip at the same time and rate, which share their sample and records.
-- **Reserved:** a byte that is 0 in everything crossing the interface, refused otherwise.

@@ -49,7 +49,7 @@ static Fixture MakeFrom(const mtwnContextDef* def, bool endless)
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(f.context, f.clip, &track, &node) == mtwn_success, "a track");
     // A mark sharing the label's key, before it: seeks find the label.
-    mtwnPosition at = {0.75, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {0.75, 0, mtwn_positionAbsolute};
     CHECK(mtwnClip_AddMark(f.context, f.clip, MTWN_ROOT_NODE, at, 3, &node) == mtwn_success,
           "a mark");
     at.offset = 1.25;
@@ -345,7 +345,7 @@ static void TestOwnBindings(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId marks;
     CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success, "a clip");
-    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     mtwnNode node;
     CHECK(mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
               mtwnClip_Finish(f.context, marks) == mtwn_success,
@@ -854,7 +854,7 @@ static void TestSeekLimit(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId far;
     mtwnNode node;
-    mtwnPosition at = {1e308, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {1e308, 0, mtwn_positionAbsolute};
     CHECK(mtwnCreateClip(f.context, &clipDef, &far) == mtwn_success &&
               mtwnClip_AddLabel(f.context, far, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success,
           "a label at 1e308");
@@ -882,10 +882,10 @@ static void TestSeekLabelOfRoot(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
-    group.position = (mtwnPosition){1.0, 0, mtwn_positionAbsolute, {0}};
+    group.position = (mtwnPosition){1.0, 0, mtwn_positionAbsolute};
     mtwnNode timeline;
     mtwnNode node;
-    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     CHECK(mtwnCreateClip(f.context, &clipDef, &clip) == mtwn_success &&
               mtwnClip_AddTimeline(f.context, clip, &group, &timeline) == mtwn_success &&
               mtwnClip_AddLabel(f.context, clip, timeline, at, 5, &node) == mtwn_success,
@@ -915,7 +915,7 @@ static void TestNoBindingsDestroyed(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId marks;
     mtwnNode node;
-    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success &&
               mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
               mtwnClip_Finish(f.context, marks) == mtwn_success,

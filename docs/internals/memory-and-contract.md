@@ -22,9 +22,9 @@ Targets, players and clips are named by a 1-based index and a generation from 1 
 
 Every def opens with a cookie, set by its inline default function; a def not made by it fails the cookie. The context def, the root every other object lives under, also carries `MTWN_ABI_VERSION`, stamped by its default from the headers the program includes: `mtwnCreateContext` and `mtwnGrowContext` check the cookie first and the version second, before they read anything else. The other defs are taken by a context that already passed, so they carry only their cookie. The version is the whole release before 1.0 and the major and minor version from 1.0 on, with the top bit set so a zeroed value never matches. Starting from the default is what lets a def grow: a field added later is set by the new default, and a program built against old headers is refused rather than misread.
 
-## Reserved bytes
+## Padding
 
-A reserved byte is 0 in everything that crosses the interface. An input whose reserved byte, or a reserved byte of a part of it, is not 0 is refused with `mtwn_errorInvalid`, one misuse counted where a context takes it: the defs, their timings, positions, keyframes, bindings and track defs, and the easings and springs inside them. Outputs write their reserved bytes 0. The check is made where an input is taken in, never in a sample: values sampled every frame (an easing, a spring, a path, a track, a mix) are checked where a context or a maker takes them. A later release can then give a byte a meaning whose 0 is the behavior today.
+Public structs have no reserved fields and no fields that only spell out padding: a struct gains a field in the release that needs it, and `MTWN_ABI_VERSION` refuses a program built with another release's headers. Where a struct has padding, its bytes carry nothing. A call never reads them, and an output with padding that a call clears is cleared with `memset`, so a refused call leaves every byte of it 0. The library stores no bytes of its own (no snapshot, tape or asset), so the family's rule for stored bytes has nothing to apply to here.
 
 ## Refusals and misuse
 

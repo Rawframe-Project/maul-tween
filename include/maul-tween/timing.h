@@ -87,8 +87,6 @@ extern "C"
         mtwnFill fill;
         mtwnDirection direction;
         mtwnAlternateEasing alternateEasing;
-        // 0: a call refuses another value.
-        uint8_t reserved[5];
     } mtwnTiming;
 
     // A node's timing at one local time. Values a phase leaves undefined
@@ -118,8 +116,6 @@ extern "C"
         bool inRepeatDelay;
         // Whether the current iteration runs forwards, by the direction.
         bool forwards;
-        // Written 0.
-        uint8_t reserved[4];
     } mtwnTimingResult;
 
     /// Returns Web Animations' default timing: no delays, fill none, one
@@ -243,8 +239,6 @@ extern "C"
         mtwnStaggerOrigin origin;
         mtwnStaggerAxis axis;
         mtwnStaggerSpacing spacingKind;
-        // 0: a call refuses another value.
-        uint8_t reserved[5];
     } mtwnStagger;
 
     /// Returns the default stagger: from the first item, 0.1 between

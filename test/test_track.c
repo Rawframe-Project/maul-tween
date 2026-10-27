@@ -493,12 +493,6 @@ static void TestSampleRefusals(void)
     track = made;
     track.path.logarithmic = 1;
     CHECK(TrackRefused(&track, 0.5), "logarithmic, not a scale");
-    for (int i = 0; i < 7; ++i)
-    {
-        track = made;
-        track.reserved[i] = 1;
-        CHECK(TrackRefused(&track, 0.5), "a reserved byte set");
-    }
     mtwnSegmentMix mixes[2];
     track = made;
     track.mixes = mixes;

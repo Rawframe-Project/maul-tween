@@ -83,8 +83,6 @@ extern "C"
         mtwnEventKind kind;
         // Whether the crossings went backwards.
         bool backwards;
-        // Written 0.
-        uint8_t reserved[6];
     } mtwnEvent;
 
     /// Takes the oldest records off the queue, as many as fit, and reports

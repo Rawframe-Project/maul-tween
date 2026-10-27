@@ -619,18 +619,15 @@ static void TestCubicBezierSampler(void)
     }
     mtwnEasing bezier;
     CHECK(mtwnMakeCubicBezier(0.3, 0.1, 0.7, 0.9, &bezier) == mtwn_success, "a bezier");
-    mtwnEasing reserved = bezier;
-    reserved.reserved = 1;
     mtwnEasing mode = bezier;
     mode.mode = 4;
     mtwnEasing outside = bezier;
     outside.parameters[2] = 1.5;
     double eased = 7.0;
-    CHECK(mtwnEaseCubicBezier(&reserved, 0.5, &eased) == mtwn_errorInvalid &&
-              mtwnEaseCubicBezier(&mode, 0.5, &eased) == mtwn_errorInvalid &&
+    CHECK(mtwnEaseCubicBezier(&mode, 0.5, &eased) == mtwn_errorInvalid &&
               mtwnEaseCubicBezier(&outside, 0.5, &eased) == mtwn_errorInvalid &&
               mtwnEaseCubicBezier(NULL, 0.5, &eased) == mtwn_errorInvalid && eased == 7.0,
-          "a reserved byte, an unknown mode, a control point no maker takes, or none refused");
+          "an unknown mode, a control point no maker takes, or none refused");
 }
 
 // How many of the five calls taking an easing refuse this one, or -1 if
@@ -643,9 +640,13 @@ static int Refusals(const mtwnEasing* easing)
     mtwnLinearPoint points[4] = {{7.0, 7.0}, {7.0, 7.0}, {7.0, 7.0}, {7.0, 7.0}};
     mtwnEasing rough;
     memset(&rough, 0xAB, sizeof rough);
-    mtwnEasing before = rough;
+    // Copied byte for byte, padding included, so the comparisons below see
+    // only what a call wrote.
+    mtwnEasing before;
+    memcpy(&before, &rough, sizeof before);
     mtwnRoughDef def = {.shape = *easing, .strength = 0.1, .seed = 3};
-    mtwnEasing moded = *easing;
+    mtwnEasing moded;
+    memcpy(&moded, easing, sizeof moded);
     int refused = 0;
     refused += mtwnEase(easing, 0.5, false, &eased) == mtwn_errorInvalid;
     refused += mtwnIsEasingMonotonic(easing, &monotonic) == mtwn_errorInvalid;
@@ -698,7 +699,6 @@ static void TestForgedPenner(void)
         taken += Refusals(made[i]) == 0;
     }
     CHECK(taken == 7, "as made, taken");
-    FORGED(power, e.reserved = 1, "a reserved byte not 0");
     FORGED(power, e.mode = 4, "an unknown mode");
     FORGED(power, e.kind = 13, "an unknown kind");
     FORGED(power, e.parameters[0] = 0.0, "an exponent of 0");

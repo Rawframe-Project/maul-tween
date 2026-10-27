@@ -454,7 +454,7 @@ static void Context(Out* out)
     mtwnNode trackNode = {0};
     r = mtwnClip_AddTrack(context, clip, &track, &trackNode);
     PUT(out, r);
-    mtwnPosition at = {0.65, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {0.65, 0, mtwn_positionAbsolute};
     mtwnNode label = {0};
     mtwnNode mark = {0};
     r = mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, at, 4, &label);

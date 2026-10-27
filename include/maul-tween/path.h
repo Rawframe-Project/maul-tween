@@ -54,8 +54,6 @@ extern "C"
         // The easing of the segment that starts here, and its kind.
         mtwnEasing easing;
         mtwnSegmentKind kind;
-        // 0: a call refuses another value.
-        uint8_t reserved[7];
     } mtwnKeyframe;
 
     // A path over keyframes. Make one with mtwnMakePath; it references the
@@ -79,8 +77,6 @@ extern "C"
         // Whether its values are scales, the path over their logarithms (a
         // scale track's).
         uint8_t logarithmic;
-        // 0 as made; padding.
-        uint8_t reserved[2];
     } mtwnPath;
 
     /// Makes a path. With lengths it travels at constant speed: the
@@ -191,8 +187,6 @@ extern "C"
         mtwnAngleMethod angleMethod;
         // For rotations: the way each segment turns.
         mtwnRotationPath rotationPath;
-        // 0: a call refuses another value.
-        uint8_t reserved[3];
     } mtwnTrackDef;
 
     /// Makes a track def for a kind: centripetal Catmull-Rom, colors in
@@ -228,8 +222,6 @@ extern "C"
         mtwnPath path;
         const mtwnSegmentMix* mixes;
         mtwnValueKind kind;
-        // 0 as made; padding.
-        uint8_t reserved[7];
     } mtwnTrack;
 
     /// Makes a track. Numbers and vectors are their path; integers the path

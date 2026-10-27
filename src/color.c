@@ -177,7 +177,7 @@ MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwn
     {
         return mtwn_errorInvalid;
     }
-    mtwnColorMix mix = {{0.0}, {0.0}, from, to, space, {0}};
+    mtwnColorMix mix = {{0.0}, {0.0}, from, to, space};
     ToSpace(from, space, mix.from);
     ToSpace(to, space, mix.to);
     if (space == mtwn_colorOklch)

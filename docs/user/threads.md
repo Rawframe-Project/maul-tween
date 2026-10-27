@@ -48,7 +48,7 @@ Transitions, and targets several players write, are composed on the calling thre
 
 ## Players in step
 
-Players of one clip at the same time and rate, such as a crowd started together, share their sample and their records: the second and later ones take the work the first did. The sharing holds `sharedNodeCapacity` nodes and `sharedRecordCapacity` records on the calling thread and in each group, 14,848 bytes each at the defaults. A host whose players never run in step sets both to 0 and holds none of it.
+Players of one clip at the same time and rate, such as a crowd started together, share their sample and their records: the second and later ones take the work the first did. The sharing holds `sharedNodeCapacity` nodes and `sharedRecordCapacity` records on the calling thread and in each group, 14,848 bytes each at the defaults on a 64-bit target. A host whose players never run in step sets both to 0 and holds none of it.
 
 ## Growing
 

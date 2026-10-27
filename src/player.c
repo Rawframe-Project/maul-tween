@@ -12,9 +12,9 @@
 #include "fpenv.h"
 #include "invariant.h"
 #include "player_internal.h"
-#include "reserved_internal.h"
 
 #include <math.h>
+#include <string.h>
 
 static mtwnPlayState StateOf(const mtwnClipPlay* play, double now, double end)
 {
@@ -360,7 +360,6 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
             &context->targets, binding->target.index1, binding->target.generation);
         if (binding->slot >= clip->slotCount || target == NULL ||
             binding->composite > mtwn_compositeAdd || !mtwnIsWeight((double)binding->weight) ||
-            !mtwnReservedClear(binding->reserved, sizeof binding->reserved) ||
             clip->slotKinds[binding->slot] != target->kind + 1)
         {
             return false;
@@ -545,10 +544,6 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    if (!mtwnReservedClear(def->reserved, sizeof def->reserved))
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
     mtwnResult result = CreateWorker(context, def, playerOut);
     return result;
 }
@@ -679,7 +674,7 @@ static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mt
     // Cleared first, so a busy or missing context's failure clears it too.
     if (stateOut != NULL)
     {
-        *stateOut = (mtwnPlayerState){0};
+        memset(stateOut, 0, sizeof *stateOut);
     }
     if (!mtwnEnter(context))
     {

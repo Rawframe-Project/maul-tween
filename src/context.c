@@ -9,7 +9,6 @@
 #include "context_internal.h"
 #include "fpenv.h"
 #include "invariant.h"
-#include "reserved_internal.h"
 
 #include <stdckdint.h>
 #include <string.h>
@@ -41,7 +40,7 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
                  IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
                  IsCount(def->sharedRecordCapacity) && IsCount(def->pointsPerTransition) &&
-                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE && def->reserved == 0;
+                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
     return valid ? mtwn_success : mtwn_errorInvalid;
 }
 

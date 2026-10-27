@@ -568,9 +568,6 @@ static void TestMixChecks(void)
     m.space = 4;
     refused += MixRefused(&m, 0.5);
     m = made;
-    m.reserved[3] = 1;
-    refused += MixRefused(&m, 0.5);
-    m = made;
     m.fromColor.alpha = 1.5f;
     refused += MixRefused(&m, 0.5);
     m = made;
@@ -588,7 +585,7 @@ static void TestMixChecks(void)
     m = made;
     m.to[3] = 1.0;
     refused += MixRefused(&m, 0.5);
-    CHECK(refused == 8, "an unknown space, padding, a color its maker refuses, a coordinate "
+    CHECK(refused == 7, "an unknown space, a color its maker refuses, a coordinate "
                         "not finite and an alpha not its color's refused");
 
     // The hue from 0 to the two turns the fix-ups reach, in OkLCh alone.

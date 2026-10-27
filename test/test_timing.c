@@ -472,14 +472,11 @@ static void TestComputeRefusals(void)
     mtwnTiming stopped = timing;
     stopped.playbackRate = 0.0;
     refused += ComputeRefused(&stopped, 0.5);
-    mtwnTiming padded = timing;
-    padded.reserved[2] = 1;
-    refused += ComputeRefused(&padded, 0.5);
     mtwnTiming eased = timing;
     eased.easing.kind = (mtwnEasingKind)200;
     refused += ComputeRefused(&eased, 0.5);
-    CHECK(refused == 7, "a null timing or result, a NaN or negatively infinite time, and a "
-                        "timing mtwnValidateTiming refuses (a rate of 0, padding, an easing no "
+    CHECK(refused == 6, "a null timing or result, a NaN or negatively infinite time, and a "
+                        "timing mtwnValidateTiming refuses (a rate of 0, an easing no "
                         "maker gives) refused, the result unchanged");
     CHECK(mtwnComputeTiming(&timing, HUGE_VAL, false, &result) == mtwn_success &&
               result.phase == mtwn_phaseAfter,

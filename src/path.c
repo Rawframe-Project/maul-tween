@@ -21,7 +21,6 @@
 #include "invariant.h"
 #include "path_internal.h"
 #include "path_length.h"
-#include "reserved_internal.h"
 #include "valid.h"
 #include "work.h"
 
@@ -330,7 +329,7 @@ static bool IsValid(const mtwnKeyframe* keyframes, uint32_t count, uint8_t chann
             k->kind > mtwn_segmentMonotone || !IsFinite4(k->value, channels) ||
             !IsFinite4(k->in, channels) || !IsFinite4(k->out, channels) ||
             (constantSpeed && segment && k->kind == mtwn_segmentStep) ||
-            !mtwnReservedClear(k->reserved, sizeof k->reserved) || !mtwnValidEasing(&k->easing))
+            !mtwnValidEasing(&k->easing))
         {
             return false;
         }
@@ -346,7 +345,7 @@ static mtwnResult MakePathOf(const mtwnKeyframe* keyframes, uint32_t count, uint
     {
         return mtwn_errorInvalid;
     }
-    mtwnPath path = {keyframes, lengthsOut, alpha, count, channels, logarithmic, {0}};
+    mtwnPath path = {keyframes, lengthsOut, alpha, count, channels, logarithmic};
     if (lengthsOut != NULL)
     {
         lengthsOut[0] = 0.0;
@@ -482,7 +481,6 @@ MTWN_NOINLINE bool mtwnValidPath(const mtwnPath* path)
     return path != NULL && path->keyframes != NULL && path->count >= 2 && path->channels >= 1 &&
            path->channels <= 4 && path->alpha >= 0.0 && path->alpha <= 1.0 &&
            path->logarithmic <= 1 && (path->logarithmic == 0 || path->channels == 1) &&
-           mtwnReservedClear(path->reserved, sizeof path->reserved) &&
            (path->lengths == NULL ||
             (path->lengths[0] == 0.0 && isfinite(path->lengths[path->count - 1])));
 }
@@ -611,7 +609,6 @@ static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, u
                        bool lengths, const mtwnSegmentMix* mixes)
 {
     if (def == NULL || def->kind > mtwn_valueScale || def->rotationPath > mtwn_rotationLongest ||
-        !mtwnReservedClear(def->reserved, sizeof def->reserved) ||
         !IsValid(keyframes, count, s_kindChannels[def->kind], def->alpha, lengths) ||
         (lengths && !IsNumberKind(def->kind) && def->kind != mtwn_valueScale) ||
         !TakesSegments(def->kind, keyframes, count))
@@ -744,7 +741,7 @@ MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe
             return mtwn_errorInvalid;
         }
     }
-    mtwnTrack track = {{0}, mixed ? mixesOut : NULL, def->kind, {0}};
+    mtwnTrack track = {{0}, mixed ? mixesOut : NULL, def->kind};
     mtwnResult result = MakePathOf(keyframes, count, s_kindChannels[def->kind], def->alpha,
                                    def->kind == mtwn_valueScale, lengthsOut, &track.path);
     if (result != mtwn_success)
@@ -907,8 +904,7 @@ MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progre
 
 MTWN_NOINLINE bool mtwnValidTrack(const mtwnTrack* track)
 {
-    if (track == NULL || track->kind > mtwn_valueScale || !mtwnValidPath(&track->path) ||
-        !mtwnReservedClear(track->reserved, sizeof track->reserved))
+    if (track == NULL || track->kind > mtwn_valueScale || !mtwnValidPath(&track->path))
     {
         return false;
     }

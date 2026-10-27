@@ -1018,12 +1018,6 @@ static void TestSampleRefusals(void)
     CHECK(PathTaken(&path, 0.5), "logarithmic over one, a scale track's");
     path.logarithmic = 2;
     CHECK(PathRefused(&path, 0.5), "logarithmic 2 over one channel");
-    for (int i = 0; i < 2; ++i)
-    {
-        path = made;
-        path.reserved[i] = 1;
-        CHECK(PathRefused(&path, 0.5), "a reserved byte set");
-    }
     lengths[0] = 0x1p-1074;
     CHECK(PathRefused(&made, 0.5), "lengths not from 0");
     lengths[0] = 0.0;

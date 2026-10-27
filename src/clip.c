@@ -12,7 +12,6 @@
 #include "context_internal.h"
 #include "css_easing.h"
 #include "fpenv.h"
-#include "reserved_internal.h"
 #include "valid.h"
 #include "work.h"
 
@@ -84,7 +83,7 @@ static mtwnResult CheckClipDef(const mtwnClipDef* def)
         return mtwn_errorInvalid;
     }
     bool counts = IsCount(def->nodeCapacity) && IsCount(def->keyframeCapacity) &&
-                  IsCount(def->slotCapacity) && IsCount(def->pointCapacity) && def->reserved == 0;
+                  IsCount(def->slotCapacity) && IsCount(def->pointCapacity);
     return counts ? mtwn_success : mtwn_errorInvalid;
 }
 
@@ -292,7 +291,6 @@ static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition po
 static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
 {
     return position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
-           mtwnReservedClear(position.reserved, sizeof position.reserved) &&
            (position.kind != mtwn_positionAtLabel ||
             mtwnClipLabelIn(clip, parent, position.label) != 0) &&
            isfinite(StartOf(clip, parent, position));
@@ -479,8 +477,7 @@ static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* d
                               def->track.kind != mtwn_valueDiscrete && !endlessAtOnce);
     if (!mtwnClipIsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
         !slot || !incremental || def->keyframes == NULL ||
-        mtwnValidateTimingWork(&def->timing) != mtwn_success ||
-        !mtwnReservedClear(def->reserved, sizeof def->reserved))
+        mtwnValidateTimingWork(&def->timing) != mtwn_success)
     {
         return mtwn_errorInvalid;
     }
@@ -549,8 +546,7 @@ static MTWN_NOINLINE mtwnResult AddTimelineWorker(mtwnClipSlot* clip,
     mtwnTiming resolved = mtwnClipTimelineTiming(&node, 0.0);
     if (!mtwnClipIsTimeline(clip, def->parent) || !IsPosition(clip, def->parent, def->position) ||
         mtwnValidateTimingWork(&resolved) != mtwn_success ||
-        !mtwnIsEasingMonotonicWork(&def->timing.easing) ||
-        !mtwnReservedClear(def->reserved, sizeof def->reserved))
+        !mtwnIsEasingMonotonicWork(&def->timing.easing))
     {
         return mtwn_errorInvalid;
     }
