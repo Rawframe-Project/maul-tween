@@ -180,13 +180,8 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
         return scaled / d + start;
     }
     double cycle = d + timing->repeatDelay;
-    double position = scaled + floor(start) * cycle + (start - floor(start)) * d;
-    // The quotient rounds either way. Below the first iteration it is
-    // that one (339 times 0.2 over 0.2 floors to 338), where the
-    // position holds the first's start as the same product, so nothing
-    // lies before it; rounded up to k it leaves a position an ulp before
-    // k's start, in the delay before it.
-    double k = floor(position / cycle);
+    double within = 0.0;
+    double k = mtwnCycleOf(scaled, start, d, cycle, &within);
     // A position past the doubles' cycles, at a time or a rate near the
     // largest double, or an active time past the active duration (a
     // negative delay's before phase): its iteration is past them too, as
@@ -195,8 +190,6 @@ static double OverallProgress(const mtwnTiming* timing, mtwnTimingResult* result
     {
         return HUGE_VAL;
     }
-    k = k < floor(start) ? floor(start) : k;
-    double within = position - k * cycle;
     if (within < 0.0)
     {
         k -= 1.0;

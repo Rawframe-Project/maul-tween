@@ -103,6 +103,7 @@ jobs:
           python3 tools/oracle/timing_oracle.py --check
           python3 tools/oracle/exact_oracle.py --check
           python3 tools/oracle/zoom_oracle.py --check
+          python3 tools/oracle/cycle_oracle.py --check
       # clang-tidy twice: on the Release preset, where the assertions
       # compile out, and with them live. Each hides findings the other
       # shows: a value read only by an assertion is a dead store once it

@@ -357,6 +357,57 @@ static void TestOffGridFrameEnd(void)
           "a crossing at a frame's end off the grid recorded once either way");
 }
 
+// A track whose start's cycles pass the doubles (2.5 iterations of
+// about 1e308 s, with a repeat delay), swept across, counting every
+// record or taking the shortcuts: the crossings count the cycles as the
+// timing does, so the sweep finds none, where the cycles' overflow made
+// the count NaN.
+static void TestStartPastTheDoubles(bool countEvery)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.eventCapacity = 64;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnTestSetCountEvery(context, countEvery);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {{0}};
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.position = At(1.234375);
+    track.timing.duration = 0x1.1ccf385ebc8ap+1023;
+    track.timing.iterations = HUGE_VAL;
+    track.timing.iterationStart = 2.5;
+    track.timing.playbackRate = 0.5;
+    track.timing.repeatDelay = 0x1.5p-4;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Finish(context, clip) == mtwn_success,
+          "an endless track from 2.5 iterations of 1e308 s");
+    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    player.clip = clip;
+    player.keep = true;
+    mtwnPlayerId id;
+    mtwnEvent events[8];
+    uint32_t count = 0;
+    uint64_t dropped = 0;
+    CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success &&
+              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnPlayer_Seek(context, id, 4.125) == mtwn_success &&
+              mtwnReadEvents(context, events, 8, &count, &dropped) == mtwn_success,
+          "played, sought to 4.125 s");
+    CHECK(mtwnPlayer_Sweep(context, id, 7.875) == mtwn_success &&
+              mtwnReadEvents(context, events, 8, &count, &dropped) == mtwn_success && count == 0 &&
+              dropped == 0,
+          "swept to 7.875 s: no iteration crossed");
+    mtwnDestroyContext(context);
+}
+
 // With no argument, the fixed cases; with "twins", the random clips on
 // twin contexts, the nightly run's.
 int main(int argc, char** argv)
@@ -377,6 +428,8 @@ int main(int argc, char** argv)
     else
     {
         TestOffGridFrameEnd();
+        TestStartPastTheDoubles(false);
+        TestStartPastTheDoubles(true);
     }
     return s_failures == 0 ? 0 : 1;
 }
