@@ -65,14 +65,34 @@ static void Swept(mtwnContext* context, uint32_t player, double before, double n
 static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control, double argument,
                           uint32_t key);
 
+// Whether a player's clip is the finished clip it was made with, alive while
+// it plays: player.c's mtwnCreatePlayer counts it a user, and clip.c's
+// mtwnDestroyClip refuses a clip with users. Only an assertion calls it.
+[[maybe_unused]] static inline bool PlaysItsClip(const mtwnContext* context,
+                                                 const mtwnClipPlay* play)
+{
+    const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
+    return clip->header.generation == play->clip.generation && clip->finished && clip->users >= 1;
+}
+
+// Whether a clip's end is one its player can hold: its root's children end,
+// never negative or NaN, and a finite one within MTWN_SEEK_LIMIT (clip.c's
+// Raise). Only an assertion calls it.
+[[maybe_unused]] static inline bool IsClipEnd(double end)
+{
+    return end >= 0.0 && (end <= MTWN_SEEK_LIMIT || isinf(end));
+}
+
 static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, uint32_t player,
                                               Control control, double argument, uint32_t key)
 {
     // RunControl refused a transition: a clip's player has a play.
     MTWN_ASSERT(mtwnPlayerAt(context, player)->type == MTWN_PLAYER_CLIP);
     mtwnClipPlay* play = &mtwnPlayerAt(context, player)->play;
+    MTWN_ASSERT(PlaysItsClip(context, play));
     double now = mtwnTimelineNow(context);
     double end = mtwnEffectEnd(context, play);
+    MTWN_ASSERT(IsClipEnd(end));
     switch (control)
     {
     case s_play:
@@ -85,6 +105,9 @@ static MTWN_NOINLINE mtwnResult ControlWorker(mtwnContext* context, uint32_t pla
         // auto-rewind; both take effect at the next update.
         mtwnClipPlay before = *play;
         play->pendingRate = -mtwnEffectiveRate(play);
+        // The rates a player takes are rates (mtwnIsRate), so is the
+        // negation of one.
+        MTWN_ASSERT(mtwnIsRate(play->pendingRate));
         mtwnResult result = mtwnPlayClip(play, now, end);
         if (result != mtwn_success)
         {
@@ -155,6 +178,8 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
         {
             return mtwn_errorInvalid;
         }
+        // The root's children are its own nodes, within the clip.
+        MTWN_ASSERT(child <= clip->nodeCount && clip->nodes[child - 1].parent == MTWN_ROOT_NODE);
         target = clip->nodes[child - 1].start;
     }
     // A time beyond the limit, a product that overflowed among them, would

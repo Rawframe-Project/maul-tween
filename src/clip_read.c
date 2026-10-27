@@ -7,7 +7,6 @@
 #include "clip_internal.h"
 #include "context_internal.h"
 #include "fpenv.h"
-#include "invariant.h"
 
 #include <string.h>
 
