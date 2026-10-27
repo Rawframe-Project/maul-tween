@@ -14,6 +14,7 @@
 #include "maul-tween/target.h"
 #include "maul-tween/transition.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -796,6 +797,80 @@ static void TestRateLimit(void)
           "a def past the limit refused");
     def.rate = -MTWN_RATE_LIMIT;
     CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_success, "a def at the limit");
+    // A rate other than 0 below 1 / MTWN_RATE_LIMIT would overflow the
+    // start time (MTWN_SEEK_LIMIT): 5e-324 took a player at 1 s to its end.
+    misuse = mtwnGetContextMisuse(f.context);
+    CHECK(mtwnPlayer_SetRate(f.context, p, 1.0 / MTWN_RATE_LIMIT) == mtwn_success &&
+              mtwnPlayer_SetRate(f.context, p, -1.0 / MTWN_RATE_LIMIT) == mtwn_success &&
+              mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success,
+          "the smallest rate, either way, and 0");
+    CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(1.0 / MTWN_RATE_LIMIT, 0.0)) ==
+                  mtwn_errorInvalid &&
+              mtwnPlayer_SetRate(f.context, p, -0x1p-1074) == mtwn_errorInvalid &&
+              mtwnPlayer_SetRate(f.context, p, 1e-300) == mtwn_errorInvalid,
+          "below it refused");
+    def.rate = 0x1p-1074;
+    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorInvalid &&
+              mtwnGetContextMisuse(f.context) == misuse + 4,
+          "a def below it too, each counted as misuse");
+    mtwnDestroyContext(f.context);
+}
+
+// A seek's time is at most MTWN_SEEK_LIMIT in size, a share of the
+// duration and a label's start included: past it the start time would
+// overflow, as a progress of 1e308 took a player to an infinite time.
+static void TestSeekLimit(void)
+{
+    Fixture f = Make(false, 8);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    Update(&f, 1.0);
+    Update(&f, 2.0);
+    uint64_t misuse = mtwnGetContextMisuse(f.context);
+    CHECK(mtwnPlayer_SeekProgress(f.context, p, 1e308) == mtwn_errorInvalid &&
+              mtwnPlayer_SeekProgress(f.context, p, DBL_MAX) == mtwn_errorInvalid &&
+              mtwnPlayer_SeekProgress(f.context, p, -1e308) == mtwn_errorInvalid &&
+              mtwnPlayer_Seek(f.context, p, nextafter(MTWN_SEEK_LIMIT, HUGE_VAL)) ==
+                  mtwn_errorInvalid &&
+              mtwnPlayer_Seek(f.context, p, -1e308) == mtwn_errorInvalid &&
+              mtwnPlayer_Sweep(f.context, p, 1e308) == mtwn_errorInvalid,
+          "a progress of 1e308 or DBL_MAX, and times past the limit, refused");
+    CHECK(State(&f, p).currentTime == 1.0 && mtwnGetContextMisuse(f.context) == misuse + 6,
+          "the player where it was, each counted as misuse");
+    // At the smallest rate the limit's time and the start time stay finite.
+    CHECK(mtwnPlayer_SetRate(f.context, p, 1.0 / MTWN_RATE_LIMIT) == mtwn_success, "slowed");
+    Update(&f, 2.5);
+    CHECK(mtwnPlayer_Seek(f.context, p, -MTWN_SEEK_LIMIT) == mtwn_success &&
+              State(&f, p).currentTime == -MTWN_SEEK_LIMIT,
+          "a seek to the limit's negative, at the smallest rate");
+    Update(&f, 3.5);
+    mtwnPlayerState state = State(&f, p);
+    CHECK(state.currentTime == -MTWN_SEEK_LIMIT && state.state == mtwn_playRunning,
+          "still there, running, after an update");
+    CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.5) == mtwn_success, "back to 1 s");
+    Update(&f, 4.5);
+    CHECK(Near(State(&f, p).currentTime, 1.0 + 1.0 / MTWN_RATE_LIMIT),
+          "a second on at the smallest rate, not to the end");
+    // A label of the root past the limit is refused too.
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId far;
+    mtwnNode node;
+    mtwnPosition at = {1e308, 0, mtwn_positionAbsolute, {0}};
+    CHECK(mtwnCreateClip(f.context, &clipDef, &far) == mtwn_success &&
+              mtwnClip_AddLabel(f.context, far, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success,
+          "a label at 1e308");
+    at.offset = MTWN_SEEK_LIMIT;
+    CHECK(mtwnClip_AddLabel(f.context, far, MTWN_ROOT_NODE, at, 2, &node) == mtwn_success &&
+              mtwnClip_Finish(f.context, far) == mtwn_success,
+          "and one at the limit");
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = far;
+    def.play = false;
+    mtwnPlayerId q;
+    CHECK(mtwnCreatePlayer(f.context, &def, &q) == mtwn_success &&
+              mtwnPlayer_SeekLabel(f.context, q, 1) == mtwn_errorInvalid &&
+              mtwnPlayer_SeekLabel(f.context, q, 2) == mtwn_success &&
+              State(&f, q).currentTime == MTWN_SEEK_LIMIT,
+          "a seek to the far label refused, to the one at the limit taken");
     mtwnDestroyContext(f.context);
 }
 
@@ -831,6 +906,7 @@ static void TestNoBindingsDestroyed(void)
 int main(void)
 {
     TestRateLimit();
+    TestSeekLimit();
     TestPendingRates();
     TestEdges();
     TestAfterLastPlayer();

@@ -27,6 +27,7 @@
 #include "maul-tween/timing.h"
 #include "maul-tween/transition.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -59,7 +60,8 @@ static uint32_t Below(Bytes* in, uint32_t n)
 }
 
 // A double from a few kinds: small multiples of 1/64, tenths, zero,
-// negative, huge, infinite and NaN, so refusals are tried too.
+// negative, huge (1e12, or 1e308 past every time limit), infinite and
+// NaN, so refusals are tried too.
 static double Wild(Bytes* in, double scale)
 {
     uint32_t b = Byte(in);
@@ -74,7 +76,7 @@ static double Wild(Bytes* in, double scale)
     case 3:
         return (double)NAN;
     case 4:
-        return 1e12;
+        return b / 12 % 2 == 0 ? 1e12 : 1e308;
     case 5:
     case 6:
         return (double)(1 + Byte(in)) / 10.0 * scale / 8.0;
@@ -134,9 +136,10 @@ static double Value(Bytes* in, double scale)
 }
 
 // An offset or a time: Wild's draws, but about one in 61 (10 of its last
-// case's 256) a progress at the edge of its rounding: just below 1, at
+// case's 256) a progress at the edge of its rounding (just below 1, at
 // the floats' and the doubles' last steps there, the smallest subnormal,
-// -0. It takes the same bytes as Wild.
+// -0) or of a seek's size (MTWN_SEEK_LIMIT, an ulp past it, 1e308, its
+// negative and the largest double). It takes the same bytes as Wild.
 static double Progress(Bytes* in, double scale)
 {
     size_t at = in->at;
@@ -149,7 +152,28 @@ static double Progress(Bytes* in, double scale)
     }
     (void)Byte(in);
     (void)Byte(in);
-    static const double rare[5] = {1.0 - 0x1p-24, 1.0 - 0x1p-53, 0x1p-24, 0x1p-149, -0.0};
+    static const double rare[10] = {
+        1.0 - 0x1p-24,   1.0 - 0x1p-53,          0x1p-24, 0x1p-149, -0.0,
+        MTWN_SEEK_LIMIT, 0x1.0000000000001p1000, 1e308,   -1e308,   DBL_MAX};
+    return rare[f];
+}
+
+// A rate: Wild's draws less 1, but about one in 61, as Progress, one at
+// the edge of a rate's size: the smallest, either way, an ulp below it,
+// the smallest subnormal and -1e300. It takes the same bytes as Wild.
+static double Rate(Bytes* in)
+{
+    size_t at = in->at;
+    uint32_t b = Byte(in);
+    uint32_t f = Byte(in);
+    in->at = at;
+    if (b % 12 < 7 || f >= 10)
+    {
+        return Wild(in, 3.0) - 1.0;
+    }
+    (void)Byte(in);
+    (void)Byte(in);
+    static const double rare[5] = {0x1p-20, -0x1p-20, 0x1.fffffffffffffp-21, 0x1p-1074, -1e-300};
     return rare[f % 5];
 }
 
@@ -351,7 +375,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         r = mtwnPlayer_Reverse(context, player);
         break;
     case 2:
-        r = mtwnPlayer_SetRate(context, player, Wild(in, 3.0) - 1.0);
+        r = mtwnPlayer_SetRate(context, player, Rate(in));
         break;
     case 3:
         r = mtwnPlayer_Pause(context, player);

@@ -157,6 +157,12 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
         }
         target = clip->nodes[child - 1].start;
     }
+    // A time beyond the limit, a product that overflowed among them, would
+    // overflow the start time (MTWN_SEEK_LIMIT).
+    if (!(fabs(target) <= MTWN_SEEK_LIMIT))
+    {
+        return mtwn_errorInvalid;
+    }
     double before = mtwnCurrentTime(play, now);
     mtwnSetClipTime(play, now, end, target);
     if (control == s_sweep && !isnan(before))
