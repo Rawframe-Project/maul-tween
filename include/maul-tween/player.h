@@ -253,8 +253,9 @@ extern "C"
     /// @param player   A clip's player.
     /// @param seconds  The time into the clip, at most MTWN_SEEK_LIMIT in
     ///                 size.
-    /// @return As mtwnPlayer_Play; mtwn_errorInvalid also for a time not
-    ///         finite; mtwn_errorLimit for one past MTWN_SEEK_LIMIT in size.
+    /// @return As mtwnPlayer_Play; mtwn_errorInvalid also for a NaN time;
+    ///         mtwn_errorLimit for one past MTWN_SEEK_LIMIT in size,
+    ///         infinity included.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_Seek(mtwnContext* context, mtwnPlayerId player,
@@ -278,7 +279,7 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param player    A clip's player.
-    /// @param progress  The share, finite; the duration must be finite.
+    /// @param progress  The share, not NaN; the duration must be finite.
     /// @return As mtwnPlayer_Seek, mtwn_errorLimit for a time, the share
     ///         times the duration, past MTWN_SEEK_LIMIT in size;
     ///         mtwn_errorInvalid also for an infinite duration.

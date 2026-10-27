@@ -229,10 +229,17 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     {
         return Misuse(context, mtwnCheckRate(argument));
     }
-    if ((control == s_seek || control == s_seekProgress || control == s_sweep) &&
-        !isfinite(argument))
+    // A NaN time or share names none; an infinite one passes
+    // MTWN_SEEK_LIMIT, refused here before a product with an end of 0 could
+    // make it NaN.
+    bool seeks = control == s_seek || control == s_seekProgress || control == s_sweep;
+    if (seeks && isnan(argument))
     {
         return Misuse(context, mtwn_errorInvalid);
+    }
+    if (seeks && isinf(argument))
+    {
+        return Misuse(context, mtwn_errorLimit);
     }
     mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
     return result == mtwn_success ? result : Misuse(context, result);

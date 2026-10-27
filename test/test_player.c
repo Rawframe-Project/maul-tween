@@ -464,12 +464,17 @@ static void TestSeekCancel(void)
           "at a label");
     CHECK(mtwnPlayer_SeekLabel(f.context, p, 4) == mtwn_errorInvalid, "no such label");
     CHECK(mtwnPlayer_Seek(f.context, p, (double)NAN) == mtwn_errorInvalid, "a NaN time");
+    CHECK(mtwnPlayer_Seek(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
+              mtwnPlayer_Seek(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
+          "an infinite time either way past MTWN_SEEK_LIMIT");
     CHECK(mtwnPlayer_Sweep(f.context, p, (double)NAN) == mtwn_errorInvalid &&
-              mtwnPlayer_Sweep(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
-          "a sweep to NaN or infinity");
+              mtwnPlayer_Sweep(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
+              mtwnPlayer_Sweep(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
+          "a sweep to NaN invalid, to infinity either way past the limit");
     CHECK(mtwnPlayer_SeekProgress(f.context, p, (double)NAN) == mtwn_errorInvalid &&
-              mtwnPlayer_SeekProgress(f.context, p, HUGE_VAL) == mtwn_errorInvalid,
-          "a seek to a progress of NaN or infinity");
+              mtwnPlayer_SeekProgress(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
+              mtwnPlayer_SeekProgress(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
+          "a progress of NaN invalid, of infinity either way past the limit");
     CHECK(mtwnPlayer_Cancel(f.context, p) == mtwn_success && State(&f, p).state == mtwn_playIdle &&
               isnan(State(&f, p).currentTime),
           "canceled: idle");
