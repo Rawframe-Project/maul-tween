@@ -36,6 +36,15 @@ static mtwnPlayState StateOf(const mtwnClipPlay* play, double now, double end)
     return mtwn_playRunning;
 }
 
+// The start time from which a player at rate reaches time t now. Finite
+// by the bounds on rates and seeks (MTWN_SEEK_LIMIT).
+static double StartFor(double now, double t, double rate)
+{
+    double start = now - t / rate;
+    MTWN_ASSERT(isfinite(start));
+    return start;
+}
+
 // Level 1's update of the hold time, with the time not held already
 // worked out.
 static void Hold(mtwnClipPlay* play, double now, double end, bool didSeek, double unconstrained)
@@ -56,7 +65,7 @@ static void Hold(mtwnClipPlay* play, double now, double end, bool didSeek, doubl
     {
         if (didSeek && !isnan(play->holdTime))
         {
-            play->startTime = now - play->holdTime / play->rate;
+            play->startTime = StartFor(now, play->holdTime, play->rate);
         }
         play->holdTime = (double)NAN;
     }
@@ -90,7 +99,7 @@ static void SilentlySet(mtwnClipPlay* play, double now, double seek)
     }
     else
     {
-        play->startTime = now - seek / play->rate;
+        play->startTime = StartFor(now, seek, play->rate);
     }
     play->previousTime = (double)NAN;
 }
@@ -194,7 +203,7 @@ mtwnResult mtwnFinishClip(mtwnClipPlay* play, double now, double end)
     SilentlySet(play, now, limit);
     if (isnan(play->startTime))
     {
-        play->startTime = now - limit / play->rate;
+        play->startTime = StartFor(now, limit, play->rate);
     }
     play->pending = false;
     // Held exactly at the limit, as Level 1's exact arithmetic leaves it:
@@ -248,7 +257,7 @@ static void StartPending(mtwnClipPlay* play, double now)
         mtwnApplyPendingRate(play);
         if (play->rate != 0.0)
         {
-            play->startTime = now - current / play->rate;
+            play->startTime = StartFor(now, current, play->rate);
         }
         else
         {
@@ -265,7 +274,7 @@ static void StartPending(mtwnClipPlay* play, double now)
         MTWN_ASSERT(!isnan(play->holdTime));
         play->pending = false;
         mtwnApplyPendingRate(play);
-        play->startTime = play->rate != 0.0 ? now - play->holdTime / play->rate : now;
+        play->startTime = play->rate != 0.0 ? StartFor(now, play->holdTime, play->rate) : now;
         if (play->rate != 0.0)
         {
             play->holdTime = (double)NAN;

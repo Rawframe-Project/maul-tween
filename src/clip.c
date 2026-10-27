@@ -311,7 +311,8 @@ static double EndOf(double start, const mtwnTiming* timing)
 // own end. False, with nothing written, when the duration a timeline
 // would take makes its timing one mtwnValidateTiming refuses: played
 // backwards and infinitely long, which leaves it no end to start from, or
-// with an active duration or a cycle past a double.
+// with an active duration or a cycle past a double; or when the clip's
+// end would be finite and past MTWN_SEEK_LIMIT.
 static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
 {
     while (parent != 0)
@@ -320,6 +321,12 @@ static bool Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool write)
         // Only a timeline is a parent.
         MTWN_ASSERT(timeline->kind == mtwn_nodeTimeline);
         double childrenEnd = end > timeline->childrenEnd ? end : timeline->childrenEnd;
+        // The root's is the clip's end, which a player seeks to: past the
+        // limit, it would overflow the start time (MTWN_SEEK_LIMIT).
+        if (parent == MTWN_ROOT_NODE && isfinite(childrenEnd) && childrenEnd > MTWN_SEEK_LIMIT)
+        {
+            return false;
+        }
         if (write)
         {
             timeline->childrenEnd = childrenEnd;

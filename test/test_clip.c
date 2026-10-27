@@ -799,9 +799,17 @@ static void TestOverflowingChildren(void)
     track.timing.duration = 1.0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "1e300 iterations of 1 s");
+    // Inside a timeline of its own duration, so the clip's end stays
+    // within MTWN_SEEK_LIMIT.
     group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 1.0;
+    mtwnNode fixed;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &fixed) == mtwn_success, "a timeline of 1 s");
     group.autoDuration = true;
+    group.timing.duration = 0.0;
     group.timing.delay = 1e308;
+    group.parent = fixed;
     mtwnNode late;
     CHECK(mtwnClip_AddTimeline(context, clip, &group, &late) == mtwn_success,
           "a 1e308 s delay, lasting as its children");
@@ -814,6 +822,54 @@ static void TestOverflowingChildren(void)
               mtwnClip_GetNode(context, clip, repeating, &info) == mtwn_success &&
               info.timing.duration == 0.0,
           "the refused child left it lasting 0");
+    mtwnDestroyContext(context);
+}
+
+// A clip's finite end is at most MTWN_SEEK_LIMIT, so a player's start
+// time stays finite: a node that would take it past is refused, and an
+// endless one is taken.
+static void TestEndLimit(void)
+{
+    Counter counter = {0};
+    mtwnContext* context = Make(&counter, 4, 1 << 20);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 1.0f)};
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = MTWN_SEEK_LIMIT;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "a track ending at the limit");
+    track.timing.duration = nextafter(MTWN_SEEK_LIMIT, HUGE_VAL);
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid && node == 0,
+          "one ending an ulp past it, refused");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.timing.delay = 1e308;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid,
+          "a timeline whose delay takes the end past it, refused");
+    track.position = (mtwnPosition){0};
+    track.position.kind = mtwn_positionAbsolute;
+    track.position.offset = MTWN_SEEK_LIMIT;
+    track.timing.duration = 1.0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "a track of 1 s from the limit, whose end rounds to it");
+    track.timing.duration = MTWN_SEEK_LIMIT * 0x1p-52;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
+          "one lasting an ulp of the limit, ending past it, refused");
+    track.position.offset = 0.0;
+    track.timing.duration = 1.0;
+    track.timing.iterations = HUGE_VAL;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
+          "an endless track, taken");
+    double duration = 0.0;
+    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+              mtwnClip_GetDuration(context, clip, &duration) == mtwn_success &&
+              duration == HUGE_VAL,
+          "the clip endless");
+    CHECK(mtwnGetContextMisuse(context) == 3, "each refusal counted");
     mtwnDestroyContext(context);
 }
 
@@ -1174,6 +1230,7 @@ int main(void)
     TestTimelineRefusals();
     TestSlowEndless();
     TestOverflowingChildren();
+    TestEndLimit();
     TestFloatEnvironment();
     return s_failures == 0 ? 0 : 1;
 }

@@ -39,7 +39,7 @@ The server's default `gcc` is 13, which the family refuses; use `gcc-14` or `cla
 - **Outputs on failure:** a call on a context clears its outputs before it checks anything; a call without one leaves them as they were. Every out-parameter's header says which.
 - **Busy context:** every function taking the context non-const enters and leaves its busy state, so host code calling back in is refused.
 - **Assertions:** `MTWN_ASSERT` (`src/invariant.h`) checks internal invariants only. It traps in builds without `NDEBUG` (Debug, sanitizers, fuzzing) and compiles out of Release, whose update loop must not pay for it. Never assert on caller input; validate and return a status.
-- **Limits:** `MTWN_MAX_COUNT`, `MTWN_MAX_CLIP_STORAGE`, `MTWN_MAX_FIT_POINTS`, `MTWN_RATE_LIMIT` and `MTWN_MAX_CLIP_DEPTH` are part of the API.
+- **Limits:** `MTWN_MAX_COUNT`, `MTWN_MAX_CLIP_STORAGE`, `MTWN_MAX_FIT_POINTS`, `MTWN_RATE_LIMIT`, `MTWN_SEEK_LIMIT` and `MTWN_MAX_CLIP_DEPTH` are part of the API.
 
 ## Testing
 

@@ -58,10 +58,11 @@ static inline void mtwnApplyPendingRate(mtwnClipPlay* play)
     }
 }
 
-// A rate whose size keeps the time to its limit's resolution.
+// A rate whose size keeps the time to its limit's resolution and, if not
+// 0, every start time finite (MTWN_SEEK_LIMIT).
 static inline bool mtwnIsRate(double rate)
 {
-    return fabs(rate) <= MTWN_RATE_LIMIT;
+    return rate == 0.0 || (fabs(rate) >= 1.0 / MTWN_RATE_LIMIT && fabs(rate) <= MTWN_RATE_LIMIT);
 }
 
 static inline bool mtwnIsWeight(double weight)
