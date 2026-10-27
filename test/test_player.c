@@ -882,10 +882,10 @@ static void TestSeekLabelOfRoot(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
-    group.position = (mtwnPosition){1.0, 0, mtwn_positionAbsolute, {0}};
+    group.position = (mtwnPosition){1.0, 0, mtwn_positionAbsolute};
     mtwnNode timeline;
     mtwnNode node;
-    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     CHECK(mtwnCreateClip(f.context, &clipDef, &clip) == mtwn_success &&
               mtwnClip_AddTimeline(f.context, clip, &group, &timeline) == mtwn_success &&
               mtwnClip_AddLabel(f.context, clip, timeline, at, 5, &node) == mtwn_success,
