@@ -51,7 +51,7 @@ The large random scenes carry the label `nightly` as well as their suite's, and 
 
 A suite's dense sweeps carry the label `dense`. Every cell runs them, the WebAssembly job and ThreadSanitizer included, except `linux-clang-20-asan`, the pull request's slowest; the nightly run takes them under AddressSanitizer:
 
-- `easing_dense`, `spring_dense` and `path_length_dense` sweep ten times as finely, integrate every spring, and measure 20 random paths.
+- `easing_dense`, `spring_dense` and `path_length_dense` sweep ten times as finely and measure 20 random paths.
 - `crossing_passed` takes all 2,000 trials of the passed levels.
 - `fuzz_fit_dense` replays 50 random fits.
 - `clip_tasks_threads` runs every seed of the groups on real threads.
