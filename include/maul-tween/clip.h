@@ -325,7 +325,9 @@ extern "C"
     ///         without its cookie or outside the above; mtwn_errorStale for a
     ///         clip that is not alive; mtwn_errorState for a finished clip;
     ///         mtwn_errorLimit when the clip holds its capacity of nodes,
-    ///         keyframes or points. The linear() points of its timing's
+    ///         keyframes or points. mtwn_errorInvalid also for a node whose
+    ///         end would take its clip's finite end past MTWN_SEEK_LIMIT.
+    ///         The linear() points of its timing's
     ///         and keyframes' easings are copied into the clip, so the
     ///         host's may change or go once added; points the host changed
     ///         from the order their maker left them in (not finite, or an
@@ -339,6 +341,20 @@ extern "C"
 // The deepest a timeline nests below the root: a child of the root is at
 // depth 1.
 #define MTWN_MAX_CLIP_DEPTH 32u
+
+// The largest size of a clip's finite end and of a time a clip's player
+// seeks to, 2^1000. A player keeps its time as Web Animations does, by a
+// start time, now - t / rate, and these bounds keep every start time
+// finite:
+// - every time a player holds or reaches is a seek's or a clip's end (at
+//   most this; an infinite end is never held), or 0, run on at a rate of
+//   at most MTWN_RATE_LIMIT (2^20) for at most the host's time, which
+//   mtwnUpdate takes in nanoseconds as a uint64_t, below 2^35 s: below
+//   2^1000 + 2^55 in size;
+// - a rate other than 0 is at least 1 / MTWN_RATE_LIMIT in size;
+// - so t / rate is below 2^1021 in size, and now - t / rate is finite,
+//   16 times short of the largest double.
+#define MTWN_SEEK_LIMIT 0x1p1000
 
     /// Adds a timeline: a group of children taking its transformed time.
     /// Its end in its parent follows its children as they arrive when its
