@@ -549,7 +549,8 @@ static void TestGrowFromNoBindings(void)
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId refused = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity, "a fifth refused");
+    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity,
+          "a fifth refused");
     mtwnDestroyContext(f.context);
 }
 
@@ -616,7 +617,8 @@ static void TestOrder(void)
     CHECK(mtwnPlayer_Pause(f.context, transition) == mtwn_errorInvalid,
           "transitions take no controls");
     mtwnPlayerState s;
-    CHECK(mtwnPlayer_GetState(f.context, transition, &s) == mtwn_errorInvalid, "nor report a state");
+    CHECK(mtwnPlayer_GetState(f.context, transition, &s) == mtwn_errorInvalid,
+          "nor report a state");
     CHECK(mtwnPlayer_Play(f.context, (mtwnPlayerId){9, 9}) == mtwn_errorStale, "a stale player");
     mtwnDestroyContext(f.context);
 }

@@ -109,7 +109,7 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     do                                                                                             \
     {                                                                                              \
         memset(&(out), 0xAB, sizeof(out));                                                         \
-        cleared += (call) == mtwn_errorBusy && Zeroed(&(out), sizeof(out));                       \
+        cleared += (call) == mtwn_errorBusy && Zeroed(&(out), sizeof(out));                        \
     } while (0)
 
 static bool Zeroed(const void* bytes, size_t size)
