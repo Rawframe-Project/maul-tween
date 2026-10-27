@@ -8,19 +8,17 @@ refused with `mtwn_errorVersion`.
 
 ## [0.9.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.8.0...v0.9.0) (2026-10-27)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **timing:** mtwnComputeTiming(timing, localTime, backwards, resultOut) returns mtwnResult, where it returned void; it refuses with mtwn_errorInvalid, leaving the result as it was, a null pointer, a timing mtwnValidateTiming refuses, and a local time that is NaN or negative infinity. Every call still taken gives the same bits.
+- **Breaking:** `mtwnComputeTiming(timing, localTime, backwards, resultOut)` returns `mtwnResult` (`MTWN_NODISCARD`) where it returned `void`. It refuses with `mtwn_errorInvalid`, leaving the result as it was, a null timing or result, a timing `mtwnValidateTiming` refuses (a playback rate of 0, nonzero padding, an easing of an unknown kind or with fields no maker gives), and a local time that is NaN or negative infinity. Every call it still takes gives the same bits ([#87](https://github.com/Rawframe-Project/maul-tween/pull/87)).
+- On WebAssembly the float environment's entries compile away, so each wrapper compiles to its worker alone: the web build's library is about 8 KB smaller, with the same results. Other targets are unchanged ([#108](https://github.com/Rawframe-Project/maul-tween/pull/108)).
 
 ### Fixed
 
-* **event:** guard the record count's conversion against NaN ([#102](https://github.com/Rawframe-Project/maul-tween/issues/102)) ([9871545](https://github.com/Rawframe-Project/maul-tween/commit/9871545637ce5c6d13765777a2a80be9a8de174b)), closes [#101](https://github.com/Rawframe-Project/maul-tween/issues/101)
-* **spring:** keep decay times and samples within the doubles on the way ([#92](https://github.com/Rawframe-Project/maul-tween/issues/92)) ([d5e6a94](https://github.com/Rawframe-Project/maul-tween/commit/d5e6a94b7d1a796efa77a8f1dc69a1c45aa8a849)), closes [#91](https://github.com/Rawframe-Project/maul-tween/issues/91)
-* **spring:** keep settling times from ending early past an underflow ([#90](https://github.com/Rawframe-Project/maul-tween/issues/90)) ([f5535b9](https://github.com/Rawframe-Project/maul-tween/commit/f5535b9bd1a06b4415b4303f6e963be2e2f79fee)), closes [#89](https://github.com/Rawframe-Project/maul-tween/issues/89)
-* **spring:** pass a settling bound's NaN flat time to its caller ([#95](https://github.com/Rawframe-Project/maul-tween/issues/95)) ([027d6e1](https://github.com/Rawframe-Project/maul-tween/commit/027d6e12577bbed699581a6ade387852b0ac2e69)), closes [#94](https://github.com/Rawframe-Project/maul-tween/issues/94)
-* **timing:** check a timing and its local time where it is computed ([#87](https://github.com/Rawframe-Project/maul-tween/issues/87)) ([281c105](https://github.com/Rawframe-Project/maul-tween/commit/281c1053b113b5e2133d6b68815735d0fb08a30b)), closes [#60](https://github.com/Rawframe-Project/maul-tween/issues/60)
-* **timing:** keep the iterations at their end where rounding lost them ([#100](https://github.com/Rawframe-Project/maul-tween/issues/100)) ([ac6482f](https://github.com/Rawframe-Project/maul-tween/commit/ac6482f037b62152a47093b9b34605325e417284)), closes [#99](https://github.com/Rawframe-Project/maul-tween/issues/99)
+- `mtwnComputeTiming`, and the clips' timelines and tracks that compute the same way, keep the iterations at their end where rounding lost them: an active duration that rounds to 0, or a start so large that adding the iterations rounds back to it, no longer holds the wrong iteration, and a repeat delay no longer gives NaN where an effect is due ([#100](https://github.com/Rawframe-Project/maul-tween/pull/100)).
+- `mtwnSpringSettlingTime` no longer returns a time before the motion settles when a product of the start with a coefficient underflows, for a spring with a subnormal `w0^2` or rate, or when one bound's time is NaN. Settling times for ordinary springs with normal tolerances are unchanged ([#90](https://github.com/Rawframe-Project/maul-tween/pull/90)).
+- An undamped spring with an infinite offset tolerance no longer stops a build with assertions in `mtwnSpringSettlingTime`; every settling time keeps its bits ([#95](https://github.com/Rawframe-Project/maul-tween/pull/95)).
+- `mtwnDecayCrossingTime`, `mtwnDecayStopTime` and `mtwnSampleDecay` stay within the doubles on the way to results that lie within them, where they used to give infinity, 0 or a value with few digits. Every input that worked before keeps its bits ([#92](https://github.com/Rawframe-Project/maul-tween/pull/92)).
 
 ## [0.8.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.7.0...v0.8.0) (2026-10-26)
 
