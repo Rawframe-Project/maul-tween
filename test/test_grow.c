@@ -195,13 +195,14 @@ static void TestGrow(void)
           "the change made before growing reported, then the clip's");
     CHECK(ValueOf(context, a) == 2.0f && ValueOf(context, b) == 0.0f, "and they play on");
     // The sharing is a cache made again: any capacities, here none, its
-    // 14,848 bytes no longer held.
+    // bytes (14,848 on a 64-bit target) no longer held.
     mtwnContextDef unshared = bigger;
     unshared.sharedNodeCapacity = 0;
     unshared.sharedRecordCapacity = 0;
     uint64_t shared = mtwnContext_GetMemoryBytes(context);
     CHECK(mtwnGrowContext(&context, &unshared) == mtwn_success &&
-              mtwnContext_GetMemoryBytes(context) == shared - 14848u,
+              mtwnContext_GetMemoryBytes(context) ==
+                  shared - (128u * 80u + 64u * (sizeof(mtwnEvent) + sizeof(double))),
           "grown with no sharing, holding less");
     CHECK(ValueOf(context, a) == 2.0f, "the values carried again");
     mtwnEvent e[8];

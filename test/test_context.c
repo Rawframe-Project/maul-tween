@@ -10,6 +10,7 @@
 #include "test_harness.h"
 
 #include "maul-tween/context.h"
+#include "maul-tween/event.h"
 #include "maul-tween/target.h"
 
 #include <float.h>
@@ -147,16 +148,20 @@ static void TestDefRefusals(void)
 // The block's bytes for a def, its sharing's capacities set.
 static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records);
 
-// The sharing's capacities: 80 bytes a node and 72 a record in each work,
-// the serial one and with a task system each of the 16 groups'.
+// The sharing's capacities: 80 bytes a node and a record's, an mtwnEvent
+// and a double (72 bytes on a 64-bit target), in each work, the serial one
+// and with a task system each of the 16 groups'.
 static void TestSharingCapacities(void)
 {
+    uint64_t record = sizeof(mtwnEvent) + sizeof(double);
+    uint64_t work = 128u * 80u + 64u * record;
     uint64_t whole = BytesSharing(false, 128, 64);
-    CHECK(whole - BytesSharing(false, 0, 0) == 14848, "the default sharing, 14,848 bytes a work");
+    CHECK(whole - BytesSharing(false, 0, 0) == work && (sizeof(void*) != 8 || work == 14848),
+          "the default sharing, 14,848 bytes a work on a 64-bit target");
     CHECK(whole - BytesSharing(false, 0, 64) == 128u * 80u &&
-              whole - BytesSharing(false, 128, 0) == 64u * 72u,
+              whole - BytesSharing(false, 128, 0) == 64u * record,
           "each kind's own");
-    CHECK(BytesSharing(true, 128, 64) - BytesSharing(true, 0, 0) == 17u * 14848u,
+    CHECK(BytesSharing(true, 128, 64) - BytesSharing(true, 0, 0) == 17u * work,
           "and every group's with a task system");
 }
 

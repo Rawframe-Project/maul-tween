@@ -70,8 +70,9 @@ extern "C"
         // The host's task system, which mtwnUpdate hands the clips' players
         // to in up to 16 groups; both NULL, the default,
         // runs every player on the calling thread. One without the other is
-        // invalid. With them the context holds each group's scratch: about
-        // 16 KB, 72 bytes for each event record up to 1,024 and 60 for each
+        // invalid. With them the context holds each group's scratch, on a
+        // 64-bit target: about 16 KB, 72 bytes for each event record (an
+        // mtwnEvent and a double) up to 1,024 and 60 for each
         // of a sixteenth of twice the bindings (about 900 KB more for the
         // default def), and 36 bytes a player.
         mtwnEnqueueTaskFn* enqueueTask;
@@ -95,8 +96,9 @@ extern "C"
         // The most nodes a clip may have for players in step to share its
         // sample, and the most records a sweep keeps to share,
         // each up to MTWN_MAX_COUNT; 0 shares none of that
-        // kind. The context holds 80 and 72 bytes for each, in its own
-        // work and in each group's with a task system.
+        // kind. The context holds 80 and 72 bytes for each on a 64-bit
+        // target (a record is an mtwnEvent and a double), in its own work
+        // and in each group's with a task system.
         uint32_t sharedNodeCapacity;
         uint32_t sharedRecordCapacity;
         // The most points of CSS linear() a transition's easing may have,
