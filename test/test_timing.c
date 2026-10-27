@@ -10,6 +10,7 @@
 
 #include "maul-tween/timing.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -373,6 +374,56 @@ static void TestInfiniteLocalTime(void)
           "a finite one past its end");
 }
 
+// Iterations lost to rounding against their start, their active duration
+// or their cycle: each result is the end of the iterations, at the
+// iteration the start is in or later, and a repeat delay's quotient past
+// the doubles gives what no repeat delay gives.
+static void TestIterationsLostToRounding(void)
+{
+    mtwnTimingResult r;
+    // 2^-1074 iterations of 0.5 s: an active duration of 2^-1075, which
+    // rounds to 0. At its end the overall progress is the iterations' end,
+    // 2^-1074, not the start.
+    mtwnTiming tiny = mtwnDefaultTiming();
+    tiny.iterations = 0x1p-1074;
+    tiny.duration = 0.5;
+    tiny.fill = mtwn_fillBoth;
+    r = ComputeTiming(&tiny, 0.0, false);
+    CHECK(r.activeDuration == 0.0 && r.phase == mtwn_phaseAfter && r.overallProgress == 0x1p-1074 &&
+              r.simpleProgress == 0x1p-1074 && r.iteration == 0.0,
+          "iterations whose active duration rounds to 0 end at their own end, in iteration 0");
+    tiny.playbackRate = -1.0;
+    r = ComputeTiming(&tiny, 0.0, true);
+    CHECK(r.phase == mtwn_phaseBefore && r.overallProgress == 0x1p-1074 && r.iteration == 0.0,
+          "the same backwards, at the start a negative rate begins from");
+    // One iteration from 2^53: the end, 2^53 + 1, rounds to the start, and
+    // the iteration held at its end is the start's, 2^53.
+    mtwnTiming far = mtwnDefaultTiming();
+    far.iterationStart = 0x1p53;
+    far.duration = 1.0;
+    far.fill = mtwn_fillForwards;
+    r = ComputeTiming(&far, 1.0, false);
+    CHECK(r.phase == mtwn_phaseAfter && r.overallProgress == 0x1p53 && r.simpleProgress == 1.0 &&
+              r.iteration == 0x1p53,
+          "an end rounded to a start of 2^53 held at 1 in iteration 2^53, not 2^53 - 1");
+    // Endless iterations of 2^-40 s at the largest time: the cycles past it
+    // overflow the quotient. The progress is past the doubles, as without the
+    // repeat delay, not NaN.
+    mtwnTiming endless = mtwnDefaultTiming();
+    endless.iterations = HUGE_VAL;
+    endless.duration = 0x1p-40;
+    endless.iterationStart = 8.0;
+    endless.repeatDelay = 0x1p-53;
+    mtwnTiming plain = endless;
+    plain.repeatDelay = 0.0;
+    r = ComputeTiming(&endless, DBL_MAX, false);
+    mtwnTimingResult without = ComputeTiming(&plain, DBL_MAX, false);
+    CHECK(r.phase == mtwn_phaseActive && r.overallProgress == HUGE_VAL && isinf(r.iteration) &&
+              r.simpleProgress == without.simpleProgress && r.iteration == without.iteration &&
+              r.transformedProgress == without.transformedProgress && !r.inRepeatDelay,
+          "a repeat delay whose cycles overflow the quotient gives what none gives");
+}
+
 // The computation checks what it is given: a null pointer, a timing
 // mtwnValidateTiming refuses and a local time that is NaN or negative
 // infinity are refused, the result unchanged; positive infinity, the
@@ -421,6 +472,7 @@ int main(void)
     TestExamples();
     TestValidation();
     TestInfiniteLocalTime();
+    TestIterationsLostToRounding();
     TestComputeRefusals();
     return s_failures == 0 ? 0 : 1;
 }
