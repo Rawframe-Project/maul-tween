@@ -123,9 +123,21 @@ static void MarkChangedIn(mtwnContext* context, mtwnWork* group, uint32_t index1
     mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
     if ((slot->header.flags & MTWN_TARGET_CHANGED) == 0)
     {
+        // Room held for it: a player with an alone target runs in its
+        // group only where its bindings' changes fit (Fits in
+        // src/clip_tasks.c).
+        MTWN_ASSERT(group->changeCount < group->changeCapacity);
         slot->header.flags |= MTWN_TARGET_CHANGED;
         group->changes[group->changeCount++] = index1;
     }
+}
+
+// Whether a target slot is alone: alive, with one clip binding as its
+// writer and no transition. Only an assertion calls it.
+[[maybe_unused]] static inline bool AloneSlot(const mtwnTargetSlot* slot)
+{
+    return (slot->header.flags & MTWN_SLOT_ALIVE) != 0 && slot->clipWriters == 1u &&
+           slot->header.link == 0;
 }
 
 // Writes a target's value and velocity as mtwnWriteTarget does; for a
@@ -139,6 +151,8 @@ static MTWN_ALWAYS_INLINE void WriteTargetIn(mtwnContext* context, mtwnWork* gro
         return;
     }
     mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
+    // A group writes in place only a target no other writer shares.
+    MTWN_ASSERT(AloneSlot(slot));
     slot->header.flags &=
         (uint8_t)~(MTWN_TARGET_UNWRITTEN | MTWN_TARGET_LAZY | MTWN_TARGET_CLIP_LAZY);
     uint32_t was[4];
@@ -326,11 +340,22 @@ static mtwnVec4 TrackVelocity(const mtwnClipNode* node, mtwnVec4 value, double e
     return (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]};
 }
 
+// Whether a target's velocity is a clip track's left lazy: the track a
+// node of its clip. Only an assertion calls it.
+[[maybe_unused]] static inline bool LazyTrack(const mtwnClipSlot* clip,
+                                              const mtwnClipVelocity* lazy)
+{
+    uint32_t node = lazy->node & ~s_backwardsBit;
+    return node < clip->nodeCount && clip->nodes[node].kind == mtwn_nodeTrack;
+}
+
 mtwnVec4 mtwnClipTrackVelocity(const mtwnContext* context, const mtwnTargetSlot* target)
 {
+    MTWN_ASSERT((target->header.flags & MTWN_TARGET_CLIP_LAZY) != 0);
     mtwnClipVelocity lazy;
     memcpy(&lazy, &target->velocity, sizeof lazy);
     const mtwnClipSlot* clip = mtwnClipAt(context, lazy.clip);
+    MTWN_ASSERT(LazyTrack(clip, &lazy));
     const mtwnClipNode* node = &clip->nodes[lazy.node & ~s_backwardsBit];
     double earlierIteration = 0.0;
     double earlier = TrackProgress(node, lazy.before - node->start,
@@ -423,6 +448,15 @@ static MTWN_ALWAYS_INLINE bool TrackResult(const mtwnClipNode* node, const mtwnB
     return true;
 }
 
+// Whether a track's result is one LeavesVelocity left lazy: numbers
+// replacing at full weight. Only an assertion calls it.
+[[maybe_unused]] static inline bool LeftLazy(const mtwnTrackOut* out)
+{
+    bool numbers = out->kind == mtwn_valueScalar || out->kind == mtwn_valueVec2 ||
+                   out->kind == mtwn_valueVec3 || out->kind == mtwn_valueVec4;
+    return numbers && out->composite == mtwn_compositeReplace && out->weight == 1.0;
+}
+
 // What lies under a track in its target: what earlier players wrote in
 // this update, or the base.
 static MTWN_ALWAYS_INLINE void ApplyTrack(mtwnContext* context, const mtwnTrackOut* out,
@@ -433,6 +467,8 @@ static MTWN_ALWAYS_INLINE void ApplyTrack(mtwnContext* context, const mtwnTrackO
     mtwnVec4 value = out->value;
     if (out->lazy)
     {
+        // Its value is the track's own, so the velocity read later is too.
+        MTWN_ASSERT(LeftLazy(out));
         WriteTargetIn(context, group, target, value, (mtwnVec4){0});
         memcpy(&slot->velocity, &out->velocity, sizeof slot->velocity);
         slot->header.flags |= MTWN_TARGET_CLIP_LAZY;
@@ -586,6 +622,9 @@ static bool SampleShared(mtwnContext* context, mtwnWork* work, const mtwnClipPla
                          const mtwnClipSlot* clip, bool moving, bool commit)
 {
     mtwnSharing* sharing = &work->sharing;
+    // Kept only for a clip whose nodes the sharing holds, and in step
+    // only with that clip.
+    MTWN_ASSERT(clip->nodeCount <= sharing->trackCapacity);
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* node = &clip->nodes[i];
@@ -629,6 +668,7 @@ static bool SampleShared(mtwnContext* context, mtwnWork* work, const mtwnClipPla
 static void KeepTracks(const mtwnContext* context, mtwnSharing* sharing, const mtwnClipPlay* play,
                        const mtwnClipSlot* clip, const mtwnNodeTime* times, bool moving)
 {
+    MTWN_ASSERT(clip->nodeCount <= sharing->trackCapacity);
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* node = &clip->nodes[i];
@@ -657,11 +697,25 @@ static bool InStep(const mtwnSharing* sharing, const mtwnClipPlay* play, double 
            sharing->backwards == backwards;
 }
 
+// Whether node i reads within its player's sample: its parent a node
+// before it, whose times are worked out, and a track's slot one of the
+// player's bindings. Only an assertion calls it.
+[[maybe_unused]] static inline bool NodeWithin(const mtwnClipSlot* clip, uint32_t i,
+                                               const mtwnClipPlay* play)
+{
+    const mtwnClipNode* node = &clip->nodes[i];
+    return node->parent != 0 && node->parent - 1 < i &&
+           (node->kind != mtwn_nodeTrack || node->slot < play->bindingCount);
+}
+
 void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play, double current,
                     double rate, bool backwards, bool commit)
 {
     mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     mtwnNodeTime* times = mtwnTimesFor(work, clip);
+    // A group's times hold MTWN_GROUP_NODES nodes; a clip with more runs
+    // serially, or in its own times when it has one player.
+    MTWN_ASSERT(times == clip->times || clip->nodeCount <= MTWN_GROUP_NODES);
     bool moving = rate != 0.0;
     // The player's time is the root's parent's.
     mtwnNodeTime player = {
@@ -674,6 +728,7 @@ void mtwnSampleClip(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* pl
     for (uint32_t i = 1; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* node = &clip->nodes[i];
+        MTWN_ASSERT(NodeWithin(clip, i, play));
         const mtwnNodeTime* parent = &times[node->parent - 1];
         if (node->kind == mtwn_nodeTimeline)
         {
