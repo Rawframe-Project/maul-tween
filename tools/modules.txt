@@ -26,7 +26,7 @@ reserved_internal:
 invariant:
 zoom: elementary fpenv valid work
 signal: elementary mix_internal fpenv valid
-timing: reserved_internal timing_internal valid work fpenv
+timing: invariant reserved_internal timing_internal valid work fpenv
 stagger: reserved_internal stagger_internal valid work fpenv
 stagger_internal:
 timing_internal:

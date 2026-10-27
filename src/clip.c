@@ -851,18 +851,15 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
             mtwnComputeTimingWork(&node->timing, 0.0, false, &shape);
             node->activeDuration = shape.activeDuration;
             // Its iterations there, held either side: the first at its
-            // start, the last at its end.
+            // start, the last at its end. Held, both are resolved (the
+            // worker's postconditions), which the sweep's records take as
+            // known.
             mtwnTiming held = node->timing;
             held.fill = mtwn_fillBoth;
             mtwnComputeTimingWork(&held, held.delay, false, &shape);
             node->startIteration = shape.iteration;
             mtwnComputeTimingWork(&held, held.delay + node->activeDuration, false, &shape);
             node->endIteration = shape.iteration;
-            // From a timing the node was checked with: an active duration
-            // of 0 or more, and, held at both ends, iterations resolved,
-            // which the sweep's records take as known.
-            MTWN_ASSERT(node->activeDuration >= 0.0 && !isnan(node->startIteration) &&
-                        !isnan(node->endIteration));
         }
         const mtwnClipNode* before = i > 0 ? &slot->nodes[i - 1] : NULL;
         node->sharesTiming = node->kind == mtwn_nodeTrack && before != NULL &&

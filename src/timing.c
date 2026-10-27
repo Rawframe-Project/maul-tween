@@ -11,6 +11,7 @@
 #include "maul-tween/timing.h"
 
 #include "fpenv.h"
+#include "invariant.h"
 #include "reserved_internal.h"
 #include "timing_internal.h"
 #include "valid.h"
@@ -280,9 +281,51 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
     return simple;
 }
 
+// Whether a phase holds no effect for the timing's fill: before or after
+// the active interval, without a fill reaching it. Only an assertion calls
+// it.
+[[maybe_unused]] static inline bool Unfilled(const mtwnTiming* timing, mtwnPhase phase)
+{
+    bool backwardsFill = timing->fill == mtwn_fillBackwards || timing->fill == mtwn_fillBoth;
+    bool forwardsFill = timing->fill == mtwn_fillForwards || timing->fill == mtwn_fillBoth;
+    return (phase == mtwn_phaseBefore && !backwardsFill) ||
+           (phase == mtwn_phaseAfter && !forwardsFill);
+}
+
+// Whether a result with an effect is resolved: an active time from 0, the
+// overall progress kept to the iterations, the simple and directed
+// progress from 0 to 1 and an iteration from the start's, infinity
+// included. Only an assertion calls it.
+[[maybe_unused]] static inline bool Resolved(const mtwnTiming* timing,
+                                             const mtwnTimingResult* result)
+{
+    double start = timing->iterationStart;
+    return result->activeTime >= 0.0 && result->overallProgress >= start &&
+           result->overallProgress <= start + timing->iterations && result->simpleProgress >= 0.0 &&
+           result->simpleProgress <= 1.0 && result->iteration >= floor(start) &&
+           result->directedProgress >= 0.0 && result->directedProgress <= 1.0;
+}
+
+// Fills a result without an effect: NaN from the overall progress on.
+static void NoEffect(const mtwnTiming* timing, double localTime, mtwnTimingResult* result)
+{
+    // No effect only where the fill leaves the phase, or at a local time
+    // of NaN, a parent's own lack of effect.
+    MTWN_ASSERT(isnan(localTime) || Unfilled(timing, result->phase));
+    result->overallProgress = (double)NAN;
+    result->simpleProgress = (double)NAN;
+    result->iteration = (double)NAN;
+    result->directedProgress = (double)NAN;
+    result->transformedProgress = (double)NAN;
+}
+
+// Every caller passes a timing mtwnValidateTimingWork accepted: the public
+// call checks it, and a clip checks each node's where it is added, an
+// automatic duration included (Raise in src/clip.c).
 MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localTime, bool backwards,
                                          mtwnTimingResult* resultOut)
 {
+    MTWN_ASSERT(mtwnValidateTimingWork(timing) == mtwn_success);
     // Built in place: a copy out of a local read back the fields it had
     // just stored, in wider loads than the stores.
     *resultOut = (mtwnTimingResult){0};
@@ -296,15 +339,13 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
     double activeEnd = timing->delay + active;
     double activeAfter = activeEnd < result->endTime ? activeEnd : result->endTime;
     activeAfter = activeAfter > 0.0 ? activeAfter : 0.0;
+    // An active duration from 0, a product and sum of fields from 0.
+    MTWN_ASSERT(active >= 0.0);
     result->phase = Phase(localTime, beforeActive, activeAfter, backwards);
     result->activeTime = ActiveTime(timing, result->phase, localTime, active);
     if (isnan(result->activeTime))
     {
-        result->overallProgress = (double)NAN;
-        result->simpleProgress = (double)NAN;
-        result->iteration = (double)NAN;
-        result->directedProgress = (double)NAN;
-        result->transformedProgress = (double)NAN;
+        NoEffect(timing, localTime, result);
         return;
     }
     double n = timing->iterations;
@@ -347,6 +388,8 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
         result->transformedProgress =
             mtwnEaseWork(&timing->easing, result->directedProgress, result->before);
     }
+    // The transformed progress is the easing's, a host's any double.
+    MTWN_ASSERT(Resolved(timing, result));
 }
 
 static MTWN_NOINLINE mtwnResult mtwnComputeTimingChecked(const mtwnTiming* timing, double localTime,
