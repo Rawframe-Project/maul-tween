@@ -874,6 +874,38 @@ static void TestSeekLimit(void)
     mtwnDestroyContext(f.context);
 }
 
+// A label seek takes a label of the root: one of a timeline inside it is
+// not the clip's, though its key matches.
+static void TestSeekLabelOfRoot(void)
+{
+    Fixture f = Make(false, 64);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.position = (mtwnPosition){1.0, 0, mtwn_positionAbsolute, {0}};
+    mtwnNode timeline;
+    mtwnNode node;
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute, {0}};
+    CHECK(mtwnCreateClip(f.context, &clipDef, &clip) == mtwn_success &&
+              mtwnClip_AddTimeline(f.context, clip, &group, &timeline) == mtwn_success &&
+              mtwnClip_AddLabel(f.context, clip, timeline, at, 5, &node) == mtwn_success,
+          "a label keyed 5 in a timeline at 1 s");
+    at.offset = 0.25;
+    CHECK(mtwnClip_AddLabel(f.context, clip, MTWN_ROOT_NODE, at, 6, &node) == mtwn_success &&
+              mtwnClip_Finish(f.context, clip) == mtwn_success,
+          "and one keyed 6 in the root");
+    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    def.clip = clip;
+    def.play = false;
+    mtwnPlayerId p;
+    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_success &&
+              mtwnPlayer_SeekLabel(f.context, p, 5) == mtwn_errorInvalid &&
+              mtwnPlayer_SeekLabel(f.context, p, 6) == mtwn_success &&
+              State(&f, p).currentTime == 0.25,
+          "the timeline's label refused, the root's taken");
+    mtwnDestroyContext(f.context);
+}
+
 // A player of a clip with no tracks has no bindings: destroying it gives
 // back nothing, and the bindings of the player before it stay.
 static void TestNoBindingsDestroyed(void)
@@ -907,6 +939,7 @@ int main(void)
 {
     TestRateLimit();
     TestSeekLimit();
+    TestSeekLabelOfRoot();
     TestPendingRates();
     TestEdges();
     TestAfterLastPlayer();
