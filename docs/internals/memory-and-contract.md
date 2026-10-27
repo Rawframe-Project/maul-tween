@@ -4,7 +4,7 @@ What a context holds and how, and the rules every call keeps: ids, defs and vers
 
 ## One block
 
-The context def names every capacity: targets, players (transitions included), clips, event records, bindings, the sharing's nodes and records, and clip storage ([`src/context.c`](../../src/context.c)). Creation checks the def and allocates the context, its pools, its queue and its list of changed targets in one block through the host's allocator; destruction frees it, with its clips' blocks, in one call. Counts are at most 2^24 each and clip storage at most 2^31 bytes, and sizes are computed with checked arithmetic, so no def can overflow a size. A full pool refuses with `mtwn_errorLimit`; nothing grows behind the host's back, and an update never allocates.
+The context def names every capacity: targets, players (transitions included), clips, event records, bindings, the sharing's nodes and records, and clip storage ([`src/context.c`](../../src/context.c)). Creation checks the def and allocates the context, its pools, its queue and its list of changed targets in one block through the host's allocator; destruction frees it, with its clips' blocks, in one call. Counts are at most 2^24 each and clip storage at most 2^31 bytes, and sizes are computed with checked arithmetic, so no def can overflow a size. A full pool refuses with `mtwn_errorCapacity` and a capacity past its maximum with `mtwn_errorLimit`; nothing grows behind the host's back, and an update never allocates.
 
 A game knows its budget, and a pool that grows in the middle of a frame stalls it or fails where no one checks. When the host does outgrow a context, `mtwnGrowContext` grows it at a moment the host chooses: it allocates one new block, moves every pool with its free list (ids stay valid, freed slots reused in the same order as before), the bindings, the queued records in order and the changed list, frees the old block and writes the new address. Clips' storage does not move. On a refusal or an allocation failure nothing changes.
 
@@ -28,7 +28,7 @@ Public structs have no reserved fields and no fields that only spell out padding
 
 ## Refusals and misuse
 
-A refused call changes nothing. A call on a live context refused for an invalid argument, a stale id or a call back in counts one misuse (`mtwnGetContextMisuse`); the count is atomic, incremented relaxed, since a refusal may come from the task system's code on a worker while the update's thread waits. A host asserts the count stays 0, and a fuzz target asserts it moves exactly when a call is refused.
+A refused call changes nothing. A call on a live context refused for an invalid argument, an argument past a named bound (`mtwn_errorLimit`), a stale id or a call back in counts one misuse, and one refused for room (`mtwn_errorCapacity`) does not (`mtwnGetContextMisuse`); the count is atomic, incremented relaxed, since a refusal may come from the task system's code on a worker while the update's thread waits. A host asserts the count stays 0, and a fuzz target asserts it moves exactly when a call is refused.
 
 Caller input is never checked by an assertion: it is validated and refused with a status in every build. `MTWN_ASSERT` ([`src/invariant.h`](../../src/invariant.h)) checks only states that cannot happen unless the library itself is wrong. It traps in builds without `NDEBUG` (Debug, the sanitizer builds, the fuzz builds) and compiles out of Release builds, whose update loop must not pay for it.
 
@@ -43,7 +43,7 @@ Every out-parameter's header says what a failure leaves in it, by one rule:
 
 ## Calls back in
 
-The host's code that the library runs (a host easing, the allocator, the task system's functions and tasks) must not call the context it serves. A context is busy while any of its functions taking it non-const runs; such a function called during another returns `mtwn_errorState` at once and counts one misuse, and `mtwnDestroyContext` returns without destroying. The flag is set by every such function, not only by those that run host code: which calls reach a host easing is not plain from the code (adding a track and finishing a clip measure eased timings), and a rule on every call needs no list kept true. Functions taking a const context are not refused, but read it in the middle of a call. `mtwnGrowContext` enters the context it is given and leaves the one it returns.
+The host's code that the library runs (a host easing, the allocator, the task system's functions and tasks) must not call the context it serves. A context is busy while any of its functions taking it non-const runs; such a function called during another returns `mtwn_errorBusy` at once and counts one misuse, and `mtwnDestroyContext` returns without destroying. The flag is set by every such function, not only by those that run host code: which calls reach a host easing is not plain from the code (adding a track and finishing a clip measure eased timings), and a rule on every call needs no list kept true. Functions taking a const context are not refused, but read it in the middle of a call. `mtwnGrowContext` enters the context it is given and leaves the one it returns.
 
 ## ABI
 

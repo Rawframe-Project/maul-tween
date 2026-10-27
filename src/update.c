@@ -505,7 +505,7 @@ static MTWN_NOINLINE mtwnResult mtwnUpdateWork(mtwnContext* context, uint64_t ti
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunUpdate(context, timeNs, changedOut, changedCapacity, changedTotalOut);
     mtwnLeave(context);

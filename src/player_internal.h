@@ -65,6 +65,18 @@ static inline bool mtwnIsRate(double rate)
     return rate == 0.0 || (fabs(rate) >= 1.0 / MTWN_RATE_LIMIT && fabs(rate) <= MTWN_RATE_LIMIT);
 }
 
+// A rate's refusal: none for a rate, mtwn_errorInvalid for NaN, and
+// mtwn_errorLimit for one past MTWN_RATE_LIMIT's bounds, infinite or below
+// its inverse in size.
+static inline mtwnResult mtwnCheckRate(double rate)
+{
+    if (isnan(rate))
+    {
+        return mtwn_errorInvalid;
+    }
+    return mtwnIsRate(rate) ? mtwn_success : mtwn_errorLimit;
+}
+
 static inline bool mtwnIsWeight(double weight)
 {
     return weight >= 0.0 && weight <= 1.0;

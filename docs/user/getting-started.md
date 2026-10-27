@@ -46,17 +46,19 @@ or through pkg-config, `pkg-config --cflags --libs maul-tween`. A project can al
 
 Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negative error. `mtwnResultName` names any result for logs, and the functions are marked `[[nodiscard]]` where the compiler supports it.
 
-| Result | Meaning |
-|---|---|
-| `mtwn_errorInvalid` | An argument is invalid: a null pointer, a value out of range, a def not made by its default function. |
-| `mtwn_errorCapacity` | A caller buffer is too small, or the allocator failed. |
-| `mtwn_errorLimit` | A capacity the host set is full: targets, players, clips, a clip's nodes, the `linear()` points a transition or a clip holds. |
-| `mtwn_errorVersion` | A context def was built against headers of another ABI version. |
-| `mtwn_errorStale` | An id names an object destroyed since it was handed out. |
-| `mtwn_errorBusy` | The object is in use: a clip a player plays. |
-| `mtwn_errorState` | The call is not allowed now: a finished clip changed, a call back in from the host's code. |
+| Result | Value | Meaning |
+|---|---|---|
+| `mtwn_errorInvalid` | -1 | An argument a correct program never passes: a null pointer, a value outside its documented range, a def not made by its default function. |
+| `mtwn_errorCapacity` | -2 | Storage is too small: a capacity the host set is full (targets, players, clips, bindings, a clip's nodes, keyframes or `linear()` points, a transition's points), a caller's buffer, or the allocator. More room would succeed. |
+| `mtwn_errorStale` | -3 | An id names an object destroyed since it was handed out. |
+| `mtwn_errorState` | -6 | The call is not allowed in the object's state, which another call changes: a clip not finished or already finished, a player control its rate or time does not allow. |
+| `mtwn_errorVersion` | -7 | A context def was built against headers of another ABI version. |
+| `mtwn_errorLimit` | -9 | An argument passes a bound published as a named constant: `MTWN_MAX_COUNT`, `MTWN_MAX_CLIP_STORAGE`, `MTWN_MAX_CLIP_DEPTH`, `MTWN_MAX_FIT_POINTS`, `MTWN_RATE_LIMIT`, `MTWN_SEEK_LIMIT`. More room would not help. |
+| `mtwn_errorBusy` | -10 | The object is in use, and the same call succeeds once that ends: a call back in from the host's code the context runs, a clip a player plays until the player is freed. |
 
-A refused call changes nothing. A context counts the calls refused for an invalid argument, a stale id or a call back in (`mtwnGetContextMisuse`), so a host can assert the count stays 0.
+The values are the Maul family's, the same in every library, so a log of a raw value reads one way.
+
+A refused call changes nothing. A context counts the calls refused for an invalid argument, one past a named bound, a stale id or a call back in (`mtwnGetContextMisuse`), so a host can assert the count stays 0; a full capacity is not misuse.
 
 Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
 
@@ -66,7 +68,7 @@ A call on a context clears its outputs when it fails (a null id, a zero value, a
 
 ## Calls back in
 
-The host's code that the library runs (a host easing, the allocator, the task system's functions) must not call the context it serves. Such a call is refused with `mtwn_errorState` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying.
+The host's code that the library runs (a host easing, the allocator, the task system's functions) must not call the context it serves. Such a call is refused with `mtwn_errorBusy` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying.
 
 ## Where to go next
 

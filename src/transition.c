@@ -419,7 +419,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     }
     if (copies && prepared.easing.count > context->def.pointsPerTransition)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     Reverse(context, def, target, &prepared);
     // The transition it replaces frees its slot first.
@@ -436,7 +436,7 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_TRANSITION);
     if (index1 == 0)
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     MTWN_ASSERT(slot->type == MTWN_PLAYER_TRANSITION);
@@ -488,7 +488,7 @@ static MTWN_NOINLINE mtwnResult mtwnStartTransitionWork(mtwnContext* context,
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunStartTransition(context, def, playerOut);
     mtwnLeave(context);
@@ -595,7 +595,7 @@ static MTWN_NOINLINE mtwnResult mtwnMeasureTransitionWork(mtwnContext* context,
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunMeasureTransition(context, def, distanceOut);
     mtwnLeave(context);

@@ -36,12 +36,16 @@ static mtwnResult CheckDef(const mtwnContextDef* def)
     }
     bool oneFunction = (def->allocator.alloc == NULL) != (def->allocator.free == NULL) ||
                        (def->enqueueTask == NULL) != (def->finishTask == NULL);
-    bool valid = !oneFunction && IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
-                 IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
-                 IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
-                 IsCount(def->sharedRecordCapacity) && IsCount(def->pointsPerTransition) &&
-                 def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
-    return valid ? mtwn_success : mtwn_errorInvalid;
+    if (oneFunction)
+    {
+        return mtwn_errorInvalid;
+    }
+    bool within = IsCount(def->targetCapacity) && IsCount(def->playerCapacity) &&
+                  IsCount(def->clipCapacity) && IsCount(def->eventCapacity) &&
+                  IsCount(def->bindingCapacity) && IsCount(def->sharedNodeCapacity) &&
+                  IsCount(def->sharedRecordCapacity) && IsCount(def->pointsPerTransition) &&
+                  def->clipStorageBytes <= MTWN_MAX_CLIP_STORAGE;
+    return within ? mtwn_success : mtwn_errorLimit;
 }
 
 // Where each part of the block starts, and its size.
@@ -395,7 +399,7 @@ static MTWN_NOINLINE mtwnResult mtwnGrowContextWork(mtwnContext** contextInOut,
     // The context moves: what it was enters, what it is leaves.
     if (!mtwnEnter(contextInOut == NULL ? NULL : *contextInOut))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunGrowContext(contextInOut, def);
     mtwnLeave(contextInOut == NULL ? NULL : *contextInOut);
@@ -461,7 +465,7 @@ static MTWN_NOINLINE mtwnResult mtwnContext_SetReducedMotionWork(mtwnContext* co
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunContextSetReducedMotion(context, reduced);
     mtwnLeave(context);

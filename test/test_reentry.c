@@ -30,7 +30,7 @@ typedef struct Probe
     mtwnTargetId spare;
     mtwnClipId clip;
     mtwnPlayerId player;
-    // Calls made back in, those refused with mtwn_errorState, and those
+    // Calls made back in, those refused with mtwn_errorBusy, and those
     // whose outputs the refusal cleared.
     uint32_t calls;
     uint32_t refused;
@@ -42,7 +42,7 @@ static Probe s_probe;
 // Calls every function taking the context non-const, each with an
 // argument it refuses as invalid or stale (a null id or output, a time
 // gone by), so none can change the context and none returns
-// mtwn_errorState of itself: that status is the busy refusal alone. Counts
+// mtwn_errorBusy of itself: that status is the busy refusal alone. Counts
 // those: 37, the functions returning a status. Busy, it ends with the
 // destroy, which returns nothing and must leave the context alive.
 static uint32_t CallEverything(mtwnContext* c, bool busy)
@@ -52,51 +52,51 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     const mtwnPlayerId noPlayer = {0, 0};
     const mtwnTargetId noTarget = {0, 0};
     mtwnClipDef clipDef = mtwnDefaultClipDef();
-    r += mtwnCreateClip(c, &clipDef, NULL) == mtwn_errorState;
-    r += mtwnDestroyClip(c, noClip) == mtwn_errorState;
+    r += mtwnCreateClip(c, &clipDef, NULL) == mtwn_errorBusy;
+    r += mtwnDestroyClip(c, noClip) == mtwn_errorBusy;
     mtwnClipTrackDef trackDef = mtwnDefaultClipTrackDef();
-    r += mtwnClip_AddTrack(c, noClip, &trackDef, NULL) == mtwn_errorState;
+    r += mtwnClip_AddTrack(c, noClip, &trackDef, NULL) == mtwn_errorBusy;
     mtwnClipTimelineDef timelineDef = mtwnDefaultClipTimelineDef();
-    r += mtwnClip_AddTimeline(c, noClip, &timelineDef, NULL) == mtwn_errorState;
+    r += mtwnClip_AddTimeline(c, noClip, &timelineDef, NULL) == mtwn_errorBusy;
     mtwnPosition at;
     memset(&at, 0, sizeof at);
-    r += mtwnClip_AddLabel(c, noClip, MTWN_ROOT_NODE, at, 1, NULL) == mtwn_errorState;
-    r += mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, NULL) == mtwn_errorState;
-    r += mtwnClip_Finish(c, noClip) == mtwn_errorState;
-    r += mtwnClip_GetTrack(c, noClip, 1, NULL) == mtwn_errorState;
-    r += mtwnClip_GetNode(c, noClip, MTWN_ROOT_NODE, NULL) == mtwn_errorState;
-    r += mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, NULL) == mtwn_errorState;
-    r += mtwnClip_GetDuration(c, noClip, NULL) == mtwn_errorState;
+    r += mtwnClip_AddLabel(c, noClip, MTWN_ROOT_NODE, at, 1, NULL) == mtwn_errorBusy;
+    r += mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, NULL) == mtwn_errorBusy;
+    r += mtwnClip_Finish(c, noClip) == mtwn_errorBusy;
+    r += mtwnClip_GetTrack(c, noClip, 1, NULL) == mtwn_errorBusy;
+    r += mtwnClip_GetNode(c, noClip, MTWN_ROOT_NODE, NULL) == mtwn_errorBusy;
+    r += mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, NULL) == mtwn_errorBusy;
+    r += mtwnClip_GetDuration(c, noClip, NULL) == mtwn_errorBusy;
     mtwnContext* grown = c;
-    r += mtwnGrowContext(&grown, NULL) == mtwn_errorState;
+    r += mtwnGrowContext(&grown, NULL) == mtwn_errorBusy;
     // Reduced motion as it is: the one call that succeeds when not busy.
-    r += mtwnContext_SetReducedMotion(c, false) == mtwn_errorState;
-    r += mtwnUpdate(c, 0, NULL, 1, NULL) == mtwn_errorState;
-    r += mtwnReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorState;
+    r += mtwnContext_SetReducedMotion(c, false) == mtwn_errorBusy;
+    r += mtwnUpdate(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
+    r += mtwnReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
-    r += mtwnCreatePlayer(c, &playerDef, NULL) == mtwn_errorState;
-    r += mtwnPlayer_Play(c, noPlayer) == mtwn_errorState;
-    r += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorState;
-    r += mtwnPlayer_Reverse(c, noPlayer) == mtwn_errorState;
-    r += mtwnPlayer_Finish(c, noPlayer) == mtwn_errorState;
-    r += mtwnPlayer_Cancel(c, noPlayer) == mtwn_errorState;
-    r += mtwnPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorState;
-    r += mtwnPlayer_Sweep(c, noPlayer, 0.25) == mtwn_errorState;
-    r += mtwnPlayer_SeekProgress(c, noPlayer, 0.5) == mtwn_errorState;
-    r += mtwnPlayer_SeekLabel(c, noPlayer, 1) == mtwn_errorState;
-    r += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorState;
-    r += mtwnPlayer_SetWeight(c, noPlayer, 0.5) == mtwn_errorState;
-    r += mtwnPlayer_GetState(c, noPlayer, NULL) == mtwn_errorState;
-    r += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorState;
-    r += mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, NULL) == mtwn_errorState;
-    r += mtwnDestroyTarget(c, noTarget) == mtwn_errorState;
-    r += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorState;
-    r += mtwnTarget_GetValue(c, noTarget, NULL) == mtwn_errorState;
-    r += mtwnTarget_GetState(c, noTarget, NULL) == mtwn_errorState;
-    r += mtwnReadTargets(c, NULL, 1, NULL) == mtwn_errorState;
+    r += mtwnCreatePlayer(c, &playerDef, NULL) == mtwn_errorBusy;
+    r += mtwnPlayer_Play(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnPlayer_Reverse(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnPlayer_Finish(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnPlayer_Cancel(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorBusy;
+    r += mtwnPlayer_Sweep(c, noPlayer, 0.25) == mtwn_errorBusy;
+    r += mtwnPlayer_SeekProgress(c, noPlayer, 0.5) == mtwn_errorBusy;
+    r += mtwnPlayer_SeekLabel(c, noPlayer, 1) == mtwn_errorBusy;
+    r += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorBusy;
+    r += mtwnPlayer_SetWeight(c, noPlayer, 0.5) == mtwn_errorBusy;
+    r += mtwnPlayer_GetState(c, noPlayer, NULL) == mtwn_errorBusy;
+    r += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, NULL) == mtwn_errorBusy;
+    r += mtwnDestroyTarget(c, noTarget) == mtwn_errorBusy;
+    r += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorBusy;
+    r += mtwnTarget_GetValue(c, noTarget, NULL) == mtwn_errorBusy;
+    r += mtwnTarget_GetState(c, noTarget, NULL) == mtwn_errorBusy;
+    r += mtwnReadTargets(c, NULL, 1, NULL) == mtwn_errorBusy;
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
-    r += mtwnStartTransition(c, &transition, NULL) == mtwn_errorState;
-    r += mtwnMeasureTransition(c, &transition, NULL) == mtwn_errorState;
+    r += mtwnStartTransition(c, &transition, NULL) == mtwn_errorBusy;
+    r += mtwnMeasureTransition(c, &transition, NULL) == mtwn_errorBusy;
     if (busy)
     {
         mtwnDestroyContext(c);
@@ -109,7 +109,7 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     do                                                                                             \
     {                                                                                              \
         memset(&(out), 0xAB, sizeof(out));                                                         \
-        cleared += (call) == mtwn_errorState && Zeroed(&(out), sizeof(out));                       \
+        cleared += (call) == mtwn_errorBusy && Zeroed(&(out), sizeof(out));                        \
     } while (0)
 
 static bool Zeroed(const void* bytes, size_t size)
@@ -265,16 +265,16 @@ static void TestAllocator(void)
     mtwnContextDef grown = def;
     grown.targetCapacity = def.targetCapacity * 2;
     CHECK(mtwnGrowContext(&context, &grown) == mtwn_success, "grown");
-    CHECK(calling.allocs == 1 && calling.inAlloc == mtwn_errorState,
+    CHECK(calling.allocs == 1 && calling.inAlloc == mtwn_errorBusy,
           "an update from the allocation refused");
-    CHECK(calling.frees == 1 && calling.inFree == mtwn_errorState,
+    CHECK(calling.frees == 1 && calling.inFree == mtwn_errorBusy,
           "a change from freeing the old block refused");
     CHECK(mtwnGetContextMisuse(context) == 1, "the allocation's refusal counted, moved along");
     CHECK(!mtwnContext_IsReducedMotion(context), "nothing changed");
     calling.context = context;
     calling.inFree = mtwn_success;
     mtwnDestroyContext(context);
-    CHECK(calling.frees == 2 && calling.inFree == mtwn_errorState,
+    CHECK(calling.frees == 2 && calling.inFree == mtwn_errorBusy,
           "a change from freeing the destroyed context refused");
 }
 
@@ -291,7 +291,7 @@ static void* CallingEnqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRang
     (void)userContext;
     s_enqueued += 1;
     mtwnTargetId none = {0, 0};
-    s_taskRefused += mtwnDestroyTarget(s_tasksContext, none) == mtwn_errorState;
+    s_taskRefused += mtwnDestroyTarget(s_tasksContext, none) == mtwn_errorBusy;
     task(0, itemCount, taskContext);
     return &s_enqueued;
 }
@@ -301,7 +301,7 @@ static void CallingFinish(void* userTask, void* userContext)
     (void)userTask;
     (void)userContext;
     s_finished += 1;
-    s_taskRefused += mtwnUpdate(s_tasksContext, 0, NULL, 0, NULL) == mtwn_errorState;
+    s_taskRefused += mtwnUpdate(s_tasksContext, 0, NULL, 0, NULL) == mtwn_errorBusy;
 }
 
 static void TestTasks(void)

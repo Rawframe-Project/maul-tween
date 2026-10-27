@@ -86,10 +86,10 @@ static void TestContextDefs(void)
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "a task system half given");
     def = mtwnDefaultContextDef();
     def.clipCapacity = MTWN_MAX_COUNT + 1u;
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "clips past the limit");
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorLimit, "clips past the limit");
     def = mtwnDefaultContextDef();
     def.eventCapacity = MTWN_MAX_COUNT + 1u;
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "events past the limit");
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorLimit, "events past the limit");
     def = mtwnDefaultContextDef();
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
     mtwnContextDef smaller = def;
@@ -113,7 +113,7 @@ static void TestClipsAndPlayers(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     clipDef.slotCapacity = MTWN_MAX_COUNT + 1u;
     mtwnClipId clip;
-    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "slots past the limit");
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorLimit, "slots past the limit");
     clipDef = mtwnDefaultClipDef();
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     mtwnPosition at;

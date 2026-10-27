@@ -159,9 +159,11 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
     double target = argument;
     if (control == s_seekProgress)
     {
+        // A share of an endless clip names no time, and no call changes a
+        // finished clip's end.
         if (!isfinite(end))
         {
-            return mtwn_errorState;
+            return mtwn_errorInvalid;
         }
         target = argument * end;
     }
@@ -183,10 +185,11 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
         target = clip->nodes[child - 1].start;
     }
     // A time beyond the limit, a product that overflowed among them, would
-    // overflow the start time (MTWN_SEEK_LIMIT).
+    // overflow the start time (MTWN_SEEK_LIMIT). The time is never NaN: a
+    // finite argument, its product with a finite end, or a label's start.
     if (!(fabs(target) <= MTWN_SEEK_LIMIT))
     {
-        return mtwn_errorInvalid;
+        return mtwn_errorLimit;
     }
     double before = mtwnCurrentTime(play, now);
     mtwnSetClipTime(play, now, end, target);
@@ -213,22 +216,30 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     {
         return Misuse(context, mtwn_errorStale);
     }
+    // A transition's player is the wrong kind for a clip's controls.
     if (slot->type != MTWN_PLAYER_CLIP)
     {
-        return Misuse(context, mtwn_errorState);
+        return Misuse(context, mtwn_errorInvalid);
     }
     if (control == s_setWeight && !mtwnIsWeight(argument))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    if (control == s_setRate && !mtwnIsRate(argument))
+    if (control == s_setRate && mtwnCheckRate(argument) != mtwn_success)
+    {
+        return Misuse(context, mtwnCheckRate(argument));
+    }
+    // A NaN time or share names none; an infinite one passes
+    // MTWN_SEEK_LIMIT, refused here before a product with an end of 0 could
+    // make it NaN.
+    bool seeks = control == s_seek || control == s_seekProgress || control == s_sweep;
+    if (seeks && isnan(argument))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
-    if ((control == s_seek || control == s_seekProgress || control == s_sweep) &&
-        !isfinite(argument))
+    if (seeks && isinf(argument))
     {
-        return Misuse(context, mtwn_errorInvalid);
+        return Misuse(context, mtwn_errorLimit);
     }
     mtwnResult result = ControlWorker(context, player.index1, control, argument, key);
     return result == mtwn_success ? result : Misuse(context, result);
@@ -240,7 +251,7 @@ static mtwnResult Apply(mtwnContext* context, mtwnPlayerId player, Control contr
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunControl(context, player, control, argument, key);
     mtwnLeave(context);

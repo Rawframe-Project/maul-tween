@@ -923,7 +923,7 @@ static void TestRefusals(void)
     def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     mtwnPlayerId first = Start(context, &def);
     def.target = y;
-    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorLimit && id.index1 == 0,
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorCapacity && id.index1 == 0,
           "the pool full");
     CHECK(mtwnGetContextMisuse(context) == misuse, "a full pool is not misuse");
     CHECK(mtwnDestroyTarget(context, x) == mtwn_success && !mtwnPlayer_IsValid(context, first),
@@ -1668,7 +1668,7 @@ static void TestLinearPointsCopied(void)
     CHECK(mtwnMakeLinearEasing(five, 5, &longer) == mtwn_success, "five points");
     transition.easing = longer;
     mtwnPlayerId refused;
-    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorLimit &&
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorCapacity &&
               mtwnGetContextMisuse(context) == misuse && mtwnPlayer_IsValid(context, id),
           "more points than a transition holds: refused, not misuse, the running one kept");
     mtwnLinearPoint swapped[4] = {{0.0, 0.0}, {0.5, 0.2}, {0.25, 0.6}, {1.0, 1.0}};
@@ -1699,7 +1699,7 @@ static void TestLinearPointsCopied(void)
     x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
     transition.target = x;
     transition.easing = reference;
-    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorLimit,
+    CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorCapacity,
           "a context of 0 points takes no linear() easing");
     transition.easing = easing;
     CHECK(mtwnMakeCssEasing(mtwn_cssEase, &transition.easing) == mtwn_success &&

@@ -252,9 +252,9 @@ extern "C"
     /// @param context     The context.
     /// @param def         The clip's def.
     /// @param bytesOut    Receives the bytes; 0 on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie or a capacity past MTWN_MAX_COUNT;
-    ///         mtwn_errorState while the context is busy.
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument or a
+    ///         def without its cookie; mtwn_errorLimit for a capacity past
+    ///         MTWN_MAX_COUNT; mtwn_errorBusy while the context is busy.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(mtwnContext* context,
@@ -267,11 +267,11 @@ extern "C"
     /// @param context  The context.
     /// @param def      The def.
     /// @param clipOut  Receives the clip's id, or the null id on failure.
-    /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
-    ///         without its cookie or a capacity past MTWN_MAX_COUNT;
-    ///         mtwn_errorLimit when the context holds its capacity
-    ///         of clips or the storage would pass its clip storage;
-    ///         mtwn_errorCapacity when the allocator fails.
+    /// @return mtwn_success; mtwn_errorInvalid for a null argument or a
+    ///         def without its cookie; mtwn_errorLimit for a capacity past
+    ///         MTWN_MAX_COUNT; mtwn_errorCapacity when the context holds its
+    ///         capacity of clips, the storage would pass its clip storage,
+    ///         or the allocator fails.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateClip(mtwnContext* context, const mtwnClipDef* def,
@@ -314,9 +314,9 @@ extern "C"
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie or outside the above; mtwn_errorStale for a
     ///         clip that is not alive; mtwn_errorState for a finished clip;
-    ///         mtwn_errorLimit when the clip holds its capacity of nodes,
-    ///         keyframes or points. mtwn_errorInvalid also for a node whose
-    ///         end would take its clip's finite end past MTWN_SEEK_LIMIT.
+    ///         mtwn_errorCapacity when the clip holds its capacity of nodes,
+    ///         keyframes or points; mtwn_errorLimit for a node whose end
+    ///         would take its clip's finite end past MTWN_SEEK_LIMIT.
     ///         The linear() points of its timing's
     ///         and keyframes' easings are copied into the clip, so the
     ///         host's may change or go once added; points the host changed

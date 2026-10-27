@@ -473,14 +473,18 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorState);
     }
-    if (!mtwnIsRate(def->rate) || !mtwnIsWeight(def->weight) || !AreBindings(context, def, clip))
+    if (isnan(def->rate) || !mtwnIsWeight(def->weight) || !AreBindings(context, def, clip))
     {
         return Misuse(context, mtwn_errorInvalid);
+    }
+    if (!mtwnIsRate(def->rate))
+    {
+        return Misuse(context, mtwn_errorLimit);
     }
     uint32_t start = 0;
     if (clip->slotCount > 0 && !mtwnTakeRun(&context->bindings, clip->slotCount, &start))
     {
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_CLIP);
     if (index1 == 0)
@@ -489,7 +493,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
         {
             mtwnGiveRun(&context->bindings, start, clip->slotCount);
         }
-        return mtwn_errorLimit;
+        return mtwn_errorCapacity;
     }
     mtwnBound* bound = &context->bindings.entries[start];
     for (uint32_t s = 0; s < clip->slotCount; ++s)
@@ -558,7 +562,7 @@ static MTWN_NOINLINE mtwnResult mtwnCreatePlayerWork(mtwnContext* context, const
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunCreatePlayer(context, def, playerOut);
     mtwnLeave(context);
@@ -615,7 +619,7 @@ static MTWN_NOINLINE mtwnResult mtwnDestroyPlayerWork(mtwnContext* context, mtwn
 {
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunDestroyPlayer(context, player);
     mtwnLeave(context);
@@ -651,9 +655,10 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
     {
         return Misuse(context, mtwn_errorInvalid);
     }
+    // A transition's player is the wrong kind for a clip's state.
     if (slot->type != MTWN_PLAYER_CLIP)
     {
-        return Misuse(context, mtwn_errorState);
+        return Misuse(context, mtwn_errorInvalid);
     }
     const mtwnClipPlay* play = &slot->play;
     double now = mtwnTimelineNow(context);
@@ -678,7 +683,7 @@ static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mt
     }
     if (!mtwnEnter(context))
     {
-        return mtwn_errorState;
+        return mtwn_errorBusy;
     }
     mtwnResult result = RunPlayerGetState(context, player, stateOut);
     mtwnLeave(context);
