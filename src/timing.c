@@ -18,6 +18,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <string.h>
 
 mtwnTiming mtwnDefaultTiming(void)
 {
@@ -362,7 +363,7 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
     MTWN_ASSERT(mtwnValidateTimingWork(timing) == mtwn_success);
     // Built in place: a copy out of a local read back the fields it had
     // just stored, in wider loads than the stores.
-    *resultOut = (mtwnTimingResult){0};
+    memset(resultOut, 0, sizeof *resultOut);
     mtwnTimingResult* result = resultOut;
     double active = ActiveDuration(timing);
     result->activeDuration = active;

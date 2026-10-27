@@ -307,7 +307,7 @@ static mtwnResult RunTargetGetState(mtwnContext* context, mtwnTargetId target,
         }
         return mtwn_errorInvalid;
     }
-    *stateOut = (mtwnTargetState){0};
+    memset(stateOut, 0, sizeof *stateOut);
     mtwnTargetSlot* slot = NULL;
     mtwnResult resolved = Resolve(context, target, &slot);
     if (resolved == mtwn_success)
@@ -326,7 +326,7 @@ static MTWN_NOINLINE mtwnResult mtwnTarget_GetStateWork(mtwnContext* context, mt
     // Cleared first, so a busy or missing context's failure clears it too.
     if (stateOut != NULL)
     {
-        *stateOut = (mtwnTargetState){0};
+        memset(stateOut, 0, sizeof *stateOut);
     }
     if (!mtwnEnter(context))
     {

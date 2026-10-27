@@ -14,6 +14,7 @@
 #include "player_internal.h"
 
 #include <math.h>
+#include <string.h>
 
 static mtwnPlayState StateOf(const mtwnClipPlay* play, double now, double end)
 {
@@ -673,7 +674,7 @@ static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mt
     // Cleared first, so a busy or missing context's failure clears it too.
     if (stateOut != NULL)
     {
-        *stateOut = (mtwnPlayerState){0};
+        memset(stateOut, 0, sizeof *stateOut);
     }
     if (!mtwnEnter(context))
     {
