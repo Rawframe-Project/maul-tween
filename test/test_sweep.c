@@ -372,7 +372,8 @@ static void TestStartPastTheDoubles(bool countEvery)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
-    mtwnKeyframe keys[2] = {{0}};
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
     keys[0].easing = keys[1].easing = mtwnLinearEasing();
