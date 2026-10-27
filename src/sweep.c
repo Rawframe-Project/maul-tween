@@ -98,6 +98,16 @@ static double IterationOf(const mtwnLevel* levels, uint32_t count, double known,
     return isnan(known) ? mtwnIterationAt(levels, count, t) : known;
 }
 
+// A record's crossings one way, which are never NaN: what a later time
+// reaches includes what an earlier one does (src/crossing.c). Were they
+// NaN, they would make no record, as converting them to the record's
+// count would be undefined.
+static double Crossed(double n)
+{
+    MTWN_ASSERT(!isnan(n));
+    return n;
+}
+
 // Whether the records kept for a track have room for one more: a track
 // makes at most six, its start, iterations and end, each either way.
 // Only an assertion calls it.
@@ -131,8 +141,8 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
     }
     for (int way = 0; way < 2; ++way)
     {
-        double n = way == 0 ? crossings.same : crossings.opposite;
-        if (n < 1.0)
+        double n = Crossed(way == 0 ? crossings.same : crossings.opposite);
+        if (!(n >= 1.0))
         {
             continue;
         }
