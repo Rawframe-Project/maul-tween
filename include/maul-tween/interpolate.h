@@ -73,8 +73,6 @@ extern "C"
         mtwnColor fromColor;
         mtwnColor toColor;
         mtwnColorSpace space;
-        // 0 as made; padding.
-        uint8_t reserved[7];
     } mtwnColorMix;
 
     /// Makes the interpolation between two colors in a space, following CSS

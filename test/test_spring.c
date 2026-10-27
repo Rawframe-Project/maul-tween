@@ -367,7 +367,7 @@ static void TestEndsOfTime(void)
 
 static void TestRefusals(void)
 {
-    mtwnSpring spring = {{7.0}, 9, 0};
+    mtwnSpring spring = {{7.0}, 9};
     CHECK(mtwnMakeSpring(0.0, 1.0, 1.0, &spring) == mtwn_errorInvalid, "no stiffness");
     CHECK(mtwnMakeSpring(1.0, -1.0, 1.0, &spring) == mtwn_errorInvalid, "negative damping");
     CHECK(mtwnMakeSpring(1.0, 1.0, 0.0, &spring) == mtwn_errorInvalid, "no mass");
@@ -408,7 +408,8 @@ static int Refusals(const mtwnSpring* spring)
     double values[3] = {7.0, 7.0, 7.0};
     mtwnEasing easing;
     memset(&easing, 0xAB, sizeof easing);
-    mtwnEasing before = easing;
+    mtwnEasing before;
+    memcpy(&before, &easing, sizeof before);
     int refused = 0;
     refused += mtwnSpringMotionAt(spring, 0.5, &motion) == mtwn_errorInvalid;
     refused += mtwnSampleSpring(spring, 1.0, 0.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
@@ -429,7 +430,7 @@ static void TestForgedSprings(void)
     mtwnSpring made;
     CHECK(mtwnMakeSpringFromFrequency(2.0, 0.4, &made) == mtwn_success, "a spring");
     CHECK(Refusals(&made) == 0, "as made, taken");
-    mtwnSpring zero = {{0.0}, 0, 0};
+    mtwnSpring zero = {{0.0}, 0};
     CHECK(Refusals(&zero) == 4, "one never made, all zeros");
     CHECK(Refusals(NULL) == 4, "none");
     for (size_t i = 0; i < 5; i++)
@@ -443,9 +444,6 @@ static void TestForgedSprings(void)
     mtwnSpring regime = made;
     regime.regime ^= 1U;
     CHECK(Refusals(&regime) == 4, "another regime");
-    mtwnSpring reserved = made;
-    reserved.reserved = 1;
-    CHECK(Refusals(&reserved) == 4, "a reserved word not 0");
     mtwnSpring critical;
     CHECK(mtwnMakeSpringFromFrequency(2.0, 1.0, &critical) == mtwn_success, "a critical spring");
     mtwnSpring negative = critical;
@@ -1082,7 +1080,8 @@ static void TestLongestSpringEasing(void)
         wrong += mtwnEase(&easing, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
     }
     CHECK(wrong == 0, "and eased finite");
-    mtwnEasing kept = easing;
+    mtwnEasing kept;
+    memcpy(&kept, &easing, sizeof kept);
     CHECK(mtwnMakeSpringEasing(&critical, 0x1p512, 0.0, mtwn_easeIn, &easing) ==
                   mtwn_errorInvalid &&
               memcmp(&kept, &easing, sizeof kept) == 0,

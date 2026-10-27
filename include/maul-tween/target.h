@@ -29,8 +29,6 @@ extern "C"
         mtwnVec4 value;
         mtwnVec4 velocity;
         mtwnValueKind kind;
-        // Written 0.
-        uint8_t reserved[3];
     } mtwnTargetState;
 
     /// Makes a target holding a value as its base and current value, at

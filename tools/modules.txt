@@ -14,7 +14,7 @@ valid:
 spring: elementary invariant spring_easing valid fpenv work
 decay: elementary fpenv invariant valid work
 color: bounds_internal color_internal elementary mix_internal fpenv work
-color_check: color_internal fpenv reserved_internal valid work
+color_check: color_internal fpenv valid work
 color_internal:
 rotation: bounds_internal elementary mix_internal fpenv work
 rotation_check: fpenv valid work
@@ -22,12 +22,11 @@ scale: elementary fpenv work
 scale_check: fpenv valid work
 bounds_internal:
 mix_internal:
-reserved_internal:
 invariant:
 zoom: elementary fpenv valid work
 signal: elementary mix_internal fpenv valid
-timing: invariant reserved_internal timing_internal valid work fpenv
-stagger: reserved_internal stagger_internal valid work fpenv
+timing: invariant timing_internal valid work fpenv
+stagger: stagger_internal valid work fpenv
 stagger_internal:
 timing_internal:
 allocator: fpenv
@@ -35,19 +34,19 @@ fpenv:
 work: fpenv
 pool: invariant
 context_internal: crossing invariant pool runs
-context: allocator context_internal invariant pool reserved_internal fpenv
+context: allocator context_internal invariant pool fpenv
 target: context_internal pool fpenv
 transition: bounds_internal coast context_internal css_easing easing_internal elementary fpenv pool valid work
 update: coast context_internal easing_internal elementary fpenv pool bounds_internal mix_internal work
-path: elementary fpenv invariant path_internal path_length bounds_internal reserved_internal valid work
+path: elementary fpenv invariant path_internal path_length bounds_internal valid work
 path_length: elementary invariant
 path_internal: path_length
 path_direction: elementary path_internal path_length fpenv valid
-clip: allocator clip_internal context_internal css_easing fpenv pool reserved_internal valid work
+clip: allocator clip_internal context_internal css_easing fpenv pool valid work
 clip_internal: context_internal
 clip_read: clip_internal context_internal fpenv
 runs: invariant
-player: context_internal fpenv invariant player_internal pool reserved_internal runs
+player: context_internal fpenv invariant player_internal pool runs
 player_control: context_internal fpenv player_internal
 player_internal: context_internal
 player_slot: context_internal pool runs

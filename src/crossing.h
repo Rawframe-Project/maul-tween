@@ -53,7 +53,6 @@ typedef struct mtwnLeaf
     double activeDuration;
     mtwnLeafKind kind;
     bool activeKnown;
-    uint8_t reserved[6];
 } mtwnLeaf;
 
 // A timeline on the way down: its timing, its duration resolved, its

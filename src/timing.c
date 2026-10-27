@@ -12,7 +12,6 @@
 
 #include "fpenv.h"
 #include "invariant.h"
-#include "reserved_internal.h"
 #include "timing_internal.h"
 #include "valid.h"
 #include "work.h"
@@ -43,9 +42,7 @@ MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing)
         isfinite(timing->repeatDelay) && timing->repeatDelay >= 0.0 &&
         isfinite(timing->playbackRate) && timing->playbackRate != 0.0 &&
         timing->fill <= mtwn_fillBoth && timing->direction <= mtwn_directionAlternateReverse &&
-        timing->alternateEasing <= mtwn_alternateRepeatsShape &&
-        mtwnReservedClear(timing->reserved, sizeof timing->reserved) &&
-        mtwnValidEasing(&timing->easing);
+        timing->alternateEasing <= mtwn_alternateRepeatsShape && mtwnValidEasing(&timing->easing);
     // An active duration and an end time a double holds: endless only when
     // the iterations or the duration are, making the active duration
     // infinite (not 0, when the other is 0), and the node plays forwards, since

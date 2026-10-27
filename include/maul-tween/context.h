@@ -106,8 +106,6 @@ extern "C"
         // table belongs in a clip (mtwnClipDef's pointCapacity). 0 takes no
         // linear() easing.
         uint32_t pointsPerTransition;
-        // 0: a call refuses another value.
-        uint32_t reserved;
         // Bytes for the clips' contents, up to MTWN_MAX_CLIP_STORAGE.
         uint64_t clipStorageBytes;
     } mtwnContextDef;

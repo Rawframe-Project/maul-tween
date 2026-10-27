@@ -24,7 +24,6 @@ typedef struct mtwnBound
     // With the host's task system: its target is this binding's alone, as
     // last counted (src/clip_tasks.c).
     bool alone;
-    uint8_t reserved[2];
 } mtwnBound;
 
 typedef struct mtwnRuns

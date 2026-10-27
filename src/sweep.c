@@ -586,8 +586,8 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
     sweep.replayCount = 0;
     // The player's time is the root's parent's, and moves one way; unsure
     // when a test asks every record counted, so nothing is left out.
-    mtwnNodeTime top = {to,    sweep.from, false, true, !context->countEvery, !sweep.fromClosed,
-                        false, {0}};
+    mtwnNodeTime top = {to,   sweep.from, false, true, !context->countEvery, !sweep.fromClosed,
+                        false};
     for (uint32_t i = 0; i < clip->nodeCount; ++i)
     {
         const mtwnClipNode* n = &clip->nodes[i];
@@ -600,7 +600,7 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
         {
             if (still)
             {
-                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, false, false, {0}};
+                times[i] = (mtwnNodeTime){0.0, 0.0, false, true, true, false, false};
             }
             else
             {

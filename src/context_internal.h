@@ -31,7 +31,6 @@ typedef struct mtwnTargetSlot
 {
     mtwnSlotHeader header;
     mtwnValueKind kind;
-    uint8_t reserved;
     // The clips' players' bindings naming it, kept as they are made and
     // freed; at 65,535 it stays.
     uint16_t clipWriters;
@@ -128,7 +127,6 @@ typedef struct mtwnPlayerSlot
             uint8_t crosses;
             uint8_t past;
             bool lands;
-            uint8_t reserved;
             uint64_t startNs;
             double delay;
             // Seconds after the delay to the end; infinity for a spring that
@@ -250,14 +248,12 @@ typedef struct mtwnNodeTime
     // iteration's start): held at both ends, it may still have crossed what
     // lies at the held time.
     bool atEdge;
-    uint8_t reserved[3];
 } mtwnNodeTime;
 
 typedef struct mtwnClipSlot
 {
     mtwnSlotHeader header;
     bool finished;
-    uint8_t reserved[3];
     mtwnClipDef def;
     void* block;
     uint64_t blockBytes;
@@ -599,7 +595,6 @@ typedef struct mtwnSharedTrack
     bool known;
     bool effect;
     bool velocityKnown;
-    uint8_t reserved[3];
 } mtwnSharedTrack;
 
 // A clip's player's records as the last player of its clip in a work made
@@ -649,7 +644,6 @@ typedef struct mtwnSharing
     bool fromNone;
     bool turning;
     bool negative;
-    uint8_t reserved[3];
 } mtwnSharing;
 
 // What a clip's player's advance works in: the crossing levels and node
@@ -678,7 +672,6 @@ typedef struct mtwnWork
     uint32_t changeCount;
     // Whether staging ran out for the player being advanced.
     bool overflow;
-    uint8_t reserved[7];
     // What players in step share in this work.
     mtwnSharing sharing;
 } mtwnWork;

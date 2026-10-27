@@ -7,7 +7,6 @@
 
 #include "color_internal.h"
 #include "fpenv.h"
-#include "reserved_internal.h"
 #include "valid.h"
 #include "work.h"
 
@@ -32,8 +31,7 @@ static MTWN_NOINLINE bool IsEnd(const double end[4], mtwnColor color, mtwnColorS
 
 MTWN_NOINLINE bool mtwnValidColorMix(const mtwnColorMix* mix)
 {
-    return mix != NULL && mtwnIsColorSpace(mix->space) &&
-           mtwnReservedClear(mix->reserved, sizeof mix->reserved) && mtwnIsColor(mix->fromColor) &&
+    return mix != NULL && mtwnIsColorSpace(mix->space) && mtwnIsColor(mix->fromColor) &&
            mtwnIsColor(mix->toColor) && IsEnd(mix->from, mix->fromColor, mix->space) &&
            IsEnd(mix->to, mix->toColor, mix->space);
 }

@@ -844,7 +844,7 @@ static void TestSpecRefusals(void)
     def.spec = mtwn_transitionDecay;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a color decay");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
-    def.spring = (mtwnSpring){{0.0}, 0, 0};
+    def.spring = (mtwnSpring){{0.0}, 0};
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spring not made");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.spec = mtwn_transitionEasing;

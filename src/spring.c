@@ -78,7 +78,7 @@ static mtwnResult Finish(double frequency, double ratio, mtwnSpring* springOut)
     {
         return mtwn_errorInvalid;
     }
-    mtwnSpring spring = {{0.0}, 0, 0};
+    mtwnSpring spring = {{0.0}, 0};
     spring.parameters[s_frequency] = frequency;
     spring.parameters[s_ratio] = ratio;
     spring.parameters[s_decay] = decay;
@@ -545,7 +545,7 @@ static const double s_largestEasingDamped = 4.0 * MTWN_PIO2_HI * 0x1.0p10;
 // value, 1 plus its offset, at p.
 static double SpringEasingRaw(const double* parameters, uint32_t regime, double p)
 {
-    mtwnSpring scaled = {{0.0}, regime, 0};
+    mtwnSpring scaled = {{0.0}, regime};
     scaled.parameters[s_decay] = parameters[s_easingDecay];
     scaled.parameters[s_damped] = parameters[s_easingDamped];
     scaled.parameters[s_squared] = parameters[s_easingSquared];
@@ -564,7 +564,7 @@ static MTWN_NOINLINE mtwnResult mtwnMakeSpringEasingWork(const mtwnSpring* sprin
         return mtwn_errorInvalid;
     }
     double frequency = spring->parameters[s_frequency] * duration;
-    mtwnEasing easing = {{0.0}, NULL, NULL, NULL, 0, mtwn_easingSpring, mode, 0, 0};
+    mtwnEasing easing = {{0.0}, NULL, NULL, NULL, 0, mtwn_easingSpring, mode, 0};
     easing.parameters[s_easingDecay] = spring->parameters[s_decay] * duration;
     easing.parameters[s_easingDamped] = spring->parameters[s_damped] * duration;
     easing.parameters[s_easingSquared] = frequency * frequency;
@@ -637,7 +637,7 @@ MTWN_NOINLINE bool mtwnValidSpring(const mtwnSpring* spring)
     // frequency or ratio no maker takes is refused there, and the fields
     // it derives from them must be what it gives.
     mtwnSpring made;
-    return spring != NULL && spring->reserved == 0 &&
+    return spring != NULL &&
            Finish(spring->parameters[s_frequency], spring->parameters[s_ratio], &made) ==
                mtwn_success &&
            SameBits(made.parameters[s_decay], spring->parameters[s_decay]) &&

@@ -139,8 +139,6 @@ extern "C"
         mtwnEasingKind kind;
         mtwnEaseMode mode;
         mtwnStepPosition position;
-        // 0 as made, refused otherwise where taken in; padding.
-        uint8_t reserved;
     } mtwnEasing;
 
     // How a rough easing's offsets grow and shrink with progress x

@@ -46,8 +46,6 @@ extern "C"
         // A slot of the clip, bound by one binding of the player at most.
         uint32_t slot;
         mtwnComposite composite;
-        // 0: a call refuses another value.
-        uint8_t reserved[3];
         // A live target of the value kind the slot's tracks hold.
         mtwnTargetId target;
         // In [0, 1]: how far from what lies under it toward the composited
@@ -98,8 +96,6 @@ extern "C"
         // fade, a color, or motion essential to what it shows; the others
         // finish at once if their end is finite.
         bool essential;
-        // 0: a call refuses another value.
-        uint8_t reserved[5];
         // The playback rate: 0, which holds, or from 1 / MTWN_RATE_LIMIT
         // to MTWN_RATE_LIMIT in size; negative plays backwards.
         double rate;
@@ -168,8 +164,6 @@ extern "C"
         // end is infinite or its rate 0, so it could not finish.
         // The host's to keep, seek or stop.
         bool playsOnReduced;
-        // Written 0.
-        uint8_t reserved[5];
     } mtwnPlayerState;
 
     /// Makes a player of a finished clip, which it holds busy until it is

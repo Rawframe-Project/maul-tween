@@ -236,7 +236,7 @@ static bool ValidPenner(const mtwnEasing* easing)
 
 MTWN_NOINLINE bool mtwnValidEasing(const mtwnEasing* easing)
 {
-    if (easing == NULL || easing->reserved != 0 || !IsMode(easing->mode))
+    if (easing == NULL || !IsMode(easing->mode))
     {
         return false;
     }

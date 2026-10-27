@@ -58,7 +58,7 @@ Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negati
 
 A refused call changes nothing. A context counts the calls refused for an invalid argument, a stale id or a call back in (`mtwnGetContextMisuse`), so a host can assert the count stays 0.
 
-Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs. Reserved bytes in a def stay 0; a call refuses another value.
+Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
 
 Targets, players and clips are named by ids of an index and a generation. An id of something destroyed is stale: a call given it returns `mtwn_errorStale` and never touches whatever took its slot. The zero id is null.
 

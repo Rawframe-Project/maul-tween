@@ -65,7 +65,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_GetTrackWork(mtwnContext* context, mtwn
     // Cleared first, so a busy or missing context's failure clears it too.
     if (trackOut != NULL)
     {
-        *trackOut = (mtwnClipTrack){0};
+        memset(trackOut, 0, sizeof *trackOut);
     }
     if (!mtwnEnter(context))
     {
@@ -125,7 +125,7 @@ static MTWN_NOINLINE mtwnResult mtwnClip_GetNodeWork(mtwnContext* context, mtwnC
     // Cleared first, so a busy or missing context's failure clears it too.
     if (infoOut != NULL)
     {
-        *infoOut = (mtwnClipNodeInfo){0};
+        memset(infoOut, 0, sizeof *infoOut);
     }
     if (!mtwnEnter(context))
     {

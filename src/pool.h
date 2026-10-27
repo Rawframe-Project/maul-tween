@@ -20,7 +20,6 @@ typedef struct mtwnSlotHeader
     // transition, a transition's target), as index1, 0 for none.
     uint32_t link;
     uint8_t flags;
-    uint8_t reserved[3];
 } mtwnSlotHeader;
 
 // The slot holds a live object.

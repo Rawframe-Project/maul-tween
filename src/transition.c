@@ -45,7 +45,7 @@ static bool IsTolerance(double value)
 // tolerances are valid.
 static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
 {
-    if (!mtwnValidEasing(&def->easing) || def->spring.reserved != 0)
+    if (!mtwnValidEasing(&def->easing))
     {
         return false;
     }
@@ -565,7 +565,7 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }
-    if (!mtwnValidEasing(&def->easing) || def->spring.reserved != 0)
+    if (!mtwnValidEasing(&def->easing))
     {
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;

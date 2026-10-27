@@ -30,8 +30,6 @@ extern "C"
     {
         double parameters[5];
         uint32_t regime;
-        // 0 as made, refused otherwise where taken in; padding.
-        uint32_t reserved;
     } mtwnSpring;
 
     // How a spring moves a start over one time: the offset at the time is

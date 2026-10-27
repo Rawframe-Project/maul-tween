@@ -30,7 +30,7 @@
 bool mtwnValidEasing(const mtwnEasing* easing);
 
 // A spring's precomputed fields derived again from its frequency and ratio,
-// bit for bit, and its reserved word 0.
+// bit for bit.
 bool mtwnValidSpring(const mtwnSpring* spring);
 
 // A decay's rate finite and above 0.

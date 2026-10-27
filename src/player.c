@@ -12,7 +12,6 @@
 #include "fpenv.h"
 #include "invariant.h"
 #include "player_internal.h"
-#include "reserved_internal.h"
 
 #include <math.h>
 
@@ -360,7 +359,6 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
             &context->targets, binding->target.index1, binding->target.generation);
         if (binding->slot >= clip->slotCount || target == NULL ||
             binding->composite > mtwn_compositeAdd || !mtwnIsWeight((double)binding->weight) ||
-            !mtwnReservedClear(binding->reserved, sizeof binding->reserved) ||
             clip->slotKinds[binding->slot] != target->kind + 1)
         {
             return false;
@@ -542,10 +540,6 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
         *playerOut = (mtwnPlayerId){0, 0};
     }
     if (def == NULL || playerOut == NULL || def->cookie != MTWN_PLAYER_DEF_COOKIE)
-    {
-        return Misuse(context, mtwn_errorInvalid);
-    }
-    if (!mtwnReservedClear(def->reserved, sizeof def->reserved))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
