@@ -844,10 +844,12 @@ static void TestAngleTurns(void)
     def.spec = mtwn_transitionSpring;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a spring");
     def.spec = mtwn_transitionDecay;
-    def.lands = true;
-    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a landing decay");
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a decay");
     CHECK(mtwnGetContextMisuse(context) == misuse + 3 && State(context, angle).base.x == turned,
           "each counted as misuse, the target as it was");
+    def.angleMethod = mtwn_angleLonger;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success,
+          "the decay starts with a known method");
     def = Linear(Target(context, mtwn_valueScalar, (mtwnVec4){0}), (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     def.angleMethod = mtwn_angleDecreasing + 1;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "a number ignores the method");
