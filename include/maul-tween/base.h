@@ -23,7 +23,7 @@ extern "C"
 #define MTWN_VERSION_MAJOR 0
 // x-release-please-end
 // x-release-please-start-minor
-#define MTWN_VERSION_MINOR 9
+#define MTWN_VERSION_MINOR 10
 // x-release-please-end
 // x-release-please-start-patch
 #define MTWN_VERSION_PATCH 0
