@@ -8,28 +8,27 @@ refused with `mtwn_errorVersion`.
 
 ## [0.10.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.9.0...v0.10.0) (2026-10-28)
 
-
-### ⚠ BREAKING CHANGES
-
-* the results take the Maul family's values. mtwn_errorStale is -3 (was -5), mtwn_errorState -6 (was -7), mtwn_errorVersion -7 (was -4), mtwn_errorLimit -9 (was -3) and mtwn_errorBusy -10 (was -6). A full pool or a room the def set now refuses with mtwn_errorCapacity, not mtwn_errorLimit: targets, players, clips, bindings, clip storage, a clip's nodes, keyframes and linear() points, and a transition's points. An argument past MTWN_MAX_COUNT, MTWN_MAX_CLIP_STORAGE, MTWN_RATE_LIMIT or MTWN_SEEK_LIMIT, an infinite seek time or share included, now refuses with mtwn_errorLimit, not mtwn_errorInvalid. A call back in from the host's code now refuses with mtwn_errorBusy, not mtwn_errorState. A transition's player given to a clip's control or mtwnPlayer_GetState, and mtwnPlayer_SeekProgress on an endless clip, now refuse with mtwn_errorInvalid, not mtwn_errorState. A timeline past MTWN_MAX_CLIP_DEPTH now counts one misuse. Closes #123 Refs Rawframe-Project/.github#78
-* the public structs have no reserved fields. Removed: the reserved member of mtwnContextDef, mtwnClipDef, mtwnClipTrackDef, mtwnClipTimelineDef, mtwnPlayerDef, mtwnPosition, mtwnBinding, mtwnTiming, mtwnStagger, mtwnEasing, mtwnSpring, mtwnKeyframe, mtwnPath, mtwnTrackDef, mtwnTrack, mtwnColorMix, mtwnClipNodeInfo, mtwnPlayerState, mtwnTimingResult, mtwnTargetState and mtwnEvent. Their layouts change. No call refuses a struct for a reserved byte any longer: a host that set one compiles no more, and one that used positional initializers drops the reserved member. Closes #121 Refs Rawframe-Project/.github#73
-* **player:** a clip's player takes a rate other than 0 only from 1 / MTWN_RATE_LIMIT (2^-20) to MTWN_RATE_LIMIT in size, and every time it seeks to, and every clip's finite end, at most MTWN_SEEK_LIMIT (2^1000) in size. Newly refused with mtwn_errorInvalid, counted as misuse: by mtwnCreatePlayer, a def whose rate is other than 0 and below 2^-20 in size; by mtwnPlayer_SetRate, such a rate; by mtwnPlayer_Seek and mtwnPlayer_Sweep, a finite time past MTWN_SEEK_LIMIT in size; by mtwnPlayer_SeekProgress, a finite share whose time, the share times the duration, is past it; by mtwnPlayer_SeekLabel, a label of the root whose start is past it; by mtwnClip_AddTrack and mtwnClip_AddTimeline, a node that would take its clip's finite end past it.
-
 ### Added
 
-* **player:** publish the rate's floor as MTWN_MIN_RATE, from v0.0.33 ([#126](https://github.com/Rawframe-Project/maul-tween/issues/126)) ([ff47df8](https://github.com/Rawframe-Project/maul-tween/commit/ff47df8f0b95ae1663b3885b09b23a207b3e09c5))
-
-
-### Fixed
-
-* **player:** bound rates and seeks so every start time is finite ([#119](https://github.com/Rawframe-Project/maul-tween/issues/119)) ([dc77b5a](https://github.com/Rawframe-Project/maul-tween/commit/dc77b5a41e479ebd32c58bfbf987d3cc6917f900)), closes [#115](https://github.com/Rawframe-Project/maul-tween/issues/115)
-* **timing:** keep the iteration where a start's cycles pass the doubles ([#117](https://github.com/Rawframe-Project/maul-tween/issues/117)) ([9951a78](https://github.com/Rawframe-Project/maul-tween/commit/9951a781c0fd5e0b784d92a3f0ced3f60a3e2df3)), closes [#116](https://github.com/Rawframe-Project/maul-tween/issues/116) [#102](https://github.com/Rawframe-Project/maul-tween/issues/102)
-
+- `MTWN_MIN_RATE`, 2^-20, names the smallest size of a clip's player's rate other than 0, which was written only as `1 / MTWN_RATE_LIMIT`. It is the same value, so every call takes and refuses what it did ([#126](https://github.com/Rawframe-Project/maul-tween/pull/126)).
 
 ### Changed
 
-* remove the reserved fields from the public structs ([#122](https://github.com/Rawframe-Project/maul-tween/issues/122)) ([5c0c38e](https://github.com/Rawframe-Project/maul-tween/commit/5c0c38e64a22093f3a461291c093de98ea216c48))
-* take the family's result numbering and meanings ([#124](https://github.com/Rawframe-Project/maul-tween/issues/124)) ([52e6789](https://github.com/Rawframe-Project/maul-tween/commit/52e6789da55a7983c3f33ec400dd0f6fd1ca5a71))
+- **Breaking:** the results take the values and meanings every Maul library shares. `mtwn_errorStale` is -3 (was -5), `mtwn_errorState` -6 (was -7), `mtwn_errorVersion` -7 (was -4), `mtwn_errorLimit` -9 (was -3) and `mtwn_errorBusy` -10 (was -6); `mtwn_errorInvalid` stays -1 and `mtwn_errorCapacity` -2. These refusals change status:
+  - a full pool or a room the def set is `mtwn_errorCapacity`, where it was `mtwn_errorLimit`: targets, players, clips, bindings, clip storage, a clip's nodes, keyframes and `linear()` points, and a transition's points;
+  - an argument past `MTWN_MAX_COUNT`, `MTWN_MAX_CLIP_STORAGE`, `MTWN_MIN_RATE`, `MTWN_RATE_LIMIT` or `MTWN_SEEK_LIMIT`, an infinite rate, seek time or share included, is `mtwn_errorLimit`, where it was `mtwn_errorInvalid`; a NaN stays `mtwn_errorInvalid`;
+  - a call back in from the host's code the context runs (a host easing, the allocator, the task system) is `mtwn_errorBusy`, where it was `mtwn_errorState`;
+  - a transition's player given to a clip's control or to `mtwnPlayer_GetState`, and `mtwnPlayer_SeekProgress` on an endless clip, are `mtwn_errorInvalid`, where they were `mtwn_errorState`;
+  - a timeline deeper than `MTWN_MAX_CLIP_DEPTH` keeps `mtwn_errorLimit` and now counts one misuse, as every other refused argument does.
+
+  A caller that switched on the old statuses handles the new ones at those calls; one that logs or stores the raw numbers reads them anew. No value, velocity or event record changes ([#124](https://github.com/Rawframe-Project/maul-tween/pull/124)).
+- **Breaking:** a clip's player keeps every start time finite, so its time can no longer become infinite. `mtwnCreatePlayer` and `mtwnPlayer_SetRate` refuse a rate other than 0 below `MTWN_MIN_RATE` (2^-20) in size. `mtwnPlayer_Seek`, `mtwnPlayer_Sweep`, `mtwnPlayer_SeekProgress` and `mtwnPlayer_SeekLabel` refuse a time past the new `MTWN_SEEK_LIMIT` (2^1000) in size: the argument, the share times the duration, or a root label's start. `mtwnClip_AddTrack` and `mtwnClip_AddTimeline` refuse a node that would take its clip's finite end past it. Each is `mtwn_errorLimit`, counted as misuse. These calls used to be taken: a share of 1e308 finished the player at an infinite time, and a rate of 5e-324 jumped it to its end at the next update. Every call still taken gives the same results ([#119](https://github.com/Rawframe-Project/maul-tween/pull/119)).
+- **Breaking:** the public structs have no reserved fields. The reserved member is gone from `mtwnContextDef`, `mtwnClipDef`, `mtwnClipTrackDef`, `mtwnClipTimelineDef`, `mtwnPlayerDef`, `mtwnPosition`, `mtwnBinding`, `mtwnTiming`, `mtwnStagger`, `mtwnEasing`, `mtwnSpring`, `mtwnKeyframe`, `mtwnPath`, `mtwnTrackDef`, `mtwnTrack`, `mtwnColorMix`, `mtwnClipNodeInfo`, `mtwnPlayerState`, `mtwnTimingResult`, `mtwnTargetState` and `mtwnEvent`, and no call refuses a struct for a reserved byte any longer. A host that set one, or listed it in a positional initializer, drops it. Layouts change: on x86-64 `mtwnClipDef` shrinks from 24 to 20 bytes and `mtwnContextDef` from 104 to 96, and on 32-bit x86 many shrink by 4 to 8 bytes, `mtwnEvent` from 64 to 60. A cleared output is still 0 in every byte, its padding included. No value, velocity or event record changes ([#122](https://github.com/Rawframe-Project/maul-tween/pull/122)).
+- The getting-started guide lists every result with its value, and the players guide gives the bounds of a rate and of a seek ([#119](https://github.com/Rawframe-Project/maul-tween/pull/119), [#124](https://github.com/Rawframe-Project/maul-tween/pull/124)).
+
+### Fixed
+
+- `mtwnComputeTiming`, and a clip's timelines and tracks, no longer take the iteration and the overall progress to infinity where a repeat delay and an `iterationStart` of very long iterations take the position on the cycles past the doubles. Such a timing now gives what it gives without the overflow: iterations of 1e308 s from an `iterationStart` of 2.5, with a repeat delay, at rate 0.5 and local time 1.4 give iteration 2 and overall progress 2.5, as they do without the delay. A build with assertions no longer traps sweeping a clip over such a track. Two cases whose count no double can carry stay infinite: cycles whose count itself passes the doubles, and a start past 2^53 cycles whose count rounds by more than one. Results change only where they were infinite, or the iterations' end, before; a clip's directions, incremental steps and event iterations follow ([#117](https://github.com/Rawframe-Project/maul-tween/pull/117)).
 
 ## [0.9.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.8.0...v0.9.0) (2026-10-27)
 
