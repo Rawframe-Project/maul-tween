@@ -126,13 +126,13 @@ static void TestBounded(void)
         differ += state.value.x != (float)px || state.value.y != (float)py;
     }
     CHECK(differ == 0, "each channel its bounded decay, sampled as alone");
-    double stop = BoundedDecayStopTime(&x, 40.0, 1500.0, 0.5, 1.0);
+    double stop = ComputeBoundedDecayStopTime(&x, 40.0, 1500.0, 0.5, 1.0);
     Update(context, (uint64_t)(stop * 1e9) + s_second);
     mtwnTargetState end = State(context, t);
     double rest = 0.0;
     SampleDecay(&def.decay, 300.0, -200.0,
-                DecayStopTime(&def.decay, -200.0, 1.0) > stop
-                    ? DecayStopTime(&def.decay, -200.0, 1.0)
+                ComputeDecayStopTime(&def.decay, -200.0, 1.0) > stop
+                    ? ComputeDecayStopTime(&def.decay, -200.0, 1.0)
                     : stop,
                 &rest, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) && end.base.x == 600.0f &&

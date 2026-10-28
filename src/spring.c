@@ -179,7 +179,7 @@ static mtwnSpringMotion Overdamped(const mtwnSpring* spring, double seconds)
     return motion;
 }
 
-MTWN_NOINLINE mtwnSpringMotion mtwnSpringMotionAtWork(const mtwnSpring* spring, double seconds)
+MTWN_NOINLINE mtwnSpringMotion mtwnComputeSpringMotionWork(const mtwnSpring* spring, double seconds)
 {
     double decay = spring->parameters[s_decay];
     double damped = spring->parameters[s_damped];
@@ -207,21 +207,23 @@ MTWN_NOINLINE mtwnSpringMotion mtwnSpringMotionAtWork(const mtwnSpring* spring, 
     return FromTerms(spring, envelope, 0.5 * (mtwnExp(y) + mtwnExp(-y)), seconds * SinhcSeries(y));
 }
 
-static MTWN_NOINLINE mtwnResult mtwnSpringMotionAtChecked(const mtwnSpring* spring, double seconds,
-                                                          mtwnSpringMotion* motionOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeSpringMotionChecked(const mtwnSpring* spring,
+                                                               double seconds,
+                                                               mtwnSpringMotion* motionOut)
 {
     if (!mtwnValidSpring(spring) || !(seconds >= 0.0) || motionOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *motionOut = mtwnSpringMotionAtWork(spring, seconds);
+    *motionOut = mtwnComputeSpringMotionWork(spring, seconds);
     return mtwn_success;
 }
 
-mtwnResult mtwnSpringMotionAt(const mtwnSpring* spring, double seconds, mtwnSpringMotion* motionOut)
+mtwnResult mtwnComputeSpringMotion(const mtwnSpring* spring, double seconds,
+                                   mtwnSpringMotion* motionOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnSpringMotionAtChecked(spring, seconds, motionOut);
+    mtwnResult result = mtwnComputeSpringMotionChecked(spring, seconds, motionOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -229,7 +231,7 @@ mtwnResult mtwnSpringMotionAt(const mtwnSpring* spring, double seconds, mtwnSpri
 MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset, double velocity,
                                         double seconds, double* offsetOut, double* velocityOut)
 {
-    mtwnSpringMotion motion = mtwnSpringMotionAtWork(spring, seconds);
+    mtwnSpringMotion motion = mtwnComputeSpringMotionWork(spring, seconds);
     if (offsetOut != NULL)
     {
         *offsetOut = motion.offsetFromOffset * offset + motion.offsetFromVelocity * velocity;
@@ -440,9 +442,9 @@ MTWN_NOINLINE static bool SettleFrom(const mtwnSpring* spring, const Bound* boun
     return overflowed;
 }
 
-MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
-                                                double velocity, double offsetTolerance,
-                                                double velocityTolerance)
+MTWN_NOINLINE double mtwnComputeSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
+                                                       double velocity, double offsetTolerance,
+                                                       double velocityTolerance)
 {
     if (!(offsetTolerance > 0.0) || !(velocityTolerance > 0.0))
     {
@@ -499,29 +501,29 @@ MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double
     return times[0] > times[1] ? times[0] : times[1];
 }
 
-static MTWN_NOINLINE mtwnResult mtwnSpringSettlingTimeChecked(const mtwnSpring* spring,
-                                                              double offset, double velocity,
-                                                              double offsetTolerance,
-                                                              double velocityTolerance,
-                                                              double* secondsOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeSpringSettlingTimeChecked(const mtwnSpring* spring,
+                                                                     double offset, double velocity,
+                                                                     double offsetTolerance,
+                                                                     double velocityTolerance,
+                                                                     double* secondsOut)
 {
     if (!mtwnValidSpring(spring) || !isfinite(offset) || !isfinite(velocity) ||
         !(offsetTolerance > 0.0) || !(velocityTolerance > 0.0) || secondsOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *secondsOut =
-        mtwnSpringSettlingTimeWork(spring, offset, velocity, offsetTolerance, velocityTolerance);
+    *secondsOut = mtwnComputeSpringSettlingTimeWork(spring, offset, velocity, offsetTolerance,
+                                                    velocityTolerance);
     return mtwn_success;
 }
 
-mtwnResult mtwnSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
-                                  double offsetTolerance, double velocityTolerance,
-                                  double* secondsOut)
+mtwnResult mtwnComputeSpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
+                                         double offsetTolerance, double velocityTolerance,
+                                         double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnSpringSettlingTimeChecked(spring, offset, velocity, offsetTolerance,
-                                                      velocityTolerance, secondsOut);
+    mtwnResult result = mtwnComputeSpringSettlingTimeChecked(
+        spring, offset, velocity, offsetTolerance, velocityTolerance, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -549,7 +551,7 @@ static double SpringEasingRaw(const double* parameters, uint32_t regime, double 
     scaled.parameters[s_decay] = parameters[s_easingDecay];
     scaled.parameters[s_damped] = parameters[s_easingDamped];
     scaled.parameters[s_squared] = parameters[s_easingSquared];
-    mtwnSpringMotion motion = mtwnSpringMotionAtWork(&scaled, p);
+    mtwnSpringMotion motion = mtwnComputeSpringMotionWork(&scaled, p);
     return 1.0 - motion.offsetFromOffset + motion.offsetFromVelocity * parameters[s_easingVelocity];
 }
 

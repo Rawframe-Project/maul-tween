@@ -60,7 +60,7 @@ static void TestSprings(void)
     // 0.1 s after starting 1 short of the target, at rest.
     mtwnResult sampled = mtwnSampleSpring(&spring, -1.0, 0.0, 0.1, &offset, &speed);
     double settled = 0.0;
-    mtwnResult timed = mtwnSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
+    mtwnResult timed = mtwnComputeSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
     CHECK(made == mtwn_success && sampled == mtwn_success && timed == mtwn_success &&
               offset > -1.0 && speed > 0.0,
           "on its way to 0");
@@ -85,7 +85,7 @@ static void TestInertia(void)
     double at = 0.0;
     mtwnResult bounced = mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
     double still = 0.0;
-    mtwnResult stopped = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &still);
+    mtwnResult stopped = mtwnComputeBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &still);
     CHECK(sampled == mtwn_success && bounced == mtwn_success && stopped == mtwn_success,
           "sampled and timed");
     CHECK(made == mtwn_success && page == 640.0 && snap.rate > 0.0, "snapped to the second page");
@@ -122,7 +122,7 @@ static void TestZoom(void)
     mtwnZoomMix flight;
     mtwnResult made = mtwnMakeZoomMix(from, to, 1.42, &flight);
     double length = 0.0;
-    mtwnResult measured = mtwnZoomLength(&flight, &length);
+    mtwnResult measured = mtwnComputeZoomLength(&flight, &length);
     double seconds = length * 1.42 / sqrt(2.0); // d3's pace
     // Halfway it is wider than both ends.
     mtwnZoomView view;
@@ -613,9 +613,9 @@ static void TestTrauma(void)
         double roll = 0.0; // degrees
         double dx = 0.0;   // pixels
         double dy = 0.0;
-        if (mtwnShakeNoise(&noise, 0, now, &n[0]) == mtwn_success &&
-            mtwnShakeNoise(&noise, 1, now, &n[1]) == mtwn_success &&
-            mtwnShakeNoise(&noise, 2, now, &n[2]) == mtwn_success)
+        if (mtwnSampleShakeNoise(&noise, 0, now, &n[0]) == mtwn_success &&
+            mtwnSampleShakeNoise(&noise, 1, now, &n[1]) == mtwn_success &&
+            mtwnSampleShakeNoise(&noise, 2, now, &n[2]) == mtwn_success)
         {
             roll = 10.0 * shake * n[0];
             dx = 20.0 * shake * n[1];

@@ -651,7 +651,7 @@ static int Refusals(const mtwnEasing* easing)
     refused += mtwnEase(easing, 0.5, false, &eased) == mtwn_errorInvalid;
     refused += mtwnIsEasingMonotonic(easing, &monotonic) == mtwn_errorInvalid;
     refused += mtwnSetEaseMode(&moded, mtwn_easeOut) == mtwn_errorInvalid;
-    refused += mtwnSampleEasing(easing, 4, samples) == mtwn_errorInvalid;
+    refused += mtwnSampleEasingTable(easing, 4, samples) == mtwn_errorInvalid;
     refused += mtwnMakeRoughEasing(&def, points, 4, &rough) == mtwn_errorInvalid;
     bool kept = eased == 7.0 && monotonic && samples[0] == 7.0f && samples[3] == 7.0f &&
                 memcmp(&moded, easing, sizeof moded) == 0 && points[1].output == 7.0 &&

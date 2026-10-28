@@ -207,20 +207,21 @@ static void TestShakeNoise(void)
     {
         double t = (double)k * 0.0093;
         double envelope = 1.0 - t / 2.0;
-        apart += SampleShake(&shake, 4, t) != ShakeNoise(&shake, 4, t) * envelope;
+        apart += SampleShake(&shake, 4, t) != SampleShakeNoise(&shake, 4, t) * envelope;
     }
     CHECK(apart == 0, "the shake is its noise times its envelope, bit for bit");
-    CHECK(ShakeNoise(&shake, 4, 3.07) != 0.0 && SampleShake(&shake, 4, 3.07) == 0.0,
+    CHECK(SampleShakeNoise(&shake, 4, 3.07) != 0.0 && SampleShake(&shake, 4, 3.07) == 0.0,
           "the noise runs on past the duration");
     double factor = 7.0;
-    CHECK(ShakeNoise(&shake, 4, 0.3) == 0.0 && ShakeNoise(&shake, 4, -0.07) == 0.0 &&
-              ShakeNoise(&shake, 4, 0x1p53 / 10.0) == 0.0 &&
-              mtwnShakeNoise(&shake, 4, (double)NAN, &factor) == mtwn_errorInvalid && factor == 7.0,
+    CHECK(SampleShakeNoise(&shake, 4, 0.3) == 0.0 && SampleShakeNoise(&shake, 4, -0.07) == 0.0 &&
+              SampleShakeNoise(&shake, 4, 0x1p53 / 10.0) == 0.0 &&
+              mtwnSampleShakeNoise(&shake, 4, (double)NAN, &factor) == mtwn_errorInvalid &&
+              factor == 7.0,
           "0 on the lattice, before 0 and past 2^53 points, and a NaN clock refused");
     double largest = 0.0;
     for (int k = 0; k < 100000; ++k)
     {
-        largest = fmax(largest, fabs(ShakeNoise(&shake, 9, (double)k * 1e-3)));
+        largest = fmax(largest, fabs(SampleShakeNoise(&shake, 9, (double)k * 1e-3)));
     }
     CHECK(largest <= 1.0 && largest > 0.7, "within [-1, 1], filling most of it");
 }
@@ -254,7 +255,7 @@ static bool ShakeRefused(const mtwnShake* shake)
     double factor = 7.0;
     double noise = 7.0;
     return mtwnSampleShake(shake, 1, 0.25, &factor) == mtwn_errorInvalid &&
-           mtwnShakeNoise(shake, 1, 0.25, &noise) == mtwn_errorInvalid && factor == 7.0 &&
+           mtwnSampleShakeNoise(shake, 1, 0.25, &noise) == mtwn_errorInvalid && factor == 7.0 &&
            noise == 7.0;
 }
 
@@ -275,8 +276,8 @@ static void TestForgedSignals(void)
               mtwnSamplePunch(&madePunch, 0.25, NULL) == mtwn_errorInvalid &&
               mtwnSampleShake(NULL, 0, 0.25, &factor) == mtwn_errorInvalid &&
               mtwnSampleShake(&madeShake, 0, 0.25, NULL) == mtwn_errorInvalid &&
-              mtwnShakeNoise(NULL, 0, 0.25, &factor) == mtwn_errorInvalid &&
-              mtwnShakeNoise(&madeShake, 0, 0.25, NULL) == mtwn_errorInvalid && factor == 7.0,
+              mtwnSampleShakeNoise(NULL, 0, 0.25, &factor) == mtwn_errorInvalid &&
+              mtwnSampleShakeNoise(&madeShake, 0, 0.25, NULL) == mtwn_errorInvalid && factor == 7.0,
           "a null signal or out");
     double shake = 7.0;
     CHECK(mtwnSampleShake(&madeShake, 0, (double)NAN, &shake) == mtwn_errorInvalid && shake == 7.0,

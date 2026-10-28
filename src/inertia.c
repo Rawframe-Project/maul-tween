@@ -96,7 +96,7 @@ static MTWN_NOINLINE bool HandoffOf(const mtwnBoundedDecay* bounded, double posi
         return false;
     }
     out->bound = rest < bounded->lower ? bounded->lower : bounded->upper;
-    out->time = mtwnDecayCrossingTimeWork(&bounded->decay, position, velocity, out->bound);
+    out->time = mtwnComputeDecayCrossingTimeWork(&bounded->decay, position, velocity, out->bound);
     // A rest past the bound by rounding alone never reaches it.
     if (isinf(out->time))
     {
@@ -150,9 +150,9 @@ mtwnResult mtwnSampleBoundedDecay(const mtwnBoundedDecay* bounded, double positi
     return result;
 }
 
-MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded, double position,
-                                                  double velocity, double offsetTolerance,
-                                                  double stopSpeed)
+MTWN_NOINLINE double mtwnComputeBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded,
+                                                         double position, double velocity,
+                                                         double offsetTolerance, double stopSpeed)
 {
     if (!(offsetTolerance > 0.0) || !(stopSpeed > 0.0))
     {
@@ -161,35 +161,34 @@ MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounde
     Handoff handoff;
     if (!HandoffOf(bounded, position, velocity, &handoff))
     {
-        return mtwnDecayStopTimeWork(&bounded->decay, velocity, stopSpeed);
+        return mtwnComputeDecayStopTimeWork(&bounded->decay, velocity, stopSpeed);
     }
-    return handoff.time + mtwnSpringSettlingTimeWork(&bounded->spring, handoff.offset,
-                                                     handoff.velocity, offsetTolerance, stopSpeed);
+    return handoff.time + mtwnComputeSpringSettlingTimeWork(&bounded->spring, handoff.offset,
+                                                            handoff.velocity, offsetTolerance,
+                                                            stopSpeed);
 }
 
-static MTWN_NOINLINE mtwnResult mtwnBoundedDecayStopTimeChecked(const mtwnBoundedDecay* bounded,
-                                                                double position, double velocity,
-                                                                double offsetTolerance,
-                                                                double stopSpeed,
-                                                                double* secondsOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeBoundedDecayStopTimeChecked(
+    const mtwnBoundedDecay* bounded, double position, double velocity, double offsetTolerance,
+    double stopSpeed, double* secondsOut)
 {
     if (!mtwnValidBoundedDecay(bounded) || !isfinite(position) || !isfinite(velocity) ||
         !(offsetTolerance > 0.0) || !(stopSpeed > 0.0) || secondsOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *secondsOut =
-        mtwnBoundedDecayStopTimeWork(bounded, position, velocity, offsetTolerance, stopSpeed);
+    *secondsOut = mtwnComputeBoundedDecayStopTimeWork(bounded, position, velocity, offsetTolerance,
+                                                      stopSpeed);
     return mtwn_success;
 }
 
-mtwnResult mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position,
-                                    double velocity, double offsetTolerance, double stopSpeed,
-                                    double* secondsOut)
+mtwnResult mtwnComputeBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position,
+                                           double velocity, double offsetTolerance,
+                                           double stopSpeed, double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnBoundedDecayStopTimeChecked(bounded, position, velocity,
-                                                        offsetTolerance, stopSpeed, secondsOut);
+    mtwnResult result = mtwnComputeBoundedDecayStopTimeChecked(
+        bounded, position, velocity, offsetTolerance, stopSpeed, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

@@ -251,29 +251,30 @@ mtwnResult mtwnSampleShake(const mtwnShake* shake, uint32_t channel, double seco
     return result;
 }
 
-static MTWN_NOINLINE double mtwnShakeNoiseWork(const mtwnShake* shake, uint32_t channel,
-                                               double seconds)
+static MTWN_NOINLINE double mtwnSampleShakeNoiseWork(const mtwnShake* shake, uint32_t channel,
+                                                     double seconds)
 {
     double x = shake->frequency * seconds;
     return x >= 0.0 && x < s_shakePoints ? Noise(shake, channel, x) : 0.0;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnShakeNoiseChecked(const mtwnShake* shake, uint32_t channel,
-                                                      double seconds, double* factorOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleShakeNoiseChecked(const mtwnShake* shake,
+                                                            uint32_t channel, double seconds,
+                                                            double* factorOut)
 {
     if (factorOut == NULL || !mtwnValidShake(shake) || isnan(seconds))
     {
         return mtwn_errorInvalid;
     }
-    *factorOut = mtwnShakeNoiseWork(shake, channel, seconds);
+    *factorOut = mtwnSampleShakeNoiseWork(shake, channel, seconds);
     return mtwn_success;
 }
 
-mtwnResult mtwnShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds,
-                          double* factorOut)
+mtwnResult mtwnSampleShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds,
+                                double* factorOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnShakeNoiseChecked(shake, channel, seconds, factorOut);
+    mtwnResult result = mtwnSampleShakeNoiseChecked(shake, channel, seconds, factorOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

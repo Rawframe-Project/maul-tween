@@ -101,8 +101,9 @@ extern "C"
     ///         no maker produced, or a time outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnSpringMotionAt(const mtwnSpring* spring, double seconds,
-                                                          mtwnSpringMotion* motionOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeSpringMotion(const mtwnSpring* spring,
+                                                               double seconds,
+                                                               mtwnSpringMotion* motionOut);
 
     /// Samples a spring from a start.
     ///
@@ -142,11 +143,11 @@ extern "C"
     ///         no maker produced, or a start or tolerance outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnSpringSettlingTime(const mtwnSpring* spring,
-                                                              double offset, double velocity,
-                                                              double offsetTolerance,
-                                                              double velocityTolerance,
-                                                              double* secondsOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeSpringSettlingTime(const mtwnSpring* spring,
+                                                                     double offset, double velocity,
+                                                                     double offsetTolerance,
+                                                                     double velocityTolerance,
+                                                                     double* secondsOut);
 
     /// Makes an easing of a spring over a duration: the spring from an
     /// offset of -1 with a start velocity, sampled at progress times the
@@ -245,8 +246,9 @@ extern "C"
     ///         above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnDecayStopTime(const mtwnDecay* decay, double velocity,
-                                                         double stopSpeed, double* secondsOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeDecayStopTime(const mtwnDecay* decay,
+                                                                double velocity, double stopSpeed,
+                                                                double* secondsOut);
 
     /// Returns the time a decay reaches a position, where a host hands it
     /// over to a spring back from a limit.
@@ -263,9 +265,10 @@ extern "C"
     ///         no maker produced, or a value outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnDecayCrossingTime(const mtwnDecay* decay,
-                                                             double position, double velocity,
-                                                             double target, double* secondsOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeDecayCrossingTime(const mtwnDecay* decay,
+                                                                    double position,
+                                                                    double velocity, double target,
+                                                                    double* secondsOut);
 
     /// Makes the decay that comes to rest at an end from a start, keeping
     /// the start's velocity: its rate is velocity / (end
@@ -343,7 +346,7 @@ extern "C"
     /// Returns the time a bounded decay from a start comes to rest: a
     /// coast's stop at the stop speed, or the spring's settling within
     /// the offset tolerance of the bound and the stop speed after it takes
-    /// over (mtwnSpringSettlingTime).
+    /// over (mtwnComputeSpringSettlingTime).
     ///
     /// @param bounded          A bounded decay made by this library.
     /// @param position         The start's position, finite.
@@ -360,11 +363,9 @@ extern "C"
     ///         outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnBoundedDecayStopTime(const mtwnBoundedDecay* bounded,
-                                                                double position, double velocity,
-                                                                double offsetTolerance,
-                                                                double stopSpeed,
-                                                                double* secondsOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeBoundedDecayStopTime(
+        const mtwnBoundedDecay* bounded, double position, double velocity, double offsetTolerance,
+        double stopSpeed, double* secondsOut);
 
     /// iOS's rubber band: how far content moves when dragged a distance
     /// past a limit, in a dimension (the view's size along the drag):
@@ -379,10 +380,10 @@ extern "C"
     ///         argument outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnRubberBand(double distance, double dimension,
-                                                      double coefficient, double* offsetOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnApplyRubberBand(double distance, double dimension,
+                                                           double coefficient, double* offsetOut);
 
-    /// The inverse of mtwnRubberBand: the drag that moves content an
+    /// The inverse of mtwnApplyRubberBand: the drag that moves content an
     /// offset past a limit, d o / (c (d - o)).
     ///
     /// @param offset       The distance moved, signed, not NaN.
@@ -394,8 +395,8 @@ extern "C"
     ///         argument outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnRubberBandInverse(double offset, double dimension,
-                                                             double coefficient, double* dragOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnInvertRubberBand(double offset, double dimension,
+                                                            double coefficient, double* dragOut);
 
 #ifdef __cplusplus
 }

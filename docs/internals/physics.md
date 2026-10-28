@@ -17,11 +17,11 @@ where `C` and `S` are `cos(w t)` and `sin(w t) / w` below critical damping, and 
 - `sinh(w t) / w` is `t` times a series below `w t = 1/2`.
 - Above that, an overdamped spring is written in its two rates, the slow one as `w0^2 / (a + w)`, so nothing cancels or overflows however heavy the damping.
 
-The motion over one time is a 2 by 2 matrix taking a start's offset and velocity to those at the time (`mtwnSpringMotionAt`). A value of four channels computes it once and costs four multiplications a channel. A spring stores the natural frequency, the damping ratio and what its samples need, whichever way it was made: stiffness, damping and mass; hertz and a ratio; or Apple's duration and bounce, mapped as SwiftUI, Motion and anime.js map them (frequency `2 pi / duration`, ratio `1 - bounce`, or `1 / (1 + bounce)` below 0).
+The motion over one time is a 2 by 2 matrix taking a start's offset and velocity to those at the time (`mtwnComputeSpringMotion`). A value of four channels computes it once and costs four multiplications a channel. A spring stores the natural frequency, the damping ratio and what its samples need, whichever way it was made: stiffness, damping and mass; hertz and a ratio; or Apple's duration and bounce, mapped as SwiftUI, Motion and anime.js map them (frequency `2 pi / duration`, ratio `1 - bounce`, or `1 / (1 + bounce)` below 0).
 
 ## Settling
 
-`mtwnSpringSettlingTime` returns when bounds on the offset and the velocity both stay below their tolerances for good. Where a bound is a pure exponential, the time is in closed form. Otherwise the bound's logarithm is concave, so Newton's steps from past its peak approach the crossing from the right and never pass the true time: a spring is never ended early. Where the bound is nearly flat at its tolerance, rounding can still send a step before the peak, even before 0; such a step goes halfway to the peak instead, so every step stays at or after it. The host snaps the spring to the target then, which is what a transition does.
+`mtwnComputeSpringSettlingTime` returns when bounds on the offset and the velocity both stay below their tolerances for good. Where a bound is a pure exponential, the time is in closed form. Otherwise the bound's logarithm is concave, so Newton's steps from past its peak approach the crossing from the right and never pass the true time: a spring is never ended early. Where the bound is nearly flat at its tolerance, rounding can still send a step before the peak, even before 0; such a step goes halfway to the peak instead, so every step stays at or after it. The host snaps the spring to the target then, which is what a transition does.
 
 A start far enough out overflows a bound: a coefficient such as `w0^2 x`, two products with opposite signs, or the bound on Newton's way for a slow spring. A bound and its tolerance divided by the same `2^e` cross at the same time, so such a start is divided by `2^e`, with `e` the exponent of its larger part, and the tolerances' logarithms move by `e ln 2`. Its coefficients are then at most `decay + w0^2` and the time is the true one. A start that is not finite still gets infinity.
 
@@ -51,7 +51,7 @@ A transition's decay of a scale runs in its logarithm, its start velocity a shar
 
 Punch is `sin(2 pi f t) (1 - t / duration)^e`. Shake is Perlin's improved gradient noise in one dimension ([`src/signal.c`](../../src/signal.c)): 0 at each lattice point, and between two it blends their gradients' lines by the quintic fade `6u^5 - 15u^4 + 10u^3`, whose first two derivatives vanish at the lattice, so it is smooth. Each gradient comes from SplitMix64 of the seed, the channel and the lattice index: no table, no state, the same bits on every platform for a seed, and any channel and time sampled in any order. Both are exactly 0 at the start, at the end and outside them, so a host adds them and nothing is left behind.
 
-`mtwnShakeNoise` is the noise alone, on a clock that runs on through every hit, for shakes whose amplitude the host drives (trauma squared); `mtwnSampleShake` is that noise times its envelope, bit for bit.
+`mtwnSampleShakeNoise` is the noise alone, on a clock that runs on through every hit, for shakes whose amplitude the host drives (trauma squared); `mtwnSampleShake` is that noise times its envelope, bit for bit.
 
 ## Not built
 

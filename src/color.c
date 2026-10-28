@@ -238,8 +238,8 @@ MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progres
     return FromSpace(at, mix->space);
 }
 
-MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
-                                              double coordinatesOut[4])
+MTWN_NOINLINE mtwnResult mtwnConvertColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
+                                                     double coordinatesOut[4])
 {
     if (coordinatesOut == NULL || !mtwnIsColorSpace(space) || !mtwnIsColor(color))
     {
@@ -249,16 +249,17 @@ MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace sp
     return mtwn_success;
 }
 
-mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space, double coordinatesOut[4])
+mtwnResult mtwnConvertColorToSpace(mtwnColor color, mtwnColorSpace space, double coordinatesOut[4])
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnColorToSpaceWork(color, space, coordinatesOut);
+    mtwnResult result = mtwnConvertColorToSpaceWork(color, space, coordinatesOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnColorFromSpaceWork(const double coordinates[4],
-                                                       mtwnColorSpace space, mtwnColor* colorOut)
+static MTWN_NOINLINE mtwnResult mtwnConvertColorFromSpaceWork(const double coordinates[4],
+                                                              mtwnColorSpace space,
+                                                              mtwnColor* colorOut)
 {
     if (coordinates == NULL || colorOut == NULL || !mtwnIsColorSpace(space))
     {
@@ -276,11 +277,11 @@ static MTWN_NOINLINE mtwnResult mtwnColorFromSpaceWork(const double coordinates[
     return mtwn_success;
 }
 
-mtwnResult mtwnColorFromSpace(const double coordinates[4], mtwnColorSpace space,
-                              mtwnColor* colorOut)
+mtwnResult mtwnConvertColorFromSpace(const double coordinates[4], mtwnColorSpace space,
+                                     mtwnColor* colorOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnColorFromSpaceWork(coordinates, space, colorOut);
+    mtwnResult result = mtwnConvertColorFromSpaceWork(coordinates, space, colorOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

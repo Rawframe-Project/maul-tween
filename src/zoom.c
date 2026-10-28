@@ -216,7 +216,8 @@ mtwnResult mtwnMixZoom(const mtwnZoomMix* mix, double progress, mtwnZoomView* vi
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnZoomLengthChecked(const mtwnZoomMix* mix, double* lengthOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeZoomLengthChecked(const mtwnZoomMix* mix,
+                                                             double* lengthOut)
 {
     if (lengthOut == NULL || !mtwnValidZoomMix(mix))
     {
@@ -226,10 +227,10 @@ static MTWN_NOINLINE mtwnResult mtwnZoomLengthChecked(const mtwnZoomMix* mix, do
     return mtwn_success;
 }
 
-mtwnResult mtwnZoomLength(const mtwnZoomMix* mix, double* lengthOut)
+mtwnResult mtwnComputeZoomLength(const mtwnZoomMix* mix, double* lengthOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnZoomLengthChecked(mix, lengthOut);
+    mtwnResult result = mtwnComputeZoomLengthChecked(mix, lengthOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

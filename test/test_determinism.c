@@ -442,11 +442,11 @@ static void HashPathAt(const mtwnPath* path, double progress)
     double tangent[4];
     double direction[4];
     SamplePath(path, progress, value, tangent);
-    PathDirection(path, progress, direction);
+    ComputePathDirection(path, progress, direction);
     HashDoubles(value, 4);
     HashDoubles(tangent, 4);
     HashDoubles(direction, 4);
-    HashDouble(PathAngle(path, progress));
+    HashDouble(ComputePathAngle(path, progress));
 }
 
 static void HashPath(const mtwnPath* path)
@@ -540,7 +540,7 @@ static void HashValues(void)
         {
             mtwnZoomMix mix;
             CHECK(mtwnMakeZoomMix(views[v], views[v + 1], rhos[r], &mix) == mtwn_success, "a zoom");
-            HashDouble(ZoomLength(&mix));
+            HashDouble(ComputeZoomLength(&mix));
             for (uint32_t k = 0; k < SAMPLES; ++k)
             {
                 mtwnZoomView view = MixZoom(&mix, Progress(k));
@@ -562,7 +562,7 @@ static void HashValues(void)
         for (uint32_t channel = 0; channel < 4; ++channel)
         {
             HashDouble(SampleShake(&shake, channel, seconds));
-            HashDouble(ShakeNoise(&shake, channel, seconds));
+            HashDouble(SampleShakeNoise(&shake, channel, seconds));
         }
     }
 }
@@ -584,7 +584,7 @@ static void HashSprings(void)
         for (uint32_t k = 0; k < SAMPLES; ++k)
         {
             double seconds = 0.03125 * (double)k;
-            mtwnSpringMotion motion = SpringMotionAt(&springs[s], seconds);
+            mtwnSpringMotion motion = ComputeSpringMotion(&springs[s], seconds);
             HashDouble(motion.offsetFromOffset);
             HashDouble(motion.offsetFromVelocity);
             HashDouble(motion.velocityFromOffset);
@@ -595,7 +595,7 @@ static void HashSprings(void)
             HashDouble(offset);
             HashDouble(velocity);
         }
-        HashDouble(SpringSettlingTime(&springs[s], -1.0, 2.5, 1e-3, 1e-2));
+        HashDouble(ComputeSpringSettlingTime(&springs[s], -1.0, 2.5, 1e-3, 1e-2));
     }
 }
 
@@ -633,7 +633,7 @@ static void HashEasings(void)
         mtwnEasing easing = EasingFor(seed);
         HashEasing(&easing);
         float table[SAMPLES];
-        CHECK(mtwnSampleEasing(&easing, SAMPLES, table) == mtwn_success, "a table");
+        CHECK(mtwnSampleEasingTable(&easing, SAMPLES, table) == mtwn_success, "a table");
         Hash(table, sizeof table);
         mtwnLinearPoint points[1024];
         uint32_t count = 0;
@@ -688,12 +688,12 @@ static void HashDecays(void)
         SampleBoundedDecay(&bounded, 10.0, 900.0, seconds, &out[0], &out[1]);
         HashDoubles(out, 2);
         double distance = 40.0 * Progress(k);
-        HashDouble(RubberBand(distance, 320.0, 0.55));
-        HashDouble(RubberBandInverse(distance, 320.0, 0.55));
+        HashDouble(ApplyRubberBand(distance, 320.0, 0.55));
+        HashDouble(InvertRubberBand(distance, 320.0, 0.55));
     }
-    HashDouble(DecayStopTime(&decay, 900.0, 0.5));
-    HashDouble(DecayCrossingTime(&decay, 10.0, 900.0, 150.0));
-    HashDouble(BoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
+    HashDouble(ComputeDecayStopTime(&decay, 900.0, 0.5));
+    HashDouble(ComputeDecayCrossingTime(&decay, 10.0, 900.0, 150.0));
+    HashDouble(ComputeBoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
 }
 
 // Inputs just below and just above each switch between two forms, which
@@ -752,7 +752,7 @@ static void HashEdges(void)
     static const double series[2][2] = {{1.1, 1.13}, {0.0288, 0.0289}};
     for (uint32_t i = 0; i < 3; ++i)
     {
-        mtwnSpringMotion motion = SpringMotionAt(&undamped, far[i]);
+        mtwnSpringMotion motion = ComputeSpringMotion(&undamped, far[i]);
         HashDouble(motion.offsetFromOffset);
         HashDouble(motion.offsetFromVelocity);
         HashDouble(motion.velocityFromOffset);
@@ -779,7 +779,7 @@ static void HashEdges(void)
     static const double noiseAt[4] = {7.5e14, 7.51e14, -0.0, -1e-300};
     for (uint32_t i = 0; i < 4; ++i)
     {
-        HashDouble(ShakeNoise(&shake, 1, noiseAt[i]));
+        HashDouble(SampleShakeNoise(&shake, 1, noiseAt[i]));
     }
     mtwnResult inside = mtwnMakeShake(1.0, 0x1.fffffffffffffp52, 1.0, 1, &refused);
     mtwnResult past = mtwnMakeShake(1.0, 0x1p53, 1.0, 1, &refused);

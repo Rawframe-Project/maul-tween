@@ -23,30 +23,31 @@ MTWN_NOINLINE mtwnResult mtwnMakeLinearPointsEasingWork(mtwnLinearPoint* points,
                                                         mtwnEasing* easingOut);
 MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
 MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, bool before);
-MTWN_NOINLINE mtwnSpringMotion mtwnSpringMotionAtWork(const mtwnSpring* spring, double seconds);
+MTWN_NOINLINE mtwnSpringMotion mtwnComputeSpringMotionWork(const mtwnSpring* spring,
+                                                           double seconds);
 MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset, double velocity,
                                         double seconds, double* offsetOut, double* velocityOut);
-MTWN_NOINLINE double mtwnSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
-                                                double velocity, double offsetTolerance,
-                                                double velocityTolerance);
+MTWN_NOINLINE double mtwnComputeSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
+                                                       double velocity, double offsetTolerance,
+                                                       double velocityTolerance);
 MTWN_NOINLINE mtwnResult mtwnMakeDecayWork(double rate, mtwnDecay* decayOut);
 MTWN_NOINLINE void mtwnSampleDecayWork(const mtwnDecay* decay, double position, double velocity,
                                        double seconds, double* positionOut, double* velocityOut);
-MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double velocity,
-                                           double stopSpeed);
-MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double position,
-                                               double velocity, double target);
+MTWN_NOINLINE double mtwnComputeDecayStopTimeWork(const mtwnDecay* decay, double velocity,
+                                                  double stopSpeed);
+MTWN_NOINLINE double mtwnComputeDecayCrossingTimeWork(const mtwnDecay* decay, double position,
+                                                      double velocity, double target);
 MTWN_NOINLINE void mtwnSampleBoundedDecayWork(const mtwnBoundedDecay* bounded, double position,
                                               double velocity, double seconds, double* positionOut,
                                               double* velocityOut);
-MTWN_NOINLINE double mtwnBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded, double position,
-                                                  double velocity, double offsetTolerance,
-                                                  double stopSpeed);
+MTWN_NOINLINE double mtwnComputeBoundedDecayStopTimeWork(const mtwnBoundedDecay* bounded,
+                                                         double position, double velocity,
+                                                         double offsetTolerance, double stopSpeed);
 MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwnColorSpace space,
                                               mtwnHueMethod hue, mtwnColorMix* mixOut);
 MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progress);
-MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
-                                              double coordinatesOut[4]);
+MTWN_NOINLINE mtwnResult mtwnConvertColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
+                                                     double coordinatesOut[4]);
 // Whether an angle method is one of the five. mtwnMixAngleWork takes any
 // other as raw, so every call that takes one from the host checks it first.
 static inline bool mtwnIsAngleMethod(mtwnAngleMethod method)

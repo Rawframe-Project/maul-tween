@@ -68,12 +68,13 @@ static void TestMakers(void)
           "a host easing");
     double coordinates[4] = {0.5, 0.5, 0.5, 1.0};
     mtwnColor color = {0.5f, 0.5f, 0.5f, 1.0f};
-    CHECK(mtwnColorToSpace(color, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
-              mtwnColorToSpace(color, (mtwnColorSpace)99, coordinates) == mtwn_errorInvalid,
+    CHECK(mtwnConvertColorToSpace(color, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
+              mtwnConvertColorToSpace(color, (mtwnColorSpace)99, coordinates) == mtwn_errorInvalid,
           "a color's coordinates: no output, an unknown space");
-    CHECK(mtwnColorFromSpace(NULL, mtwn_colorSrgb, &color) == mtwn_errorInvalid &&
-              mtwnColorFromSpace(coordinates, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
-              mtwnColorFromSpace(coordinates, (mtwnColorSpace)99, &color) == mtwn_errorInvalid,
+    CHECK(mtwnConvertColorFromSpace(NULL, mtwn_colorSrgb, &color) == mtwn_errorInvalid &&
+              mtwnConvertColorFromSpace(coordinates, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
+              mtwnConvertColorFromSpace(coordinates, (mtwnColorSpace)99, &color) ==
+                  mtwn_errorInvalid,
           "a color from coordinates: none, no output, an unknown space");
 }
 

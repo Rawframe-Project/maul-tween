@@ -122,7 +122,7 @@ static void Easings(Out* out)
     EaseAll(out, &e);
     // The samplers and fits.
     float table[17] = {0};
-    r = mtwnSampleEasing(&e, 17, table);
+    r = mtwnSampleEasingTable(&e, 17, table);
     PUT(out, r);
     PUT(out, table);
     mtwnEasing spring;
@@ -156,7 +156,7 @@ static void Springs(Out* out)
     {
         for (int i = 0; i < s_secondCount; ++i)
         {
-            mtwnSpringMotion motion = SpringMotionAt(&springs[k], s_seconds[i]);
+            mtwnSpringMotion motion = ComputeSpringMotion(&springs[k], s_seconds[i]);
             PUT(out, motion);
             double offset = 0.0;
             double velocity = 0.0;
@@ -164,7 +164,7 @@ static void Springs(Out* out)
             PUT(out, offset);
             PUT(out, velocity);
         }
-        double settle = SpringSettlingTime(&springs[k], -1.0, 0.3, 0.001, 0.01);
+        double settle = ComputeSpringSettlingTime(&springs[k], -1.0, 0.3, 0.001, 0.01);
         PUT(out, settle);
     }
     mtwnDecay decays[3];
@@ -182,8 +182,8 @@ static void Springs(Out* out)
             PUT(out, position);
             PUT(out, velocity);
         }
-        double stop = DecayStopTime(&decays[k], 400.0, 0.5);
-        double cross = DecayCrossingTime(&decays[k], 10.0, 400.0, 60.0);
+        double stop = ComputeDecayStopTime(&decays[k], 400.0, 0.5);
+        double cross = ComputeDecayCrossingTime(&decays[k], 10.0, 400.0, 60.0);
         PUT(out, stop);
         PUT(out, cross);
     }
@@ -198,11 +198,11 @@ static void Springs(Out* out)
         PUT(out, position);
         PUT(out, velocity);
     }
-    double stop = BoundedDecayStopTime(&bounded, 90.0, 900.0, 0.001, 0.5);
+    double stop = ComputeBoundedDecayStopTime(&bounded, 90.0, 900.0, 0.001, 0.5);
     double band = 0.0;
     double back = 0.0;
-    mtwnResult banded[2] = {mtwnRubberBand(120.0, 400.0, 0.55, &band),
-                            mtwnRubberBandInverse(80.0, 400.0, 0.55, &back)};
+    mtwnResult banded[2] = {mtwnApplyRubberBand(120.0, 400.0, 0.55, &band),
+                            mtwnInvertRubberBand(80.0, 400.0, 0.55, &back)};
     PUT(out, stop);
     PUT(out, banded);
     PUT(out, band);
@@ -224,10 +224,10 @@ static void Values(Out* out)
         r = mtwnMixColor(&mix, s_progress[i], &color);
         PUT(out, r);
         PUT(out, color);
-        r = mtwnColorToSpace(color, mtwn_colorOklch, lch);
+        r = mtwnConvertColorToSpace(color, mtwn_colorOklch, lch);
         PUT(out, r);
         PUT(out, lch);
-        r = mtwnColorFromSpace(lch, mtwn_colorOklab, &back);
+        r = mtwnConvertColorFromSpace(lch, mtwn_colorOklab, &back);
         PUT(out, r);
         PUT(out, back);
         double angle = 0.0;
@@ -255,7 +255,7 @@ static void Values(Out* out)
                         &zoom);
     PUT(out, r);
     double length = 0.0;
-    r = mtwnZoomLength(&zoom, &length);
+    r = mtwnComputeZoomLength(&zoom, &length);
     PUT(out, r);
     PUT(out, length);
     for (int i = 0; i < s_progressCount; ++i)
@@ -283,7 +283,7 @@ static void Values(Out* out)
         double noise = 0.0;
         mtwnResult sampled[3] = {mtwnSamplePunch(&punch, s_seconds[i], &p),
                                  mtwnSampleShake(&shake, 1, s_seconds[i], &sh),
-                                 mtwnShakeNoise(&shake, 2, s_seconds[i], &noise)};
+                                 mtwnSampleShakeNoise(&shake, 2, s_seconds[i], &noise)};
         PUT(out, sampled);
         PUT(out, p);
         PUT(out, sh);
@@ -320,9 +320,9 @@ static void Paths(Out* out)
         double angle = 0.0;
         r = mtwnSamplePath(&path, s_progress[i], value, tangent);
         PUT(out, r);
-        r = mtwnPathDirection(&path, s_progress[i], direction);
+        r = mtwnComputePathDirection(&path, s_progress[i], direction);
         PUT(out, r);
-        r = mtwnPathAngle(&path, s_progress[i], &angle);
+        r = mtwnComputePathAngle(&path, s_progress[i], &angle);
         PUT(out, r);
         PUT(out, value);
         PUT(out, tangent);

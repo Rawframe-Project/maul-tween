@@ -136,15 +136,15 @@ static MTWN_NOINLINE double CoastTime(const mtwnTransitionDef* def, const mtwnPl
     if (out->lands)
     {
         mtwnDecay own = {out->rates[i]};
-        return mtwnDecayStopTimeWork(&own, v, def->restSpeed);
+        return mtwnComputeDecayStopTimeWork(&own, v, def->restSpeed);
     }
     if (((out->crosses | out->past) & (1u << i)) != 0)
     {
         mtwnBoundedDecay bounded = mtwnCoastBounds(out, i, Line(out->kind, (&out->to.x)[i]), v);
-        return mtwnBoundedDecayStopTimeWork(&bounded, Line(out->kind, (&out->from.x)[i]), v,
-                                            def->restOffset, def->restSpeed);
+        return mtwnComputeBoundedDecayStopTimeWork(&bounded, Line(out->kind, (&out->from.x)[i]), v,
+                                                   def->restOffset, def->restSpeed);
     }
-    return mtwnDecayStopTimeWork(&out->decay, v, def->restSpeed);
+    return mtwnComputeDecayStopTimeWork(&out->decay, v, def->restSpeed);
 }
 
 // The time after the delay a spring or decay ends, and a decay's end.
@@ -158,8 +158,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     uint8_t channels = mtwnKindChannels(out->kind);
     if (def->spec == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
     {
-        out->endTime = mtwnSpringSettlingTimeWork(&out->spring, -1.0, out->velocity[0],
-                                                  def->restOffset, def->restSpeed);
+        out->endTime = mtwnComputeSpringSettlingTimeWork(&out->spring, -1.0, out->velocity[0],
+                                                         def->restOffset, def->restSpeed);
         return;
     }
     double end = 0.0;
@@ -167,11 +167,11 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     const float* from = &out->from.x;
     for (uint8_t i = 0; i < channels; ++i)
     {
-        double time =
-            def->spec == mtwn_transitionSpring
-                ? mtwnSpringSettlingTimeWork(&out->spring, (double)from[i] - (double)to[i],
-                                             out->velocity[i], def->restOffset, def->restSpeed)
-                : CoastTime(def, out, i);
+        double time = def->spec == mtwn_transitionSpring
+                          ? mtwnComputeSpringSettlingTimeWork(
+                                &out->spring, (double)from[i] - (double)to[i], out->velocity[i],
+                                def->restOffset, def->restSpeed)
+                          : CoastTime(def, out, i);
         end = time > end ? time : end;
     }
     out->endTime = end;
@@ -229,8 +229,8 @@ static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* ou
     double rest = start + v / def->decay.rate;
     bool past = start < lo || start > hi;
     bool below = past ? start < lo : rest < lo;
-    if (!past && !((rest < lo || rest > hi) &&
-                   isfinite(mtwnDecayCrossingTimeWork(&def->decay, start, v, below ? lo : hi))))
+    if (!past && !((rest < lo || rest > hi) && isfinite(mtwnComputeDecayCrossingTimeWork(
+                                                   &def->decay, start, v, below ? lo : hi))))
     {
         return true;
     }
@@ -536,8 +536,8 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
         return made;
     }
     case mtwn_valueColor:
-        if (mtwnColorToSpaceWork(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
-            mtwnColorToSpaceWork(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
+        if (mtwnConvertColorToSpaceWork(ToColor(from), mtwn_colorOklab, a) != mtwn_success ||
+            mtwnConvertColorToSpaceWork(ToColor(to), mtwn_colorOklab, b) != mtwn_success)
         {
             return mtwn_errorInvalid;
         }

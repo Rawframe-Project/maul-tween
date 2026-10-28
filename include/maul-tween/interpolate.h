@@ -126,8 +126,9 @@ extern "C"
     ///         unknown space or a color outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space,
-                                                        double coordinatesOut[4]);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnConvertColorToSpace(mtwnColor color,
+                                                               mtwnColorSpace space,
+                                                               double coordinatesOut[4]);
 
     /// Converts a space's coordinates and an alpha back to a color.
     ///
@@ -141,9 +142,9 @@ extern "C"
     ///         hue excepted.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnColorFromSpace(const double coordinates[4],
-                                                          mtwnColorSpace space,
-                                                          mtwnColor* colorOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnConvertColorFromSpace(const double coordinates[4],
+                                                                 mtwnColorSpace space,
+                                                                 mtwnColor* colorOut);
 
     // How an angle interpolates: raw, or by CSS's hue methods with a
     // period of a full turn.
@@ -362,7 +363,8 @@ extern "C"
     ///         mtwnMixZoom refuses.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnZoomLength(const mtwnZoomMix* mix, double* lengthOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeZoomLength(const mtwnZoomMix* mix,
+                                                             double* lengthOut);
 
     /// Interpolates an integer: the interpolation in double, rounded to
     /// nearest with ties away from zero, so it passes through every integer
@@ -497,8 +499,9 @@ extern "C"
     ///         whose fields mtwnMakeShake would refuse, or a NaN clock.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnShakeNoise(const mtwnShake* shake, uint32_t channel,
-                                                      double seconds, double* factorOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleShakeNoise(const mtwnShake* shake,
+                                                            uint32_t channel, double seconds,
+                                                            double* factorOut);
 
 #ifdef __cplusplus
 }

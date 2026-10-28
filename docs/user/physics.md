@@ -14,20 +14,20 @@ double speed = 0.0;
 // 0.1 s after starting 1 short of the target, at rest.
 mtwnResult sampled = mtwnSampleSpring(&spring, -1.0, 0.0, 0.1, &offset, &speed);
 double settled = 0.0;
-mtwnResult timed = mtwnSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
+mtwnResult timed = mtwnComputeSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
 ```
 
-`mtwnSpringSettlingTime` gives the time after which the motion stays within both tolerances of its target and of rest, by bounds that never end it early; the host then snaps it to the target. An undamped spring that does not start at rest never settles and gets infinity.
+`mtwnComputeSpringSettlingTime` gives the time after which the motion stays within both tolerances of its target and of rest, by bounds that never end it early; the host then snaps it to the target. An undamped spring that does not start at rest never settles and gets infinity.
 
 Every call that takes a spring, a decay or a bounded decay returns a status and gives its results through pointers, left as they were on failure. It refuses a struct no maker produced (a spring's precomputed fields are derived again from its frequency and ratio, bit for bit), a start that is not finite, a time below 0 or NaN, and a tolerance or stop speed not above 0.
 
-To retarget a moving spring, sample it at the time of the change and start again from there: the velocity carries over and the offset is measured from the new target. `mtwnSpringMotionAt` gives the motion over one time as four coefficients, so a value of several channels costs one evaluation and four multiplications a channel.
+To retarget a moving spring, sample it at the time of the change and start again from there: the velocity carries over and the offset is measured from the new target. `mtwnComputeSpringMotion` gives the motion over one time as four coefficients, so a value of several channels costs one evaluation and four multiplications a channel.
 
 `mtwnMakeSpringEasing` turns a spring into an easing over a duration that lands exactly on 1, for CSS `linear()` (through `mtwnFitLinearEasing`) or for a track timed by its keyframes.
 
 ## Decay and inertia
 
-A decay coasts from a velocity that falls exponentially, as a fling does: `mtwnMakeDecay` takes the rate a second, `mtwnMakeDecayFromDeceleration` iOS's share of velocity kept each millisecond (0.998 normal, 0.99 fast). `mtwnDecayStopTime` says when its speed falls to a stop speed, and `mtwnDecayCrossingTime` when it passes a position, where a host hands it to a spring.
+A decay coasts from a velocity that falls exponentially, as a fling does: `mtwnMakeDecay` takes the rate a second, `mtwnMakeDecayFromDeceleration` iOS's share of velocity kept each millisecond (0.998 normal, 0.99 fast). `mtwnComputeDecayStopTime` says when its speed falls to a stop speed, and `mtwnComputeDecayCrossingTime` when it passes a position, where a host hands it to a spring.
 
 A fling that snaps lands where the host chooses. The natural rest is the decay's sample at infinite time; `mtwnMakeDecayToRest` makes the decay that comes to rest on a chosen end, such as the nearest page, with the same start velocity. A bounded decay coasts between two bounds; where it would come to rest past one, a spring takes it from the exact time it reaches the bound, with the velocity it has there, as a scroll view bounces:
 
@@ -48,18 +48,18 @@ made = mtwnMakeBoundedDecay(&coast, &bounce, 0.0, 600.0, &scroll); // content 0 
 double at = 0.0;
 mtwnResult bounced = mtwnSampleBoundedDecay(&scroll, 40.0, 1500.0, 0.5, &at, NULL);
 double still = 0.0;
-mtwnResult stopped = mtwnBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &still);
+mtwnResult stopped = mtwnComputeBoundedDecayStopTime(&scroll, 40.0, 1500.0, 0.5, 1.0, &still);
 ```
 
 A start already past a bound is the spring's from the start. Either bound may be infinite, for none.
 
-`mtwnRubberBand` gives iOS's resistance when content is dragged past its edge, `c x d / (c x + d)` with iOS's coefficient `c` of 0.55, and `mtwnRubberBandInverse` the drag that moves content a given distance past it. Both give their result through a pointer and return a status: they refuse a dimension or a coefficient that is not above 0, and a NaN drag or offset, where they used to give 0.
+`mtwnApplyRubberBand` gives iOS's resistance when content is dragged past its edge, `c x d / (c x + d)` with iOS's coefficient `c` of 0.55, and `mtwnInvertRubberBand` the drag that moves content a given distance past it. Both give their result through a pointer and return a status: they refuse a dimension or a coefficient that is not above 0, and a NaN drag or offset, where they used to give 0.
 
 ## Punch and shake
 
 A punch (`mtwnMakePunch`) is a sine fading out over a duration; a shake (`mtwnMakeShake`) is smooth gradient noise, one per channel, fading over the same envelope, the same for a seed on every platform. Each sample is a factor from -1 to 1 the host scales by each channel's amplitude and adds to the value, exactly 0 at the start, at the end and outside them: a hit or a rumble that leaves nothing behind. A sample gives its factor through a pointer and returns a status: it refuses a NaN time, and a punch or a shake whose fields are not ones its maker takes.
 
-A camera shake driven by trauma, as Eiserloh's talk on game cameras has it, takes the noise alone (`mtwnShakeNoise`) on one clock that runs on through every hit, and multiplies it by the trauma squared, which the host raises at each hit and lets decay. The noise never jumps where the amplitude changes:
+A camera shake driven by trauma, as Eiserloh's talk on game cameras has it, takes the noise alone (`mtwnSampleShakeNoise`) on one clock that runs on through every hit, and multiplies it by the trauma squared, which the host raises at each hit and lets decay. The noise never jumps where the amplitude changes:
 
 ```c
 // A hit raises the trauma (Eiserloh's camera shake), up to 1.
@@ -75,9 +75,9 @@ double n[3];
 double roll = 0.0; // degrees
 double dx = 0.0;   // pixels
 double dy = 0.0;
-if (mtwnShakeNoise(&noise, 0, now, &n[0]) == mtwn_success &&
-    mtwnShakeNoise(&noise, 1, now, &n[1]) == mtwn_success &&
-    mtwnShakeNoise(&noise, 2, now, &n[2]) == mtwn_success)
+if (mtwnSampleShakeNoise(&noise, 0, now, &n[0]) == mtwn_success &&
+    mtwnSampleShakeNoise(&noise, 1, now, &n[1]) == mtwn_success &&
+    mtwnSampleShakeNoise(&noise, 2, now, &n[2]) == mtwn_success)
 {
     roll = 10.0 * shake * n[0];
     dx = 20.0 * shake * n[1];

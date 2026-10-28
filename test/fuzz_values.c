@@ -334,7 +334,7 @@ static void Easings(Bytes* in, bool fit, bool* deep)
         Forged(in, &e);
     }
     float samples[16];
-    if (mtwnSampleEasing(&e, 16, samples) == mtwn_success)
+    if (mtwnSampleEasingTable(&e, 16, samples) == mtwn_success)
     {
         for (int i = 0; i < 16; ++i)
         {
@@ -413,7 +413,7 @@ static void Springs(Bytes* in)
     for (int i = 0; i < 5; ++i)
     {
         mtwnSpringMotion m = {0.0, 0.0, 0.0, 0.0};
-        if (mtwnSpringMotionAt(&spring, seconds[i], &m) != mtwn_success)
+        if (mtwnComputeSpringMotion(&spring, seconds[i], &m) != mtwn_success)
         {
             Fail("a made spring's motion refused", seconds[i]);
         }
@@ -435,8 +435,8 @@ static void Springs(Bytes* in)
     double tolerances[2];
     Draw(in, tolerances, 2, (const double[]){1.0, 1.0}, true);
     double settle = 0.0;
-    bool settled = mtwnSpringSettlingTime(&spring, offset, velocity, tolerances[0], tolerances[1],
-                                          &settle) == mtwn_success;
+    bool settled = mtwnComputeSpringSettlingTime(&spring, offset, velocity, tolerances[0],
+                                                 tolerances[1], &settle) == mtwn_success;
     if (settled != (start && tolerances[0] > 0.0 && tolerances[1] > 0.0) || isnan(settle) ||
         settle < 0.0)
     {
@@ -474,9 +474,9 @@ static void Decays(Bytes* in)
     double target = Param(in, 1000.0);
     double stop = 0.0;
     double cross = 0.0;
-    bool stopped = mtwnDecayStopTime(&decay, velocity, stopSpeed, &stop) == mtwn_success;
+    bool stopped = mtwnComputeDecayStopTime(&decay, velocity, stopSpeed, &stop) == mtwn_success;
     bool crossed =
-        mtwnDecayCrossingTime(&decay, position, velocity, target, &cross) == mtwn_success;
+        mtwnComputeDecayCrossingTime(&decay, position, velocity, target, &cross) == mtwn_success;
     if (stopped != (isfinite(velocity) && stopSpeed > 0.0) ||
         crossed != (startFinite && isfinite(target)) || isnan(stop) || isnan(cross) || stop < 0.0 ||
         cross < 0.0)
@@ -491,7 +491,7 @@ static void Decays(Bytes* in)
     // Refused exactly where its arguments are outside what it takes.
     bool bands = dimension > 0.0 && coefficient > 0.0 && !isnan(distance);
     double band = 0.0;
-    if ((mtwnRubberBand(distance, dimension, coefficient, &band) == mtwn_success) != bands)
+    if ((mtwnApplyRubberBand(distance, dimension, coefficient, &band) == mtwn_success) != bands)
     {
         Fail("the rubber band's refusal", distance);
     }
@@ -502,7 +502,7 @@ static void Decays(Bytes* in)
     }
     double back = 0.0;
     if (bands &&
-        (mtwnRubberBandInverse(band, dimension, coefficient, &back) != mtwn_success || isnan(back)))
+        (mtwnInvertRubberBand(band, dimension, coefficient, &back) != mtwn_success || isnan(back)))
     {
         Fail("the rubber band's inverse", back);
     }
@@ -543,8 +543,8 @@ static void Decays(Bytes* in)
         Check(in, "a bounded decay's velocity", v);
     }
     double still = 0.0;
-    bool stilled =
-        mtwnBoundedDecayStopTime(&bounded, start[0], start[1], 0.5, 1.0, &still) == mtwn_success;
+    bool stilled = mtwnComputeBoundedDecayStopTime(&bounded, start[0], start[1], 0.5, 1.0,
+                                                   &still) == mtwn_success;
     if (stilled != finite || isnan(still) || still < 0.0)
     {
         Fail("a bounded decay's stop", still);
@@ -586,7 +586,7 @@ static void ForgedSignals(const Bytes* in, const mtwnPunch* punch, const mtwnSha
             double seconds = s_times[t] * k.duration;
             if (shake != NULL &&
                 ((mtwnSampleShake(&k, 1, seconds, &f) == mtwn_success && !(fabs(f) <= 1.0)) ||
-                 (mtwnShakeNoise(&k, 1, seconds, &f) == mtwn_success && !(fabs(f) <= 1.0))))
+                 (mtwnSampleShakeNoise(&k, 1, seconds, &f) == mtwn_success && !(fabs(f) <= 1.0))))
             {
                 Fail("a forged shake taken and out of range", f);
             }
@@ -776,7 +776,7 @@ static void Zooms(const Bytes* in)
                 Overwrite(&z, 15, 0, 0, &state);
             }
             double length = 0.0;
-            mtwnResult measured = mtwnZoomLength(&z, &length);
+            mtwnResult measured = mtwnComputeZoomLength(&z, &length);
             if ((forged == 0 && measured != mtwn_success) ||
                 (measured == mtwn_success && isnan(length)))
             {
@@ -999,8 +999,8 @@ static void Tampered(const Bytes* in, size_t from, mtwnKeyframe* keys, uint32_t 
             if (path != NULL)
             {
                 (void)mtwnSamplePath(path, s_progress[i], value, tangent);
-                (void)mtwnPathDirection(path, s_progress[i], value);
-                (void)mtwnPathAngle(path, s_progress[i], &angle);
+                (void)mtwnComputePathDirection(path, s_progress[i], value);
+                (void)mtwnComputePathAngle(path, s_progress[i], &angle);
             }
             if (track != NULL)
             {
@@ -1065,7 +1065,7 @@ static void Paths(Bytes* in)
             }
             // Its direction is a unit vector wherever the path is finite.
             double direction[4] = {0};
-            if (mtwnPathDirection(&path, s_progress[i], direction) != mtwn_success)
+            if (mtwnComputePathDirection(&path, s_progress[i], direction) != mtwn_success)
             {
                 Fail("a path's direction refused", s_progress[i]);
             }

@@ -29,7 +29,7 @@ static void TestEvenTables(void)
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &quad) == mtwn_success, "quad");
     float values[6];
     values[5] = -7.0f;
-    CHECK(mtwnSampleEasing(&quad, 5, values) == mtwn_success, "sampled");
+    CHECK(mtwnSampleEasingTable(&quad, 5, values) == mtwn_success, "sampled");
     CHECK(values[0] == 0.0f && values[1] == 0.0625f && values[2] == 0.25f && values[3] == 0.5625f &&
               values[4] == 1.0f,
           "p^2 at quarters");
@@ -37,25 +37,25 @@ static void TestEvenTables(void)
     // Outside the before phase: a jump at the start is taken at 0.
     mtwnEasing steps;
     CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &steps) == mtwn_success, "steps");
-    CHECK(mtwnSampleEasing(&steps, 5, values) == mtwn_success && values[0] == 0.25f &&
+    CHECK(mtwnSampleEasingTable(&steps, 5, values) == mtwn_success && values[0] == 0.25f &&
               values[1] == 0.5f && values[2] == 0.75f && values[3] == 1.0f && values[4] == 1.0f,
           "jump-start steps from their first step");
     mtwnEasing elastic;
     CHECK(mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &elastic) == mtwn_success, "elastic");
     float table[257];
-    CHECK(mtwnSampleEasing(&elastic, 257, table) == mtwn_success, "sampled");
+    CHECK(mtwnSampleEasingTable(&elastic, 257, table) == mtwn_success, "sampled");
     int wrong = 0;
     for (int i = 0; i <= 256; ++i)
     {
         wrong += table[i] != (float)EaseAt(&elastic, (double)i / 256.0, false);
     }
     CHECK(wrong == 0 && table[0] == 0.0f && table[256] == 1.0f, "the easing, rounded to float");
-    CHECK(mtwnSampleEasing(&quad, 2, values) == mtwn_success && values[0] == 0.0f &&
+    CHECK(mtwnSampleEasingTable(&quad, 2, values) == mtwn_success && values[0] == 0.0f &&
               values[1] == 1.0f,
           "two samples, the ends");
-    CHECK(mtwnSampleEasing(&quad, 1, values) == mtwn_errorInvalid, "one sample");
-    CHECK(mtwnSampleEasing(NULL, 5, values) == mtwn_errorInvalid, "no easing");
-    CHECK(mtwnSampleEasing(&quad, 5, NULL) == mtwn_errorInvalid, "no buffer");
+    CHECK(mtwnSampleEasingTable(&quad, 1, values) == mtwn_errorInvalid, "one sample");
+    CHECK(mtwnSampleEasingTable(NULL, 5, values) == mtwn_errorInvalid, "no easing");
+    CHECK(mtwnSampleEasingTable(&quad, 5, NULL) == mtwn_errorInvalid, "no buffer");
 }
 
 // The largest error of the fitted points against the easing on the grid,

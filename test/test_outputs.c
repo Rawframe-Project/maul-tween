@@ -162,11 +162,12 @@ static void TestMakers(void)
                                mtwn_hueShorter, &colorMix),
               "a color mix");
     double coordinates[4];
-    UNCHANGED(coordinates, mtwnColorToSpace((mtwnColor){NAN, 0, 0, 1}, mtwn_colorSrgb, coordinates),
+    UNCHANGED(coordinates,
+              mtwnConvertColorToSpace((mtwnColor){NAN, 0, 0, 1}, mtwn_colorSrgb, coordinates),
               "a color's coordinates");
     mtwnColor color;
     double far[4] = {(double)NAN, 0.0, 0.0, 1.0};
-    UNCHANGED(color, mtwnColorFromSpace(far, mtwn_colorSrgb, &color), "a color");
+    UNCHANGED(color, mtwnConvertColorFromSpace(far, mtwn_colorSrgb, &color), "a color");
     mtwnRotationMix rotationMix;
     UNCHANGED(rotationMix,
               mtwnMakeRotationMix((mtwnQuat){0, 0, 0, 0}, (mtwnQuat){0, 0, 0, 1},
@@ -183,7 +184,7 @@ static void TestMakers(void)
     mtwnShake shake;
     UNCHANGED(shake, mtwnMakeShake(-1.0, 1.0, 1.0, 1, &shake), "a shake");
     float samples[4];
-    UNCHANGED(samples, mtwnSampleEasing(NULL, 4, samples), "an easing's samples");
+    UNCHANGED(samples, mtwnSampleEasingTable(NULL, 4, samples), "an easing's samples");
     double offsets[4];
     UNCHANGED(offsets, mtwnComputeStagger(NULL, 4, offsets), "a stagger's offsets");
     uint32_t fitted;
@@ -242,8 +243,8 @@ static void TestSamplers(void)
     mtwnSpring forged = spring;
     forged.parameters[2] *= 2.0;
     mtwnSpringMotion motion;
-    UNCHANGED(motion, mtwnSpringMotionAt(&forged, 0.1, &motion), "a forged spring's motion");
-    UNCHANGED(motion, mtwnSpringMotionAt(&spring, -1.0, &motion), "a motion before the start");
+    UNCHANGED(motion, mtwnComputeSpringMotion(&forged, 0.1, &motion), "a forged spring's motion");
+    UNCHANGED(motion, mtwnComputeSpringMotion(&spring, -1.0, &motion), "a motion before the start");
     double values[2];
     memset(values, 0xAB, sizeof values);
     CHECK(mtwnSampleSpring(&spring, (double)NAN, 0.0, 0.1, &values[0], &values[1]) ==
@@ -251,7 +252,7 @@ static void TestSamplers(void)
               AllBytes(values, sizeof values, 0xAB),
           "a spring from a NaN start");
     double seconds;
-    UNCHANGED(seconds, mtwnSpringSettlingTime(&spring, 1.0, 0.0, 0.0, 1e-3, &seconds),
+    UNCHANGED(seconds, mtwnComputeSpringSettlingTime(&spring, 1.0, 0.0, 0.0, 1e-3, &seconds),
               "a settling time to no tolerance");
     mtwnDecay decay;
     CHECK(mtwnMakeDecay(2.0, &decay) == mtwn_success, "a decay");
@@ -260,8 +261,8 @@ static void TestSamplers(void)
     CHECK(mtwnSampleDecay(&still, 0.0, 1.0, 0.1, &values[0], &values[1]) == mtwn_errorInvalid &&
               AllBytes(values, sizeof values, 0xAB),
           "a decay of rate 0");
-    UNCHANGED(seconds, mtwnDecayStopTime(&decay, 1.0, 0.0, &seconds), "a stop at speed 0");
-    UNCHANGED(seconds, mtwnDecayCrossingTime(&decay, 0.0, 1.0, (double)INFINITY, &seconds),
+    UNCHANGED(seconds, mtwnComputeDecayStopTime(&decay, 1.0, 0.0, &seconds), "a stop at speed 0");
+    UNCHANGED(seconds, mtwnComputeDecayCrossingTime(&decay, 0.0, 1.0, (double)INFINITY, &seconds),
               "a crossing of infinity");
     mtwnBoundedDecay bounded;
     CHECK(mtwnMakeBoundedDecay(&decay, &spring, 0.0, 1.0, &bounded) == mtwn_success,
@@ -273,7 +274,8 @@ static void TestSamplers(void)
                   mtwn_errorInvalid &&
               AllBytes(values, sizeof values, 0xAB),
           "bounds crossed");
-    UNCHANGED(seconds, mtwnBoundedDecayStopTime(&bounded, 0.5, 1.0, 0.5, (double)NAN, &seconds),
+    UNCHANGED(seconds,
+              mtwnComputeBoundedDecayStopTime(&bounded, 0.5, 1.0, 0.5, (double)NAN, &seconds),
               "a stop at a NaN speed");
 }
 

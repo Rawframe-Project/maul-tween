@@ -479,7 +479,8 @@ static void TestSpring(void)
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
     mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     mtwnPlayerId player = Start(context, &def);
-    double settle = SpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
+    double settle =
+        ComputeSpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
     CHECK(settle > 0.3 && settle < 2.0, "a critical spring settles within a second or so");
     Update(context, 0);
     double worst = 0.0;
@@ -513,8 +514,8 @@ static void TestStiffSpringEnds(void)
     mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     CHECK(mtwnMakeSpring(1e300, 1e150, 1.0, &def.spring) == mtwn_success, "a stiff spring");
     mtwnPlayerId player = Start(context, &def);
-    double settle =
-        SpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0, def.restOffset, def.restSpeed);
+    double settle = ComputeSpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0,
+                                              def.restOffset, def.restSpeed);
     CHECK(settle > 0.0 && settle < 1e-9, "it settles within a nanosecond");
     Update(context, 0);
     Update(context, 1);
@@ -566,8 +567,9 @@ static void TestDecay(void)
     def.velocitySource = mtwn_velocityGiven;
     def.velocity = (mtwnVec4){2000.0f, -50.0f, 0, 0};
     mtwnPlayerId player = Start(context, &def);
-    double stop = DecayStopTime(&def.decay, 2000.0, def.restSpeed);
-    CHECK(stop > DecayStopTime(&def.decay, -50.0, def.restSpeed), "the faster channel stops last");
+    double stop = ComputeDecayStopTime(&def.decay, 2000.0, def.restSpeed);
+    CHECK(stop > ComputeDecayStopTime(&def.decay, -50.0, def.restSpeed),
+          "the faster channel stops last");
     Update(context, 0);
     Update(context, s_second / 4);
     double position = 0.0;
@@ -708,7 +710,7 @@ static void TestScales(void)
               fabs((double)State(context, z).velocity.x - exp(position) * rate) <=
                   1e-5 * exp(position) * rate,
           "the decay in the logarithm, its velocity the value times the rate");
-    double stop = DecayStopTime(&coast.decay, 3.0, coast.restSpeed);
+    double stop = ComputeDecayStopTime(&coast.decay, 3.0, coast.restSpeed);
     Update(context, 40 * s_second + (uint64_t)(stop * 1e9) + 1);
     SampleDecay(&coast.decay, log(2.0), 3.0, stop, &position, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) &&
