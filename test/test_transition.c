@@ -409,7 +409,7 @@ static void TestExactness(void)
     // that only commits the base is reported.
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0.1f, 0, 0, 0});
     mtwnTransitionDef def = Linear(x, (mtwnVec4){0.7f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &def.easing) == mtwn_success, "steps(1, start)");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpStart, &def.easing) == mtwn_success, "steps(1, start)");
     Start(context, &def);
     Update(context, 0);
     Update(context, s_second / 2);
@@ -718,7 +718,7 @@ static void TestScales(void)
     // at the largest float, never infinite.
     mtwnLinearPoint points[2] = {{0.0, 0.0}, {1.0, 400.0}};
     def = Linear(s, (mtwnVec4){10.0f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMakeLinearEasing(points, 2, &def.easing) == mtwn_success, "linear() to 400");
+    CHECK(mtwnMakeLinearPointsEasing(points, 2, &def.easing) == mtwn_success, "linear() to 400");
     Start(context, &def);
     Update(context, 1000 * s_second);
     Update(context, 1000 * s_second + s_second / 2);
@@ -1509,7 +1509,7 @@ static void TestReversalSignedZero(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
           "a target");
     mtwnEasing steps;
-    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &steps) == mtwn_success, "steps(4, jump-start)");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &steps) == mtwn_success, "steps(4, jump-start)");
     (void)Toward(context, x, 1.0f, 1.0, &steps, true);
     CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "at its start");
     back = Toward(context, x, 0.0f, 1.0, &steps, true);
@@ -1667,8 +1667,8 @@ static void TestLinearPointsCopied(void)
     memcpy(kept, points, sizeof kept);
     mtwnEasing easing;
     mtwnEasing reference;
-    CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success &&
-              mtwnMakeLinearEasing(kept, 4, &reference) == mtwn_success,
+    CHECK(mtwnMakeLinearPointsEasing(points, 4, &easing) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(kept, 4, &reference) == mtwn_success,
           "a linear() easing and a copy of it");
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     transition.target = x;
@@ -1690,7 +1690,7 @@ static void TestLinearPointsCopied(void)
     uint64_t misuse = mtwnGetContextMisuse(context);
     mtwnEasing longer;
     mtwnLinearPoint five[5] = {{0.0, 0.0}, {0.2, 0.1}, {0.4, 0.5}, {0.7, 0.8}, {1.0, 1.0}};
-    CHECK(mtwnMakeLinearEasing(five, 5, &longer) == mtwn_success, "five points");
+    CHECK(mtwnMakeLinearPointsEasing(five, 5, &longer) == mtwn_success, "five points");
     transition.easing = longer;
     mtwnPlayerId refused;
     CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorCapacity &&
@@ -1698,7 +1698,7 @@ static void TestLinearPointsCopied(void)
           "more points than a transition holds: refused, not misuse, the running one kept");
     mtwnLinearPoint swapped[4] = {{0.0, 0.0}, {0.5, 0.2}, {0.25, 0.6}, {1.0, 1.0}};
     mtwnEasing changed;
-    CHECK(mtwnMakeLinearEasing(swapped, 4, &changed) == mtwn_success, "canonical points");
+    CHECK(mtwnMakeLinearPointsEasing(swapped, 4, &changed) == mtwn_success, "canonical points");
     swapped[2].input = 0.25;
     swapped[1].input = 0.5;
     transition.easing = changed;

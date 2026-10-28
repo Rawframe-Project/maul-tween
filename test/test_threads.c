@@ -173,7 +173,7 @@ static mtwnClipId MakeClip(mtwnContext* context, mtwnNode* nodeOut)
 static void Prepare(mtwnContext* context, mtwnClipId clip, mtwnNode node)
 {
     CHECK(mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &s_shared.ease) == mtwn_success &&
-              mtwnMakeCubicBezier(0.25, 0.1, 0.25, 1.0, &s_shared.bezier) == mtwn_success &&
+              mtwnMakeCubicBezierEasing(0.25, 0.1, 0.25, 1.0, &s_shared.bezier) == mtwn_success &&
               mtwnMakeSpringFromDuration(0.5, 0.3, &s_shared.spring) == mtwn_success,
           "curves");
     mtwnColor red = {1.0f, 0.0f, 0.0f, 1.0f};

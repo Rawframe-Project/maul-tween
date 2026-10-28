@@ -24,9 +24,9 @@ The makers:
 | `mtwnMakeBackEasing` | Back, with GSAP's and Penner's overshoot (1.70158 by default). |
 | `mtwnMakeElasticEasing` | Elastic, with GSAP's amplitude and period. |
 | `mtwnMakeCssEasing` | CSS's keywords: `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, `step-start`, `step-end`. |
-| `mtwnMakeCubicBezier` | CSS's `cubic-bezier(x1, y1, x2, y2)`. |
-| `mtwnMakeSteps` | CSS's `steps(n, position)`, every jump position. |
-| `mtwnMakeLinearEasing` | CSS's `linear()` with points. |
+| `mtwnMakeCubicBezierEasing` | CSS's `cubic-bezier(x1, y1, x2, y2)`. |
+| `mtwnMakeStepsEasing` | CSS's `steps(n, position)`, every jump position. |
+| `mtwnMakeLinearPointsEasing` | CSS's `linear()` with points. |
 | `mtwnMakeRoughEasing` | A rough curve from a seed, below. |
 | `mtwnMakeSpringEasing` | A spring over a duration (see [physics.md](physics.md)). |
 | `mtwnMakeHostEasing` | A function of the host's. |

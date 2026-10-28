@@ -84,7 +84,7 @@ static MTWN_NOINLINE mtwnResult mtwnMakeRoughEasingWork(const mtwnRoughDef* def,
     }
     points[0] = (mtwnLinearPoint){0.0, 0.0};
     points[count - 1] = (mtwnLinearPoint){1.0, 1.0};
-    return mtwnMakeLinearEasingWork(points, count, easingOut);
+    return mtwnMakeLinearPointsEasingWork(points, count, easingOut);
 }
 
 mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def, mtwnLinearPoint* points, uint32_t count,

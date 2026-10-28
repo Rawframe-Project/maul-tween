@@ -95,7 +95,7 @@ A timeline's easing shapes its children's time. Eased by `steps()`, it holds the
 // Held 12 times a second (on twos at 24 frames): 2 s in 24 steps.
 mtwnClipTimelineDef twos = mtwnDefaultClipTimelineDef();
 twos.timing.duration = 2.0;
-made = mtwnMakeSteps(24, mtwn_jumpEnd, &twos.timing.easing);
+made = mtwnMakeStepsEasing(24, mtwn_jumpEnd, &twos.timing.easing);
 mtwnNode held;
 made = mtwnClip_AddTimeline(context, clip, &twos, &held);
 ```

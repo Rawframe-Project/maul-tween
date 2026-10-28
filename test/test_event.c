@@ -1062,7 +1062,7 @@ static void TestJumpStartMarks(void)
 {
     World w = MakeWorld(64);
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
-    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &group.timing.easing) == mtwn_success, "steps");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &group.timing.easing) == mtwn_success, "steps");
     group.timing.duration = 1.0;
     mtwnNode timeline = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &timeline) == mtwn_success, "a timeline");
@@ -1368,7 +1368,7 @@ static void TestReflectedJumpStart(void)
     stepped.timing.direction = mtwn_directionReverse;
     stepped.timing.fill = mtwn_fillBackwards;
     stepped.timing.alternateEasing = mtwn_alternateRepeatsShape;
-    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &stepped.timing.easing) == mtwn_success, "a step");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpStart, &stepped.timing.easing) == mtwn_success, "a step");
     mtwnNode timeline = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &stepped, &timeline) == mtwn_success,
           "a reversed stepped timeline");

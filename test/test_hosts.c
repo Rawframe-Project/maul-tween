@@ -87,7 +87,7 @@ static void Easings(Out* out)
     r = mtwnMakeElasticEasing(mtwn_easeInOut, 1.25, 0.3, &e);
     PUT(out, r);
     EaseAll(out, &e);
-    r = mtwnMakeCubicBezier(0.68, -0.6, 0.32, 1.6, &e);
+    r = mtwnMakeCubicBezierEasing(0.68, -0.6, 0.32, 1.6, &e);
     PUT(out, r);
     EaseAll(out, &e);
     for (int i = 0; i < s_progressCount; ++i)
@@ -107,7 +107,7 @@ static void Easings(Out* out)
         {0.0, 0.0}, {0x1p-1040, 0.3}, {0.6, 0.2}, {1.0, 1.0}};
     mtwnLinearPoint points[4];
     memcpy(points, s_points, sizeof points);
-    r = mtwnMakeLinearEasing(points, 4, &e);
+    r = mtwnMakeLinearPointsEasing(points, 4, &e);
     PUT(out, r);
     PUT(out, points);
     EaseAll(out, &e);

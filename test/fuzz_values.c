@@ -269,13 +269,13 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     {
         double p[4];
         Draw(in, p, 4, (const double[]){1.5, 4.0, 1.5, 4.0}, false);
-        r = mtwnMakeCubicBezier(p[0], p[1], p[2], p[3], &e);
+        r = mtwnMakeCubicBezierEasing(p[0], p[1], p[2], p[3], &e);
     }
     break;
     case 5:
     {
         uint32_t steps = Below(in, 12);
-        r = mtwnMakeSteps(steps, (mtwnStepPosition)Below(in, 5), &e);
+        r = mtwnMakeStepsEasing(steps, (mtwnStepPosition)Below(in, 5), &e);
     }
         ends = false;
         break;
@@ -291,7 +291,7 @@ static void Easings(Bytes* in, bool fit, bool* deep)
             points[i].input = Below(in, 4) == 0 ? (double)NAN : Param(in, 1.5);
             points[i].output = Param(in, 2.0);
         }
-        r = mtwnMakeLinearEasing(points, count, &e);
+        r = mtwnMakeLinearPointsEasing(points, count, &e);
         ends = false;
         break;
     }
@@ -361,7 +361,7 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     if (mtwnFitLinearEasing(&e, FitTolerance(in, deep), fitted, 256, &fittedCount) == mtwn_success)
     {
         mtwnEasing linear;
-        if (mtwnMakeLinearEasing(fitted, fittedCount, &linear) != mtwn_success)
+        if (mtwnMakeLinearPointsEasing(fitted, fittedCount, &linear) != mtwn_success)
         {
             Fail("a fitted linear() refused", (double)fittedCount);
             return;
@@ -1025,7 +1025,7 @@ static void Paths(Bytes* in)
     {
         const mtwnLinearPoint shape[4] = {{0.0, 0.0}, {0.25, 0.4}, {0.75, 0.7}, {1.0, 1.0}};
         memcpy(points[k], shape, sizeof shape);
-        if (mtwnMakeLinearEasing(points[k], 4, &keys[k].easing) != mtwn_success)
+        if (mtwnMakeLinearPointsEasing(points[k], 4, &keys[k].easing) != mtwn_success)
         {
             Fail("a linear() easing", 0.0);
         }
