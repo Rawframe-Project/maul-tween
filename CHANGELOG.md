@@ -6,6 +6,37 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.11.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.10.0...v0.11.0) (2026-10-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **transition:** mtwnTransitionSpec is renamed mtwnTransitionKind, and mtwnTransitionDef.spec is renamed kind. Their values and the def's layout are unchanged.
+* **clip:** mtwnClip_Finish is renamed mtwnClip_Seal, with the same parameters and statuses. The docs call such a clip sealed; finishing is a player's only.
+* fourteen free functions are renamed, their parameters and behavior unchanged: mtwnSpringMotionAt to mtwnComputeSpringMotion, mtwnSpringSettlingTime to mtwnComputeSpringSettlingTime, mtwnDecayStopTime to mtwnComputeDecayStopTime, mtwnDecayCrossingTime to mtwnComputeDecayCrossingTime, mtwnBoundedDecayStopTime to mtwnComputeBoundedDecayStopTime, mtwnPathDirection to mtwnComputePathDirection, mtwnPathAngle to mtwnComputePathAngle, mtwnZoomLength to mtwnComputeZoomLength, mtwnShakeNoise to mtwnSampleShakeNoise, mtwnColorToSpace to mtwnConvertColorToSpace, mtwnColorFromSpace to mtwnConvertColorFromSpace, mtwnRubberBand to mtwnApplyRubberBand, mtwnRubberBandInverse to mtwnInvertRubberBand, and mtwnSampleEasing to mtwnSampleEasingTable.
+* mtwn_staggerCentre is renamed mtwn_staggerCenter, with the same value.
+* **easing:** mtwnMakeCubicBezier, mtwnMakeSteps and mtwnMakeLinearEasing are renamed mtwnMakeCubicBezierEasing, mtwnMakeStepsEasing and mtwnMakeLinearPointsEasing. Their parameters and behavior are unchanged.
+* mtwnUpdate, mtwnReadEvents, mtwnReadTargets and mtwnGetClipBytes are renamed mtwnContext_Update, mtwnContext_ReadEvents, mtwnContext_ReadTargets and mtwnContext_GetClipBytes. Their parameters and behavior are unchanged.
+* **value:** mtwnMixAngle, mtwnMixInteger and mtwnMixDiscrete return mtwnResult and give their value through a new last parameter: angleOut, valueOut and valueOut. Each refuses with mtwn_errorInvalid a null out and a progress that is not finite. mtwnMixAngle also refuses an unknown method, which it took as raw, and an angle that is not finite. A caller takes the status and reads the value from the out.
+* **player:** mtwnPlayerDef.weight is a float and mtwnPlayer_SetWeight takes a float, as mtwnBinding.weight is. The def's layout changes. A player's weight that is not a float's value composes by the float nearest it.
+* an unknown angle method is refused with mtwn_errorInvalid, counted as misuse, where an angle reads one: by mtwnStartTransition and mtwnMeasureTransition for an angle target, and by mtwnMakeTrack and mtwnClip_AddTrack for an angle track. It was taken as mtwn_angleRaw.
+
+### Fixed
+
+* **player:** give a player's weight the float a binding's has ([#138](https://github.com/Rawframe-Project/maul-tween/issues/138)) ([b32e844](https://github.com/Rawframe-Project/maul-tween/commit/b32e844c50a827eab4e168d3172b4a336238f9b9)), closes [#131](https://github.com/Rawframe-Project/maul-tween/issues/131) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+* refuse an unknown angle method in transitions and tracks ([#137](https://github.com/Rawframe-Project/maul-tween/issues/137)) ([e1e38c0](https://github.com/Rawframe-Project/maul-tween/commit/e1e38c0f942fe407e48e83f2606c72dd258fea94)), closes [#136](https://github.com/Rawframe-Project/maul-tween/issues/136)
+* **value:** return a status from the angle, integer and discrete mixes ([#140](https://github.com/Rawframe-Project/maul-tween/issues/140)) ([233b9ed](https://github.com/Rawframe-Project/maul-tween/commit/233b9ed63b49f0c4729bc0ba192a9f71055a88ab)), closes [#130](https://github.com/Rawframe-Project/maul-tween/issues/130) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+
+
+### Changed
+
+* **clip:** seal a clip, so finish means only a player's ([#146](https://github.com/Rawframe-Project/maul-tween/issues/146)) ([14a0ddd](https://github.com/Rawframe-Project/maul-tween/commit/14a0ddd5f1bc646f9d2b2592967d6745b8787aa3)), closes [#133](https://github.com/Rawframe-Project/maul-tween/issues/133) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+* **easing:** name every easing maker for its kind ([#142](https://github.com/Rawframe-Project/maul-tween/issues/142)) ([1484ab9](https://github.com/Rawframe-Project/maul-tween/commit/1484ab97aebddae7d7215045e9a8e02b58eefdbb)), closes [#128](https://github.com/Rawframe-Project/maul-tween/issues/128) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+* name the context's operations mtwnContext_ ([#141](https://github.com/Rawframe-Project/maul-tween/issues/141)) ([14623c1](https://github.com/Rawframe-Project/maul-tween/commit/14623c151ce2346b04796072deb71c3928f6a2ea)), closes [#127](https://github.com/Rawframe-Project/maul-tween/issues/127) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+* spell mtwn_staggerCenter and its comments the family's way ([#144](https://github.com/Rawframe-Project/maul-tween/issues/144)) ([93ca6c7](https://github.com/Rawframe-Project/maul-tween/commit/93ca6c7e7c09051b6298279acd821d6da749d455)), closes [#132](https://github.com/Rawframe-Project/maul-tween/issues/132) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+* start every free function with its verb ([#143](https://github.com/Rawframe-Project/maul-tween/issues/143)) ([db3ac34](https://github.com/Rawframe-Project/maul-tween/commit/db3ac34d3976b39172985bb2b3e0e54eef2cc2af)), closes [#129](https://github.com/Rawframe-Project/maul-tween/issues/129) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+* **transition:** name a transition's kind as every other kind ([#145](https://github.com/Rawframe-Project/maul-tween/issues/145)) ([918f567](https://github.com/Rawframe-Project/maul-tween/commit/918f567ec760cb793fa4f8a4fd6d9adcdc0b73b4)), closes [#134](https://github.com/Rawframe-Project/maul-tween/issues/134) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+
 ## [0.10.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.9.0...v0.10.0) (2026-10-28)
 
 ### Added
