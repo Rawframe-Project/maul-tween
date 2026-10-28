@@ -293,6 +293,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     mtwnVec4 end = def->spec == mtwn_transitionDecay ? target->value : def->value;
     if (!mtwnAcceptValue(target->kind, end, &out->to) || !IsTime(def->delay) ||
         !IsTime(def->duration) || !IsSpec(def, target->kind) ||
+        (target->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
         def->velocitySource > mtwn_velocityGiven || !StartVelocity(def, target, inherited, out))
     {
         return mtwn_errorInvalid;
@@ -516,6 +517,10 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     case mtwn_valueDiscrete:
         return mtwn_errorInvalid;
     case mtwn_valueAngle:
+        if (!mtwnIsAngleMethod(def->angleMethod))
+        {
+            return mtwn_errorInvalid;
+        }
         *distanceOut = fabs(mtwnMixAngleWork(a[0], b[0], def->angleMethod, 1.0) - a[0]);
         return mtwn_success;
     case mtwn_valueScale:

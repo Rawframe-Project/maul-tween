@@ -175,10 +175,10 @@ extern "C"
     ///         without its cookie, an end value the target's kind refuses,
     ///         a delay, duration, given velocity or rest tolerance outside
     ///         the above, a spring or decay not made by this library, an
-    ///         unknown spec, velocity source, color space, hue method or
-    ///         rotation path, a color with alpha outside 0 to 1, the longest
-    ///         way between equal rotations, a spring or decay for a discrete
-    ///         value, a decay for a color or rotation, a scale's decay
+    ///         unknown spec, velocity source, color space, hue method,
+    ///         angle method or rotation path, a color with alpha outside 0
+    ///         to 1, the longest way between equal rotations, a spring or
+    ///         decay for a discrete value, a decay for a color or rotation, a scale's decay
     ///         stopping where a float is 0 or infinite, a decay both bounded
     ///         and landing, a lower bound above the upper or NaN, a scale's
     ///         bound not above 0, a landing whose velocity does not move
@@ -213,9 +213,9 @@ extern "C"
     /// @param distanceOut  Receives the distance, 0 on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie, an end value the target's kind refuses,
-    ///         an unknown rotation path, the longest way between equal
-    ///         rotations, or a discrete value, which has no distance; mtwn_errorStale for a
-    ///         target that is not alive.
+    ///         an unknown angle method or rotation path, the longest way
+    ///         between equal rotations, or a discrete value, which has no
+    ///         distance; mtwn_errorStale for a target that is not alive.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMeasureTransition(mtwnContext* context,

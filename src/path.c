@@ -609,6 +609,7 @@ static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, u
                        bool lengths, const mtwnSegmentMix* mixes)
 {
     if (def == NULL || def->kind > mtwn_valueScale || def->rotationPath > mtwn_rotationLongest ||
+        (def->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
         !IsValid(keyframes, count, s_kindChannels[def->kind], def->alpha, lengths) ||
         (lengths && !IsNumberKind(def->kind) && def->kind != mtwn_valueScale) ||
         !TakesSegments(def->kind, keyframes, count))

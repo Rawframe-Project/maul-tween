@@ -47,6 +47,13 @@ MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwn
 MTWN_NOINLINE mtwnColor mtwnMixColorWork(const mtwnColorMix* mix, double progress);
 MTWN_NOINLINE mtwnResult mtwnColorToSpaceWork(mtwnColor color, mtwnColorSpace space,
                                               double coordinatesOut[4]);
+// Whether an angle method is one of the five. mtwnMixAngleWork takes any
+// other as raw, so every call that takes one from the host checks it first.
+static inline bool mtwnIsAngleMethod(mtwnAngleMethod method)
+{
+    return method <= mtwn_angleDecreasing;
+}
+
 MTWN_NOINLINE double mtwnMixAngleWork(double from, double to, mtwnAngleMethod method,
                                       double progress);
 MTWN_NOINLINE mtwnResult mtwnMakeRotationMixWork(mtwnQuat from, mtwnQuat to, mtwnRotationPath path,
