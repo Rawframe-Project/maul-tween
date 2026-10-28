@@ -52,7 +52,7 @@ static mtwnTransitionDef Fling(mtwnTargetId target, mtwnVec4 velocity)
 {
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = target;
-    def.spec = mtwn_transitionDecay;
+    def.kind = mtwn_transitionDecay;
     def.velocitySource = mtwn_velocityGiven;
     def.velocity = velocity;
     CHECK(mtwnMakeSpring(500.0, 10.0, 1.0, &def.spring) == mtwn_success, "a bounce");

@@ -41,15 +41,15 @@ static bool IsTolerance(double value)
     return isfinite(value) && value > 0.0;
 }
 
-// Whether the def's spec suits the kind and its spring, decay and
-// tolerances are valid.
-static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
+// Whether the def's transition kind suits the value kind, and its
+// spring, decay and tolerances are valid.
+static bool SuitsKind(const mtwnTransitionDef* def, mtwnValueKind kind)
 {
     if (!mtwnValidEasing(&def->easing))
     {
         return false;
     }
-    switch (def->spec)
+    switch (def->kind)
     {
     case mtwn_transitionEasing:
         return true;
@@ -91,7 +91,7 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
         // progress takes it over the logarithm's distance.
         double rate = out->velocity[0] / (double)out->from.x;
         double distance = mtwnLog((double)out->to.x) - mtwnLog((double)out->from.x);
-        out->velocity[0] = def->spec == mtwn_transitionDecay ? rate
+        out->velocity[0] = def->kind == mtwn_transitionDecay ? rate
                            : distance != 0.0                 ? rate / distance
                                                              : 0.0;
         return isfinite(out->velocity[0]);
@@ -151,12 +151,12 @@ static MTWN_NOINLINE double CoastTime(const mtwnTransitionDef* def, const mtwnPl
 static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
 {
     out->endTime = out->duration;
-    if (def->spec == mtwn_transitionEasing)
+    if (def->kind == mtwn_transitionEasing)
     {
         return;
     }
     uint8_t channels = mtwnKindChannels(out->kind);
-    if (def->spec == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
+    if (def->kind == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
     {
         out->endTime = mtwnComputeSpringSettlingTimeWork(&out->spring, -1.0, out->velocity[0],
                                                          def->restOffset, def->restSpeed);
@@ -167,7 +167,7 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     const float* from = &out->from.x;
     for (uint8_t i = 0; i < channels; ++i)
     {
-        double time = def->spec == mtwn_transitionSpring
+        double time = def->kind == mtwn_transitionSpring
                           ? mtwnComputeSpringSettlingTimeWork(
                                 &out->spring, (double)from[i] - (double)to[i], out->velocity[i],
                                 def->restOffset, def->restSpeed)
@@ -175,7 +175,7 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
         end = time > end ? time : end;
     }
     out->endTime = end;
-    if (def->spec != mtwn_transitionDecay || out->lands)
+    if (def->kind != mtwn_transitionDecay || out->lands)
     {
         return;
     }
@@ -287,12 +287,12 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
                           mtwnVec4 inherited, mtwnPlayerSlot* out)
 {
     out->kind = target->kind;
-    out->spec = def->spec;
+    out->transitionKind = def->kind;
     out->essential = def->essential;
     out->from = target->value;
-    mtwnVec4 end = def->spec == mtwn_transitionDecay ? target->value : def->value;
+    mtwnVec4 end = def->kind == mtwn_transitionDecay ? target->value : def->value;
     if (!mtwnAcceptValue(target->kind, end, &out->to) || !IsTime(def->delay) ||
-        !IsTime(def->duration) || !IsSpec(def, target->kind) ||
+        !IsTime(def->duration) || !SuitsKind(def, target->kind) ||
         (target->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
         def->velocitySource > mtwn_velocityGiven || !StartVelocity(def, target, inherited, out))
     {
@@ -300,8 +300,8 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     }
     out->delay = def->delay;
     out->duration = def->duration;
-    // The one curve its spec uses.
-    switch (def->spec)
+    // The one curve its kind uses.
+    switch (def->kind)
     {
     case mtwn_transitionEasing:
         out->easing = def->easing;
@@ -328,7 +328,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     out->crosses = 0;
     out->past = 0;
     out->lands = false;
-    if (def->spec == mtwn_transitionDecay && !Coast(def, out))
+    if (def->kind == mtwn_transitionDecay && !Coast(def, out))
     {
         return mtwn_errorInvalid;
     }
@@ -359,7 +359,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
 static void Reverse(const mtwnContext* context, const mtwnTransitionDef* def,
                     const mtwnTargetSlot* target, mtwnPlayerSlot* out)
 {
-    if (out->spec != mtwn_transitionEasing)
+    if (out->transitionKind != mtwn_transitionEasing)
     {
         return;
     }
@@ -374,7 +374,7 @@ static void Reverse(const mtwnContext* context, const mtwnTransitionDef* def,
     MTWN_ASSERT(running->type == MTWN_PLAYER_TRANSITION &&
                 running->header.link == def->target.index1);
     mtwnVec4 end = {0};
-    if (running->spec != mtwn_transitionEasing ||
+    if (running->transitionKind != mtwn_transitionEasing ||
         !mtwnAcceptValue(target->kind, def->value, &end) || !Same(end, running->reversingStart))
     {
         return;
@@ -411,8 +411,8 @@ static MTWN_NOINLINE mtwnResult StartWorker(mtwnContext* context, const mtwnTran
     // A linear() easing's points are copied into the slot's own, so the
     // host's may change once it starts: refused here, changing nothing, if
     // the host changed them from what its maker left or they do not fit.
-    bool copies =
-        prepared.spec == mtwn_transitionEasing && prepared.easing.kind == mtwn_easingLinearPoints;
+    bool copies = prepared.transitionKind == mtwn_transitionEasing &&
+                  prepared.easing.kind == mtwn_easingLinearPoints;
     if (copies && !mtwnCanonicalLinearPoints(prepared.easing.points, prepared.easing.count))
     {
         mtwnCountMisuse(context);

@@ -157,7 +157,7 @@ static void TestInherited(void)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = s.target;
     def.value = (mtwnVec4){0};
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
     mtwnPlayerId spring = {0, 0};
     CHECK(mtwnStartTransition(s.context, &def, &spring) == mtwn_success, "a spring started");

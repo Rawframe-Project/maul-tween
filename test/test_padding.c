@@ -179,7 +179,7 @@ static void TransitionDefOver(const mtwnTransitionDef* d, mtwnTransitionDef* out
     out->upper = d->upper;
     out->restOffset = d->restOffset;
     out->restSpeed = d->restSpeed;
-    out->spec = d->spec;
+    out->kind = d->kind;
     out->velocitySource = d->velocitySource;
     out->reverses = d->reverses;
     out->essential = d->essential;
@@ -324,7 +324,7 @@ static bool Scene(mtwnVec4 values[6])
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     transition.target = moved;
     transition.value = (mtwnVec4){1.0f, 0, 0, 0};
-    transition.spec = mtwn_transitionSpring;
+    transition.kind = mtwn_transitionSpring;
     ok = ok && mtwnMakeSpring(170.0, 26.0, 1.0, &transition.spring) == mtwn_success;
     mtwnTransitionDef transitionOver;
     TransitionDefOver(&transition, &transitionOver);

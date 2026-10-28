@@ -288,7 +288,7 @@ static void TestSpringPastFloats(void)
     mtwnContext* context = Make(4, 4);
     mtwnTargetId x = Target(context, mtwn_valueVec2, (mtwnVec4){0});
     mtwnTransitionDef def = Linear(x, (mtwnVec4){3e38f, -3e38f, 0, 0}, 1.0);
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.9, &def.spring) == mtwn_success, "a bouncy spring");
     Start(context, &def);
     int infinite = 0;
@@ -469,7 +469,7 @@ static mtwnTransitionDef SpringTo(mtwnTargetId target, mtwnVec4 value)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = target;
     def.value = value;
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     return def;
 }
 
@@ -563,7 +563,7 @@ static void TestDecay(void)
     mtwnTargetId x = Target(context, mtwn_valueVec2, (mtwnVec4){100.0f, -3.0f, 0, 0});
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = x;
-    def.spec = mtwn_transitionDecay;
+    def.kind = mtwn_transitionDecay;
     def.velocitySource = mtwn_velocityGiven;
     def.velocity = (mtwnVec4){2000.0f, -50.0f, 0, 0};
     mtwnPlayerId player = Start(context, &def);
@@ -696,7 +696,7 @@ static void TestScales(void)
     mtwnTargetId z = Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0});
     mtwnTransitionDef coast = mtwnDefaultTransitionDef();
     coast.target = z;
-    coast.spec = mtwn_transitionDecay;
+    coast.kind = mtwn_transitionDecay;
     coast.velocitySource = mtwn_velocityGiven;
     coast.velocity = (mtwnVec4){6.0f, 0, 0, 0};
     mtwnPlayerId player = Start(context, &coast);
@@ -844,9 +844,9 @@ static void TestAngleTurns(void)
     def.angleMethod = mtwn_angleDecreasing + 1;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid && id.index1 == 0,
           "an eased angle with an unknown method refused");
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a spring");
-    def.spec = mtwn_transitionDecay;
+    def.kind = mtwn_transitionDecay;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a decay");
     CHECK(mtwnGetContextMisuse(context) == misuse + 3 && State(context, angle).base.x == turned,
           "each counted as misuse, the target as it was");
@@ -869,13 +869,13 @@ static void TestSpecRefusals(void)
     mtwnTransitionDef def = SpringTo(flag, (mtwnVec4){1.0f, 0, 0, 0});
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a discrete spring");
     def = SpringTo(color, (mtwnVec4){0, 0, 0, 1.0f});
-    def.spec = mtwn_transitionDecay;
+    def.kind = mtwn_transitionDecay;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a color decay");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.spring = (mtwnSpring){{0.0}, 0};
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spring not made");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
-    def.spec = mtwn_transitionEasing;
+    def.kind = mtwn_transitionEasing;
     def.easing.parameters[0] = -0.5;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
           "an easing no maker produced");
@@ -899,13 +899,13 @@ static void TestSpecRefusals(void)
     def.restOffset = HUGE_VAL;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "an infinite rest offset");
     def = SpringTo(x, (mtwnVec4){NAN, 0, 0, 0});
-    def.spec = mtwn_transitionDecay;
+    def.kind = mtwn_transitionDecay;
     def.restSpeed = 0.0;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a decay never at rest");
     def.restSpeed = 0.01;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "a decay reads no end value");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
-    def.spec = mtwn_transitionDecay;
+    def.kind = mtwn_transitionDecay;
     def.decay.rate = 0.0;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a decay not made");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
@@ -919,7 +919,7 @@ static void TestSpecRefusals(void)
     def.velocitySource = 2;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a velocity source");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
-    def.spec = 3;
+    def.kind = 3;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a spec");
     mtwnDestroyContext(context);
 }
@@ -1113,7 +1113,7 @@ static void TestReplacedVelocity(void)
     CHECK(mtwnTarget_GetState(context, x, &before) == mtwn_success && before.velocity.x > 14.0f,
           "moving at about 15 a second");
     // Replaced by a spring to elsewhere, which inherits that velocity.
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     def.value = (mtwnVec4){-5.0f, 0, 0, 0};
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
     mtwnPlayerId second;
@@ -1142,7 +1142,7 @@ static void TestSlowSpring(void)
     mtwnContext* context = Make(4, 4);
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
     mtwnTransitionDef def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     CHECK(mtwnMakeSpringFromFrequency(0.1, 0.5, &def.spring) == mtwn_success, "a slow spring");
     mtwnPlayerId id;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "taken");
@@ -1276,7 +1276,7 @@ static void TestPathVelocity(void)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = color;
     def.value = (mtwnVec4){to[0], to[1], to[2], to[3]};
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     def.velocity = (mtwnVec4){v[0], v[1], v[2], v[3]};
     def.velocitySource = mtwn_velocityGiven;
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
@@ -1345,7 +1345,7 @@ static void TestStartVelocity(void)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = x;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     def.velocity = (mtwnVec4){5.0f, 0, 0, 0};
     def.velocitySource = mtwn_velocityGiven;
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
@@ -1476,7 +1476,7 @@ static void TestReversal(void)
     // A spring does not shorten, nor shorten the eased one after it.
     mtwnTransitionDef spring = mtwnDefaultTransitionDef();
     spring.target = x;
-    spring.spec = mtwn_transitionSpring;
+    spring.kind = mtwn_transitionSpring;
     spring.reverses = true;
     mtwnPlayerId springing;
     CHECK(mtwnStartTransition(context, &spring, &springing) == mtwn_success, "a spring");

@@ -247,7 +247,7 @@ static void TestTransitions(void)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = target;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     memset(&def.spring, 0xAB, sizeof def.spring);
     mtwnPlayerId player;
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid,
@@ -255,7 +255,7 @@ static void TestTransitions(void)
     def = mtwnDefaultTransitionDef();
     def.target = target;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     def.restOffset = 0.0;
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid,
           "a rest offset not above 0");

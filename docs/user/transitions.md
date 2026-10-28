@@ -47,7 +47,7 @@ A spring or a decay starts with the target's velocity, so an interrupted motion 
 mtwnTransitionDef settle = mtwnDefaultTransitionDef();
 settle.target = opacity;
 settle.value = (mtwnVec4){1.0f, 0, 0, 0};
-settle.spec = mtwn_transitionSpring; // from the value and velocity it has now
+settle.kind = mtwn_transitionSpring; // from the value and velocity it has now
 mtwnResult sprung = mtwnMakeSpringFromDuration(0.5, 0.0, &settle.spring);
 mtwnPlayerId settling;
 sprung = mtwnStartTransition(context, &settle, &settling);
@@ -58,7 +58,7 @@ A fling coasts as a decay from the gesture's velocity, with no end value. Bounde
 ```c
 mtwnTransitionDef fling = mtwnDefaultTransitionDef();
 fling.target = scroll;
-fling.spec = mtwn_transitionDecay;
+fling.kind = mtwn_transitionDecay;
 fling.velocitySource = mtwn_velocityGiven;
 fling.velocity = (mtwnVec4){1500.0f, 0, 0, 0}; // from the gesture, a second
 fling.bounded = true;                          // the content's ends

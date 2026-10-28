@@ -163,7 +163,7 @@ static void Start(World* w, uint32_t i, uint32_t seed)
     uint32_t spec = seed % 5;
     if (spec == 3 && w->kinds[i] != mtwn_valueDiscrete)
     {
-        def.spec = mtwn_transitionSpring;
+        def.kind = mtwn_transitionSpring;
         CHECK(mtwnMakeSpringFromDuration(0.4, 0.25 * (double)(seed % 3), &def.spring) ==
                   mtwn_success,
               "a spring");
@@ -171,7 +171,7 @@ static void Start(World* w, uint32_t i, uint32_t seed)
     else if (spec == 4 && w->kinds[i] != mtwn_valueDiscrete && !(w->kinds[i] == mtwn_valueColor) &&
              w->kinds[i] != mtwn_valueRotation)
     {
-        def.spec = mtwn_transitionDecay;
+        def.kind = mtwn_transitionDecay;
         def.velocity = (mtwnVec4){3.0f, -2.0f, 1.0f, 0.5f};
         def.velocitySource = mtwn_velocityGiven;
         CHECK(mtwnMakeDecay(4.0, &def.decay) == mtwn_success, "a decay");

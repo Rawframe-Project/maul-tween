@@ -292,7 +292,7 @@ static void TestStill(void)
         mtwnTransitionDef def = mtwnDefaultTransitionDef();
         def.target = w.target;
         def.value = (mtwnVec4){b, 0, 0, 0};
-        def.spec = mtwn_transitionSpring;
+        def.kind = mtwn_transitionSpring;
         CHECK(mtwnMakeSpringFromFrequency(1.0 + 3.0 * Unit(), 0.05 + 0.5 * Unit(), &def.spring) ==
                   mtwn_success,
               "a spring");
@@ -318,7 +318,7 @@ static void TestStill(void)
     World top = MakeWorld(0x1.fffffep127f);
     mtwnTransitionDef fling = mtwnDefaultTransitionDef();
     fling.target = top.target;
-    fling.spec = mtwn_transitionDecay;
+    fling.kind = mtwn_transitionDecay;
     fling.velocitySource = mtwn_velocityGiven;
     fling.velocity = (mtwnVec4){-100.0f, 0, 0, 0};
     mtwnPlayerId flung;

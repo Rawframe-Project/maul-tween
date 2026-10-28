@@ -306,7 +306,7 @@ static void MoveTransitionPoints(mtwnContext* to)
     for (uint32_t i = 1; i <= to->players.high; ++i)
     {
         mtwnPlayerSlot* slot = mtwnPlayerAt(to, i);
-        if (slot->type == MTWN_PLAYER_TRANSITION && slot->spec == mtwn_transitionEasing &&
+        if (slot->type == MTWN_PLAYER_TRANSITION && slot->transitionKind == mtwn_transitionEasing &&
             slot->easing.kind == mtwn_easingLinearPoints)
         {
             mtwnLinearPoint* points = mtwnTransitionPointsAt(to, i);

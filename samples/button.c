@@ -53,7 +53,7 @@ static void Spring(Button* b, float size, double bounce)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = b->scale;
     def.value = (mtwnVec4){size, 0.0f, 0.0f, 0.0f};
-    def.spec = mtwn_transitionSpring;
+    def.kind = mtwn_transitionSpring;
     Expect(mtwnMakeSpringFromDuration(0.35, bounce, &def.spring) == mtwn_success, "a spring");
     mtwnPlayerId player;
     Expect(mtwnStartTransition(b->context, &def, &player) == mtwn_success, "the scale moves");
