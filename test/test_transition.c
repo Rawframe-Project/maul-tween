@@ -760,6 +760,12 @@ static void TestMeasure(void)
     def.angleMethod = mtwn_angleLonger;
     CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 340 * deg) <= 1e-6,
           "the longer way: 340");
+    uint64_t misuse = mtwnGetContextMisuse(context);
+    def.angleMethod = mtwn_angleDecreasing + 1;
+    d = 7.0;
+    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0 &&
+              mtwnGetContextMisuse(context) == misuse + 1,
+          "an unknown method refused, as misuse, the distance cleared");
     // A quarter turn about z, and the other way round.
     float s = (float)sin(3.14159265358979323846 / 4.0);
     def = Linear(Target(context, mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f}),
@@ -828,6 +834,25 @@ static void TestAngleTurns(void)
     float turned = (float)mtwnMixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
     CHECK(State(context, angle).base.x == turned && fabsf(near - turned) <= 1e-6f,
           "the end moved by its turn is what is committed: no jump of a turn");
+    // An unknown method is refused for an angle, by every spec; a number
+    // reads no method, so it takes any.
+    mtwnPlayerId id;
+    uint64_t misuse = mtwnGetContextMisuse(context);
+    def.angleMethod = mtwn_angleDecreasing + 1;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid && id.index1 == 0,
+          "an eased angle with an unknown method refused");
+    def.spec = mtwn_transitionSpring;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a spring");
+    def.spec = mtwn_transitionDecay;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a decay");
+    CHECK(mtwnGetContextMisuse(context) == misuse + 3 && State(context, angle).base.x == turned,
+          "each counted as misuse, the target as it was");
+    def.angleMethod = mtwn_angleLonger;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success,
+          "the decay starts with a known method");
+    def = Linear(Target(context, mtwn_valueScalar, (mtwnVec4){0}), (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
+    def.angleMethod = mtwn_angleDecreasing + 1;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "a number ignores the method");
     mtwnDestroyContext(context);
 }
 

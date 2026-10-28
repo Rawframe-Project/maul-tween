@@ -160,6 +160,18 @@ static void TestAngles(void)
     CHECK(mtwnMakeTrack(&def, raw, 2, NULL, NULL, &track) == mtwn_success &&
               raw[1].value.x == 10 * deg,
           "raw angles stay as given");
+    // An unknown method is refused, the keyframes as they were; another
+    // kind reads no method, so it takes any.
+    def.angleMethod = mtwn_angleDecreasing + 1;
+    raw[1].value.x = 370 * deg;
+    mtwnTrack kept = track;
+    CHECK(mtwnMakeTrack(&def, raw, 2, NULL, NULL, &track) == mtwn_errorInvalid &&
+              raw[1].value.x == 370 * deg && memcmp(&kept, &track, sizeof track) == 0,
+          "an unknown method refused, nothing changed");
+    mtwnTrackDef scalar = mtwnDefaultTrackDef(mtwn_valueScalar);
+    scalar.angleMethod = mtwn_angleDecreasing + 1;
+    CHECK(mtwnMakeTrack(&scalar, raw, 2, NULL, NULL, &track) == mtwn_success,
+          "a number track ignores the method");
 }
 
 static void TestColors(void)
