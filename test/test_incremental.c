@@ -87,7 +87,7 @@ static void TestNumbers(void)
     mtwnClipTrackDef track = Incremental(mtwn_valueVec4, keys, 3.0);
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     mtwnTargetState s = At(&w, 0.5);
     CHECK(Near((double)s.value.x, 2.5, 1e-6) && Near((double)s.value.y, 9.0, 1e-6),
@@ -116,7 +116,7 @@ static void TestCounting(void)
     track.timing.iterationStart = 1.0;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     CHECK(Near((double)At(&w, 0.5).value.x, 1.5, 1e-6), "from iteration 1");
     mtwnDestroyContext(w.context);
@@ -125,7 +125,7 @@ static void TestCounting(void)
     track = Incremental(mtwn_valueScalar, keys, 2.0);
     track.timing.direction = mtwn_directionAlternate;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     CHECK(Near((double)At(&w, 1.25).value.x, 1.75, 1e-6), "back from 1, plus 1");
     mtwnDestroyContext(w.context);
@@ -135,7 +135,7 @@ static void TestCounting(void)
     keys[1].value.x = 3.0f;
     track = Incremental(mtwn_valueInteger, keys, 3.0);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     CHECK(At(&w, 2.5).value.x == 8.0f, "two iterations of 3 and half of one: 7.5, rounded 8");
     mtwnDestroyContext(w.context);
@@ -155,7 +155,7 @@ static void TestRotations(void)
     mtwnClipTrackDef track = Incremental(mtwn_valueRotation, keys, 3.0);
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     mtwnTargetState state = At(&w, 1.5);
     double half = 3.0 * 3.14159265358979323846 / 8.0;
@@ -176,7 +176,7 @@ static void TestRotations(void)
     keys[1].value = (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f};
     track = Incremental(mtwn_valueRotation, keys, 3.0);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     state = At(&w, 9.0);
     double sign = state.value.w < 0.0f ? -1.0 : 1.0;
@@ -194,7 +194,7 @@ static void TestRotations(void)
     keys[1].value = (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f};
     track = Incremental(mtwn_valueRotation, keys, 3.0);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     state = At(&w, 9.0);
     sign = state.value.w < 0.0f ? -1.0 : 1.0;
@@ -212,7 +212,7 @@ static void TestRotations(void)
     keys[1].value = (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f};
     track = Incremental(mtwn_valueRotation, keys, 3.0);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     state = At(&w, 9.0);
     sign = state.value.w < 0.0f ? -1.0 : 1.0;
@@ -228,7 +228,7 @@ static void TestRotations(void)
     keys[0].value = keys[1].value = (mtwnVec4){s, 0, 0, c};
     track = Incremental(mtwn_valueRotation, keys, 3.0);
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     state = At(&w, 1.5);
     CHECK(Near((double)state.value.x, (double)s, 1e-6) && Near((double)state.value.y, 0.0, 1e-6) &&
@@ -251,7 +251,7 @@ static void TestLargeCount(void)
     mtwnClipTrackDef track = Incremental(mtwn_valueRotation, keys, HUGE_VAL);
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     mtwnTargetState state = At(&w, 1e6 + 0.5);
     double step = 2.0 * atan2((double)keys[1].value.z, (double)keys[1].value.w);
@@ -307,7 +307,7 @@ static void TestScales(void)
     mtwnClipTrackDef track = Incremental(mtwn_valueScale, keys, 3.0);
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     CHECK(Near((double)At(&w, 1.0).value.x, 4.0, 1e-5), "the second starts at 2 times 2");
     CHECK(Near((double)At(&w, 9.0).value.x, 16.0, 1e-4), "filled at the third's end: 16");
@@ -327,7 +327,7 @@ static void TestStepPastFloats(void)
     mtwnClipTrackDef track = Incremental(mtwn_valueScalar, keys, 2.0);
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w);
     mtwnTargetState s = At(&w, 1.25);
     double step = 0x1.fffffep127 + 0x1p104;

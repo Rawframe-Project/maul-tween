@@ -65,14 +65,14 @@ static void Swept(mtwnContext* context, uint32_t player, double before, double n
 static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control, double argument,
                           uint32_t key);
 
-// Whether a player's clip is the finished clip it was made with, alive while
+// Whether a player's clip is the sealed clip it was made with, alive while
 // it plays: player.c's mtwnCreatePlayer counts it a user, and clip.c's
 // mtwnDestroyClip refuses a clip with users. Only an assertion calls it.
 [[maybe_unused]] static inline bool PlaysItsClip(const mtwnContext* context,
                                                  const mtwnClipPlay* play)
 {
     const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
-    return clip->header.generation == play->clip.generation && clip->finished && clip->users >= 1;
+    return clip->header.generation == play->clip.generation && clip->sealed && clip->users >= 1;
 }
 
 // Whether a clip's end is one its player can hold: its root's children end,
@@ -160,7 +160,7 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
     if (control == s_seekProgress)
     {
         // A share of an endless clip names no time, and no call changes a
-        // finished clip's end.
+        // sealed clip's end.
         if (!isfinite(end))
         {
             return mtwn_errorInvalid;

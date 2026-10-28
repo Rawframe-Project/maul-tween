@@ -132,7 +132,7 @@ static mtwnClipId MakeClip(mtwnContext* context, float scale, double markShift)
         mtwnNode node;
         CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
     }
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "the clip finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "the clip sealed");
     return clip;
 }
 
@@ -614,7 +614,7 @@ static void TestManyRecords(void)
                       mtwn_success,
                   "a mark");
         }
-        CHECK(mtwnClip_Finish(twins[k].context, twins[k].clip) == mtwn_success, "finished");
+        CHECK(mtwnClip_Seal(twins[k].context, twins[k].clip) == mtwn_success, "sealed");
         for (uint32_t p = 0; p < 3; ++p)
         {
             mtwnPlayerDef player = mtwnDefaultPlayerDef();
@@ -663,7 +663,7 @@ static void TestDirectionAtStart(void)
         mtwnNode node;
         CHECK(mtwnClip_AddTrack(twins[k].context, twins[k].clip, &track, &node) == mtwn_success,
               "a track");
-        CHECK(mtwnClip_Finish(twins[k].context, twins[k].clip) == mtwn_success, "finished");
+        CHECK(mtwnClip_Seal(twins[k].context, twins[k].clip) == mtwn_success, "sealed");
         for (uint32_t p = 0; p < 8; ++p)
         {
             mtwnBinding binding = mtwnBind(0, twins[k].targets[p][0]);

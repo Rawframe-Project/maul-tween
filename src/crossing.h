@@ -48,7 +48,7 @@ typedef struct mtwnLeaf
     double at;
     // The node's timing, its duration resolved, for iterations.
     mtwnTiming timing;
-    // Its active duration when known (a finished clip's node keeps it),
+    // Its active duration when known (a sealed clip's node keeps it),
     // else worked out from the timing at each use.
     double activeDuration;
     mtwnLeafKind kind;

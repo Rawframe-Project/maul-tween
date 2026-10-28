@@ -1,6 +1,6 @@
 # Threads and capacity
 
-The library starts no thread. A context and everything in it is used by one thread at a time; the values layer (easings, springs, interpolation, paths, timing, staggers) and a finished clip's tracks may be used from any thread. A context can hand its clips' players to the host's task system, and it grows only when the host asks.
+The library starts no thread. A context and everything in it is used by one thread at a time; the values layer (easings, springs, interpolation, paths, timing, staggers) and a sealed clip's tracks may be used from any thread. A context can hand its clips' players to the host's task system, and it grows only when the host asks.
 
 ## Clips' players on the host's tasks
 

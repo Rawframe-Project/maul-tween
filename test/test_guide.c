@@ -274,7 +274,7 @@ static void TestScroll(void)
               mtwnCreateClip(context, &clipDef, &story) == mtwn_success &&
               mtwnClip_AddTrack(context, story, &track, &node) == mtwn_success &&
               mtwnClip_AddMark(context, story, MTWN_ROOT_NODE, half, 1, &mark) == mtwn_success &&
-              mtwnClip_Finish(context, story) == mtwn_success,
+              mtwnClip_Seal(context, story) == mtwn_success,
           "a clip of 2 s with a mark at 1 s");
     mtwnBinding binding = mtwnBind(0, shown);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -386,7 +386,7 @@ static void TestJump(void)
     mtwnNode hops;
     made = mtwnClip_AddTrack(context, clip, &jump, &hops);
 
-    CHECK(made == mtwn_success && mtwnClip_Finish(context, clip) == mtwn_success, "the hops");
+    CHECK(made == mtwn_success && mtwnClip_Seal(context, clip) == mtwn_success, "the hops");
     mtwnBinding bindings[3] = {mtwnBind(0, x), mtwnBind(1, y), mtwnBind(2, y)};
     bindings[2].composite = mtwn_compositeAdd;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -451,7 +451,7 @@ static void TestTwos(void)
     across.timing.duration = 2.0;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(context, clip, &across, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a track in it");
     mtwnBinding binding = mtwnBind(0, x);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -498,7 +498,7 @@ static double EasedRateStop(uint32_t fps, bool exact)
                   mtwn_success &&
               mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
               Line(context, clip, 0, 1000.0f, 10.0, mtwnLinearEasing(), &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a track at 100 a second");
     mtwnBinding binding = mtwnBind(0, x);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -708,7 +708,7 @@ static void TestHost(void)
     track.position.kind = mtwn_positionAfterPrevious; // when the fade ends
     mtwnNode slideIn;
     built = mtwnClip_AddTrack(context, clip, &track, &slideIn);
-    built = mtwnClip_Finish(context, clip);
+    built = mtwnClip_Seal(context, clip);
     CHECK(built == mtwn_success && bytes > 0, "a clip of two tracks");
     double seconds = 0.0;
     CHECK(mtwnClip_GetDuration(context, clip, &seconds) == mtwn_success && seconds == 0.8,

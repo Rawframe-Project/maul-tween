@@ -134,7 +134,7 @@ static void TestStorage(void)
     playerDef.clip = a;
     playerDef.keep = true;
     mtwnPlayerId player = {0, 0};
-    CHECK(mtwnClip_Finish(context, a) == mtwn_success &&
+    CHECK(mtwnClip_Seal(context, a) == mtwn_success &&
               mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success,
           "a player of it");
     CHECK(mtwnDestroyClip(context, a) == mtwn_errorBusy && mtwnClip_IsValid(context, a),
@@ -178,8 +178,8 @@ static void TestPositions(void)
     CHECK(mtwnClip_AddTrack(context, clip, &def, &nodes[4]) == mtwn_success, "before 0");
     mtwnClipTrack track;
     CHECK(mtwnClip_GetTrack(context, clip, nodes[0], &track) == mtwn_errorState,
-          "nothing is read before it is finished");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+          "nothing is read before it is sealed");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     static const double starts[5] = {0.0, 1.0, 1.25, 2.75, -0.5};
     int placed = 1;
     for (int i = 0; i < 5; ++i)
@@ -196,7 +196,7 @@ static void TestPositions(void)
     mtwnClipId timed;
     CHECK(mtwnCreateClip(context, &clipDef, &timed) == mtwn_success, "another clip");
     CHECK(mtwnClip_AddTrack(context, timed, &def, &nodes[0]) == mtwn_success &&
-              mtwnClip_Finish(context, timed) == mtwn_success &&
+              mtwnClip_Seal(context, timed) == mtwn_success &&
               mtwnClip_GetDuration(context, timed, &duration) == mtwn_success && duration == 3.25,
           "a child's delay, iterations and end delay make its end");
     CHECK(mtwnClip_GetTrack(context, clip, nodes[4], &track) == mtwn_success &&
@@ -217,7 +217,7 @@ static void TestPositions(void)
         CHECK(mtwnCreateClip(context, &clipDef, &alone) == mtwn_success, "a clip");
         def.position = At(firsts[i], 0.25);
         CHECK(mtwnClip_AddTrack(context, alone, &def, &nodes[0]) == mtwn_success &&
-                  mtwnClip_Finish(context, alone) == mtwn_success,
+                  mtwnClip_Seal(context, alone) == mtwn_success,
               "a first child");
         fromStart += mtwnClip_GetTrack(context, alone, nodes[0], &track) == mtwn_success &&
                      track.start == 0.25;
@@ -232,7 +232,7 @@ static void TestPositions(void)
     CHECK(mtwnClip_AddTrack(context, gapped, &def, &nodes[0]) == mtwn_success, "0 to 1");
     def.position = At(mtwn_positionAfterEnd, 0.5);
     CHECK(mtwnClip_AddTrack(context, gapped, &def, &nodes[1]) == mtwn_success &&
-              mtwnClip_Finish(context, gapped) == mtwn_success &&
+              mtwnClip_Seal(context, gapped) == mtwn_success &&
               mtwnClip_GetTrack(context, gapped, nodes[1], &track) == mtwn_success &&
               track.start == 1.5,
           "half a second after the end: 1.5");
@@ -259,7 +259,7 @@ static void TestTracks(void)
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "an angle track");
     CHECK(memcmp(angles, given, sizeof angles) == 0, "the caller's keyframes untouched");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipTrack track;
     CHECK(mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success, "read");
     mtwnTrack direct;
@@ -280,8 +280,8 @@ static void TestTracks(void)
           "the root is no track");
     CHECK(mtwnClip_GetTrack(context, clip, 9, &track) == mtwn_errorInvalid, "no such node");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorState && node == 0,
-          "nothing is added once finished");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_errorState, "finished once");
+          "nothing is added once sealed");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_errorState, "sealed once");
     CHECK(mtwnGetContextMisuse(context) == 4, "each refusal counted");
     mtwnDestroyContext(context);
 }
@@ -367,7 +367,7 @@ static void TestRefusals(void)
         CHECK(mtwnClip_AddTrack(context, clip, &def, &filled[i]) == mtwn_success, "added");
     }
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorCapacity, "the nodes full");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     int intact = 1;
     for (int i = 0; i < 3; ++i)
     {
@@ -489,7 +489,7 @@ static void TestTimelines(void)
               mtwnClip_AddMark(context, clip, t, At(mtwn_positionAbsolute, 2.0), 7, &mark) ==
                   mtwn_success,
           "marks may share a key");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipNodeInfo info;
     double seconds = 0.0;
     CHECK(mtwnClip_GetNode(context, clip, b, &info) == mtwn_success && info.start == 3.0,
@@ -554,7 +554,7 @@ static void TestNesting(void)
     track.timing.duration = 3.0;
     mtwnNode leaf;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &leaf) == mtwn_success, "a leaf");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipNodeInfo info;
     double duration = 0.0;
     CHECK(mtwnClip_GetNode(context, clip, outer, &info) == mtwn_success && info.end == 6.0 &&
@@ -617,7 +617,7 @@ static void TestEndless(void)
     track.position = At(mtwn_positionWithPrevious, 0.5);
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "with the endless timeline's start");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipNodeInfo info;
     double duration = 0.0;
     CHECK(mtwnClip_GetNode(context, clip, fixed, &info) == mtwn_success && info.end == 2.0 &&
@@ -713,10 +713,10 @@ static void TestTimelineRefusals(void)
     group = mtwnDefaultClipTimelineDef();
     group.cookie = 0;
     CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid, "no cookie");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     CHECK(mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 0.0), 1,
                            &node) == mtwn_errorState,
-          "nothing added once finished");
+          "nothing added once sealed");
     // An endless repeat of a timeline played backwards and lasting as its
     // children do: empty it lasts 0, an end to start from, and it is
     // taken; a child giving it a duration leaves it endless, refused.
@@ -740,7 +740,7 @@ static void TestTimelineRefusals(void)
     CHECK(mtwnClip_AddTimeline(context, repeated, &inner, &node) == mtwn_errorInvalid,
           "a timeline child too");
     mtwnClipNodeInfo info;
-    CHECK(mtwnClip_Finish(context, repeated) == mtwn_success &&
+    CHECK(mtwnClip_Seal(context, repeated) == mtwn_success &&
               mtwnClip_GetNode(context, repeated, backward, &info) == mtwn_success &&
               info.timing.duration == 0.0,
           "the refused children left it lasting 0");
@@ -830,7 +830,7 @@ static void TestOverflowingChildren(void)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_errorInvalid,
           "a 1e308 s child after it: an end past a double");
     mtwnClipNodeInfo info;
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success &&
               mtwnClip_GetNode(context, clip, repeating, &info) == mtwn_success &&
               info.timing.duration == 0.0,
           "the refused child left it lasting 0");
@@ -877,7 +877,7 @@ static void TestEndLimit(void)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "an endless track, taken");
     double duration = 0.0;
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success &&
               mtwnClip_GetDuration(context, clip, &duration) == mtwn_success &&
               duration == HUGE_VAL,
           "the clip endless");
@@ -910,13 +910,13 @@ static uint64_t Scenario(TestFloatSetting host, int* restoredOut)
     int restored = mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success &&
                    TestFloatSame(TestFloatGet(), host);
     TestFloatSet(saved);
-    // The lengths measured under the host's setting, as the finished
+    // The lengths measured under the host's setting, as the sealed
     // clip's track reports them, and its samples at constant speed.
     uint64_t hash = 0xcbf29ce484222325u;
     mtwnClipTrack track;
-    bool read = mtwnClip_Finish(context, clip) == mtwn_success &&
+    bool read = mtwnClip_Seal(context, clip) == mtwn_success &&
                 mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success;
-    CHECK(read, "the finished clip's track");
+    CHECK(read, "the sealed clip's track");
     // The lengths the track reports, and its samples.
     for (uint32_t k = 0; read && track.track.path.lengths != NULL && k < track.track.path.count;
          ++k)
@@ -985,7 +985,7 @@ static void TestLimitEdges(void)
     track.keyframeCount = 2;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
           "two taking the last fit");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipNodeInfo info;
     // The last node is the last added: the root, then two tracks.
     uint32_t nodes = node;
@@ -1106,7 +1106,7 @@ static void TestLinearPointsCopied(void)
     memset(timing, 0xFF, sizeof timing);
     mtwnClipTrack track;
     mtwnTrack direct;
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success &&
               mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success &&
               mtwnMakeTrack(&def.track, given, 2, NULL, NULL, &direct) == mtwn_success,
           "read, and the same track made from the copies");
@@ -1158,7 +1158,7 @@ static void TestLinearPointsCopied(void)
     CHECK(mtwnMakeLinearPointsEasing(keptSegment, 3, &other) == mtwn_success, "other points");
     keys[0].easing = other;
     CHECK(mtwnClip_AddTrack(context, third, &def, &node) == mtwn_success &&
-              mtwnClip_Finish(context, third) == mtwn_success,
+              mtwnClip_Seal(context, third) == mtwn_success,
           "a track after it");
     mtwnClipNodeInfo info;
     CHECK(mtwnClip_GetNode(context, third, group, &info) == mtwn_success &&
@@ -1201,7 +1201,7 @@ static float LastEasedBy(const mtwnEasing* easings, uint32_t count)
     playerDef.bindingCount = count;
     mtwnPlayerId player;
     mtwnVec4 value = {0};
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success &&
               mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
               mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, 300000000u, NULL, 0, NULL) == mtwn_success &&

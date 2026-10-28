@@ -1,13 +1,13 @@
 # Clips and composition
 
-A clip is built once and read many times. This page explains why it is built node by node and then finished, how its timelines carry their ends, how a player samples it into targets, and how players compose.
+A clip is built once and read many times. This page explains why it is built node by node and then sealed, how its timelines carry their ends, how a player samples it into targets, and how players compose.
 
-## Built, then finished
+## Built, then sealed
 
-A clip's storage is one block sized by its def (nodes, keyframes, slots), allocated when the clip is made and counted against the context's clip storage ([`src/clip.c`](../../src/clip.c)). Nodes are added one at a time and `mtwnClip_Finish` makes the clip immutable. Only then is it played or read ([`src/clip_read.c`](../../src/clip_read.c)), so:
+A clip's storage is one block sized by its def (nodes, keyframes, slots), allocated when the clip is made and counted against the context's clip storage ([`src/clip.c`](../../src/clip.c)). Nodes are added one at a time and `mtwnClip_Seal` makes the clip immutable. Only then is it played or read ([`src/clip_read.c`](../../src/clip_read.c)), so:
 
-- a finished clip's tracks can be sampled from any thread while it lives, with no lock, since nothing writes them;
-- every node's numbers (start, end, active duration) are worked out once, when it is added or when the clip is finished, never per frame;
+- a sealed clip's tracks can be sampled from any thread while it lives, with no lock, since nothing writes them;
+- every node's numbers (start, end, active duration) are worked out once, when it is added or when the clip is sealed, never per frame;
 - a refusal comes from the call that caused it: a track's keyframes are copied and the track made, under the library's floating-point environment, inside `mtwnClip_AddTrack`.
 
 Positions resolve to start times as children are added (absolute, after the parent's end so far, with or after the previous child, at a label), so a built clip holds numbers only, as GSAP's position parameter would be resolved once. Labels and marks are nodes, counted in the node capacity, named by a host key; neither is a previous child nor lengthens its parent.

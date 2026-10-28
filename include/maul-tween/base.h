@@ -94,7 +94,7 @@ extern "C"
         // handed out.
         mtwn_errorStale = -3,
         // The call is not allowed in the object's current state, which only
-        // another call changes: a clip not finished or already finished, a
+        // another call changes: a clip not sealed or already sealed, a
         // player at a rate or a time the control cannot start from.
         mtwn_errorState = -6,
         // A def was built against headers of another release before 1.0,

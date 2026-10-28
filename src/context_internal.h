@@ -253,7 +253,7 @@ typedef struct mtwnNodeTime
 typedef struct mtwnClipSlot
 {
     mtwnSlotHeader header;
-    bool finished;
+    bool sealed;
     mtwnClipDef def;
     void* block;
     uint64_t blockBytes;

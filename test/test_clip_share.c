@@ -114,7 +114,7 @@ static void TestDiffering(void)
     nodes[5] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.5, 2.0, 5);
     nodes[6] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 0.5, 4.0, UNBOUND);
     nodes[7] = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 0.5, 4.0, 7);
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnTargetId targets[TRACKS];
     mtwnBinding bindings[TRACKS - 1];
     uint32_t bound = 0;
@@ -194,7 +194,7 @@ static void HeldValues(const double* rates, uint32_t count, float* valuesOut)
           "a host easing");
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a clip of one track");
     mtwnTargetId targets[2];
     for (uint32_t i = 0; i < count; ++i)
@@ -288,7 +288,7 @@ static int HostCalls(bool apart)
               "a target");
         bindings[i] = mtwnBind(i, target);
     }
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnPlayerDef player = mtwnDefaultPlayerDef();
     player.clip = clip;
     player.bindings = bindings;
@@ -339,7 +339,7 @@ static int InStepCalls(int players)
     track.timing.easing = host;
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a host-eased track");
     for (int p = 0; p < players; ++p)
     {
@@ -380,7 +380,7 @@ static void TestHeldInStep(void)
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 0);
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnPlayerId players[4];
     for (int i = 0; i < 4; ++i)
     {
@@ -441,7 +441,7 @@ static void TestTurnAfterSeek(void)
     mtwnClipId clip;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 0);
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnPlayerId players[4];
     for (int i = 0; i < 4; ++i)
     {
@@ -502,7 +502,7 @@ static void TestFullSharedNodes(void)
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.05, 1.0, 2.0, 0);
     (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.07, 1.0, 2.0, 1);
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnPlayerId players[4];
     for (int i = 0; i < 4; ++i)
     {
@@ -561,7 +561,7 @@ static void TestInStepMoreSlots(void)
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
     (void)AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 0);
     mtwnNode second = AddTrack(context, clip, MTWN_ROOT_NODE, 0.0, 1.0, 2.0, 1);
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnTargetId last = {0, 0};
     for (int i = 0; i < 4; ++i)
     {

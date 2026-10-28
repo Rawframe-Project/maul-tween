@@ -119,7 +119,7 @@ static void TestGrow(void)
     track.timing.duration = 10.0;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a track");
     mtwnBinding binding = mtwnBind(0, a);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -310,7 +310,7 @@ static mtwnContext* Repeating(uint32_t events, mtwnTargetId* target, mtwnPlayerI
     at.offset = 1.1;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
               mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, at, 7, &mark) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a repeating track and a mark");
     mtwnBinding binding = mtwnBind(0, *target);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();

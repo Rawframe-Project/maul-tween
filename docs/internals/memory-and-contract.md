@@ -43,7 +43,7 @@ Every out-parameter's header says what a failure leaves in it, by one rule:
 
 ## Calls back in
 
-The host's code that the library runs (a host easing, the allocator, the task system's functions and tasks) must not call the context it serves. A context is busy while any of its functions taking it non-const runs; such a function called during another returns `mtwn_errorBusy` at once and counts one misuse, and `mtwnDestroyContext` returns without destroying. The flag is set by every such function, not only by those that run host code: which calls reach a host easing is not plain from the code (adding a track and finishing a clip measure eased timings), and a rule on every call needs no list kept true. Functions taking a const context are not refused, but read it in the middle of a call. `mtwnGrowContext` enters the context it is given and leaves the one it returns.
+The host's code that the library runs (a host easing, the allocator, the task system's functions and tasks) must not call the context it serves. A context is busy while any of its functions taking it non-const runs; such a function called during another returns `mtwn_errorBusy` at once and counts one misuse, and `mtwnDestroyContext` returns without destroying. The flag is set by every such function, not only by those that run host code: which calls reach a host easing is not plain from the code (adding a track and sealing a clip measure eased timings), and a rule on every call needs no list kept true. Functions taking a const context are not refused, but read it in the middle of a call. `mtwnGrowContext` enters the context it is given and leaves the one it returns.
 
 ## ABI
 

@@ -28,7 +28,7 @@ typedef struct Fixture
     mtwnTargetId target;
 } Fixture;
 
-// A context of a def with one finished clip: a 2 s scalar track on slot 0,
+// A context of a def with one sealed clip: a 2 s scalar track on slot 0,
 // a root mark 3 at 0.75 and label 3 at 1.25; endless when asked.
 static Fixture MakeFrom(const mtwnContextDef* def, bool endless)
 {
@@ -55,7 +55,7 @@ static Fixture MakeFrom(const mtwnContextDef* def, bool endless)
     at.offset = 1.25;
     CHECK(mtwnClip_AddLabel(f.context, f.clip, MTWN_ROOT_NODE, at, 3, &node) == mtwn_success,
           "a label");
-    CHECK(mtwnClip_Finish(f.context, f.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(f.context, f.clip) == mtwn_success, "sealed");
     CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &f.target) == mtwn_success,
           "a target");
     return f;
@@ -348,7 +348,7 @@ static void TestOwnBindings(void)
     mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     mtwnNode node;
     CHECK(mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
-              mtwnClip_Finish(f.context, marks) == mtwn_success,
+              mtwnClip_Seal(f.context, marks) == mtwn_success,
           "a clip of a mark alone");
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = marks;
@@ -386,7 +386,7 @@ static void TestOwnBindings(void)
     clipDef = mtwnDefaultClipDef();
     CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success &&
               mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
-              mtwnClip_Finish(f.context, marks) == mtwn_success,
+              mtwnClip_Seal(f.context, marks) == mtwn_success,
           "a clip of a mark alone");
     def = mtwnDefaultPlayerDef();
     def.clip = marks;
@@ -426,7 +426,7 @@ static void TestSlotPastFull(void)
         mtwnNode node;
         added += mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success;
     }
-    CHECK(added == 16 && mtwnClip_Finish(context, clip) == mtwn_success, "every slot used");
+    CHECK(added == 16 && mtwnClip_Seal(context, clip) == mtwn_success, "every slot used");
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
@@ -522,7 +522,7 @@ static void TestBindings(void)
     CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_success, "the bindings back");
     CHECK(mtwnDestroyPlayer(f.context, p) == mtwn_success, "freed");
     CHECK(mtwnDestroyClip(f.context, busy) == mtwn_success, "the clip free");
-    // A clip not finished, or gone.
+    // A clip not sealed, or gone.
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId open;
     CHECK(mtwnCreateClip(f.context, &clipDef, &open) == mtwn_success, "an open clip");
@@ -868,7 +868,7 @@ static void TestSeekLimit(void)
           "a label at 1e308");
     at.offset = MTWN_SEEK_LIMIT;
     CHECK(mtwnClip_AddLabel(f.context, far, MTWN_ROOT_NODE, at, 2, &node) == mtwn_success &&
-              mtwnClip_Finish(f.context, far) == mtwn_success,
+              mtwnClip_Seal(f.context, far) == mtwn_success,
           "and one at the limit");
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = far;
@@ -900,7 +900,7 @@ static void TestSeekLabelOfRoot(void)
           "a label keyed 5 in a timeline at 1 s");
     at.offset = 0.25;
     CHECK(mtwnClip_AddLabel(f.context, clip, MTWN_ROOT_NODE, at, 6, &node) == mtwn_success &&
-              mtwnClip_Finish(f.context, clip) == mtwn_success,
+              mtwnClip_Seal(f.context, clip) == mtwn_success,
           "and one keyed 6 in the root");
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
@@ -926,7 +926,7 @@ static void TestNoBindingsDestroyed(void)
     mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     CHECK(mtwnCreateClip(f.context, &clipDef, &marks) == mtwn_success &&
               mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
-              mtwnClip_Finish(f.context, marks) == mtwn_success,
+              mtwnClip_Seal(f.context, marks) == mtwn_success,
           "a clip of a mark only");
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = marks;
