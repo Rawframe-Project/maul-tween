@@ -3,7 +3,7 @@
 //
 // A path's direction, by SVG 2's rules: a line's own,
 // the later segment's at a keyframe, a derivative of 0 by the next one
-// that is not, a step and coincident keyframes by their neighbours, a
+// that is not, a step and coincident keyframes by their neighbors, a
 // path of no length along the first channel, at constant speed alike;
 // and its angle.
 
@@ -116,7 +116,7 @@ static void TestStillDerivatives(void)
     CHECK(far[0] == 1.0 && far[1] == 0.0, "past every double, along x");
 }
 
-static void TestNeighbours(void)
+static void TestNeighbors(void)
 {
     // A step holds the heading of the line before it.
     mtwnKeyframe held[4] = {
@@ -178,6 +178,6 @@ int main(void)
 {
     TestLines();
     TestStillDerivatives();
-    TestNeighbours();
+    TestNeighbors();
     return s_failures == 0 ? 0 : 1;
 }

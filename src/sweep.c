@@ -151,7 +151,7 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
                                                  : mtwn_crossingBackwards;
         // The last is searched from the first; with one crossing it is
         // the first. Searched apart, the two could land a double from each
-        // other, in neighbouring iterations.
+        // other, in neighboring iterations.
         double first = mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
                                             sweep->fromClosed, false, search, sweep->guess, &memo);
         double last = n == 1.0

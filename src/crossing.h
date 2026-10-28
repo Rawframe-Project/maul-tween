@@ -133,13 +133,13 @@ enum
 
 // The time of the first (or last) crossing, of a way, in a sweep that has
 // one: a double t where the count flips, the sweep to t (from t, for the
-// last) counting one and to its neighbour toward 'from' (toward 'to')
+// last) counting one and to its neighbor toward 'from' (toward 'to')
 // not, found by halving the doubles between, in their order as integers:
 // at most 64 halvings, each a count. Where the count rises monotonically
 // that is the double nearest the near end; its rounding can flip it more
 // than once within a few doubles, and the halving's path then picks one.
 // The search starts from a guess: a guess past the near end, up to
-// the far one, is tested, and its neighbour toward the near end when it
+// the far one, is tested, and its neighbor toward the near end when it
 // counts, and the halving goes on between whatever they leave. The time
 // found flips the count as above; a right guess finds it in two counts.
 // Where the count flips more than once the guess can pick another of

@@ -185,11 +185,11 @@ static void TestStagger(void)
 {
     mtwnStagger stagger = mtwnDefaultStagger(); // 0.1 s apart, from the first
     stagger.columns = 4;                        // a grid of four columns
-    stagger.origin = mtwn_staggerCentre;        // spreading from its centre
+    stagger.origin = mtwn_staggerCenter;        // spreading from its center
     double delays[12];
     mtwnResult spread = mtwnComputeStagger(&stagger, 12, delays);
     CHECK(spread == mtwn_success && delays[5] == 0.0 && delays[6] == 0.0 && delays[0] > delays[1],
-          "the centre's cells first, the corners last");
+          "the center's cells first, the corners last");
 }
 
 static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,

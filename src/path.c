@@ -166,7 +166,7 @@ static double Steffen(double a, double b, double ha, double hb)
     return slope;
 }
 
-// Whether a keyframe's neighbour on one side leaves a width to measure a
+// Whether a keyframe's neighbor on one side leaves a width to measure a
 // secant over: not past the ends, and not a jump.
 static bool Measured(double width)
 {
@@ -217,7 +217,7 @@ static void Monotone(const mtwnPath* path, uint32_t i, const double p1[4], const
                         i + 2 < path->count ? k[i + 2].offset - k[i + 1].offset : 0.0};
     bool measured = Measured(widths[1]);
     bool has[2] = {measured && Measured(widths[0]), measured && Measured(widths[2])};
-    // A width past the ends is 0, never measured, so a neighbour read is
+    // A width past the ends is 0, never measured, so a neighbor read is
     // a keyframe of the path.
     MTWN_ASSERT((!has[0] || i > 0) && (!has[1] || i + 2 < path->count));
     double p0[4] = {0.0, 0.0, 0.0, 0.0};

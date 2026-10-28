@@ -183,7 +183,7 @@ static void Prepare(mtwnContext* context, mtwnClipId clip, mtwnNode node)
           "a color mix");
     s_shared.stagger = mtwnDefaultStagger();
     s_shared.stagger.columns = 8;
-    s_shared.stagger.origin = mtwn_staggerCentre;
+    s_shared.stagger.origin = mtwn_staggerCenter;
     s_shared.timing = mtwnDefaultTiming();
     s_shared.timing.duration = 0.75;
     s_shared.timing.iterations = 2.5;

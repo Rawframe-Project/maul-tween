@@ -267,7 +267,7 @@ static void TestMakersAgree(void)
 static void TestRegimesMeet(void)
 {
     // Across critical damping and across the series' edge the motion is
-    // continuous: neighbours differ by what their parameters do.
+    // continuous: neighbors differ by what their parameters do.
     mtwnSpring below;
     mtwnSpring at;
     mtwnSpring above;

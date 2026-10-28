@@ -4,7 +4,7 @@
 // Scales and zooms: against 60-digit decimals
 // (tools/oracle/zoom_oracle.py), van Wijk and Nuij's path written as the
 // paper writes it, out to the doubles' largest progress; ends exact, equal
-// ratios for equal steps, the zoom of equal centres the limit of a pan
+// ratios for equal steps, the zoom of equal centers the limit of a pan
 // going to 0, no NaN however far a path extends, and the refusals.
 
 #include "test_harness.h"
@@ -160,7 +160,7 @@ static void TestZoomFarCases(void)
             continue;
         }
         mtwnZoomView v = MixZoom(&mix, c->progress);
-        // A centre settled far from the views is measured against itself.
+        // A center settled far from the views is measured against itself.
         double scale = fmax(hypot(c->x1 - c->x0, c->y1 - c->y0), fmax(c->w0, c->w1));
         double x = Beyond(v.x, c->x) / fmax(scale, fabs(c->x));
         double y = Beyond(v.y, c->y) / fmax(scale, fabs(c->y));
@@ -271,7 +271,7 @@ static void TestZoomShape(void)
         widest = fmax(widest, MixZoom(&mix, k / 64.0).width);
     }
     CHECK(widest > a.width, "it zooms out past both ends to pan");
-    // Equal centres: a geometric zoom, the length |log(w1 / w0)| / rho,
+    // Equal centers: a geometric zoom, the length |log(w1 / w0)| / rho,
     // also the limit of a pan going to 0.
     mtwnZoomView c = {5.0, 5.0, 8.0};
     mtwnZoomView d = {5.0, 5.0, 1.0};

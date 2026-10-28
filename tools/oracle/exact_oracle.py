@@ -12,7 +12,7 @@
 #
 # - timings at local times inside the active interval: the phase, the
 #   current iteration and whether the time lies in a repeat delay;
-#   within 2^-40 (relative) of an iteration's boundary either neighbour
+#   within 2^-40 (relative) of an iteration's boundary either neighbor
 #   is right, and everywhere the iteration lies in the timing's own;
 # - a mark one or two timelines deep, and a node's iteration starts
 #   alone or one timeline deep, swept: the crossings each way. Sweeps
