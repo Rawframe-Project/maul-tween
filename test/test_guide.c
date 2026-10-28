@@ -745,7 +745,7 @@ static void TestHost(void)
     play.bindingCount = 1;
     mtwnPlayerId pulse;
     mtwnResult layered = mtwnCreatePlayer(context, &play, &pulse);
-    layered = mtwnPlayer_SetWeight(context, pulse, 0.25); // the whole player's weight
+    layered = mtwnPlayer_SetWeight(context, pulse, 0.25f); // the whole player's weight
     CHECK(layered == mtwn_success, "a layer added at a weight");
     mtwnContextDef bigger = def;
     bigger.targetCapacity *= 2;

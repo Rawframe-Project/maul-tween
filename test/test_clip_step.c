@@ -158,7 +158,7 @@ static void MakePlayer(Twin* twin, uint32_t p, bool mixed, double seek)
     def.bindings = bindings;
     def.bindingCount = bound;
     def.keep = true;
-    def.weight = mixed && p % 4 == 0 ? 0.75 : 1.0;
+    def.weight = mixed && p % 4 == 0 ? 0.75f : 1.0f;
     def.rate = !mixed ? 1.0 : (p % 11 == 5 ? -1.0 : (p % 13 == 6 ? 2.0 : 1.0));
     CHECK(mtwnCreatePlayer(twin->context, &def, &twin->players[p]) == mtwn_success, "a player");
     // One playing backwards starts within the endless clip, which has no

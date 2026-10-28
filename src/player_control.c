@@ -394,12 +394,12 @@ mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player, double 
 }
 
 static MTWN_NOINLINE mtwnResult mtwnPlayer_SetWeightWork(mtwnContext* context, mtwnPlayerId player,
-                                                         double weight)
+                                                         float weight)
 {
-    return Apply(context, player, s_setWeight, weight, 0);
+    return Apply(context, player, s_setWeight, (double)weight, 0);
 }
 
-mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, double weight)
+mtwnResult mtwnPlayer_SetWeight(mtwnContext* context, mtwnPlayerId player, float weight)
 {
     uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = mtwnPlayer_SetWeightWork(context, player, weight);

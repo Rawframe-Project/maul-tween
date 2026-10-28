@@ -473,7 +473,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorState);
     }
-    if (isnan(def->rate) || !mtwnIsWeight(def->weight) || !AreBindings(context, def, clip))
+    if (isnan(def->rate) || !mtwnIsWeight((double)def->weight) || !AreBindings(context, def, clip))
     {
         return Misuse(context, mtwn_errorInvalid);
     }
@@ -514,7 +514,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
                            .holdTime = (double)NAN,
                            .previousTime = (double)NAN,
                            .rate = def->rate,
-                           .weight = def->weight,
+                           .weight = (double)def->weight,
                            .pendingRate = (double)NAN,
                            .swept = (double)NAN,
                            .previousClip = play->previousClip,
