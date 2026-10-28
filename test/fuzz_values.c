@@ -855,10 +855,19 @@ static void Values(Bytes* in)
     in->finite = true;
     double angles[3];
     Draw(in, angles, 3, (const double[]){720.0, 720.0, 2.0}, false);
-    double angle = mtwnMixAngle(angles[0], angles[1], (mtwnAngleMethod)Below(in, 4), angles[2]);
+    // Every method and one past them, so an unknown one is refused.
+    mtwnAngleMethod method = (mtwnAngleMethod)Below(in, 6);
+    double angle = 0.0;
+    mtwnResult angled = mtwnMixAngle(angles[0], angles[1], method, angles[2], &angle);
+    bool takes = method <= mtwn_angleDecreasing && isfinite(angles[0]) && isfinite(angles[1]) &&
+                 isfinite(angles[2]);
+    if ((angled == mtwn_success) != takes)
+    {
+        Fail("an angle's refusal", (double)angled);
+    }
     // A linear mix of finite angles and progress near 1e300 overflows to
     // opposite infinities, as the arithmetic must: checked when ordinary.
-    if (in->ordinary && !isfinite(angle))
+    if (angled == mtwn_success && in->ordinary && !isfinite(angle))
     {
         Fail("an angle", angle);
     }

@@ -43,52 +43,59 @@ static double Wrapped(double angle)
 
 static void TestAngles(void)
 {
-    CHECK(mtwnMixAngle(0.0, 4.0 * s_pi, mtwn_angleRaw, 0.5) == 2.0 * s_pi, "raw keeps turns");
-    CHECK(mtwnMixAngle(0.3, 2.5, mtwn_angleRaw, 1.0) == 2.5 &&
-              mtwnMixAngle(0.3, 2.5, mtwn_angleRaw, 0.0) == 0.3,
+    CHECK(MixAngle(0.0, 4.0 * s_pi, mtwn_angleRaw, 0.5) == 2.0 * s_pi, "raw keeps turns");
+    CHECK(MixAngle(0.3, 2.5, mtwn_angleRaw, 1.0) == 2.5 &&
+              MixAngle(0.3, 2.5, mtwn_angleRaw, 0.0) == 0.3,
           "the ends exactly");
     // CSS Color 4's examples, in radians.
     double tolerance = 1e-12;
-    CHECK(fabs(mtwnMixAngle(Degrees(30), Degrees(90), mtwn_angleShorter, 0.5) - Degrees(60)) <=
+    CHECK(fabs(MixAngle(Degrees(30), Degrees(90), mtwn_angleShorter, 0.5) - Degrees(60)) <=
               tolerance,
           "shorter: 30 to 90 through 60");
-    CHECK(fabs(Wrapped(mtwnMixAngle(Degrees(30), Degrees(90), mtwn_angleLonger, 0.5)) -
-               Degrees(240)) <= tolerance,
+    CHECK(fabs(Wrapped(MixAngle(Degrees(30), Degrees(90), mtwn_angleLonger, 0.5)) - Degrees(240)) <=
+              tolerance,
           "longer: through 240");
-    CHECK(fabs(mtwnMixAngle(Degrees(30), Degrees(190), mtwn_angleIncreasing, 0.5) - Degrees(110)) <=
+    CHECK(fabs(MixAngle(Degrees(30), Degrees(190), mtwn_angleIncreasing, 0.5) - Degrees(110)) <=
               tolerance,
           "increasing: through 110");
-    CHECK(fabs(Wrapped(mtwnMixAngle(Degrees(30), Degrees(190), mtwn_angleDecreasing, 0.5)) -
+    CHECK(fabs(Wrapped(MixAngle(Degrees(30), Degrees(190), mtwn_angleDecreasing, 0.5)) -
                Degrees(290)) <= tolerance,
           "decreasing: through 290");
-    CHECK(fabs(Wrapped(mtwnMixAngle(Degrees(350), Degrees(10), mtwn_angleShorter, 0.25)) -
+    CHECK(fabs(Wrapped(MixAngle(Degrees(350), Degrees(10), mtwn_angleShorter, 0.25)) -
                Degrees(355)) <= tolerance,
           "shorter across 0");
-    CHECK(fabs(mtwnMixAngle(1.0, 1.0, mtwn_angleLonger, 0.5) - (1.0 + s_pi)) <= tolerance,
+    CHECK(fabs(MixAngle(1.0, 1.0, mtwn_angleLonger, 0.5) - (1.0 + s_pi)) <= tolerance,
           "longer between equal angles turns all the way");
-    CHECK(mtwnMixAngle(1.0, 1.0, mtwn_angleIncreasing, 0.5) == 1.0 &&
-              mtwnMixAngle(1.0, 1.0, mtwn_angleDecreasing, 0.5) == 1.0,
+    CHECK(MixAngle(1.0, 1.0, mtwn_angleIncreasing, 0.5) == 1.0 &&
+              MixAngle(1.0, 1.0, mtwn_angleDecreasing, 0.5) == 1.0,
           "increasing and decreasing hold equal angles");
     // Angles many turns out keep their turn count at 0 and move the end.
-    CHECK(fabs(mtwnMixAngle(100.0, 100.5 - 6.0 * s_pi, mtwn_angleShorter, 0.5) - 100.25) <= 1e-12,
+    CHECK(fabs(MixAngle(100.0, 100.5 - 6.0 * s_pi, mtwn_angleShorter, 0.5) - 100.25) <= 1e-12,
           "shorter many turns out");
-    CHECK(mtwnMixAngle(100.0, 100.5, mtwn_angleShorter, 1.0) == 100.5,
+    CHECK(MixAngle(100.0, 100.5, mtwn_angleShorter, 1.0) == 100.5,
           "an end moved by no turn stays exact");
-    CHECK(fabs(mtwnMixAngle(0.0, Degrees(-90), mtwn_angleIncreasing, 1.0) - Degrees(270)) <=
-              tolerance,
+    CHECK(fabs(MixAngle(0.0, Degrees(-90), mtwn_angleIncreasing, 1.0) - Degrees(270)) <= tolerance,
           "increasing moves the end by a turn");
-    CHECK(fabs(mtwnMixAngle(0.0, 1.0, mtwn_angleShorter, 2.0) - 2.0) <= tolerance,
+    CHECK(fabs(MixAngle(0.0, 1.0, mtwn_angleShorter, 2.0) - 2.0) <= tolerance,
           "past the end it extends");
-    CHECK(mtwnMixAngle(0.0, 3.0, 9, 0.5) == 1.5, "an unknown method is raw");
-    CHECK(fabs(mtwnMixAngle(0.0, 4.0 + 4.0 * s_pi, mtwn_angleShorter, 0.5) -
+    double kept = 7.0;
+    CHECK(mtwnMixAngle(0.0, 3.0, mtwn_angleDecreasing + 1, 0.5, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle((double)NAN, 3.0, mtwn_angleRaw, 0.5, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle(0.0, INFINITY, mtwn_angleShorter, 0.5, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, -INFINITY, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, (double)NAN, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, 0.5, NULL) == mtwn_errorInvalid && kept == 7.0,
+          "an unknown method, an angle or progress not finite and a null out refused, the "
+          "angle as it was");
+    CHECK(fabs(MixAngle(0.0, 4.0 + 4.0 * s_pi, mtwn_angleShorter, 0.5) -
                (4.0 - 2.0 * s_pi) / 2.0) <= tolerance,
           "shorter takes the nearest turn, not the one below");
-    CHECK(fabs(mtwnMixAngle(0.0, s_pi, mtwn_angleLonger, 0.5) - s_pi / 2.0) <= tolerance,
+    CHECK(fabs(MixAngle(0.0, s_pi, mtwn_angleLonger, 0.5) - s_pi / 2.0) <= tolerance,
           "longer at exactly half a turn keeps its direction, as CSS's does");
-    CHECK(fabs(mtwnMixAngle(Degrees(30), Degrees(90), mtwn_angleLonger, 0.5) - Degrees(-120)) <=
+    CHECK(fabs(MixAngle(Degrees(30), Degrees(90), mtwn_angleLonger, 0.5) - Degrees(-120)) <=
               tolerance,
           "longer from 30 to 90 goes down through -120");
-    CHECK(mtwnMixAngle(1e16, 1.0, mtwn_angleRaw, 1.0) == 1.0,
+    CHECK(MixAngle(1e16, 1.0, mtwn_angleRaw, 1.0) == 1.0,
           "the end exactly where from + t (to - from) would miss it");
 }
 
@@ -238,13 +245,13 @@ static void TestPaths(void)
 static void TestHalfTurns(void)
 {
     double half = s_pi;
-    CHECK(mtwnMixAngle(0.0, half, mtwn_angleShorter, 0.5) == 0.5 * half &&
-              mtwnMixAngle(half, 0.0, mtwn_angleShorter, 0.5) == 0.5 * half,
+    CHECK(MixAngle(0.0, half, mtwn_angleShorter, 0.5) == 0.5 * half &&
+              MixAngle(half, 0.0, mtwn_angleShorter, 0.5) == 0.5 * half,
           "shorter: a half turn either way, straight");
-    CHECK(mtwnMixAngle(0.0, half, mtwn_angleLonger, 0.5) == 0.5 * half &&
-              mtwnMixAngle(half, 0.0, mtwn_angleLonger, 0.5) == 0.5 * half,
+    CHECK(MixAngle(0.0, half, mtwn_angleLonger, 0.5) == 0.5 * half &&
+              MixAngle(half, 0.0, mtwn_angleLonger, 0.5) == 0.5 * half,
           "longer: a half turn either way, straight");
-    CHECK(fabs(mtwnMixAngle(0.5, 0.5, mtwn_angleLonger, 0.5) - (0.5 + half)) < 1e-12,
+    CHECK(fabs(MixAngle(0.5, 0.5, mtwn_angleLonger, 0.5) - (0.5 + half)) < 1e-12,
           "longer: no difference, a whole turn");
 }
 
@@ -296,8 +303,8 @@ static void TestRefusals(void)
 // Equal angles mix to that angle at any progress.
 static void TestAngleFarProgress(void)
 {
-    CHECK(mtwnMixAngle(1.25, 1.25, mtwn_angleRaw, 1e20) == 1.25 &&
-              mtwnMixAngle(1.25, 1.25, mtwn_angleShorter, -1e20) == 1.25,
+    CHECK(MixAngle(1.25, 1.25, mtwn_angleRaw, 1e20) == 1.25 &&
+              MixAngle(1.25, 1.25, mtwn_angleShorter, -1e20) == 1.25,
           "equal ends, far out: the end");
 }
 

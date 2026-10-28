@@ -81,10 +81,23 @@ MTWN_NOINLINE double mtwnMixAngleWork(double from, double to, mtwnAngleMethod me
     return mtwnMix(from, end, progress);
 }
 
-double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress)
+static MTWN_NOINLINE mtwnResult mtwnMixAngleChecked(double from, double to, mtwnAngleMethod method,
+                                                    double progress, double* angleOut)
+{
+    if (angleOut == NULL || !mtwnIsAngleMethod(method) || !isfinite(from) || !isfinite(to) ||
+        !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *angleOut = mtwnMixAngleWork(from, to, method, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress,
+                        double* angleOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    double result = mtwnMixAngleWork(from, to, method, progress);
+    mtwnResult result = mtwnMixAngleChecked(from, to, method, progress, angleOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
