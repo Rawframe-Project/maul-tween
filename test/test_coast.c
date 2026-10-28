@@ -240,8 +240,8 @@ static void TestLanding(void)
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "an angle landing");
     Update(context, 201u * s_second);
     Update(context, 300u * s_second);
-    float want = (float)mtwnMixAngle(350.0 * s_degree, (double)(float)(10.0 * s_degree),
-                                     mtwn_angleShorter, 1.0);
+    float want =
+        (float)MixAngle(350.0 * s_degree, (double)(float)(10.0 * s_degree), mtwn_angleShorter, 1.0);
     CHECK(State(context, a).base.x == want && want > 6.2f, "ending on 370 degrees");
     mtwnDestroyContext(context);
 }

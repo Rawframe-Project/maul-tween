@@ -33,11 +33,11 @@ A gray's hue in OkLCh is powerless and takes the other color's, as CSS says, so 
 
 ## Angles and rotations
 
-`mtwnMixAngle` interpolates radians raw (turns kept, so 0 to 4 pi turns twice) or by CSS's hue methods with a period of a full turn: shorter, longer, increasing, decreasing. A rotation mix (`mtwnMakeRotationMix`, `mtwnMixRotation`) slerps unit quaternions at constant angular speed, the shortest way or the longest; its result is unit length to a float's rounding. The longest way between two equal rotations has no axis and is refused.
+`mtwnMixAngle` interpolates radians raw (turns kept, so 0 to 4 pi turns twice) or by CSS's hue methods with a period of a full turn: shorter, longer, increasing, decreasing. It refuses an unknown method, and an angle or progress that is not finite, with `mtwn_errorInvalid`. A rotation mix (`mtwnMakeRotationMix`, `mtwnMixRotation`) slerps unit quaternions at constant angular speed, the shortest way or the longest; its result is unit length to a float's rounding. The longest way between two equal rotations has no axis and is refused.
 
 ## Integers and discrete values
 
-`mtwnMixInteger` passes through every integer between its ends, exact at them. `mtwnMixDiscrete` steps from the first value to the second at progress 1/2, as Web Animations steps values it cannot interpolate: an enumeration, a flag, a sprite index.
+`mtwnMixInteger` passes through every integer between its ends, exact at them. `mtwnMixDiscrete` steps from the first value to the second at progress 1/2, as Web Animations steps values it cannot interpolate: an enumeration, a flag, a sprite index. Both refuse a progress that is not finite with `mtwn_errorInvalid`, as every mix does.
 
 ## Scales and zoom
 
