@@ -390,7 +390,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         r = mtwnPlayer_Finish(context, player);
         break;
     case 7:
-        r = mtwnPlayer_SetWeight(context, player, Wild(in, 1.0));
+        r = mtwnPlayer_SetWeight(context, player, (float)Wild(in, 1.0));
         break;
     case 8:
         r = mtwnContext_SetReducedMotion(context, Below(in, 2) == 0);

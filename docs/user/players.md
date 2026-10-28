@@ -107,7 +107,7 @@ play.bindings = &layer;
 play.bindingCount = 1;
 mtwnPlayerId pulse;
 mtwnResult layered = mtwnCreatePlayer(context, &play, &pulse);
-layered = mtwnPlayer_SetWeight(context, pulse, 0.25); // the whole player's weight
+layered = mtwnPlayer_SetWeight(context, pulse, 0.25f); // the whole player's weight
 ```
 
 What lies under a player is what earlier players wrote in this update, or the target's base, so an added layer never compounds on its own last frame. A target bound to a clip's player that no player writes in an update shows its base.

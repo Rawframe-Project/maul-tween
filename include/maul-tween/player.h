@@ -100,8 +100,9 @@ extern "C"
         // MTWN_RATE_LIMIT in size; negative plays backwards.
         double rate;
         // In [0, 1]: scales every binding's weight; mtwnPlayer_SetWeight
-        // changes it while it plays.
-        double weight;
+        // changes it while it plays. A float, as a binding's weight and
+        // the values it blends are.
+        float weight;
     } mtwnPlayerDef;
 
 // The cookie mtwnDefaultPlayerDef sets and mtwnCreatePlayer checks.
@@ -134,7 +135,7 @@ extern "C"
         def.cookie = MTWN_PLAYER_DEF_COOKIE;
         def.play = true;
         def.rate = 1.0;
-        def.weight = 1.0;
+        def.weight = 1.0f;
         return def;
     }
 
@@ -339,7 +340,7 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetWeight(mtwnContext* context,
-                                                            mtwnPlayerId player, double weight);
+                                                            mtwnPlayerId player, float weight);
 
     /// Reads a clip's player's state at the last update's time.
     ///

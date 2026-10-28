@@ -38,7 +38,7 @@
 #include <string.h>
 
 // The scenario's hash, the same everywhere.
-static const uint64_t s_expected = 0x5e319086fd2791ddu;
+static const uint64_t s_expected = 0xd952916a5edaf12fu;
 
 enum
 {
@@ -269,7 +269,7 @@ static void MakePlayers(World* w)
         def.bindingCount = 4;
         def.keep = true;
         def.rate = p == 2 ? 0.75 : 1.0;
-        def.weight = p == 2 ? 0.6 : 1.0;
+        def.weight = p == 2 ? 0.6f : 1.0f;
         CHECK(mtwnCreatePlayer(w->context, &def, &w->players[p]) == mtwn_success, "a player");
     }
 }
@@ -328,7 +328,7 @@ static void Control(World* w, uint32_t frame)
         r = mtwnPlayer_SetRate(c, w->players[0], -1.5);
         break;
     case 330:
-        r = mtwnPlayer_SetWeight(c, w->players[1], 0.25);
+        r = mtwnPlayer_SetWeight(c, w->players[1], 0.25f);
         break;
     case 400:
         r = mtwnPlayer_Sweep(c, w->players[2], 0.5);

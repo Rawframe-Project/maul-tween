@@ -85,7 +85,7 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnPlayer_SeekProgress(c, noPlayer, 0.5) == mtwn_errorBusy;
     r += mtwnPlayer_SeekLabel(c, noPlayer, 1) == mtwn_errorBusy;
     r += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorBusy;
-    r += mtwnPlayer_SetWeight(c, noPlayer, 0.5) == mtwn_errorBusy;
+    r += mtwnPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorBusy;
     r += mtwnPlayer_GetState(c, noPlayer, NULL) == mtwn_errorBusy;
     r += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorBusy;
     r += mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, NULL) == mtwn_errorBusy;

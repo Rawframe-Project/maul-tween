@@ -526,7 +526,7 @@ static void Context(Out* out)
             controls[1] = mtwnPlayer_Seek(context, player, 0.35);
             controls[2] = mtwnPlayer_Play(context, player);
             controls[3] = mtwnPlayer_SetRate(context, player, -1.5);
-            controls[4] = mtwnPlayer_SetWeight(context, player, 0.6);
+            controls[4] = mtwnPlayer_SetWeight(context, player, 0.6f);
         }
         if (u == 2)
         {

@@ -40,7 +40,7 @@ static void TestMissingContext(void)
     refused += mtwnPlayer_Cancel(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorInvalid;
     refused += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorInvalid;
-    refused += mtwnPlayer_SetWeight(c, noPlayer, 0.5) == mtwn_errorInvalid;
+    refused += mtwnPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorInvalid;
     refused += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnDestroyTarget(c, noTarget) == mtwn_errorInvalid;
     refused += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorInvalid;
