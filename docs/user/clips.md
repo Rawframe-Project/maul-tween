@@ -17,7 +17,8 @@ A clip's storage is one block sized by its def, counted against the context's cl
 ```c
 mtwnClipDef clipDef = mtwnDefaultClipDef();
 uint64_t bytes = 0;
-mtwnResult built = mtwnContext_GetClipBytes(context, &clipDef, &bytes); // its share of the clip storage
+// Its share of the clip storage.
+mtwnResult built = mtwnContext_GetClipBytes(context, &clipDef, &bytes);
 mtwnClipId clip;
 built = mtwnCreateClip(context, &clipDef, &clip);
 
