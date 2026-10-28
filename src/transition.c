@@ -49,7 +49,7 @@ static bool IsSpec(const mtwnTransitionDef* def, mtwnValueKind kind)
     {
         return false;
     }
-    switch (def->spec)
+    switch (def->kind)
     {
     case mtwn_transitionEasing:
         return true;
@@ -91,7 +91,7 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
         // progress takes it over the logarithm's distance.
         double rate = out->velocity[0] / (double)out->from.x;
         double distance = mtwnLog((double)out->to.x) - mtwnLog((double)out->from.x);
-        out->velocity[0] = def->spec == mtwn_transitionDecay ? rate
+        out->velocity[0] = def->kind == mtwn_transitionDecay ? rate
                            : distance != 0.0                 ? rate / distance
                                                              : 0.0;
         return isfinite(out->velocity[0]);
@@ -151,12 +151,12 @@ static MTWN_NOINLINE double CoastTime(const mtwnTransitionDef* def, const mtwnPl
 static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
 {
     out->endTime = out->duration;
-    if (def->spec == mtwn_transitionEasing)
+    if (def->kind == mtwn_transitionEasing)
     {
         return;
     }
     uint8_t channels = mtwnKindChannels(out->kind);
-    if (def->spec == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
+    if (def->kind == mtwn_transitionSpring && mtwnIsPathKind(out->kind))
     {
         out->endTime = mtwnSpringSettlingTimeWork(&out->spring, -1.0, out->velocity[0],
                                                   def->restOffset, def->restSpeed);
@@ -168,14 +168,14 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
     for (uint8_t i = 0; i < channels; ++i)
     {
         double time =
-            def->spec == mtwn_transitionSpring
+            def->kind == mtwn_transitionSpring
                 ? mtwnSpringSettlingTimeWork(&out->spring, (double)from[i] - (double)to[i],
                                              out->velocity[i], def->restOffset, def->restSpeed)
                 : CoastTime(def, out, i);
         end = time > end ? time : end;
     }
     out->endTime = end;
-    if (def->spec != mtwn_transitionDecay || out->lands)
+    if (def->kind != mtwn_transitionDecay || out->lands)
     {
         return;
     }
@@ -287,10 +287,10 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
                           mtwnVec4 inherited, mtwnPlayerSlot* out)
 {
     out->kind = target->kind;
-    out->spec = def->spec;
+    out->spec = def->kind;
     out->essential = def->essential;
     out->from = target->value;
-    mtwnVec4 end = def->spec == mtwn_transitionDecay ? target->value : def->value;
+    mtwnVec4 end = def->kind == mtwn_transitionDecay ? target->value : def->value;
     if (!mtwnAcceptValue(target->kind, end, &out->to) || !IsTime(def->delay) ||
         !IsTime(def->duration) || !IsSpec(def, target->kind) ||
         (target->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
@@ -301,7 +301,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     out->delay = def->delay;
     out->duration = def->duration;
     // The one curve its spec uses.
-    switch (def->spec)
+    switch (def->kind)
     {
     case mtwn_transitionEasing:
         out->easing = def->easing;
@@ -328,7 +328,7 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     out->crosses = 0;
     out->past = 0;
     out->lands = false;
-    if (def->spec == mtwn_transitionDecay && !Coast(def, out))
+    if (def->kind == mtwn_transitionDecay && !Coast(def, out))
     {
         return mtwn_errorInvalid;
     }

@@ -423,10 +423,10 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         }
         def.delay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
         def.duration = Wild(in, 1.0);
-        def.spec = (mtwnTransitionSpec)Below(in, 3);
+        def.kind = (mtwnTransitionKind)Below(in, 3);
         double duration = 0.25 + 0.25 * Below(in, 4);
         (void)mtwnMakeSpringFromDuration(duration, 0.1 * Below(in, 5), &def.spring);
-        if (def.spec == mtwn_transitionDecay && Below(in, 2) == 0)
+        if (def.kind == mtwn_transitionDecay && Below(in, 2) == 0)
         {
             // A fling, bounded or landing.
             def.velocitySource = mtwn_velocityGiven;
@@ -437,7 +437,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
             def.upper = (mtwnVec4){(float)Wild(in, 2.0), 1.0f, 1.0f, 1.0f};
         }
         // A value drawn from 1 to 2 eases by linear(), copied as it starts.
-        if (def.spec == mtwn_transitionEasing && def.value.x >= 1.0f && def.value.x < 2.0f)
+        if (def.kind == mtwn_transitionEasing && def.value.x >= 1.0f && def.value.x < 2.0f)
         {
             (void)MakeLinear(s_transitionPoints, &def.easing);
         }
@@ -494,7 +494,7 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         def.target = targets[Below(in, s_targets)];
         def.value = (mtwnVec4){(float)Value(in, 4.0), 0.25f, 0.5f, 1.0f};
         def.duration = Wild(in, 1.0);
-        def.spec = (mtwnTransitionSpec)Below(in, 3);
+        def.kind = (mtwnTransitionKind)Below(in, 3);
         (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
                                          &def.spring);
         double distance = 0.0;

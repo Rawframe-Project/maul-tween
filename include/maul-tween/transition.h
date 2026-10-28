@@ -23,7 +23,7 @@ extern "C"
 #endif
 
     // How a transition moves.
-    typedef uint8_t mtwnTransitionSpec;
+    typedef uint8_t mtwnTransitionKind;
     enum
     {
         // Over a duration, by an easing.
@@ -87,7 +87,7 @@ extern "C"
         // decay as a share of the value a second; finite, above 0.
         double restOffset;
         double restSpeed;
-        mtwnTransitionSpec spec;
+        mtwnTransitionKind kind;
         mtwnVelocitySource velocitySource;
         // For an easing: whether a reversal is shortened as CSS Transitions
         // shortens one. When this transition replaces an eased one and its
@@ -175,7 +175,7 @@ extern "C"
     ///         without its cookie, an end value the target's kind refuses,
     ///         a delay, duration, given velocity or rest tolerance outside
     ///         the above, a spring or decay not made by this library, an
-    ///         unknown spec, velocity source, color space, hue method,
+    ///         unknown kind, velocity source, color space, hue method,
     ///         angle method or rotation path, a color with alpha outside 0
     ///         to 1, the longest way between equal rotations, a spring or
     ///         decay for a discrete value, a decay for a color or rotation, a scale's decay

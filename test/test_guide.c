@@ -231,7 +231,7 @@ static void TestFling(void)
           "a scroll offset");
     mtwnTransitionDef fling = mtwnDefaultTransitionDef();
     fling.target = scroll;
-    fling.spec = mtwn_transitionDecay;
+    fling.kind = mtwn_transitionDecay;
     fling.velocitySource = mtwn_velocityGiven;
     fling.velocity = (mtwnVec4){1500.0f, 0, 0, 0}; // from the gesture, a second
     fling.bounded = true;                          // the content's ends
@@ -646,7 +646,7 @@ static void TestHost(void)
     mtwnTransitionDef settle = mtwnDefaultTransitionDef();
     settle.target = opacity;
     settle.value = (mtwnVec4){1.0f, 0, 0, 0};
-    settle.spec = mtwn_transitionSpring; // from the value and velocity it has now
+    settle.kind = mtwn_transitionSpring; // from the value and velocity it has now
     mtwnResult sprung = mtwnMakeSpringFromDuration(0.5, 0.0, &settle.spring);
     mtwnPlayerId settling;
     sprung = mtwnStartTransition(context, &settle, &settling);

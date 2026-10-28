@@ -113,7 +113,7 @@ typedef struct mtwnPlayerSlot
         // reads when it starts, ends or is replaced. One curve, by its spec.
         struct
         {
-            mtwnTransitionSpec spec;
+            mtwnTransitionKind spec;
             // For an easing that is an integer power already normal, its
             // exponent and mode, so the update reads no more of it;
             // otherwise 0.

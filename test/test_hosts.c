@@ -404,14 +404,14 @@ static void Context(Out* out)
     PUT(out, r);
     static const mtwnVec4 s_ends[3] = {
         {0x1p-140f, 0, 0, 0}, {0.1f, 0.3f, 0.9f, 0.5f}, {-1.0f, 1e-30f, 3.3f, 0}};
-    static const mtwnTransitionSpec s_specs[3] = {mtwn_transitionEasing, mtwn_transitionSpring,
+    static const mtwnTransitionKind s_specs[3] = {mtwn_transitionEasing, mtwn_transitionSpring,
                                                   mtwn_transitionSpring};
     for (int i = 0; i < 3; ++i)
     {
         mtwnTransitionDef transition = mtwnDefaultTransitionDef();
         transition.target = t[i];
         transition.value = s_ends[i];
-        transition.spec = s_specs[i];
+        transition.kind = s_specs[i];
         transition.duration = 0.8;
         double distance = 0.0;
         r = mtwnMeasureTransition(context, &transition, &distance);
@@ -423,7 +423,7 @@ static void Context(Out* out)
     }
     mtwnTransitionDef coast = mtwnDefaultTransitionDef();
     coast.target = t[3];
-    coast.spec = mtwn_transitionDecay;
+    coast.kind = mtwn_transitionDecay;
     coast.velocitySource = mtwn_velocityGiven;
     coast.velocity = (mtwnVec4){250.0f, 0, 0, 0};
     mtwnPlayerId coasting;

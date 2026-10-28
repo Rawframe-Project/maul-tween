@@ -661,7 +661,7 @@ static void TestTransitions(void)
             uint32_t spec = Next() % 3;
             if (spec == 1 && k != mtwn_valueDiscrete)
             {
-                def.spec = mtwn_transitionSpring;
+                def.kind = mtwn_transitionSpring;
                 CHECK(mtwnMakeSpringFromDuration(0.1 + 0.3 * Unit(), 0.5 * Unit(), &def.spring) ==
                           mtwn_success,
                       "a spring");
@@ -669,7 +669,7 @@ static void TestTransitions(void)
             else if (spec == 2 && k != mtwn_valueDiscrete && k != mtwn_valueColor &&
                      k != mtwn_valueRotation)
             {
-                def.spec = mtwn_transitionDecay;
+                def.kind = mtwn_transitionDecay;
                 def.velocitySource = mtwn_velocityGiven;
                 def.velocity = (mtwnVec4){(float)(4.0 * Unit() - 2.0), 1.0f, -1.0f, 0.5f};
             }

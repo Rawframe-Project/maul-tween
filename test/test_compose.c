@@ -372,7 +372,7 @@ static mtwnTargetState EasedOverTrack(bool under, float base, int reader)
         mtwnTransitionDef settle = mtwnDefaultTransitionDef();
         settle.target = w.target;
         settle.value = (mtwnVec4){500.0f, 0, 0, 0};
-        settle.spec = mtwn_transitionSpring;
+        settle.kind = mtwn_transitionSpring;
         mtwnPlayerId spring;
         CHECK(mtwnStartTransition(w.context, &settle, &spring) == mtwn_success,
               "a spring from its velocity");

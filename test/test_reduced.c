@@ -121,7 +121,7 @@ static void TestSpringAndDecay(void)
     World w = MakeWorld();
     Update(&w, 0.0);
     mtwnTransitionDef spring = Eased(3.0f, 0.0, 0.0);
-    spring.spec = mtwn_transitionSpring;
+    spring.kind = mtwn_transitionSpring;
     Transition(&w, spring);
     Update(&w, 0.1);
     CHECK(Read(&w).value.x != 3.0f, "a spring on its way");
@@ -131,7 +131,7 @@ static void TestSpringAndDecay(void)
     // A decay lands where it would have come to rest.
     World u = MakeWorld();
     mtwnTransitionDef fling = mtwnDefaultTransitionDef();
-    fling.spec = mtwn_transitionDecay;
+    fling.kind = mtwn_transitionDecay;
     fling.velocitySource = mtwn_velocityGiven;
     fling.velocity = (mtwnVec4){100.0f, 0, 0, 0};
     Update(&u, 0.0);
@@ -162,7 +162,7 @@ static void TestEndless(void)
           "a target below its end");
     Update(&w, 1.0);
     mtwnTransitionDef spring = Eased(1.0f, 0.0, 0.0);
-    spring.spec = mtwn_transitionSpring;
+    spring.kind = mtwn_transitionSpring;
     CHECK(mtwnMakeSpring(100.0, 0.0, 1.0, &spring.spring) == mtwn_success, "an undamped spring");
     mtwnPlayerId id = Transition(&w, spring);
     Update(&w, 1.5);
