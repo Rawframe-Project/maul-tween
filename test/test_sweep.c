@@ -206,7 +206,7 @@ static void HashRecords(mtwnContext* context, uint64_t* hash, uint32_t* records,
 {
     mtwnEvent e[256];
     uint32_t n = 0;
-    CHECK(mtwnReadEvents(context, e, 256, &n, NULL) == mtwn_success, "read");
+    CHECK(mtwnContext_ReadEvents(context, e, 256, &n, NULL) == mtwn_success, "read");
     for (uint32_t i = 0; i < n; ++i)
     {
         double times[4] = {e[i].hostTime, e[i].clipTime, e[i].firstIteration, e[i].lastIteration};
@@ -242,7 +242,7 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
     s_state = seed * 2654435761u + 1u;
     uint64_t hash = 14695981039346656037u;
     uint64_t now = 0;
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
     HashRecords(context, &hash, records, sums != NULL ? *sums : NULL);
     // A turn at about 1 s for some, half speed from about 2 s for others.
     double turn = seed % 4 == 1 && sums == NULL ? -rate : 0.0;
@@ -263,7 +263,7 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
         now += aligned ? frame : 5000000u + (uint64_t)Pick(20000000);
         // Both cuts end at 3.001 s, off every boundary.
         now = now > 3001000000u ? 3001000000u : now;
-        CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "updated");
+        CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "updated");
         HashRecords(context, &hash, records, sums != NULL ? *sums : NULL);
     }
     mtwnDestroyContext(context);
@@ -398,13 +398,13 @@ static void TestStartPastTheDoubles(bool countEvery)
     uint32_t count = 0;
     uint64_t dropped = 0;
     CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success &&
-              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnPlayer_Seek(context, id, 4.125) == mtwn_success &&
-              mtwnReadEvents(context, events, 8, &count, &dropped) == mtwn_success,
+              mtwnContext_ReadEvents(context, events, 8, &count, &dropped) == mtwn_success,
           "played, sought to 4.125 s");
     CHECK(mtwnPlayer_Sweep(context, id, 7.875) == mtwn_success &&
-              mtwnReadEvents(context, events, 8, &count, &dropped) == mtwn_success && count == 0 &&
-              dropped == 0,
+              mtwnContext_ReadEvents(context, events, 8, &count, &dropped) == mtwn_success &&
+              count == 0 && dropped == 0,
           "swept to 7.875 s: no iteration crossed");
     mtwnDestroyContext(context);
 }

@@ -67,7 +67,7 @@ extern "C"
         uint32_t version;
         // The allocator; zeroed means the C library's.
         mtwnAllocator allocator;
-        // The host's task system, which mtwnUpdate hands the clips' players
+        // The host's task system, which mtwnContext_Update hands the clips' players
         // to in up to 16 groups; both NULL, the default,
         // runs every player on the calling thread. One without the other is
         // invalid. With them the context holds each group's scratch, on a
@@ -287,10 +287,10 @@ extern "C"
     ///         nothing advanced.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs,
-                                                  mtwnTargetId* changedOut,
-                                                  uint32_t changedCapacity,
-                                                  uint32_t* changedTotalOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_Update(mtwnContext* context, uint64_t timeNs,
+                                                          mtwnTargetId* changedOut,
+                                                          uint32_t changedCapacity,
+                                                          uint32_t* changedTotalOut);
 
 #ifdef __cplusplus
 }

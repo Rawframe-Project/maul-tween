@@ -482,7 +482,7 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         uint32_t count = Below(in, s_targets - first + 1);
         mtwnVec4 values[s_targets];
         memset(values, 0, sizeof values);
-        Status(run, mtwnReadTargets(context, targets + first, count, values));
+        Status(run, mtwnContext_ReadTargets(context, targets + first, count, values));
         Mix(run, values, sizeof values);
         mtwnVec4 value = {0};
         Status(run, mtwnTarget_GetValue(context, targets[Below(in, s_targets)], &value));
@@ -519,7 +519,7 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         }
         now += 1000000u + (uint64_t)Byte(in) * 4000000u;
         uint32_t total = 0;
-        Status(run, mtwnUpdate(context, now, NULL, 0, &total));
+        Status(run, mtwnContext_Update(context, now, NULL, 0, &total));
         Mix(run, &total, sizeof total);
         for (uint32_t t = 0; t < s_targets; ++t)
         {
@@ -604,7 +604,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         now += gap < 200 ? (uint64_t)gap * 2000000u : (uint64_t)(gap - 199) * 500000000u;
         mtwnTargetId changed[64];
         uint32_t total = 0;
-        Status(&run, mtwnUpdate(context, now, changed, 64, &total));
+        Status(&run, mtwnContext_Update(context, now, changed, 64, &total));
         Mix(&run, &total, sizeof total);
         for (uint32_t i = 0; i < total && i < 64; ++i)
         {
@@ -626,7 +626,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         mtwnEvent events[256];
         uint32_t n = 0;
         uint64_t dropped = 0;
-        Status(&run, mtwnReadEvents(context, events, 256, &n, &dropped));
+        Status(&run, mtwnContext_ReadEvents(context, events, 256, &n, &dropped));
         Mix(&run, &dropped, sizeof dropped);
         for (uint32_t e = 0; e < n; ++e)
         {

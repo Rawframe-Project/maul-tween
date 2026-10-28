@@ -262,7 +262,7 @@ static uint64_t ClipBytes(mtwnContext* context)
 {
     mtwnClipDef def = ClipDef();
     uint64_t bytes = 0;
-    Check(mtwnGetClipBytes(context, &def, &bytes), "a clip's bytes");
+    Check(mtwnContext_GetClipBytes(context, &def, &bytes), "a clip's bytes");
     return bytes;
 }
 
@@ -344,7 +344,7 @@ static void RunTweens(Tweens* best, mtwnTargetId* changed)
     best->create = fmin(best->create, create);
     best->bytes = (double)mtwnContext_GetMemoryBytes(context) / TWEENS;
     uint64_t now = 0;
-    Check(mtwnUpdate(context, now, NULL, 0, NULL), "the first update");
+    Check(mtwnContext_Update(context, now, NULL, 0, NULL), "the first update");
     for (int u = 0; u < UPDATES; ++u)
     {
         // Alternately without and with the report, both well inside the
@@ -353,8 +353,9 @@ static void RunTweens(Tweens* best, mtwnTargetId* changed)
         now += STEP_NS / 2;
         uint32_t total = 0;
         start = Seconds();
-        Check(mtwnUpdate(context, now, report ? changed : NULL, report ? TWEENS : 0, &total),
-              "an update");
+        Check(
+            mtwnContext_Update(context, now, report ? changed : NULL, report ? TWEENS : 0, &total),
+            "an update");
         double took = Seconds() - start;
         if (report)
         {
@@ -539,7 +540,7 @@ static mtwnContext* MakePlayers(Layout layout)
             Check(mtwnPlayer_Seek(context, id, at), "a seek");
         }
     }
-    Check(mtwnUpdate(context, 0, NULL, 0, NULL), "the first update");
+    Check(mtwnContext_Update(context, 0, NULL, 0, NULL), "the first update");
     return context;
 }
 
@@ -552,7 +553,7 @@ static void RunClips(double* best)
     {
         now += STEP_NS;
         double start = Seconds();
-        Check(mtwnUpdate(context, now, NULL, 0, NULL), "an update");
+        Check(mtwnContext_Update(context, now, NULL, 0, NULL), "an update");
         *best = fmin(*best, Seconds() - start);
     }
     mtwnDestroyContext(context);
@@ -596,7 +597,7 @@ static int Count(const char* name, int count)
                     Churn(context, ((uint32_t)u * CHURN + k) % PLAYERS);
                 }
                 now += STEP_NS;
-                Check(mtwnUpdate(context, now, NULL, 0, NULL), "an update");
+                Check(mtwnContext_Update(context, now, NULL, 0, NULL), "an update");
             }
             mtwnDestroyContext(context);
             return 0;

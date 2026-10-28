@@ -438,7 +438,7 @@ static void Context(Out* out)
     // A clip: a timeline holding a track, a label and a mark.
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
-    r = mtwnGetClipBytes(context, &clipDef, &bytes);
+    r = mtwnContext_GetClipBytes(context, &clipDef, &bytes);
     PUT(out, r);
     PUT(out, bytes);
     mtwnClipId clip;
@@ -505,11 +505,11 @@ static void Context(Out* out)
         now = s_times[u];
         mtwnTargetId changed[8];
         uint32_t total = 0;
-        r = mtwnUpdate(context, now, changed, 8, &total);
+        r = mtwnContext_Update(context, now, changed, 8, &total);
         PUT(out, r);
         PUT(out, total);
         mtwnVec4 values[5];
-        r = mtwnReadTargets(context, t, 5, values);
+        r = mtwnContext_ReadTargets(context, t, 5, values);
         PUT(out, r);
         PUT(out, values);
         for (int i = 0; i < 5; ++i)
@@ -551,7 +551,7 @@ static void Context(Out* out)
     mtwnEvent events[64] = {0};
     uint32_t eventCount = 0;
     uint64_t dropped = 0;
-    r = mtwnReadEvents(context, events, 64, &eventCount, &dropped);
+    r = mtwnContext_ReadEvents(context, events, 64, &eventCount, &dropped);
     PUT(out, r);
     PUT(out, eventCount);
     PUT(out, dropped);

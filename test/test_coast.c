@@ -36,7 +36,7 @@ static mtwnTargetId Target(mtwnContext* context, mtwnValueKind kind, mtwnVec4 va
 
 static void Update(mtwnContext* context, uint64_t timeNs)
 {
-    CHECK(mtwnUpdate(context, timeNs, NULL, 0, NULL) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, timeNs, NULL, 0, NULL) == mtwn_success, "updated");
 }
 
 static mtwnTargetState State(mtwnContext* context, mtwnTargetId target)

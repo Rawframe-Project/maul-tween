@@ -8,7 +8,7 @@
 // crossing, then the players' creation order, then the clip's order; the
 // host reads them when it likes. The queue holds the context def's
 // eventCapacity records. One that arrives at a full queue is dropped and
-// counted, never silently: mtwnReadEvents reports the drops since the last
+// counted, never silently: mtwnContext_ReadEvents reports the drops since the last
 // read, and mtwnContext_GetDroppedEvents all of them. Records arrive in
 // the order they are made (players in creation order, each player's nodes
 // in clip order), so a full queue keeps the first made and drops the rest
@@ -99,9 +99,10 @@ extern "C"
     ///         countOut, or a null array with a capacity.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut,
-                                                      uint32_t capacity, uint32_t* countOut,
-                                                      uint64_t* droppedOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_ReadEvents(mtwnContext* context,
+                                                              mtwnEvent* eventsOut,
+                                                              uint32_t capacity, uint32_t* countOut,
+                                                              uint64_t* droppedOut);
 
     /// Returns how many records waited in the queue, not yet taken.
     ///

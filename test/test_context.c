@@ -307,7 +307,7 @@ static void TestValues(void)
     mtwnTargetId changed[16];
     uint32_t total = 0;
     bool reported = false;
-    CHECK(mtwnUpdate(context, 0, changed, 16, &total) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, 0, changed, 16, &total) == mtwn_success, "updated");
     for (uint32_t i = 0; i < total && i < 16; ++i)
     {
         reported = reported || changed[i].index1 == id.index1;
@@ -334,16 +334,17 @@ static void TestReadMany(void)
     }
     ids[3] = ids[1];
     mtwnVec4 values[4];
-    CHECK(mtwnReadTargets(context, ids, 4, values) == mtwn_success, "read");
+    CHECK(mtwnContext_ReadTargets(context, ids, 4, values) == mtwn_success, "read");
     CHECK(values[0].x == 0.0f && values[2].x == 2.0f && values[2].y == -2.0f && values[3].x == 1.0f,
           "in the order of the ids, repeats allowed");
     CHECK(mtwnDestroyTarget(context, ids[1]) == mtwn_success, "freed");
-    CHECK(mtwnReadTargets(context, ids, 4, values) == mtwn_errorStale, "a stale id among them");
+    CHECK(mtwnContext_ReadTargets(context, ids, 4, values) == mtwn_errorStale,
+          "a stale id among them");
     CHECK(values[1].x == 0.0f && values[3].x == 0.0f && values[2].x == 2.0f,
           "stale ones zero, the others read");
     CHECK(mtwnGetContextMisuse(context) == 2, "each stale id counted");
-    CHECK(mtwnReadTargets(context, NULL, 0, NULL) == mtwn_success, "nothing to read");
-    CHECK(mtwnReadTargets(context, NULL, 1, values) == mtwn_errorInvalid, "null ids");
+    CHECK(mtwnContext_ReadTargets(context, NULL, 0, NULL) == mtwn_success, "nothing to read");
+    CHECK(mtwnContext_ReadTargets(context, NULL, 1, values) == mtwn_errorInvalid, "null ids");
     mtwnDestroyContext(context);
 }
 
@@ -355,11 +356,11 @@ static void TestReadRefusals(void)
     mtwnVec4 values[1];
     mtwnTargetId ids[1] = {{0, 0}};
     uint64_t misuse = mtwnGetContextMisuse(context);
-    CHECK(mtwnReadTargets(context, NULL, 1, values) == mtwn_errorInvalid &&
-              mtwnReadTargets(context, ids, 1, NULL) == mtwn_errorInvalid &&
+    CHECK(mtwnContext_ReadTargets(context, NULL, 1, values) == mtwn_errorInvalid &&
+              mtwnContext_ReadTargets(context, ids, 1, NULL) == mtwn_errorInvalid &&
               mtwnGetContextMisuse(context) == misuse + 2,
           "no ids or no room: misuse, counted");
-    CHECK(mtwnReadTargets(NULL, ids, 1, values) == mtwn_errorInvalid, "no context refused");
+    CHECK(mtwnContext_ReadTargets(NULL, ids, 1, values) == mtwn_errorInvalid, "no context refused");
     mtwnDestroyContext(context);
 }
 

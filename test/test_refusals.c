@@ -32,7 +32,7 @@ static void TestMissingContext(void)
     refused += mtwnDestroyClip(c, noClip) == mtwn_errorInvalid;
     refused += mtwnClip_Finish(c, noClip) == mtwn_errorInvalid;
     refused += mtwnContext_SetReducedMotion(c, true) == mtwn_errorInvalid;
-    refused += mtwnUpdate(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
+    refused += mtwnContext_Update(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
     refused += mtwnPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Reverse(c, noPlayer) == mtwn_errorInvalid;

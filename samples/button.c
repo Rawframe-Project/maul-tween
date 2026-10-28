@@ -134,7 +134,8 @@ int main(void)
         }
         mtwnTargetId changed[TARGETS];
         uint32_t total = 0;
-        Expect(mtwnUpdate(b.context, frame * s_frame, changed, TARGETS, &total) == mtwn_success,
+        Expect(mtwnContext_Update(b.context, frame * s_frame, changed, TARGETS, &total) ==
+                   mtwn_success,
                "an update");
         // The host redraws what changed, and nothing once it rests.
         redraws += total;

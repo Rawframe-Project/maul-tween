@@ -38,7 +38,8 @@ static World MakeWorld(void)
 static void Update(World* w, double seconds)
 {
     uint32_t total = 0;
-    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, &total) == mtwn_success,
+    CHECK(mtwnContext_Update(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, &total) ==
+              mtwn_success,
           "updated");
 }
 
@@ -53,7 +54,8 @@ static mtwnTargetState Read(World* w)
 static uint32_t Events(World* w, mtwnEvent events[16])
 {
     uint32_t count = 0;
-    CHECK(mtwnReadEvents(w->context, events, 16, &count, NULL) == mtwn_success, "the records");
+    CHECK(mtwnContext_ReadEvents(w->context, events, 16, &count, NULL) == mtwn_success,
+          "the records");
     return count;
 }
 

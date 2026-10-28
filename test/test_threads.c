@@ -229,7 +229,7 @@ static void TestThreads(void)
         mtwnPlayerId id = {0, 0};
         CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
         now += 16000000u;
-        CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "an update");
         if (round % 3 == 0)
         {
             CHECK(mtwnDestroyPlayer(context, id) == mtwn_success, "a player destroyed");

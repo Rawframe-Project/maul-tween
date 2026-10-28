@@ -92,7 +92,7 @@ static void TestStorage(void)
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success && counter.allocations == 2,
           "one block for the clip");
     uint64_t one = 0;
-    CHECK(mtwnGetClipBytes(context, &def, &one) == mtwn_success && one > 0 &&
+    CHECK(mtwnContext_GetClipBytes(context, &def, &one) == mtwn_success && one > 0 &&
               counter.live - before >= one,
           "its block holds what the def takes");
     CHECK(mtwnCreateClip(context, &def, &b) == mtwn_success, "a second");
@@ -996,23 +996,25 @@ static void TestLimitEdges(void)
     mtwnClipDef largest = mtwnDefaultClipDef();
     largest.keyframeCapacity = MTWN_MAX_COUNT;
     uint64_t bytes = 0;
-    CHECK(mtwnGetClipBytes(context, &largest, &bytes) == mtwn_success && bytes > MTWN_MAX_COUNT,
+    CHECK(mtwnContext_GetClipBytes(context, &largest, &bytes) == mtwn_success &&
+              bytes > MTWN_MAX_COUNT,
           "a capacity of MTWN_MAX_COUNT sized");
     largest.keyframeCapacity = MTWN_MAX_COUNT + 1;
-    CHECK(mtwnGetClipBytes(context, &largest, &bytes) == mtwn_errorLimit, "one past it refused");
+    CHECK(mtwnContext_GetClipBytes(context, &largest, &bytes) == mtwn_errorLimit,
+          "one past it refused");
     mtwnDestroyContext(context);
 }
 
 static void TestDefaults(void)
 {
     // The default context holds as many default clips as it has clip
-    // slots, and mtwnGetClipBytes gives what each counts against it.
+    // slots, and mtwnContext_GetClipBytes gives what each counts against it.
     mtwnContextDef def = mtwnDefaultContextDef();
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "the default context");
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
-    CHECK(mtwnGetClipBytes(context, &clipDef, &bytes) == mtwn_success && bytes > 0 &&
+    CHECK(mtwnContext_GetClipBytes(context, &clipDef, &bytes) == mtwn_success && bytes > 0 &&
               bytes <= 14336,
           "a default clip within 14 KiB");
     bool made = true;
@@ -1022,7 +1024,7 @@ static void TestDefaults(void)
         made = made && mtwnCreateClip(context, &clipDef, &clip) == mtwn_success;
     }
     CHECK(made, "every clip slot filled with a default clip");
-    // Each counts what mtwnGetClipBytes says: a byte less storage than
+    // Each counts what mtwnContext_GetClipBytes says: a byte less storage than
     // all of them refuses the last.
     mtwnContextDef tight = def;
     tight.clipStorageBytes = bytes * def.clipCapacity - 1;
@@ -1042,20 +1044,21 @@ static void TestDefaults(void)
     // def is read without a context.
     clipDef.keyframeCapacity *= 2;
     uint64_t more = 0;
-    CHECK(mtwnGetClipBytes(context, &clipDef, &more) == mtwn_success && more > bytes,
+    CHECK(mtwnContext_GetClipBytes(context, &clipDef, &more) == mtwn_success && more > bytes,
           "more keyframes");
     uint64_t misuse = mtwnGetContextMisuse(context);
-    CHECK(mtwnGetClipBytes(context, NULL, &more) == mtwn_errorInvalid &&
-              mtwnGetClipBytes(context, &clipDef, NULL) == mtwn_errorInvalid,
+    CHECK(mtwnContext_GetClipBytes(context, NULL, &more) == mtwn_errorInvalid &&
+              mtwnContext_GetClipBytes(context, &clipDef, NULL) == mtwn_errorInvalid,
           "null arguments refused");
     clipDef.cookie = 0;
-    CHECK(mtwnGetClipBytes(context, &clipDef, &more) == mtwn_errorInvalid && more == 0,
+    CHECK(mtwnContext_GetClipBytes(context, &clipDef, &more) == mtwn_errorInvalid && more == 0,
           "a def without its cookie");
     clipDef = mtwnDefaultClipDef();
     clipDef.slotCapacity = MTWN_MAX_COUNT + 1;
-    CHECK(mtwnGetClipBytes(context, &clipDef, &more) == mtwn_errorLimit, "a count past the limit");
+    CHECK(mtwnContext_GetClipBytes(context, &clipDef, &more) == mtwn_errorLimit,
+          "a count past the limit");
     CHECK(mtwnGetContextMisuse(context) == misuse + 4, "each counted");
-    CHECK(mtwnGetClipBytes(NULL, &clipDef, &more) == mtwn_errorInvalid && more == 0,
+    CHECK(mtwnContext_GetClipBytes(NULL, &clipDef, &more) == mtwn_errorInvalid && more == 0,
           "no context, no def read");
     mtwnDestroyContext(context);
 }
@@ -1200,8 +1203,8 @@ static float LastEasedBy(const mtwnEasing* easings, uint32_t count)
     mtwnVec4 value = {0};
     CHECK(mtwnClip_Finish(context, clip) == mtwn_success &&
               mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
-              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 300000000u, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 300000000u, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetValue(context, target, &value) == mtwn_success,
           "played");
     mtwnDestroyContext(context);

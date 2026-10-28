@@ -127,7 +127,7 @@ int main(void)
             Play(context, hit, scale, mtwn_compositeAdd, false);
             hitStarted = true;
         }
-        Expect(mtwnUpdate(context, (uint64_t)ms * 1000000u, NULL, 0, NULL) == mtwn_success,
+        Expect(mtwnContext_Update(context, (uint64_t)ms * 1000000u, NULL, 0, NULL) == mtwn_success,
                "an update");
         float layered = Value(context, scale).x;
         float alone = Value(context, reference).x;
