@@ -37,7 +37,7 @@ A table of lengths, as GSAP keeps, is several times cheaper per sample but puts 
 
 ## Direction
 
-`mtwnPathDirection` follows SVG 2's path directionality ([`src/path_direction.c`](../../src/path_direction.c)): within a segment the first non-zero of the first three derivatives, normalized, so a control on its end or a cusp gives the outgoing direction; at a keyframe the later segment's; a step or a segment of no length takes the direction of the nearest segment with a length before it, else after it. `mtwnPathAngle` uses the library's own arctangent so the angle is the same everywhere. A 3D orientation is a look-at from this direction and an up vector, a rotation's question, and is not built.
+`mtwnComputePathDirection` follows SVG 2's path directionality ([`src/path_direction.c`](../../src/path_direction.c)): within a segment the first non-zero of the first three derivatives, normalized, so a control on its end or a cusp gives the outgoing direction; at a keyframe the later segment's; a step or a segment of no length takes the direction of the nearest segment with a length before it, else after it. `mtwnComputePathAngle` uses the library's own arctangent so the angle is the same everywhere. A 3D orientation is a look-at from this direction and an up vector, a rotation's question, and is not built.
 
 ## Tracks
 

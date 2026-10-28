@@ -119,8 +119,8 @@ static void TestConversionsAgainstConversionsJs(void)
         // 3 x^(2/3): the error is judged per unit of it, at least 1.
         double steep = 1.0 / (100.0 * pow((double)smallest, 2.0 / 3.0));
         steep = steep > 1.0 ? steep : 1.0;
-        CHECK(mtwnColorToSpace(c, mtwn_colorOklab, lab) == mtwn_success, "to Oklab");
-        CHECK(mtwnColorToSpace(c, mtwn_colorOklch, lch) == mtwn_success, "to OkLCh");
+        CHECK(mtwnConvertColorToSpace(c, mtwn_colorOklab, lab) == mtwn_success, "to Oklab");
+        CHECK(mtwnConvertColorToSpace(c, mtwn_colorOklch, lch) == mtwn_success, "to OkLCh");
         for (int k = 0; k < 3; ++k)
         {
             double e = fabs(lab[k] - (double)reference[k]) / steep;
@@ -149,7 +149,7 @@ static void TestConversionsAgainstConversionsJs(void)
 static void TestKnownValues(void)
 {
     double lab[4];
-    CHECK(mtwnColorToSpace((mtwnColor){1.0f, 0.0f, 0.0f, 1.0f}, mtwn_colorOklab, lab) ==
+    CHECK(mtwnConvertColorToSpace((mtwnColor){1.0f, 0.0f, 0.0f, 1.0f}, mtwn_colorOklab, lab) ==
               mtwn_success,
           "red");
     // conversions.js under Node 24 gives 0.6279553639214313,
@@ -158,25 +158,25 @@ static void TestKnownValues(void)
               fabs(lab[1] - 0.22486306842627424) <= 1e-15 &&
               fabs(lab[2] - 0.12584627733058495) <= 1e-15,
           "sRGB red as conversions.js gives it");
-    CHECK(mtwnColorToSpace((mtwnColor){1.0f, 1.0f, 1.0f, 1.0f}, mtwn_colorOklab, lab) ==
+    CHECK(mtwnConvertColorToSpace((mtwnColor){1.0f, 1.0f, 1.0f, 1.0f}, mtwn_colorOklab, lab) ==
                   mtwn_success &&
               fabs(lab[0] - 1.0) <= 1e-15 && fabs(lab[1]) <= 1e-15 && fabs(lab[2]) <= 1e-15,
           "white is lightness 1");
     double lch[4];
-    CHECK(mtwnColorToSpace((mtwnColor){0.5f, 0.5f, 0.5f, 1.0f}, mtwn_colorOklch, lch) ==
+    CHECK(mtwnConvertColorToSpace((mtwnColor){0.5f, 0.5f, 0.5f, 1.0f}, mtwn_colorOklch, lch) ==
                   mtwn_success &&
               isnan(lch[2]),
           "a gray's hue is powerless");
     double linear[4];
-    CHECK(mtwnColorToSpace((mtwnColor){0.5f, -0.5f, 0.02f, 1.0f}, mtwn_colorLinearSrgb, linear) ==
-                  mtwn_success &&
+    CHECK(mtwnConvertColorToSpace((mtwnColor){0.5f, -0.5f, 0.02f, 1.0f}, mtwn_colorLinearSrgb,
+                                  linear) == mtwn_success &&
               linear[1] == -linear[0] && linear[2] == (double)0.02f / 12.92,
           "sRGB's transfer, reflected for negative values, linear near 0");
     // Back from linear, CSS Color 4's gam_sRGB takes the power only above
     // 0.0031308: at it, the line, 12.92 times it.
     const double threshold[4] = {0.0031308, -0.0031308, 0.0, 1.0};
     mtwnColor gamma;
-    CHECK(mtwnColorFromSpace(threshold, mtwn_colorLinearSrgb, &gamma) == mtwn_success &&
+    CHECK(mtwnConvertColorFromSpace(threshold, mtwn_colorLinearSrgb, &gamma) == mtwn_success &&
               gamma.red == (float)(12.92 * 0.0031308) && gamma.green == -gamma.red,
           "the transfer's threshold on its line");
 }
@@ -194,8 +194,8 @@ static void TestRoundTrips(void)
         {
             double coordinates[4];
             mtwnColor back;
-            wrong += mtwnColorToSpace(c, spaces[s], coordinates) != mtwn_success;
-            wrong += mtwnColorFromSpace(coordinates, spaces[s], &back) != mtwn_success;
+            wrong += mtwnConvertColorToSpace(c, spaces[s], coordinates) != mtwn_success;
+            wrong += mtwnConvertColorFromSpace(coordinates, spaces[s], &back) != mtwn_success;
             wrong += back.red != c.red || back.green != c.green || back.blue != c.blue ||
                      back.alpha != c.alpha;
         }
@@ -215,10 +215,10 @@ static void Middle(const double first[3], const double second[3], mtwnHueMethod 
     mtwnColor from;
     mtwnColor to;
     mtwnColorMix mix;
-    if (mtwnColorFromSpace(a, mtwn_colorOklch, &from) != mtwn_success ||
-        mtwnColorFromSpace(b, mtwn_colorOklch, &to) != mtwn_success ||
+    if (mtwnConvertColorFromSpace(a, mtwn_colorOklch, &from) != mtwn_success ||
+        mtwnConvertColorFromSpace(b, mtwn_colorOklch, &to) != mtwn_success ||
         mtwnMakeColorMix(from, to, mtwn_colorOklch, method, &mix) != mtwn_success ||
-        mtwnColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, out) != mtwn_success)
+        mtwnConvertColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, out) != mtwn_success)
     {
         out[0] = out[1] = out[2] = (double)NAN;
     }
@@ -306,9 +306,10 @@ static void TestMixes(void)
           "white to blue");
     double blueLch[4];
     double midLch[4];
-    CHECK(mtwnColorToSpace((mtwnColor){0.0f, 0.0f, 1.0f, 1.0f}, mtwn_colorOklch, blueLch) ==
+    CHECK(mtwnConvertColorToSpace((mtwnColor){0.0f, 0.0f, 1.0f, 1.0f}, mtwn_colorOklch, blueLch) ==
                   mtwn_success &&
-              mtwnColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, midLch) == mtwn_success &&
+              mtwnConvertColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, midLch) ==
+                  mtwn_success &&
               fabs(midLch[2] - blueLch[2]) <= 2e-5,
           "a powerless hue takes the other end's");
 }
@@ -319,7 +320,7 @@ static double MiddleHue(mtwnColor from, mtwnColor to, mtwnHueMethod method)
     mtwnColorMix mix;
     double lch[4] = {0.0, 0.0, (double)NAN, 0.0};
     if (mtwnMakeColorMix(from, to, mtwn_colorOklch, method, &mix) != mtwn_success ||
-        mtwnColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, lch) != mtwn_success)
+        mtwnConvertColorToSpace(MixColor(&mix, 0.5), mtwn_colorOklch, lch) != mtwn_success)
     {
         return (double)NAN;
     }
@@ -332,8 +333,8 @@ static void AcrossZero(mtwnColor* below, mtwnColor* above)
     const double degree = s_pi / 180.0;
     const double low[4] = {0.7, 0.1, 350.0 * degree, 1.0};
     const double high[4] = {0.7, 0.1, 10.0 * degree, 1.0};
-    CHECK(mtwnColorFromSpace(low, mtwn_colorOklch, below) == mtwn_success &&
-              mtwnColorFromSpace(high, mtwn_colorOklch, above) == mtwn_success,
+    CHECK(mtwnConvertColorFromSpace(low, mtwn_colorOklch, below) == mtwn_success &&
+              mtwnConvertColorFromSpace(high, mtwn_colorOklch, above) == mtwn_success,
           "colors either side of hue 0");
 }
 
@@ -368,7 +369,7 @@ static void TestEqualHues(void)
     mtwnColor white = {1.0f, 1.0f, 1.0f, 1.0f};
     mtwnColor blue = {0.0f, 0.0f, 1.0f, 1.0f};
     double lch[4];
-    CHECK(mtwnColorToSpace(blue, mtwn_colorOklch, lch) == mtwn_success, "blue");
+    CHECK(mtwnConvertColorToSpace(blue, mtwn_colorOklch, lch) == mtwn_success, "blue");
     double h = lch[2];
     double turned = fmod(h + s_pi, 2.0 * s_pi);
     CHECK(fabs(MiddleHue(white, blue, mtwn_hueShorter) - h) <= 2e-5, "shorter stays");
@@ -385,7 +386,8 @@ static void TestEqualHues(void)
     mtwnColorMix mix;
     double quarter[4] = {0.0, 0.0, (double)NAN, 0.0};
     CHECK(mtwnMakeColorMix(blue, blue, mtwn_colorOklch, mtwn_hueLonger, &mix) == mtwn_success &&
-              mtwnColorToSpace(MixColor(&mix, 0.25), mtwn_colorOklch, quarter) == mtwn_success &&
+              mtwnConvertColorToSpace(MixColor(&mix, 0.25), mtwn_colorOklch, quarter) ==
+                  mtwn_success &&
               fabs(quarter[2] - fmod(h + 0.5 * s_pi, 2.0 * s_pi)) <= 2e-5,
           "the long way round turning up");
 }
@@ -400,10 +402,11 @@ static void TestBelowZeroAlpha(void)
     CHECK(mtwnMakeColorMix(red, clear, mtwn_colorOklab, mtwn_hueShorter, &mix) == mtwn_success,
           "red fading out");
     double lab[4];
-    CHECK(mtwnColorToSpace(red, mtwn_colorOklab, lab) == mtwn_success, "red in Oklab");
+    CHECK(mtwnConvertColorToSpace(red, mtwn_colorOklab, lab) == mtwn_success, "red in Oklab");
     double premultiplied[4] = {-0.5 * lab[0], -0.5 * lab[1], -0.5 * lab[2], 0.0};
     mtwnColor expected;
-    CHECK(mtwnColorFromSpace(premultiplied, mtwn_colorOklab, &expected) == mtwn_success, "made");
+    CHECK(mtwnConvertColorFromSpace(premultiplied, mtwn_colorOklab, &expected) == mtwn_success,
+          "made");
     mtwnColor past = MixColor(&mix, 1.5);
     CHECK(fabsf(past.red - expected.red) <= 1e-6f && fabsf(past.green - expected.green) <= 1e-6f &&
               past.alpha == 0.0f,
@@ -431,26 +434,29 @@ static void TestRefusals(void)
     CHECK(mtwnMakeColorMix(ok, ok, mtwn_colorOklab, mtwn_hueShorter, NULL) == mtwn_errorInvalid,
           "null out");
     double c[4];
-    CHECK(mtwnColorToSpace(ok, 4, c) == mtwn_errorInvalid, "to an unknown space");
-    CHECK(mtwnColorToSpace((mtwnColor){0.0f, 0.0f, 0.0f, -0.1f}, mtwn_colorOklab, c) ==
+    CHECK(mtwnConvertColorToSpace(ok, 4, c) == mtwn_errorInvalid, "to an unknown space");
+    CHECK(mtwnConvertColorToSpace((mtwnColor){0.0f, 0.0f, 0.0f, -0.1f}, mtwn_colorOklab, c) ==
               mtwn_errorInvalid,
           "a negative alpha");
     mtwnColor out;
     double missing[4] = {0.5, 0.1, (double)NAN, 1.0};
     double zero[4] = {0.5, 0.1, 0.0, 1.0};
     mtwnColor atZero;
-    CHECK(mtwnColorFromSpace(missing, mtwn_colorOklch, &out) == mtwn_success &&
-              mtwnColorFromSpace(zero, mtwn_colorOklch, &atZero) == mtwn_success &&
+    CHECK(mtwnConvertColorFromSpace(missing, mtwn_colorOklch, &out) == mtwn_success &&
+              mtwnConvertColorFromSpace(zero, mtwn_colorOklch, &atZero) == mtwn_success &&
               out.red == atZero.red && out.green == atZero.green && out.blue == atZero.blue,
           "a missing hue is 0");
     double bad[4] = {0.5, (double)NAN, 0.0, 1.0};
-    CHECK(mtwnColorFromSpace(bad, mtwn_colorOklch, &out) == mtwn_errorInvalid, "a NaN chroma");
-    CHECK(mtwnColorFromSpace(missing, mtwn_colorOklab, &out) == mtwn_errorInvalid,
+    CHECK(mtwnConvertColorFromSpace(bad, mtwn_colorOklch, &out) == mtwn_errorInvalid,
+          "a NaN chroma");
+    CHECK(mtwnConvertColorFromSpace(missing, mtwn_colorOklab, &out) == mtwn_errorInvalid,
           "a NaN b in Oklab");
     double loud[4] = {0.5, 0.0, 0.0, 3.0};
-    CHECK(mtwnColorFromSpace(loud, mtwn_colorOklab, &out) == mtwn_success && out.alpha == 1.0f,
+    CHECK(mtwnConvertColorFromSpace(loud, mtwn_colorOklab, &out) == mtwn_success &&
+              out.alpha == 1.0f,
           "alpha clamped back");
-    CHECK(mtwnColorFromSpace(NULL, mtwn_colorOklab, &out) == mtwn_errorInvalid, "no coordinates");
+    CHECK(mtwnConvertColorFromSpace(NULL, mtwn_colorOklab, &out) == mtwn_errorInvalid,
+          "no coordinates");
 }
 
 // Far past its ends a mix is the line: equal coordinates stay what they
@@ -471,7 +477,7 @@ static void TestFarProgress(void)
           "1e44 on: held at the largest float");
 }
 
-// A powerless hue, NaN as mtwnColorToSpace gives it for a gray, converts
+// A powerless hue, NaN as mtwnConvertColorToSpace gives it for a gray, converts
 // back as a hue of 0: no chroma, the same gray.
 static void TestPowerlessHue(void)
 {
@@ -479,8 +485,8 @@ static void TestPowerlessHue(void)
     double zero[4] = {0.6, 0.0, 0.0, 1.0};
     mtwnColor fromNaN;
     mtwnColor fromZero;
-    CHECK(mtwnColorFromSpace(gray, mtwn_colorOklch, &fromNaN) == mtwn_success &&
-              mtwnColorFromSpace(zero, mtwn_colorOklch, &fromZero) == mtwn_success,
+    CHECK(mtwnConvertColorFromSpace(gray, mtwn_colorOklch, &fromNaN) == mtwn_success &&
+              mtwnConvertColorFromSpace(zero, mtwn_colorOklch, &fromZero) == mtwn_success,
           "an OkLCh gray from a NaN hue and from 0");
     CHECK(fromNaN.red == fromZero.red && fromNaN.green == fromZero.green &&
               fromNaN.blue == fromZero.blue && fromNaN.alpha == fromZero.alpha &&
@@ -516,11 +522,11 @@ static void TestPowerlessThreshold(void)
     mtwnColor below = {0x1.99999ap-3f, 0x1.999d4ap-3f, 0x1.99999ap-3f, 1.0f};
     mtwnColor light = {0.8f, 0.8f, 0.8f, 1.0f};
     double lch[4];
-    CHECK(mtwnColorToSpace(above, mtwn_colorOklch, lch) == mtwn_success &&
+    CHECK(mtwnConvertColorToSpace(above, mtwn_colorOklch, lch) == mtwn_success &&
               fabs(lch[1] - 0.000004005308213971577) <= 1e-15 &&
               fabs(lch[2] - 2.5407821091132377) <= 16.0 * DBL_EPSILON / lch[1],
           "just above the threshold, a hue");
-    CHECK(mtwnColorToSpace(below, mtwn_colorOklch, lch) == mtwn_success &&
+    CHECK(mtwnConvertColorToSpace(below, mtwn_colorOklch, lch) == mtwn_success &&
               fabs(lch[1] - 0.000003996840368034605) <= 1e-15 && isnan(lch[2]),
           "just below, powerless");
     const double kept[3] = {0.48263147841931403, 0.482635569501299, 0.4826314784094808};

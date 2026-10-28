@@ -156,8 +156,8 @@ mtwnResult mtwnSampleDecay(const mtwnDecay* decay, double position, double veloc
     return result;
 }
 
-MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double velocity,
-                                           double stopSpeed)
+MTWN_NOINLINE double mtwnComputeDecayStopTimeWork(const mtwnDecay* decay, double velocity,
+                                                  double stopSpeed)
 {
     if (!(stopSpeed > 0.0))
     {
@@ -173,22 +173,23 @@ MTWN_NOINLINE double mtwnDecayStopTimeWork(const mtwnDecay* decay, double veloci
     return (isfinite(ratio) ? mtwnLog(ratio) : mtwnLog(speed) - mtwnLog(stopSpeed)) / decay->rate;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnDecayStopTimeChecked(const mtwnDecay* decay, double velocity,
-                                                         double stopSpeed, double* secondsOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeDecayStopTimeChecked(const mtwnDecay* decay,
+                                                                double velocity, double stopSpeed,
+                                                                double* secondsOut)
 {
     if (!mtwnValidDecay(decay) || !isfinite(velocity) || !(stopSpeed > 0.0) || secondsOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *secondsOut = mtwnDecayStopTimeWork(decay, velocity, stopSpeed);
+    *secondsOut = mtwnComputeDecayStopTimeWork(decay, velocity, stopSpeed);
     return mtwn_success;
 }
 
-mtwnResult mtwnDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed,
-                             double* secondsOut)
+mtwnResult mtwnComputeDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed,
+                                    double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnDecayStopTimeChecked(decay, velocity, stopSpeed, secondsOut);
+    mtwnResult result = mtwnComputeDecayStopTimeChecked(decay, velocity, stopSpeed, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -207,8 +208,8 @@ static double ScaledShare(double distance, int doubled, double rate, double velo
                  distanceExponent + doubled + rateExponent - velocityExponent);
 }
 
-MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double position,
-                                               double velocity, double target)
+MTWN_NOINLINE double mtwnComputeDecayCrossingTimeWork(const mtwnDecay* decay, double position,
+                                                      double velocity, double target)
 {
     double distance = target - position;
     if (distance == 0.0)
@@ -269,24 +270,26 @@ MTWN_NOINLINE double mtwnDecayCrossingTimeWork(const mtwnDecay* decay, double po
     return 2.0 * s * sum / decay->rate;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnDecayCrossingTimeChecked(const mtwnDecay* decay,
-                                                             double position, double velocity,
-                                                             double target, double* secondsOut)
+static MTWN_NOINLINE mtwnResult mtwnComputeDecayCrossingTimeChecked(const mtwnDecay* decay,
+                                                                    double position,
+                                                                    double velocity, double target,
+                                                                    double* secondsOut)
 {
     if (!mtwnValidDecay(decay) || !isfinite(position) || !isfinite(velocity) || !isfinite(target) ||
         secondsOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *secondsOut = mtwnDecayCrossingTimeWork(decay, position, velocity, target);
+    *secondsOut = mtwnComputeDecayCrossingTimeWork(decay, position, velocity, target);
     return mtwn_success;
 }
 
-mtwnResult mtwnDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
-                                 double target, double* secondsOut)
+mtwnResult mtwnComputeDecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
+                                        double target, double* secondsOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnDecayCrossingTimeChecked(decay, position, velocity, target, secondsOut);
+    mtwnResult result =
+        mtwnComputeDecayCrossingTimeChecked(decay, position, velocity, target, secondsOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -316,8 +319,8 @@ static double RubberBand(double distance, double dimension, double coefficient)
     return copysign(isinf(smaller) ? smaller : smaller / (1.0 + smaller / larger), distance);
 }
 
-static MTWN_NOINLINE mtwnResult mtwnRubberBandChecked(double distance, double dimension,
-                                                      double coefficient, double* offsetOut)
+static MTWN_NOINLINE mtwnResult mtwnApplyRubberBandChecked(double distance, double dimension,
+                                                           double coefficient, double* offsetOut)
 {
     if (offsetOut == NULL || !Bands(dimension, coefficient) || isnan(distance))
     {
@@ -327,10 +330,11 @@ static MTWN_NOINLINE mtwnResult mtwnRubberBandChecked(double distance, double di
     return mtwn_success;
 }
 
-mtwnResult mtwnRubberBand(double distance, double dimension, double coefficient, double* offsetOut)
+mtwnResult mtwnApplyRubberBand(double distance, double dimension, double coefficient,
+                               double* offsetOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnRubberBandChecked(distance, dimension, coefficient, offsetOut);
+    mtwnResult result = mtwnApplyRubberBandChecked(distance, dimension, coefficient, offsetOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -347,8 +351,8 @@ static double RubberBandInverse(double offset, double dimension, double coeffici
     return copysign(resisted * moved / coefficient, offset);
 }
 
-static MTWN_NOINLINE mtwnResult mtwnRubberBandInverseChecked(double offset, double dimension,
-                                                             double coefficient, double* dragOut)
+static MTWN_NOINLINE mtwnResult mtwnInvertRubberBandChecked(double offset, double dimension,
+                                                            double coefficient, double* dragOut)
 {
     if (dragOut == NULL || !Bands(dimension, coefficient) || isnan(offset))
     {
@@ -358,11 +362,11 @@ static MTWN_NOINLINE mtwnResult mtwnRubberBandInverseChecked(double offset, doub
     return mtwn_success;
 }
 
-mtwnResult mtwnRubberBandInverse(double offset, double dimension, double coefficient,
-                                 double* dragOut)
+mtwnResult mtwnInvertRubberBand(double offset, double dimension, double coefficient,
+                                double* dragOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnRubberBandInverseChecked(offset, dimension, coefficient, dragOut);
+    mtwnResult result = mtwnInvertRubberBandChecked(offset, dimension, coefficient, dragOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

@@ -30,7 +30,7 @@ static mtwnKeyframe Key(double offset, float x, float y, mtwnSegmentKind kind)
 static bool Along(const mtwnPath* path, double progress, double x, double y)
 {
     double d[4];
-    PathDirection(path, progress, d);
+    ComputePathDirection(path, progress, d);
     return fabs(d[0] - x) <= 1e-15 && fabs(d[1] - y) <= 1e-15 && d[2] == 0.0 && d[3] == 0.0;
 }
 
@@ -46,8 +46,8 @@ static void TestLines(void)
           "along the first, extended before it too");
     CHECK(Along(&path, 0.5, 0.0, 1.0) && Along(&path, 1.0, 0.0, 1.0),
           "at the keyframe the later segment's, to the end");
-    CHECK(fabs(PathAngle(&path, 0.25) - atan2(0.8, 0.6)) <= 1e-15 &&
-              fabs(PathAngle(&path, 0.75) - atan2(1.0, 0.0)) <= 1e-15,
+    CHECK(fabs(ComputePathAngle(&path, 0.25) - atan2(0.8, 0.6)) <= 1e-15 &&
+              fabs(ComputePathAngle(&path, 0.75) - atan2(1.0, 0.0)) <= 1e-15,
           "its angles");
     double lengths[3];
     CHECK(mtwnMakePath(keys, 3, 2, 0.5, lengths, &path) == mtwn_success, "at constant speed");
@@ -65,7 +65,7 @@ static void TestLines(void)
     four[1].value.w = 1.0f;
     CHECK(mtwnMakePath(four, 2, 4, 0.5, NULL, &path) == mtwn_success, "four channels");
     double d[4];
-    PathDirection(&path, 0.5, d);
+    ComputePathDirection(&path, 0.5, d);
     CHECK(d[0] == 0.5 && d[1] == 0.5 && d[2] == 0.5 && d[3] == 0.5, "a half in each");
 }
 
@@ -97,7 +97,7 @@ static void TestStillDerivatives(void)
     keys[1].value = (mtwnVec4){0.001f, -0.003f, 0, 0};
     CHECK(mtwnMakePath(keys, 2, 2, 0.5, NULL, &path) == mtwn_success, "a slanted one");
     double d[4];
-    PathDirection(&path, 0.0, d);
+    ComputePathDirection(&path, 0.0, d);
     CHECK(fabs(d[0] - 1.0 / sqrt(10.0)) <= 1e-6 && fabs(d[1] + 3.0 / sqrt(10.0)) <= 1e-6 &&
               d[2] == 0.0 && d[3] == 0.0,
           "its way, toward the end");
@@ -112,7 +112,7 @@ static void TestStillDerivatives(void)
     // Far before it the derivatives overflow: no way of its own, so a path
     // of one segment points along its first channel.
     double far[4];
-    PathDirection(&path, -1e300, far);
+    ComputePathDirection(&path, -1e300, far);
     CHECK(far[0] == 1.0 && far[1] == 0.0, "past every double, along x");
 }
 
@@ -163,14 +163,15 @@ static void TestNeighbours(void)
     mtwnKeyframe point[2] = {Key(0.0, 1.0f, 1.0f, mtwn_segmentLinear),
                              Key(1.0, 1.0f, 1.0f, mtwn_segmentLinear)};
     CHECK(mtwnMakePath(point, 2, 2, 0.5, NULL, &path) == mtwn_success, "a point");
-    CHECK(Along(&path, 0.5, 1.0, 0.0) && PathAngle(&path, 0.5) == 0.0, "along x, angle 0");
+    CHECK(Along(&path, 0.5, 1.0, 0.0) && ComputePathAngle(&path, 0.5) == 0.0, "along x, angle 0");
     // One channel: forwards or back.
     mtwnKeyframe back[2] = {Key(0.0, 3.0f, 0.0f, mtwn_segmentLinear),
                             Key(1.0, 1.0f, 0.0f, mtwn_segmentLinear)};
     CHECK(mtwnMakePath(back, 2, 1, 0.5, NULL, &path) == mtwn_success, "one channel");
     double d[4];
-    PathDirection(&path, 0.5, d);
-    CHECK(d[0] == -1.0 && d[1] == 0.0 && fabs(PathAngle(&path, 0.5) - atan2(0.0, -1.0)) <= 1e-15,
+    ComputePathDirection(&path, 0.5, d);
+    CHECK(d[0] == -1.0 && d[1] == 0.0 &&
+              fabs(ComputePathAngle(&path, 0.5) - atan2(0.0, -1.0)) <= 1e-15,
           "back, pi");
 }
 

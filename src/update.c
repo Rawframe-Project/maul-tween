@@ -99,7 +99,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
     mtwnSpringMotion motion = {0};
     if (slot->spec == mtwn_transitionSpring)
     {
-        motion = mtwnSpringMotionAtWork(&slot->spring, t);
+        motion = mtwnComputeSpringMotionWork(&slot->spring, t);
     }
     for (uint8_t i = 0; i < 4; ++i)
     {

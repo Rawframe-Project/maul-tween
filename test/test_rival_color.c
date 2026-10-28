@@ -66,11 +66,11 @@ static void TestColors(void)
         const RivalColor* r = &s_rivalColors[c];
         mtwnColor color = {(float)r->rgb[0], (float)r->rgb[1], (float)r->rgb[2], 1.0f};
         double got[4];
-        CHECK(mtwnColorToSpace(color, mtwn_colorLinearSrgb, got) == mtwn_success, "linear");
+        CHECK(mtwnConvertColorToSpace(color, mtwn_colorLinearSrgb, got) == mtwn_success, "linear");
         linear += Agree(got, r->linear, 3);
-        CHECK(mtwnColorToSpace(color, mtwn_colorOklab, got) == mtwn_success, "Oklab");
+        CHECK(mtwnConvertColorToSpace(color, mtwn_colorOklab, got) == mtwn_success, "Oklab");
         lab += Agree(got, r->lab, 3);
-        CHECK(mtwnColorToSpace(color, mtwn_colorOklch, got) == mtwn_success, "OkLCh");
+        CHECK(mtwnConvertColorToSpace(color, mtwn_colorOklch, got) == mtwn_success, "OkLCh");
         lch += Agree(got, r->lch, 2);
         hues += HueAgrees(got, r->lch);
         powerless += isnan(r->lch[2]);

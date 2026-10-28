@@ -29,7 +29,7 @@ mtwnColor between;
 mtwnResult mixed = mtwnMixColor(&mix, 0.5, &between); // half way, in OkLCh
 ```
 
-A gray's hue in OkLCh is powerless and takes the other color's, as CSS says, so a fade from white to red does not sweep through the hues. Past progress 0 to 1 alpha is clamped and the channels are not. `mtwnColorToSpace` and `mtwnColorFromSpace` convert one color, for a host that springs or blends in a space itself.
+A gray's hue in OkLCh is powerless and takes the other color's, as CSS says, so a fade from white to red does not sweep through the hues. Past progress 0 to 1 alpha is clamped and the channels are not. `mtwnConvertColorToSpace` and `mtwnConvertColorFromSpace` convert one color, for a host that springs or blends in a space itself.
 
 ## Angles and rotations
 
@@ -58,7 +58,7 @@ mtwnZoomView to = {50.0, 20.0, 2.0};
 mtwnZoomMix flight;
 mtwnResult made = mtwnMakeZoomMix(from, to, 1.42, &flight);
 double length = 0.0;
-mtwnResult measured = mtwnZoomLength(&flight, &length);
+mtwnResult measured = mtwnComputeZoomLength(&flight, &length);
 double seconds = length * 1.42 / sqrt(2.0); // d3's pace
 // Halfway it is wider than both ends.
 mtwnZoomView view;
@@ -69,7 +69,7 @@ mtwnResult mixed = mtwnMixZoom(&flight, 0.5, &view);
 
 ## Checking a mix
 
-`mtwnMixColor`, `mtwnMixRotation`, `mtwnMixScale`, `mtwnMixZoom` and `mtwnZoomLength` give their result through a pointer and return a status. Each refuses a null pointer, a progress that is not finite, and a mix whose fields are outside their ranges, leaving the output as it was. A mix's fields are the library's, but the host holds it and could write anything there, so each call checks the ranges. It does not make the mix again, which would cost as much as the sample. A mix that passes the check gives no undefined behavior and no NaN; it is not promised to equal what a maker would give. A color or rotation is finite, held within the floats as a target holds it; a scale or zoom reaches infinity or 0 only past the doubles' range, as a maker's mix does. A track checks the mix of the segment it samples the same way.
+`mtwnMixColor`, `mtwnMixRotation`, `mtwnMixScale`, `mtwnMixZoom` and `mtwnComputeZoomLength` give their result through a pointer and return a status. Each refuses a null pointer, a progress that is not finite, and a mix whose fields are outside their ranges, leaving the output as it was. A mix's fields are the library's, but the host holds it and could write anything there, so each call checks the ranges. It does not make the mix again, which would cost as much as the sample. A mix that passes the check gives no undefined behavior and no NaN; it is not promised to equal what a maker would give. A color or rotation is finite, held within the floats as a target holds it; a scale or zoom reaches infinity or 0 only past the doubles' range, as a maker's mix does. A track checks the mix of the segment it samples the same way.
 
 ## Paths
 
@@ -77,7 +77,7 @@ A path runs through two or more keyframes, each a value at an offset from 0 to 1
 
 A Catmull-Rom curve is a point's path, smooth in space. A monotone one is a value's path over time, as curve editors' clamped tangents are: each channel stays between its keyframes, flat where it turns, its speed continuous across keyframes however far apart.
 
-Something moving along a path turns with it: `mtwnPathDirection` gives the unit direction as CSS's `offset-rotate: auto` and SVG's rules take it, holds and cusps included, and `mtwnPathAngle` its angle in the plane, the same bits on every platform. Both refuse what a sample refuses.
+Something moving along a path turns with it: `mtwnComputePathDirection` gives the unit direction as CSS's `offset-rotate: auto` and SVG's rules take it, holds and cusps included, and `mtwnComputePathAngle` its angle in the plane, the same bits on every platform. Both refuse what a sample refuses.
 
 A curve editor's key has handles in time as well as in value (Blender's F-curve handles, Unity's weighted tangents). Its segment is a Bezier through the handles' values, timed by a cubic-bezier easing of the handles' times as shares of the span, with y controls 1/3 and 2/3 so the easing gives the curve's own parameter. A handle reaching past the span is shortened along itself first, as Blender does. The handles of a key at 0 s and value 0 and one at 2 s and value 10, at (0.5 s, 6) and (1.2 s, 10):
 

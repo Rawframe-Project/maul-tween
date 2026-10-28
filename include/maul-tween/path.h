@@ -147,10 +147,11 @@ extern "C"
     ///         or for a null directionOut.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnPathDirection(const mtwnPath* path, double progress,
-                                                         double directionOut[4]);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputePathDirection(const mtwnPath* path,
+                                                                double progress,
+                                                                double directionOut[4]);
 
-    /// Gives the angle of a path's direction (mtwnPathDirection) in its
+    /// Gives the angle of a path's direction (mtwnComputePathDirection) in its
     /// first two channels, atan2(y, x) by the library's own arctangent, the
     /// same on every platform: what CSS's offset-rotate: auto turns by.
     /// Reversed, add pi; a fixed turn, add it.
@@ -163,8 +164,8 @@ extern "C"
     ///         or for a null angleOut.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnPathAngle(const mtwnPath* path, double progress,
-                                                     double* angleOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputePathAngle(const mtwnPath* path, double progress,
+                                                            double* angleOut);
 
     // A segment's mix, made when a track of colors or rotations is made.
     typedef union mtwnSegmentMix

@@ -18,10 +18,10 @@
 
 #include <math.h>
 
-static inline mtwnSpringMotion SpringMotionAt(const mtwnSpring* spring, double seconds)
+static inline mtwnSpringMotion ComputeSpringMotion(const mtwnSpring* spring, double seconds)
 {
     mtwnSpringMotion motion = {(double)NAN, (double)NAN, (double)NAN, (double)NAN};
-    CHECK(mtwnSpringMotionAt(spring, seconds, &motion) == mtwn_success, "a spring's motion");
+    CHECK(mtwnComputeSpringMotion(spring, seconds, &motion) == mtwn_success, "a spring's motion");
     return motion;
 }
 
@@ -33,12 +33,13 @@ static inline void SampleSpring(const mtwnSpring* spring, double offset, double 
           "a spring's sample");
 }
 
-static inline double SpringSettlingTime(const mtwnSpring* spring, double offset, double velocity,
-                                        double offsetTolerance, double velocityTolerance)
+static inline double ComputeSpringSettlingTime(const mtwnSpring* spring, double offset,
+                                               double velocity, double offsetTolerance,
+                                               double velocityTolerance)
 {
     double seconds = (double)NAN;
-    CHECK(mtwnSpringSettlingTime(spring, offset, velocity, offsetTolerance, velocityTolerance,
-                                 &seconds) == mtwn_success,
+    CHECK(mtwnComputeSpringSettlingTime(spring, offset, velocity, offsetTolerance,
+                                        velocityTolerance, &seconds) == mtwn_success,
           "a spring's settling time");
     return seconds;
 }
@@ -51,19 +52,19 @@ static inline void SampleDecay(const mtwnDecay* decay, double position, double v
           "a decay's sample");
 }
 
-static inline double DecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed)
+static inline double ComputeDecayStopTime(const mtwnDecay* decay, double velocity, double stopSpeed)
 {
     double seconds = (double)NAN;
-    CHECK(mtwnDecayStopTime(decay, velocity, stopSpeed, &seconds) == mtwn_success,
+    CHECK(mtwnComputeDecayStopTime(decay, velocity, stopSpeed, &seconds) == mtwn_success,
           "a decay's stop time");
     return seconds;
 }
 
-static inline double DecayCrossingTime(const mtwnDecay* decay, double position, double velocity,
-                                       double target)
+static inline double ComputeDecayCrossingTime(const mtwnDecay* decay, double position,
+                                              double velocity, double target)
 {
     double seconds = (double)NAN;
-    CHECK(mtwnDecayCrossingTime(decay, position, velocity, target, &seconds) == mtwn_success,
+    CHECK(mtwnComputeDecayCrossingTime(decay, position, velocity, target, &seconds) == mtwn_success,
           "a decay's crossing time");
     return seconds;
 }
@@ -77,12 +78,13 @@ static inline void SampleBoundedDecay(const mtwnBoundedDecay* bounded, double po
           "a bounded decay's sample");
 }
 
-static inline double BoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position,
-                                          double velocity, double offsetTolerance, double stopSpeed)
+static inline double ComputeBoundedDecayStopTime(const mtwnBoundedDecay* bounded, double position,
+                                                 double velocity, double offsetTolerance,
+                                                 double stopSpeed)
 {
     double seconds = (double)NAN;
-    CHECK(mtwnBoundedDecayStopTime(bounded, position, velocity, offsetTolerance, stopSpeed,
-                                   &seconds) == mtwn_success,
+    CHECK(mtwnComputeBoundedDecayStopTime(bounded, position, velocity, offsetTolerance, stopSpeed,
+                                          &seconds) == mtwn_success,
           "a bounded decay's stop time");
     return seconds;
 }
@@ -114,15 +116,17 @@ static inline void SamplePath(const mtwnPath* path, double progress, double valu
     CHECK(mtwnSamplePath(path, progress, valueOut, tangentOut) == mtwn_success, "a path's sample");
 }
 
-static inline void PathDirection(const mtwnPath* path, double progress, double directionOut[4])
+static inline void ComputePathDirection(const mtwnPath* path, double progress,
+                                        double directionOut[4])
 {
-    CHECK(mtwnPathDirection(path, progress, directionOut) == mtwn_success, "a path's direction");
+    CHECK(mtwnComputePathDirection(path, progress, directionOut) == mtwn_success,
+          "a path's direction");
 }
 
-static inline double PathAngle(const mtwnPath* path, double progress)
+static inline double ComputePathAngle(const mtwnPath* path, double progress)
 {
     double angle = (double)NAN;
-    CHECK(mtwnPathAngle(path, progress, &angle) == mtwn_success, "a path's angle");
+    CHECK(mtwnComputePathAngle(path, progress, &angle) == mtwn_success, "a path's angle");
     return angle;
 }
 
@@ -147,25 +151,26 @@ static inline double SampleShake(const mtwnShake* shake, uint32_t channel, doubl
     return factor;
 }
 
-static inline double ShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds)
+static inline double SampleShakeNoise(const mtwnShake* shake, uint32_t channel, double seconds)
 {
     double factor = (double)NAN;
-    CHECK(mtwnShakeNoise(shake, channel, seconds, &factor) == mtwn_success, "a shake's noise");
+    CHECK(mtwnSampleShakeNoise(shake, channel, seconds, &factor) == mtwn_success,
+          "a shake's noise");
     return factor;
 }
 
-static inline double RubberBand(double distance, double dimension, double coefficient)
+static inline double ApplyRubberBand(double distance, double dimension, double coefficient)
 {
     double offset = (double)NAN;
-    CHECK(mtwnRubberBand(distance, dimension, coefficient, &offset) == mtwn_success,
+    CHECK(mtwnApplyRubberBand(distance, dimension, coefficient, &offset) == mtwn_success,
           "a rubber band");
     return offset;
 }
 
-static inline double RubberBandInverse(double offset, double dimension, double coefficient)
+static inline double InvertRubberBand(double offset, double dimension, double coefficient)
 {
     double drag = (double)NAN;
-    CHECK(mtwnRubberBandInverse(offset, dimension, coefficient, &drag) == mtwn_success,
+    CHECK(mtwnInvertRubberBand(offset, dimension, coefficient, &drag) == mtwn_success,
           "a rubber band's inverse");
     return drag;
 }
@@ -198,10 +203,10 @@ static inline mtwnZoomView MixZoom(const mtwnZoomMix* mix, double progress)
     return view;
 }
 
-static inline double ZoomLength(const mtwnZoomMix* mix)
+static inline double ComputeZoomLength(const mtwnZoomMix* mix)
 {
     double length = (double)NAN;
-    CHECK(mtwnZoomLength(mix, &length) == mtwn_success, "a zoom mix's length");
+    CHECK(mtwnComputeZoomLength(mix, &length) == mtwn_success, "a zoom mix's length");
     return length;
 }
 

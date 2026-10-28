@@ -34,8 +34,8 @@ enum
 
 static const double s_narrowest = 0x1.0p-24;
 
-static MTWN_NOINLINE mtwnResult mtwnSampleEasingWork(const mtwnEasing* easing, uint32_t count,
-                                                     float* valuesOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleEasingTableWork(const mtwnEasing* easing, uint32_t count,
+                                                          float* valuesOut)
 {
     if (!mtwnValidEasing(easing) || valuesOut == NULL || count < 2)
     {
@@ -49,10 +49,10 @@ static MTWN_NOINLINE mtwnResult mtwnSampleEasingWork(const mtwnEasing* easing, u
     return mtwn_success;
 }
 
-mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count, float* valuesOut)
+mtwnResult mtwnSampleEasingTable(const mtwnEasing* easing, uint32_t count, float* valuesOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnSampleEasingWork(easing, count, valuesOut);
+    mtwnResult result = mtwnSampleEasingTableWork(easing, count, valuesOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

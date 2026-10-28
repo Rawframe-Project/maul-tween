@@ -947,8 +947,9 @@ static bool PathRefused(const mtwnPath* path, double progress)
     double direction[4] = {7.0, 7.0, 7.0, 7.0};
     double angle = 7.0;
     bool refused = mtwnSamplePath(path, progress, value, tangent) == mtwn_errorInvalid &&
-                   mtwnPathDirection(path, progress, direction) == mtwn_errorInvalid &&
-                   mtwnPathAngle(path, progress, &angle) == mtwn_errorInvalid && angle == 7.0;
+                   mtwnComputePathDirection(path, progress, direction) == mtwn_errorInvalid &&
+                   mtwnComputePathAngle(path, progress, &angle) == mtwn_errorInvalid &&
+                   angle == 7.0;
     for (int c = 0; c < 4; ++c)
     {
         refused = refused && value[c] == 7.0 && tangent[c] == 7.0 && direction[c] == 7.0;
@@ -963,8 +964,8 @@ static bool PathTaken(const mtwnPath* path, double progress)
     double direction[4];
     double angle = 0.0;
     return mtwnSamplePath(path, progress, value, NULL) == mtwn_success &&
-           mtwnPathDirection(path, progress, direction) == mtwn_success &&
-           mtwnPathAngle(path, progress, &angle) == mtwn_success;
+           mtwnComputePathDirection(path, progress, direction) == mtwn_success &&
+           mtwnComputePathAngle(path, progress, &angle) == mtwn_success;
 }
 
 // A sample refuses a path whose own fields no maker gives, each on its
@@ -983,10 +984,10 @@ static void TestSampleRefusals(void)
     double angle = 0.0;
     CHECK(mtwnSamplePath(NULL, 0.5, value, NULL) == mtwn_errorInvalid &&
               mtwnSamplePath(&made, 0.5, NULL, NULL) == mtwn_errorInvalid &&
-              mtwnPathDirection(NULL, 0.5, direction) == mtwn_errorInvalid &&
-              mtwnPathDirection(&made, 0.5, NULL) == mtwn_errorInvalid &&
-              mtwnPathAngle(NULL, 0.5, &angle) == mtwn_errorInvalid &&
-              mtwnPathAngle(&made, 0.5, NULL) == mtwn_errorInvalid,
+              mtwnComputePathDirection(NULL, 0.5, direction) == mtwn_errorInvalid &&
+              mtwnComputePathDirection(&made, 0.5, NULL) == mtwn_errorInvalid &&
+              mtwnComputePathAngle(NULL, 0.5, &angle) == mtwn_errorInvalid &&
+              mtwnComputePathAngle(&made, 0.5, NULL) == mtwn_errorInvalid,
           "a null path or out");
     CHECK(PathRefused(&made, (double)NAN) && PathRefused(&made, (double)INFINITY) &&
               PathRefused(&made, -(double)INFINITY),
@@ -1090,8 +1091,8 @@ static void TestChangedLengths(void)
             double angle = 0.0;
             double p = k / 128.0;
             wrong += mtwnSamplePath(&path, p, value, NULL) != mtwn_success ||
-                     mtwnPathDirection(&path, p, direction) != mtwn_success ||
-                     mtwnPathAngle(&path, p, &angle) != mtwn_success;
+                     mtwnComputePathDirection(&path, p, direction) != mtwn_success ||
+                     mtwnComputePathAngle(&path, p, &angle) != mtwn_success;
             wrong += (p >= 0.0 && p <= 1.0) && !(isfinite(value[0]) && isfinite(value[1]));
         }
     }
