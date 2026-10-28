@@ -81,8 +81,8 @@ static void TestAngles(void)
     double kept = 7.0;
     CHECK(mtwnMixAngle(0.0, 3.0, mtwn_angleDecreasing + 1, 0.5, &kept) == mtwn_errorInvalid &&
               mtwnMixAngle((double)NAN, 3.0, mtwn_angleRaw, 0.5, &kept) == mtwn_errorInvalid &&
-              mtwnMixAngle(0.0, INFINITY, mtwn_angleShorter, 0.5, &kept) == mtwn_errorInvalid &&
-              mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, -INFINITY, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle(0.0, HUGE_VAL, mtwn_angleShorter, 0.5, &kept) == mtwn_errorInvalid &&
+              mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, -HUGE_VAL, &kept) == mtwn_errorInvalid &&
               mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, (double)NAN, &kept) == mtwn_errorInvalid &&
               mtwnMixAngle(0.0, 3.0, mtwn_angleRaw, 0.5, NULL) == mtwn_errorInvalid && kept == 7.0,
           "an unknown method, an angle or progress not finite and a null out refused, the "

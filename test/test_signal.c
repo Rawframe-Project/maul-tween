@@ -65,7 +65,7 @@ static void TestIntegers(void)
           "large values short of the range are not clamped");
     int64_t kept = 5;
     CHECK(mtwnMixInteger(1, 2, (double)NAN, &kept) == mtwn_errorInvalid &&
-              mtwnMixInteger(1, 2, INFINITY, &kept) == mtwn_errorInvalid &&
+              mtwnMixInteger(1, 2, HUGE_VAL, &kept) == mtwn_errorInvalid &&
               mtwnMixInteger(1, 2, 0.5, NULL) == mtwn_errorInvalid && kept == 5,
           "a progress not finite and a null out refused, the value as it was");
 }
@@ -77,7 +77,7 @@ static void TestDiscrete(void)
     CHECK(MixDiscrete(7, 9, -3.0) == 7 && MixDiscrete(7, 9, 3.0) == 9, "outside");
     uint32_t kept = 5;
     CHECK(mtwnMixDiscrete(7, 9, (double)NAN, &kept) == mtwn_errorInvalid &&
-              mtwnMixDiscrete(7, 9, -INFINITY, &kept) == mtwn_errorInvalid &&
+              mtwnMixDiscrete(7, 9, -HUGE_VAL, &kept) == mtwn_errorInvalid &&
               mtwnMixDiscrete(7, 9, 0.5, NULL) == mtwn_errorInvalid && kept == 5,
           "a progress not finite and a null out refused, the value as it was");
 }
