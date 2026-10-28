@@ -62,7 +62,7 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     memset(&at, 0, sizeof at);
     r += mtwnClip_AddLabel(c, noClip, MTWN_ROOT_NODE, at, 1, NULL) == mtwn_errorBusy;
     r += mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, NULL) == mtwn_errorBusy;
-    r += mtwnClip_Finish(c, noClip) == mtwn_errorBusy;
+    r += mtwnClip_Seal(c, noClip) == mtwn_errorBusy;
     r += mtwnClip_GetTrack(c, noClip, 1, NULL) == mtwn_errorBusy;
     r += mtwnClip_GetNode(c, noClip, MTWN_ROOT_NODE, NULL) == mtwn_errorBusy;
     r += mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, NULL) == mtwn_errorBusy;
@@ -328,7 +328,7 @@ static void TestTasks(void)
     track.timing.duration = 1.0;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a track");
     for (int p = 0; p < 32; ++p)
     {

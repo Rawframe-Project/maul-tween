@@ -30,7 +30,7 @@ static void TestMissingContext(void)
     mtwnContext* c = NULL;
     uint32_t refused = 0;
     refused += mtwnDestroyClip(c, noClip) == mtwn_errorInvalid;
-    refused += mtwnClip_Finish(c, noClip) == mtwn_errorInvalid;
+    refused += mtwnClip_Seal(c, noClip) == mtwn_errorInvalid;
     refused += mtwnContext_SetReducedMotion(c, true) == mtwn_errorInvalid;
     refused += mtwnUpdate(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
     refused += mtwnPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
@@ -156,7 +156,7 @@ static void TestClipsAndPlayers(void)
     mtwnNode added = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &added) == mtwn_success,
           "the same track given a node of its own");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipTrack read;
     CHECK(mtwnClip_GetTrack(context, clip, node, &read) == mtwn_errorInvalid &&
               mtwnClip_GetTrack(context, clip, 99, &read) == mtwn_errorInvalid,
@@ -172,7 +172,7 @@ static void TestClipsAndPlayers(void)
     mtwnDestroyContext(context);
 }
 
-// A clip of one scalar track on slot 0, finished.
+// A clip of one scalar track on slot 0, sealed.
 static mtwnClipId OneTrack(mtwnContext* context)
 {
     mtwnKeyframe keys[2];
@@ -188,7 +188,7 @@ static mtwnClipId OneTrack(mtwnContext* context)
     mtwnNode node = 0;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
               mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a clip of one track");
     return clip;
 }

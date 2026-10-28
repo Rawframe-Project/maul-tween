@@ -106,7 +106,7 @@ static void TestValues(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 2.0f, 2.0, mtwn_fillNone, 0.5);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, w.target, true, 1.0);
     Update(&w, 10.0);
     CHECK(Read(&w, w.target).value.x == 0.0f, "before its start, no effect: the base");
@@ -139,7 +139,7 @@ static void TestEnd(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 2.0f, 1.0, mtwn_fillForwards, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, w.target, false, 1.0);
     Update(&w, 1.0);
     Update(&w, 3.0);
@@ -153,7 +153,7 @@ static void TestEnd(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     CHECK(mtwnCreateClip(w.context, &clipDef, &w.clip) == mtwn_success, "a clip");
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 5.0f, 6.0f, 1.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     p = Play(&w, w.target, false, 1.0);
     Update(&w, 4.0);
     Update(&w, 4.5);
@@ -183,7 +183,7 @@ static void TestTree(void)
     mtwnNode fast = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &fast) == mtwn_success, "fast");
     AddTrack(&w, fast, 1, mtwn_valueInteger, 0.0f, 10.0f, 10.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnTargetId count;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){0}, &count) == mtwn_success,
           "an integer target");
@@ -233,12 +233,12 @@ static void TestOrder(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 1.0f, 1.0f, 1.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "the first clip");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "the first clip");
     mtwnClipId first = w.clip;
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     CHECK(mtwnCreateClip(w.context, &clipDef, &w.clip) == mtwn_success, "a clip");
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 2.0f, 2.0f, 1.0, mtwn_fillNone, 1.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "the second, from 1 s");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "the second, from 1 s");
     mtwnClipId second = w.clip;
     w.clip = first;
     mtwnPlayerId a = Play(&w, w.target, true, 1.0);
@@ -294,7 +294,7 @@ static void TestEndlessTimeline(void)
     track.timing.iterations = HUGE_VAL;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a loop");
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, w.target, true, 1.0);
     Update(&w, 0.0);
     Update(&w, 100.125);
@@ -356,7 +356,7 @@ static void TestNumbersPastFloats(void)
         track.timing.iterations = path == 1 ? HUGE_VAL : 1.0;
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success &&
-                  mtwnClip_Finish(w.context, w.clip) == mtwn_success,
+                  mtwnClip_Seal(w.context, w.clip) == mtwn_success,
               "a track");
         for (int p = 0; p < (path == 2 ? 2 : 1); ++p)
         {
@@ -392,7 +392,7 @@ static void TestBoundaries(void)
     World w = MakeWorld();
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
     Boundary(&w, MTWN_ROOT_NODE, group);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(ShownAt(&w, 1.0, 1.0) == 5.0f, "forwards at the start: its first value");
     CHECK(ShownAt(&w, 1.0, -1.0) == 0.0f, "backwards at the start: before it, the base");
     mtwnDestroyContext(w.context);
@@ -401,7 +401,7 @@ static void TestBoundaries(void)
     w = MakeWorld();
     group.timing.playbackRate = -1.0;
     Boundary(&w, MTWN_ROOT_NODE, group);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(ShownAt(&w, 3.0, 1.0) == 0.0f, "a negative rate turns time back");
     CHECK(ShownAt(&w, 3.0, -1.0) == 5.0f, "and a backward player forwards again");
     mtwnDestroyContext(w.context);
@@ -412,7 +412,7 @@ static void TestBoundaries(void)
     mtwnNode reversed = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &outer, &reversed) == mtwn_success, "reversed");
     Boundary(&w, reversed, mtwnDefaultClipTimelineDef());
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(ShownAt(&w, 3.0, 1.0) == 0.0f, "backwards two levels down");
     mtwnDestroyContext(w.context);
 }
@@ -451,7 +451,7 @@ static void TestSeeksPastEnds(void)
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success,
               "a delayed track");
-        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
         double lead = 0.5 + (nested ? 0.25 : 0.0);
         const double seconds[7] = {-1.0, lead - 0.25, lead + 0.25, lead + 1.0,
                                    10.0, lead + 0.25, -5.0};
@@ -480,7 +480,7 @@ static void TestTimelineShapes(void)
     mtwnNode endless = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &endless) == mtwn_success, "endless");
     AddTrack(&w, endless, 0, mtwn_valueScalar, 5.0f, 6.0f, 1.0, mtwn_fillForwards, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(ShownAt(&w, 0.5, 1.0) == 6.0f, "the child past its end, filled");
     mtwnDestroyContext(w.context);
     // A timeline's easing shapes its children's time.
@@ -491,7 +491,7 @@ static void TestTimelineShapes(void)
     mtwnNode eased = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &eased) == mtwn_success, "eased");
     AddTrack(&w, eased, 0, mtwn_valueScalar, 0.0f, 4.0f, 4.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(ShownAt(&w, 2.0, 1.0) == 1.0f, "half way through: a quarter of the time");
     mtwnDestroyContext(w.context);
     // A discrete value moves by steps, at rest.
@@ -500,7 +500,7 @@ static void TestTimelineShapes(void)
     CHECK(mtwnCreateTarget(w.context, mtwn_valueDiscrete, (mtwnVec4){0}, &flag) == mtwn_success,
           "a discrete target");
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueDiscrete, 1.0f, 2.0f, 1.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     Play(&w, flag, true, 1.0);
     bool still = true;
     bool stepped = false;
@@ -519,7 +519,7 @@ static void TestStaleTarget(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 2.0f, 4.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, w.target, true, 1.0);
     Update(&w, 0.0);
     Update(&w, 1.0);
@@ -542,7 +542,7 @@ static void TestCommitReported(void)
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 2.0f, 1.0, mtwn_fillForwards, 0.0);
     AddTrack(&w, MTWN_ROOT_NODE, 1, mtwn_valueScalar, 0.0f, 2.0f, 2.0, mtwn_fillForwards, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnTargetId other;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
@@ -575,7 +575,7 @@ static void TestAddsOverBase(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 4.0f, 4.0, mtwn_fillForwards, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){10.0f, 0, 0, 0}) == mtwn_success,
           "a base of 10");
     mtwnTargetId other;
@@ -604,7 +604,7 @@ static void TestZeroWeight(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 4.0f, 4.0, mtwn_fillForwards, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){10.0f, 0, 0, 0}) == mtwn_success,
           "a base of 10");
     mtwnBinding binding = mtwnBind(0, w.target);
@@ -630,7 +630,7 @@ static void TestRateZeroAtStart(void)
 {
     World w = MakeWorld();
     AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 3.0f, 4.0f, 1.0, mtwn_fillNone, 0.0);
-    CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){7.0f, 0, 0, 0}) == mtwn_success,
           "a base of 7");
     mtwnTargetId other;
@@ -677,7 +677,7 @@ static void TestCommitLastComponent(void)
         track.timing.fill = mtwn_fillForwards;
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
-        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
         mtwnPlayerId p = Play(&w, vector, false, 1.0);
         Update(&w, 0.0);
         Update(&w, 2.0);
@@ -701,7 +701,7 @@ static void TestFinishExact(void)
         World w = MakeWorld();
         AddTrack(&w, MTWN_ROOT_NODE, 0, mtwn_valueScalar, 0.0f, 1.0f, 0.3 + 0.0137 * k,
                  mtwn_fillForwards, 0.0);
-        CHECK(mtwnClip_Finish(w.context, w.clip) == mtwn_success, "finished");
+        CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
         double rate = 0.11 + 0.0173 * k;
         mtwnPlayerId p = Play(&w, w.target, true, rate);
         Update(&w, 1.0 + 0.001 * k);
@@ -746,7 +746,7 @@ static float FullOrRoomy(uint32_t capacity, double seconds)
     track.timing.duration = 1.0;
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a track");
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,

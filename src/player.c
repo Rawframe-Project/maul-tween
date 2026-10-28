@@ -469,7 +469,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     {
         return Misuse(context, mtwn_errorStale);
     }
-    if (!clip->finished)
+    if (!clip->sealed)
     {
         return Misuse(context, mtwn_errorState);
     }

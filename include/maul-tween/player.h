@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Players: what
-// writes targets. A player plays a finished clip on targets bound to its
+// writes targets. A player plays a sealed clip on targets bound to its
 // slots, by Web Animations' procedures on the host's clock; a transition
 // is a player too. A player not kept ends by committing its last value
 // into its targets' base values and is then freed, its id stale.
@@ -78,7 +78,7 @@ extern "C"
     {
         // Set by mtwnDefaultPlayerDef; checked by mtwnCreatePlayer.
         uint32_t cookie;
-        // A finished clip.
+        // A sealed clip.
         mtwnClipId clip;
         // The number of bindings.
         uint32_t bindingCount;
@@ -170,7 +170,7 @@ extern "C"
         bool playsOnReduced;
     } mtwnPlayerState;
 
-    /// Makes a player of a finished clip, which it holds busy until it is
+    /// Makes a player of a sealed clip, which it holds busy until it is
     /// freed; it starts at the next update if the def says play, else idle.
     ///
     /// @param context    The context.
@@ -181,7 +181,7 @@ extern "C"
     ///         binding outside the above; mtwn_errorLimit for a rate above
     ///         MTWN_RATE_LIMIT in size, or other than 0 below
     ///         MTWN_MIN_RATE; mtwn_errorStale for a clip that is not
-    ///         alive; mtwn_errorState for one not finished;
+    ///         alive; mtwn_errorState for one not sealed;
     ///         mtwn_errorCapacity when the context holds its capacity of
     ///         players or of bindings.
     /// @par Thread safety

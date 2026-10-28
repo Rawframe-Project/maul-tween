@@ -472,7 +472,7 @@ static mtwnClipId MakeClip(mtwnContext* context)
         mtwnNode node;
         Check(mtwnClip_AddTrack(context, clip, &track, &node), "a track");
     }
-    Check(mtwnClip_Finish(context, clip), "the clip finished");
+    Check(mtwnClip_Seal(context, clip), "the clip sealed");
     return clip;
 }
 

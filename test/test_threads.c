@@ -3,7 +3,7 @@
 //
 // The library's thread rules, under the thread sanitizer in CI: the
 // values layer is used from four threads at once (easings, springs, a
-// color mix, staggers, timing, and a finished clip's track read through
+// color mix, staggers, timing, and a sealed clip's track read through
 // mtwnClip_GetTrack and sampled with mtwnSampleTrack) while the context's
 // own thread updates players of that clip and makes and destroys more.
 // Every thread's results are the same bits as one thread's. The web
@@ -144,7 +144,7 @@ static void Join(void* thread)
 #endif
 }
 
-// A finished clip of one 2D track from (0, 0) through (1, 2) to (3, 1)
+// A sealed clip of one 2D track from (0, 0) through (1, 2) to (3, 1)
 // over a second, repeated twice, alternating.
 static mtwnClipId MakeClip(mtwnContext* context, mtwnNode* nodeOut)
 {
@@ -166,7 +166,7 @@ static mtwnClipId MakeClip(mtwnContext* context, mtwnNode* nodeOut)
     track.timing.iterations = 2.0;
     track.timing.direction = mtwn_directionAlternate;
     CHECK(mtwnClip_AddTrack(context, clip, &track, nodeOut) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     return clip;
 }
 

@@ -181,7 +181,7 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
         CHECK(mtwnClip_AddMark(context, clip, markParent, markAt, 7, &mark) == mtwn_success,
               "a mark");
     }
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
@@ -388,7 +388,7 @@ static void TestStartPastTheDoubles(bool countEvery)
     track.timing.repeatDelay = 0x1.5p-4;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "an endless track from 2.5 iterations of 1e308 s");
     mtwnPlayerDef player = mtwnDefaultPlayerDef();
     player.clip = clip;

@@ -4,7 +4,7 @@
 // Clips:
 // immutable descriptions of tracks on nested timelines with labels and
 // marks, built node by node at positions
-// resolved when added, then finished. A finished clip is read through the
+// resolved when added, then sealed. A sealed clip is read through the
 // values layer from any thread while it lives, and plays on any set of
 // targets, its tracks addressing slots.
 
@@ -217,7 +217,7 @@ extern "C"
         return def;
     }
 
-    // Any node of a finished clip.
+    // Any node of a sealed clip.
     typedef struct mtwnClipNodeInfo
     {
         // A timeline's with its iteration duration resolved.
@@ -232,7 +232,7 @@ extern "C"
         mtwnNodeKind kind;
     } mtwnClipNodeInfo;
 
-    // A finished clip's track, for sampling through the values layer: it
+    // A sealed clip's track, for sampling through the values layer: it
     // references the clip's storage, valid while the clip lives.
     typedef struct mtwnClipTrack
     {
@@ -302,7 +302,7 @@ extern "C"
     /// resolves its position to a start time.
     ///
     /// @param context  The context.
-    /// @param clip     The clip, not finished.
+    /// @param clip     The clip, not sealed.
     /// @param def      The def: a timeline of the clip as parent, a known
     ///                 position kind and a finite offset, a slot below the
     ///                 slot capacity and of the same kind as its other
@@ -313,7 +313,7 @@ extern "C"
     ///                 makes that parent 0, which is refused.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie or outside the above; mtwn_errorStale for a
-    ///         clip that is not alive; mtwn_errorState for a finished clip;
+    ///         clip that is not alive; mtwn_errorState for a sealed clip;
     ///         mtwn_errorCapacity when the clip holds its capacity of nodes,
     ///         keyframes or points; mtwn_errorLimit for a node whose end
     ///         would take its clip's finite end past MTWN_SEEK_LIMIT.
@@ -352,7 +352,7 @@ extern "C"
     /// starts.
     ///
     /// @param context  The context.
-    /// @param clip     The clip, not finished.
+    /// @param clip     The clip, not sealed.
     /// @param def      The def: a timeline of the clip as parent, a position
     ///                 as for tracks, a timing mtwnValidateTiming accepts
     ///                 with a monotonic easing (mtwnIsEasingMonotonic).
@@ -372,7 +372,7 @@ extern "C"
     /// does not lengthen its parent.
     ///
     /// @param context   The context.
-    /// @param clip      The clip, not finished.
+    /// @param clip      The clip, not sealed.
     /// @param parent    A timeline of the clip.
     /// @param position  Where, as for tracks.
     /// @param key       The host's key.
@@ -390,7 +390,7 @@ extern "C"
     /// child and does not lengthen its parent.
     ///
     /// @param context   The context.
-    /// @param clip      The clip, not finished.
+    /// @param clip      The clip, not sealed.
     /// @param parent    A timeline of the clip.
     /// @param position  Where, as for tracks.
     /// @param key       The host's key; marks may share one.
@@ -402,18 +402,18 @@ extern "C"
                                                         mtwnNode parent, mtwnPosition position,
                                                         uint32_t key, mtwnNode* nodeOut);
 
-    /// Finishes a clip: it can be read and played, and no longer changed.
+    /// Seals a clip: it can be read and played, and no longer changed.
     ///
     /// @param context  The context.
     /// @param clip     The clip.
     /// @return mtwn_success; mtwn_errorInvalid for a null context;
     ///         mtwn_errorStale for a clip that is not alive;
-    ///         mtwn_errorState for a clip already finished.
+    ///         mtwn_errorState for a clip already sealed.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_Seal(mtwnContext* context, mtwnClipId clip);
 
-    /// Reads a finished clip's track node.
+    /// Reads a sealed clip's track node.
     ///
     /// @param context   The context.
     /// @param clip      The clip.
@@ -425,13 +425,13 @@ extern "C"
     ///                  failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument or a node
     ///         that is not a track of the clip; mtwn_errorStale for a clip
-    ///         that is not alive; mtwn_errorState for one not finished.
+    ///         that is not alive; mtwn_errorState for one not sealed.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetTrack(mtwnContext* context, mtwnClipId clip,
                                                          mtwnNode node, mtwnClipTrack* trackOut);
 
-    /// Reads any node of a finished clip.
+    /// Reads any node of a sealed clip.
     ///
     /// @param context  The context.
     /// @param clip     The clip.
@@ -443,7 +443,7 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnClip_GetNode(mtwnContext* context, mtwnClipId clip,
                                                         mtwnNode node, mtwnClipNodeInfo* infoOut);
 
-    /// Finds a label of a finished clip by its parent and key.
+    /// Finds a label of a sealed clip by its parent and key.
     ///
     /// @param context     The context.
     /// @param clip        The clip.
@@ -459,7 +459,7 @@ extern "C"
                                                           mtwnNode parent, uint32_t key,
                                                           double* secondsOut);
 
-    /// Reads a finished clip's duration: its root's end.
+    /// Reads a sealed clip's duration: its root's end.
     ///
     /// @param context     The context.
     /// @param clip        The clip.

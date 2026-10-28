@@ -461,7 +461,7 @@ static void Context(Out* out)
     PUT(out, r);
     r = mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, at, 5, &mark);
     PUT(out, r);
-    r = mtwnClip_Finish(context, clip);
+    r = mtwnClip_Seal(context, clip);
     PUT(out, r);
     mtwnClipTrack read;
     r = mtwnClip_GetTrack(context, clip, trackNode, &read);

@@ -37,8 +37,8 @@ The values layer is plain structs and functions: a maker validates a value once 
 ## Targets, clips and players
 
 - A **target** is one animated value of a fixed kind: the host's base value, the current value animations compose over it, and its velocity. Animations write targets; the host reads them by id.
-- A **clip** is an immutable description built once: tracks of keyframes on nested timelines, labels and marks. Its tracks address slots, so one clip plays on many sets of targets, and a finished clip can be read from any thread.
-- A **player** plays a finished clip with its slots bound to targets, by Web Animations' procedures; per binding it has a composite operation and a weight. Players compose onto each target in creation order, from its base.
+- A **clip** is an immutable description built once: tracks of keyframes on nested timelines, labels and marks. Its tracks address slots, so one clip plays on many sets of targets, and a sealed clip can be read from any thread.
+- A **player** plays a sealed clip with its slots bound to targets, by Web Animations' procedures; per binding it has a composite operation and a weight. Players compose onto each target in creation order, from its base.
 - A **transition** is the short path: a player holding one curve inline, started from the target's current value and velocity, replacing the transition already on the target.
 
 A player not kept is freed at its end, first committing what it fills forward into its targets' bases, as `commitStyles()` keeps a value. A clip a player uses cannot be destroyed.

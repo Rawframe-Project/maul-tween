@@ -604,7 +604,7 @@ static MTWN_NOINLINE mtwnResult AddInstantWorker(mtwnClipSlot* clip, mtwnNodeKin
     return mtwn_success;
 }
 
-// The checks every add shares: the clip alive and not finished, the def
+// The checks every add shares: the clip alive and not sealed, the def
 // given with its cookie. Returns the clip, or NULL with the refusal,
 // counted, in resultOut.
 static mtwnClipSlot* Adding(mtwnContext* context, mtwnClipId clip, bool given, bool cookie,
@@ -624,7 +624,7 @@ static mtwnClipSlot* Adding(mtwnContext* context, mtwnClipId clip, bool given, b
     {
         result = mtwn_errorInvalid;
     }
-    else if (slot->finished)
+    else if (slot->sealed)
     {
         result = mtwn_errorState;
     }
@@ -845,7 +845,7 @@ static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
            a->direction == b->direction && a->alternateEasing == b->alternateEasing;
 }
 
-static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
+static MTWN_NOINLINE void SealWorker(mtwnClipSlot* slot)
 {
     // Timelines sized by their children take the size for good; every node
     // keeps its active duration and its iterations at its active start and
@@ -879,10 +879,10 @@ static MTWN_NOINLINE void FinishWorker(mtwnClipSlot* slot)
                              mtwnSameBits(before->start, node->start) &&
                              SameTiming(&before->timing, &node->timing);
     }
-    slot->finished = true;
+    slot->sealed = true;
 }
 
-static mtwnResult RunClipFinish(mtwnContext* context, mtwnClipId clip)
+static mtwnResult RunClipSeal(mtwnContext* context, mtwnClipId clip)
 {
     if (context == NULL)
     {
@@ -893,29 +893,29 @@ static mtwnResult RunClipFinish(mtwnContext* context, mtwnClipId clip)
     {
         return Misuse(context, mtwn_errorStale);
     }
-    if (slot->finished)
+    if (slot->sealed)
     {
         return Misuse(context, mtwn_errorState);
     }
-    FinishWorker(slot);
+    SealWorker(slot);
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnClip_FinishWork(mtwnContext* context, mtwnClipId clip)
+static MTWN_NOINLINE mtwnResult mtwnClip_SealWork(mtwnContext* context, mtwnClipId clip)
 {
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
     }
-    mtwnResult result = RunClipFinish(context, clip);
+    mtwnResult result = RunClipSeal(context, clip);
     mtwnLeave(context);
     return result;
 }
 
-mtwnResult mtwnClip_Finish(mtwnContext* context, mtwnClipId clip)
+mtwnResult mtwnClip_Seal(mtwnContext* context, mtwnClipId clip)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnClip_FinishWork(context, clip);
+    mtwnResult result = mtwnClip_SealWork(context, clip);
     mtwnFloatEnvLeave(env);
     return result;
 }

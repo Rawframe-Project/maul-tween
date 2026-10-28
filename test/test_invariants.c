@@ -430,7 +430,7 @@ static void TestBuilder(void)
                      &changedOnRefusal);
         }
         changedOnRefusal += KeyframesLeft(context, clip, &def, &built, &probed) ? 0u : 1u;
-        if (mtwnClip_Finish(context, clip) == mtwn_success)
+        if (mtwnClip_Seal(context, clip) == mtwn_success)
         {
             double duration = 0.0;
             bool ok =
@@ -450,7 +450,7 @@ static void TestBuilder(void)
     CHECK(refusals > 1000, "refusals tried");
     CHECK(changedOnRefusal == 0, "a refused call changes nothing, an accepted one adds a node");
     CHECK(probed > 50, "the keyframes left probed");
-    CHECK(broken == 0, "every finished clip's nodes at finite starts, ends after them");
+    CHECK(broken == 0, "every sealed clip's nodes at finite starts, ends after them");
 }
 
 static bool SameBits(mtwnVec4 a, mtwnVec4 b)
@@ -494,7 +494,7 @@ static void TestPlaying(void)
         {
             BuildOne(context, clip, timelines, &timelineCount, &built, &ignored, &ignoredToo);
         }
-        if (mtwnClip_Finish(context, clip) != mtwn_success)
+        if (mtwnClip_Seal(context, clip) != mtwn_success)
         {
             mtwnDestroyContext(context);
             continue;

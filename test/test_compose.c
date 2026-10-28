@@ -125,7 +125,7 @@ static World MakeWorld(float base)
     return w;
 }
 
-// A finished clip of a 10 s scalar track from a to b.
+// A sealed clip of a 10 s scalar track from a to b.
 static mtwnClipId Clip(World* w, float a, float b, mtwnFill fill)
 {
     mtwnClipDef clipDef = mtwnDefaultClipDef();
@@ -144,7 +144,7 @@ static mtwnClipId Clip(World* w, float a, float b, mtwnFill fill)
     track.timing.fill = fill;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w->context, clip, &track, &node) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(w->context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w->context, clip) == mtwn_success, "sealed");
     return clip;
 }
 
@@ -296,7 +296,7 @@ static void TestScales(void)
     track.incremental = true;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, clip, &track, &node) == mtwn_success, "a scale track");
-    CHECK(mtwnClip_Finish(w.context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w.context, clip) == mtwn_success, "sealed");
     Layer(&w, clip, mtwn_compositeAdd, 1.0f, false);
     Update(&w, 0.0);
     Update(&w, 5.0);
@@ -332,7 +332,7 @@ static void TestPastFloats(void)
     track.timing.duration = 1.0;
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w.context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(w.context, clip) == mtwn_success,
+              mtwnClip_Seal(w.context, clip) == mtwn_success,
           "6e38 a second");
     Layer(&w, clip, mtwn_compositeReplace, 1.0f, false);
     Update(&w, 0.0);

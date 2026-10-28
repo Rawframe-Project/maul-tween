@@ -50,7 +50,7 @@ static Scene MakeSceneAt(double start)
     track.position.offset = start;
     CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &track.timing.easing) == mtwn_success, "easing");
     CHECK(mtwnClip_AddTrack(s.context, s.clip, &track, &s.track) == mtwn_success, "a track");
-    CHECK(mtwnClip_Finish(s.context, s.clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(s.context, s.clip) == mtwn_success, "sealed");
     CHECK(mtwnCreateTarget(s.context, mtwn_valueScalar, (mtwnVec4){0}, &s.target) == mtwn_success,
           "a target");
     return s;
@@ -233,7 +233,7 @@ static void TestInteger(void)
     track.timing.duration = 2.0;
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "an integer track");
-    CHECK(mtwnClip_Finish(s.context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
     mtwnBinding binding = mtwnBind(0, integer);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
@@ -286,7 +286,7 @@ static void TestBackwardsAtEnd(void)
         track.timing.duration = 2.0;
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "a track");
-        CHECK(mtwnClip_Finish(s.context, clip) == mtwn_success, "finished");
+        CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
         mtwnBinding binding = mtwnBind(0, s.target);
         mtwnPlayerDef def = mtwnDefaultPlayerDef();
         def.clip = clip;
