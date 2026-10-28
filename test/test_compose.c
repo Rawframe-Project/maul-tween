@@ -173,7 +173,8 @@ static float Value(World* w)
 
 static void Update(World* w, double seconds)
 {
-    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "updated");
 }
 

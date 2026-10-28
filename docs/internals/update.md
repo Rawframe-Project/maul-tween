@@ -1,6 +1,6 @@
 # The update
 
-`mtwnUpdate` advances every player to the host's time in the library's floating-point environment, in the order the players were made, later ones writing over earlier ones, then reports the targets that changed ([`src/update.c`](../../src/update.c)). It is the one call a host makes every frame, so it is built to cost next to nothing at rest and to stay within its measured budget with tens of thousands of values moving.
+`mtwnContext_Update` advances every player to the host's time in the library's floating-point environment, in the order the players were made, later ones writing over earlier ones, then reports the targets that changed ([`src/update.c`](../../src/update.c)). It is the one call a host makes every frame, so it is built to cost next to nothing at rest and to stay within its measured budget with tens of thousands of values moving.
 
 ## The hot path
 

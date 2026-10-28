@@ -14,7 +14,7 @@
 // at most 21 times it, stay finite.
 #define MTWN_LARGEST_BEZIER_Y 0x1.0p1000
 
-// Whether control points are those mtwnMakeCubicBezier takes: both x
+// Whether control points are those mtwnMakeCubicBezierEasing takes: both x
 // from 0 to 1, both y at most MTWN_LARGEST_BEZIER_Y in magnitude.
 bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2);
 
@@ -26,7 +26,7 @@ bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2);
 // points it takes, a flat end tangent still its end at an infinite x.
 double mtwnSampleCubicBezier(const double control[4], double x);
 
-// Whether steps(count, position) is one mtwnMakeSteps makes.
+// Whether steps(count, position) is one mtwnMakeStepsEasing makes.
 bool mtwnValidSteps(uint32_t count, mtwnStepPosition position);
 
 // steps(count, position).
@@ -36,7 +36,7 @@ double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool
 // points, and for any finite points, sorted or not, a finite value.
 double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, double x);
 
-// Whether count points are canonical, as mtwnMakeLinearEasing leaves
+// Whether count points are canonical, as mtwnMakeLinearPointsEasing leaves
 // them: inputs and outputs finite, inputs in order.
 bool mtwnCanonicalLinearPoints(const mtwnLinearPoint* points, uint32_t count);
 

@@ -366,7 +366,7 @@ static bool Scene(mtwnVec4 values[6])
     const uint64_t times[3] = {1000000u, 400000000u, 900000000u};
     for (int i = 0; ok && i < 3; ++i)
     {
-        ok = mtwnUpdate(context, times[i], NULL, 0, NULL) == mtwn_success &&
+        ok = mtwnContext_Update(context, times[i], NULL, 0, NULL) == mtwn_success &&
              mtwnTarget_GetValue(context, moved, &values[2 * i]) == mtwn_success &&
              mtwnTarget_GetValue(context, played, &values[2 * i + 1]) == mtwn_success;
     }

@@ -134,15 +134,15 @@ static void TestDecayRestAndStop(void)
     double velocity = 1.0;
     SampleDecay(&decay, 10.0, -200.0, HUGE_VAL, &position, &velocity);
     CHECK(position == 10.0 + -200.0 / 4.0 && velocity == 0.0, "at rest at infinity");
-    double stop = DecayStopTime(&decay, -200.0, 0.5);
+    double stop = ComputeDecayStopTime(&decay, -200.0, 0.5);
     SampleDecay(&decay, 10.0, -200.0, stop, NULL, &velocity);
     CHECK(fabs(fabs(velocity) - 0.5) <= 1e-14, "at its stop time it has the stop speed");
-    CHECK(DecayStopTime(&decay, 0.3, 0.5) == 0.0, "a start already slow");
-    CHECK(DecayStopTime(&decay, -0.5, 0.5) == 0.0, "a start at the stop speed");
+    CHECK(ComputeDecayStopTime(&decay, 0.3, 0.5) == 0.0, "a start already slow");
+    CHECK(ComputeDecayStopTime(&decay, -0.5, 0.5) == 0.0, "a start at the stop speed");
     double never = 0.0;
-    CHECK(mtwnDecayStopTime(&decay, -HUGE_VAL, HUGE_VAL, &never) == mtwn_errorInvalid &&
-              mtwnDecayStopTime(&decay, 3.0, 0.0, &never) == mtwn_errorInvalid &&
-              mtwnDecayStopTime(&decay, 3.0, (double)NAN, &never) == mtwn_errorInvalid &&
+    CHECK(mtwnComputeDecayStopTime(&decay, -HUGE_VAL, HUGE_VAL, &never) == mtwn_errorInvalid &&
+              mtwnComputeDecayStopTime(&decay, 3.0, 0.0, &never) == mtwn_errorInvalid &&
+              mtwnComputeDecayStopTime(&decay, 3.0, (double)NAN, &never) == mtwn_errorInvalid &&
               never == 0.0,
           "an endless start, a stop speed of 0 or a NaN one refused");
     SampleDecay(&decay, 1.0, 1.0, 1.0, NULL, NULL);
@@ -161,7 +161,7 @@ static void TestDecayCrossings(void)
         for (int sign = -1; sign <= 1; sign += 2)
         {
             double target = 2.0 + sign * (targets[i] - 2.0);
-            double t = DecayCrossingTime(&decay, 2.0, sign * 6.0, target);
+            double t = ComputeDecayCrossingTime(&decay, 2.0, sign * 6.0, target);
             Wide share = ((Wide)target - 2) * 3 / (sign * 6);
             Wide expected = -WIDE_LOG1P(-share) / 3;
             // Near the rest the time is ill-conditioned in the share f, by
@@ -179,21 +179,21 @@ static void TestDecayCrossings(void)
     CHECK(worst <= 2e-15, "crossing times within 2e-15 of their conditioning, near the start too");
     // From 0 a tiny target makes a share that is no multiple of 2^-53, so
     // 1 - f rounds: the series keeps its digits.
-    double tiny = DecayCrossingTime(&decay, 0.0, 7.0, 1e-12);
+    double tiny = ComputeDecayCrossingTime(&decay, 0.0, 7.0, 1e-12);
     Wide tinyShare = (Wide)1e-12 * 3 / 7;
     CHECK(Relative(tiny, -WIDE_LOG1P(-tinyShare) / 3) <= 2e-15, "a target next to the start");
     // Half the travel is the series' last share: its bits, the same on
     // every platform (1 ulp below ln 2 correctly rounded, within the bound).
     mtwnDecay unit;
     CHECK(mtwnMakeDecay(1.0, &unit) == mtwn_success &&
-              DecayCrossingTime(&unit, 0.0, 2.0, 1.0) == 0x1.62e42fefa39eep-1,
+              ComputeDecayCrossingTime(&unit, 0.0, 2.0, 1.0) == 0x1.62e42fefa39eep-1,
           "half the travel by the series");
-    CHECK(DecayCrossingTime(&decay, 2.0, 6.0, 2.0) == 0.0, "at the start");
-    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 6.0, 1.0)), "behind it");
-    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 6.0, 4.0)), "exactly at rest");
-    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 6.0, 5.0)), "past the rest");
-    CHECK(isinf(DecayCrossingTime(&decay, 2.0, 0.0, 5.0)), "with no velocity");
-    double t = DecayCrossingTime(&decay, 2.0, 6.0, 3.9);
+    CHECK(ComputeDecayCrossingTime(&decay, 2.0, 6.0, 2.0) == 0.0, "at the start");
+    CHECK(isinf(ComputeDecayCrossingTime(&decay, 2.0, 6.0, 1.0)), "behind it");
+    CHECK(isinf(ComputeDecayCrossingTime(&decay, 2.0, 6.0, 4.0)), "exactly at rest");
+    CHECK(isinf(ComputeDecayCrossingTime(&decay, 2.0, 6.0, 5.0)), "past the rest");
+    CHECK(isinf(ComputeDecayCrossingTime(&decay, 2.0, 0.0, 5.0)), "with no velocity");
+    double t = ComputeDecayCrossingTime(&decay, 2.0, 6.0, 3.9);
     double position = 0.0;
     SampleDecay(&decay, 2.0, 6.0, t, &position, NULL);
     CHECK(fabs(position - 3.9) <= 1e-14, "the motion is at the target then");
@@ -207,26 +207,28 @@ static void TestDecayPastTheRange(void)
     // time, d / v (1 + share / 2 + ...), is 1.
     mtwnDecay faint;
     CHECK(mtwnMakeDecay(0x1p-1074, &faint) == mtwn_success, "the faintest decay");
-    CHECK(DecayCrossingTime(&faint, 0.0, 1.0, 1.0) == 1.0, "a subnormal share's time is d / v");
+    CHECK(ComputeDecayCrossingTime(&faint, 0.0, 1.0, 1.0) == 1.0,
+          "a subnormal share's time is d / v");
     // A share of 2^-1076 rounds to 0, but the target is ahead.
-    CHECK(DecayCrossingTime(&faint, 0.0, 4.0, 1.0) == 0.25, "a share below the least subnormal");
+    CHECK(ComputeDecayCrossingTime(&faint, 0.0, 4.0, 1.0) == 0.25,
+          "a share below the least subnormal");
     // d k = 1e-400 underflows to 0 though the share is 1e-200.
     mtwnDecay slow;
     CHECK(mtwnMakeDecay(1e-200, &slow) == mtwn_success, "a slow decay");
-    CHECK(Relative(DecayCrossingTime(&slow, 0.0, 1e-200, 1e-200), (Wide)1.0) <= 2e-16,
+    CHECK(Relative(ComputeDecayCrossingTime(&slow, 0.0, 1e-200, 1e-200), (Wide)1.0) <= 2e-16,
           "a share whose d k underflows");
     // target - position overflows; the share is 0.02.
     mtwnDecay gentle;
     CHECK(mtwnMakeDecay(1e-10, &gentle) == mtwn_success, "a gentle decay");
     double share = 2.0 * (1e308 * 1e-10) / 1e300;
-    CHECK(Relative(DecayCrossingTime(&gentle, -1e308, 1e300, 1e308),
+    CHECK(Relative(ComputeDecayCrossingTime(&gentle, -1e308, 1e300, 1e308),
                    -WIDE_LOG1P(-(Wide)share) / (Wide)1e-10) <= 4e-16,
           "a distance past the doubles");
     // The speed ratio 1e600 overflows: ln 1e300 - ln 1e-300.
     mtwnDecay unit;
     CHECK(mtwnMakeDecay(1.0, &unit) == mtwn_success, "a unit decay");
-    CHECK(Relative(DecayStopTime(&unit, 1e300, 1e-300), (Wide)log(1e300) - (Wide)log(1e-300)) <=
-              2e-16,
+    CHECK(Relative(ComputeDecayStopTime(&unit, 1e300, 1e-300),
+                   (Wide)log(1e300) - (Wide)log(1e-300)) <= 2e-16,
           "a stop speed ratio past the doubles");
     // v t = 1e310 overflows; the travel is v (1 - e^(-1e10)) = 1e300.
     double position = 0.0;
@@ -272,8 +274,8 @@ static bool BandRefused(double distance, double dimension, double coefficient)
 {
     double offset = 7.0;
     double drag = 7.0;
-    return mtwnRubberBand(distance, dimension, coefficient, &offset) == mtwn_errorInvalid &&
-           mtwnRubberBandInverse(distance, dimension, coefficient, &drag) == mtwn_errorInvalid &&
+    return mtwnApplyRubberBand(distance, dimension, coefficient, &offset) == mtwn_errorInvalid &&
+           mtwnInvertRubberBand(distance, dimension, coefficient, &drag) == mtwn_errorInvalid &&
            offset == 7.0 && drag == 7.0;
 }
 
@@ -284,14 +286,14 @@ static void TestRubberBand(void)
     for (int i = 1; i <= 2000; ++i)
     {
         double x = ldexp((double)i / 2000.0, i % 40 - 20);
-        double band = RubberBand(x, 600.0, 0.55);
+        double band = ApplyRubberBand(x, 600.0, 0.55);
         // iOS's d (1 - 1 / (u + 1)) with u = c x / d is c x / (1 + u),
         // which loses no digits in either width: the band over c x is
         // checked against 1 / (1 + u).
         Wide u = (Wide)0.55 * (Wide)x / 600;
         double error = Relative(band / (0.55 * x), 1 / (1 + u));
         worst = error > worst ? error : worst;
-        double back = RubberBandInverse(band, 600.0, 0.55);
+        double back = InvertRubberBand(band, 600.0, 0.55);
         double round = fabs(back - x) / x;
         worstInverse = round > worstInverse ? round : worstInverse;
     }
@@ -301,44 +303,44 @@ static void TestRubberBand(void)
     }
     CHECK(worst <= 6e-16, "iOS's rubber band, small drags keeping their digits");
     CHECK(worstInverse <= 1e-13, "its inverse takes the band back to the drag");
-    CHECK(RubberBand(-30.0, 600.0, 0.55) == -RubberBand(30.0, 600.0, 0.55), "signed");
-    CHECK(RubberBand(0.0, 600.0, 0.55) == 0.0, "nothing past the limit");
-    CHECK(fabs(RubberBand(1e-9, 600.0, 0.55) / 1e-9 - 0.55) <= 1e-12, "slope c at the limit");
-    CHECK(RubberBand(HUGE_VAL, 600.0, 0.55) == 600.0 &&
-              RubberBand(-HUGE_VAL, 600.0, 0.55) == -600.0,
+    CHECK(ApplyRubberBand(-30.0, 600.0, 0.55) == -ApplyRubberBand(30.0, 600.0, 0.55), "signed");
+    CHECK(ApplyRubberBand(0.0, 600.0, 0.55) == 0.0, "nothing past the limit");
+    CHECK(fabs(ApplyRubberBand(1e-9, 600.0, 0.55) / 1e-9 - 0.55) <= 1e-12, "slope c at the limit");
+    CHECK(ApplyRubberBand(HUGE_VAL, 600.0, 0.55) == 600.0 &&
+              ApplyRubberBand(-HUGE_VAL, 600.0, 0.55) == -600.0,
           "an infinite drag reaches the dimension");
-    CHECK(RubberBand(30.0, HUGE_VAL, 0.55) == 0.55 * 30.0 &&
-              RubberBand(-30.0, HUGE_VAL, HUGE_VAL) == -HUGE_VAL,
+    CHECK(ApplyRubberBand(30.0, HUGE_VAL, 0.55) == 0.55 * 30.0 &&
+              ApplyRubberBand(-30.0, HUGE_VAL, HUGE_VAL) == -HUGE_VAL,
           "an endless view resists nothing; with an endless coefficient, not NaN");
-    CHECK(RubberBand(0.0, 600.0, HUGE_VAL) == 0.0 && signbit(RubberBand(-0.0, 600.0, HUGE_VAL)) &&
-              RubberBand(30.0, 600.0, HUGE_VAL) == 600.0 &&
-              RubberBandInverse(0.0, 600.0, HUGE_VAL) == 0.0,
+    CHECK(ApplyRubberBand(0.0, 600.0, HUGE_VAL) == 0.0 &&
+              signbit(ApplyRubberBand(-0.0, 600.0, HUGE_VAL)) &&
+              ApplyRubberBand(30.0, 600.0, HUGE_VAL) == 600.0 &&
+              InvertRubberBand(0.0, 600.0, HUGE_VAL) == 0.0,
           "an endless coefficient: nothing past the limit moves nothing, any drag the view");
-    CHECK(RubberBandInverse(-16.5, HUGE_VAL, 0.55) == -16.5 / 0.55,
-          "and its inverse takes it back");
-    CHECK(RubberBand(1e10, 600.0, 0.55) < 600.0, "a finite one does not");
-    CHECK(RubberBand(1e308, 600.0, 4.0) == 600.0 &&
-              RubberBand(1e-310, 600.0, 0.55) == 0.55 * 1e-310,
+    CHECK(InvertRubberBand(-16.5, HUGE_VAL, 0.55) == -16.5 / 0.55, "and its inverse takes it back");
+    CHECK(ApplyRubberBand(1e10, 600.0, 0.55) < 600.0, "a finite one does not");
+    CHECK(ApplyRubberBand(1e308, 600.0, 4.0) == 600.0 &&
+              ApplyRubberBand(1e-310, 600.0, 0.55) == 0.55 * 1e-310,
           "nothing overflows at huge drags or vanishes at tiny ones");
     CHECK(BandRefused(30.0, 0.0, 0.55) && BandRefused(30.0, 600.0, 0.0) &&
               BandRefused((double)NAN, 600.0, 0.55) && BandRefused(30.0, -1.0, 0.55) &&
               BandRefused(30.0, (double)NAN, 0.55) && BandRefused(30.0, 600.0, (double)NAN),
           "no band without a dimension and a coefficient above 0, nor for a NaN drag");
-    double small = RubberBand(1.0, 0.5, 0.55);
+    double small = ApplyRubberBand(1.0, 0.5, 0.55);
     CHECK(fabs(small - 0.5 * 0.55 / 1.05) <= 1e-15 &&
-              fabs(RubberBandInverse(small, 0.5, 0.55) - 1.0) <= 1e-12,
+              fabs(InvertRubberBand(small, 0.5, 0.55) - 1.0) <= 1e-12,
           "a band under a unit wide");
-    CHECK(RubberBandInverse(-30.0, 600.0, 0.55) == -RubberBandInverse(30.0, 600.0, 0.55) &&
-              RubberBandInverse(-30.0, 600.0, 0.55) < 0.0,
+    CHECK(InvertRubberBand(-30.0, 600.0, 0.55) == -InvertRubberBand(30.0, 600.0, 0.55) &&
+              InvertRubberBand(-30.0, 600.0, 0.55) < 0.0,
           "the inverse is signed");
-    CHECK(RubberBandInverse(600.0, 600.0, 0.55) == HUGE_VAL &&
-              RubberBandInverse(-700.0, 600.0, 0.55) == -HUGE_VAL,
+    CHECK(InvertRubberBand(600.0, 600.0, 0.55) == HUGE_VAL &&
+              InvertRubberBand(-700.0, 600.0, 0.55) == -HUGE_VAL,
           "no drag moves it the dimension");
     CHECK(BandRefused(30.0, 0.0, 0.55) && BandRefused((double)NAN, 600.0, 0.55) &&
               BandRefused(30.0, 600.0, -0.55),
           "the inverse refuses the same, and a NaN offset");
-    CHECK(mtwnRubberBand(30.0, 600.0, 0.55, NULL) == mtwn_errorInvalid &&
-              mtwnRubberBandInverse(30.0, 600.0, 0.55, NULL) == mtwn_errorInvalid,
+    CHECK(mtwnApplyRubberBand(30.0, 600.0, 0.55, NULL) == mtwn_errorInvalid &&
+              mtwnInvertRubberBand(30.0, 600.0, 0.55, NULL) == mtwn_errorInvalid,
           "a null out refused");
 }
 
@@ -350,8 +352,9 @@ static void TestEnds(void)
     mtwnDecay decay;
     CHECK(mtwnMakeDecay(4.0, &decay) == mtwn_success, "a decay");
     double stop = 0.0;
-    CHECK(mtwnDecayStopTime(&decay, 0.0, 0.0, &stop) == mtwn_errorInvalid &&
-              mtwnDecayStopTime(&decay, 5.0, -1.0, &stop) == mtwn_errorInvalid && stop == 0.0,
+    CHECK(mtwnComputeDecayStopTime(&decay, 0.0, 0.0, &stop) == mtwn_errorInvalid &&
+              mtwnComputeDecayStopTime(&decay, 5.0, -1.0, &stop) == mtwn_errorInvalid &&
+              stop == 0.0,
           "a stop speed not above 0 refused");
     CHECK(BandRefused(0.0, 0.0, 0.55) && BandRefused(3.0, 0.0, 0.55) &&
               BandRefused(3.0, 100.0, 0.0),
@@ -371,17 +374,18 @@ static void TestForgedDecays(void)
         mtwnDecay decay = {rates[i]};
         refused +=
             mtwnSampleDecay(&decay, 0.0, 1.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
-        refused += mtwnDecayStopTime(&decay, 1.0, 0.5, &values[2]) == mtwn_errorInvalid;
-        refused += mtwnDecayCrossingTime(&decay, 0.0, 1.0, 0.1, &values[3]) == mtwn_errorInvalid;
+        refused += mtwnComputeDecayStopTime(&decay, 1.0, 0.5, &values[2]) == mtwn_errorInvalid;
+        refused +=
+            mtwnComputeDecayCrossingTime(&decay, 0.0, 1.0, 0.1, &values[3]) == mtwn_errorInvalid;
     }
     refused += mtwnSampleDecay(NULL, 0.0, 1.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
-    refused += mtwnDecayStopTime(NULL, 1.0, 0.5, &values[2]) == mtwn_errorInvalid;
-    refused += mtwnDecayCrossingTime(NULL, 0.0, 1.0, 0.1, &values[3]) == mtwn_errorInvalid;
+    refused += mtwnComputeDecayStopTime(NULL, 1.0, 0.5, &values[2]) == mtwn_errorInvalid;
+    refused += mtwnComputeDecayCrossingTime(NULL, 0.0, 1.0, 0.1, &values[3]) == mtwn_errorInvalid;
     CHECK(refused == 18 && values[0] == 7.0 && values[1] == 7.0 && values[2] == 7.0 &&
               values[3] == 7.0,
           "a rate not finite and above 0, or no decay, refused");
     mtwnDecay least = {DBL_TRUE_MIN};
-    CHECK(mtwnDecayStopTime(&least, 1.0, 0.5, &values[2]) == mtwn_success,
+    CHECK(mtwnComputeDecayStopTime(&least, 1.0, 0.5, &values[2]) == mtwn_success,
           "the least rate above 0 taken");
 }
 

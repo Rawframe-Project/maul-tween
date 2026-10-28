@@ -79,14 +79,15 @@ static mtwnPlayerId Play(World* w, bool keep, double rate)
 
 static void Update(World* w, double seconds)
 {
-    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "updated");
 }
 
 static uint32_t Read(World* w, mtwnEvent* events, uint32_t capacity)
 {
     uint32_t n = 0;
-    CHECK(mtwnReadEvents(w->context, events, capacity, &n, NULL) == mtwn_success, "read");
+    CHECK(mtwnContext_ReadEvents(w->context, events, capacity, &n, NULL) == mtwn_success, "read");
     return n;
 }
 
@@ -163,7 +164,7 @@ static void TestNoQueue(void)
     CHECK(differ == 0, "every frame's value as with a queue");
     uint64_t dropped = 7;
     uint32_t count = 7;
-    CHECK(mtwnReadEvents(twins[0].context, NULL, 0, &count, &dropped) == mtwn_success &&
+    CHECK(mtwnContext_ReadEvents(twins[0].context, NULL, 0, &count, &dropped) == mtwn_success &&
               count == 0 && dropped == 0 && mtwnContext_GetEventCount(twins[0].context) == 0,
           "nothing recorded, nothing dropped");
     CHECK(mtwnContext_GetEventCount(twins[1].context) > 0, "its twin's queue holds records");
@@ -444,11 +445,12 @@ static void TestQueue(void)
               mtwnContext_GetEventCount(w.context) == 1,
           "read one at a time, the oldest first");
     uint32_t n = 0;
-    CHECK(mtwnReadEvents(w.context, NULL, 1, &n, NULL) == mtwn_errorInvalid &&
-              mtwnReadEvents(w.context, e, 2, NULL, NULL) == mtwn_errorInvalid &&
-              mtwnReadEvents(NULL, e, 2, &n, NULL) == mtwn_errorInvalid,
+    CHECK(mtwnContext_ReadEvents(w.context, NULL, 1, &n, NULL) == mtwn_errorInvalid &&
+              mtwnContext_ReadEvents(w.context, e, 2, NULL, NULL) == mtwn_errorInvalid &&
+              mtwnContext_ReadEvents(NULL, e, 2, &n, NULL) == mtwn_errorInvalid,
           "refusals");
-    CHECK(mtwnReadEvents(w.context, NULL, 0, &n, NULL) == mtwn_success && n == 0, "none asked");
+    CHECK(mtwnContext_ReadEvents(w.context, NULL, 0, &n, NULL) == mtwn_success && n == 0,
+          "none asked");
     mtwnDestroyContext(w.context);
 }
 
@@ -496,12 +498,12 @@ static void TestOverflow(void)
     mtwnEvent e[8];
     uint32_t n = 0;
     uint64_t dropped = 0;
-    CHECK(mtwnReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && dropped == 0,
+    CHECK(mtwnContext_ReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && dropped == 0,
           "the starts fit");
     Update(&w, 3600.0);
     CHECK(mtwnContext_GetEventCount(w.context) == 4, "the queue full");
-    CHECK(mtwnReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 4 && dropped == 3 &&
-              mtwnContext_GetDroppedEvents(w.context) == 3,
+    CHECK(mtwnContext_ReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 4 &&
+              dropped == 3 && mtwnContext_GetDroppedEvents(w.context) == 3,
           "three past its capacity: dropped, and reported at the read");
     bool sorted = true;
     for (uint32_t i = 1; i < n; ++i)
@@ -512,7 +514,8 @@ static void TestOverflow(void)
     CHECK(e[0].kind == mtwn_eventIteration && e[0].node == inner && e[0].count == 14400 &&
               e[1].kind == mtwn_eventMark && e[1].node == outerMark && e[1].count == 3600,
           "the inner repeat's iterations counted four times a second, the outer mark once");
-    CHECK(mtwnReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 0 && dropped == 0,
+    CHECK(mtwnContext_ReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 0 &&
+              dropped == 0,
           "the drops reported once");
     (void)loop;
     (void)innerMark;
@@ -1062,7 +1065,7 @@ static void TestJumpStartMarks(void)
 {
     World w = MakeWorld(64);
     mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
-    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &group.timing.easing) == mtwn_success, "steps");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &group.timing.easing) == mtwn_success, "steps");
     group.timing.duration = 1.0;
     mtwnNode timeline = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &timeline) == mtwn_success, "a timeline");
@@ -1368,7 +1371,7 @@ static void TestReflectedJumpStart(void)
     stepped.timing.direction = mtwn_directionReverse;
     stepped.timing.fill = mtwn_fillBackwards;
     stepped.timing.alternateEasing = mtwn_alternateRepeatsShape;
-    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &stepped.timing.easing) == mtwn_success, "a step");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpStart, &stepped.timing.easing) == mtwn_success, "a step");
     mtwnNode timeline = 0;
     CHECK(mtwnClip_AddTimeline(w.context, w.clip, &stepped, &timeline) == mtwn_success,
           "a reversed stepped timeline");

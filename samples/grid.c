@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A grid of tiles appearing from its centre: each tile fades in and
-// slides up, its delay from a stagger, so the centre leads and the
+// A grid of tiles appearing from its center: each tile fades in and
+// slides up, its delay from a stagger, so the center leads and the
 // corners follow. Played twice: with motion, and under reduced motion,
 // where the slides land at once while the fades, marked essential (a
 // change of opacity is not motion), still play in their order. Returns 0
-// when the centre leads, every tile ends at rest, and reduced motion
+// when the center leads, every tile ends at rest, and reduced motion
 // removes the movement but keeps the fades.
 
 #include "maul-tween/context.h"
@@ -67,11 +67,11 @@ static void Enter(Grid* g, bool reduced)
                                     &g->offset[i]) == mtwn_success,
                "a tile");
     }
-    // 60 ms between neighbours, from the centre, eased so the outer
+    // 60 ms between neighbors, from the center, eased so the outer
     // rings close up.
     mtwnStagger stagger = mtwnDefaultStagger();
     stagger.columns = COLUMNS;
-    stagger.origin = mtwn_staggerCentre;
+    stagger.origin = mtwn_staggerCenter;
     stagger.spacing = 0.06;
     Expect(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &stagger.easing) == mtwn_success, "an easing");
     double delays[TILES];
@@ -100,7 +100,7 @@ static void Enter(Grid* g, bool reduced)
 
 static void Update(Grid* g, int frame)
 {
-    Expect(mtwnUpdate(g->context, (uint64_t)frame * s_frame, NULL, 0, NULL) == mtwn_success,
+    Expect(mtwnContext_Update(g->context, (uint64_t)frame * s_frame, NULL, 0, NULL) == mtwn_success,
            "an update");
 }
 
@@ -112,8 +112,8 @@ static void WithMotion(void)
     {
         Update(&g, frame);
     }
-    // Tile 5 is beside the centre, tile 0 a corner.
-    Expect(Read(&g, g.opacity[5]) > Read(&g, g.opacity[0]), "the centre fades in first");
+    // Tile 5 is beside the center, tile 0 a corner.
+    Expect(Read(&g, g.opacity[5]) > Read(&g, g.opacity[0]), "the center fades in first");
     Expect(Read(&g, g.offset[5]) < Read(&g, g.offset[0]), "and rises first");
     for (int frame = 9; frame <= 60; ++frame)
     {
@@ -143,9 +143,9 @@ static void Reduced(void)
     {
         Update(&g, frame);
     }
-    float centre = Read(&g, g.opacity[5]);
-    Expect(centre > 0.0f && centre < 1.0f, "the fades still play");
-    Expect(centre > Read(&g, g.opacity[0]), "in their order, from the centre");
+    float center = Read(&g, g.opacity[5]);
+    Expect(center > 0.0f && center < 1.0f, "the fades still play");
+    Expect(center > Read(&g, g.opacity[0]), "in their order, from the center");
     for (int frame = 9; frame <= 60; ++frame)
     {
         Update(&g, frame);
@@ -160,7 +160,7 @@ int main(void)
     Reduced();
     if (s_failed == 0)
     {
-        printf("grid: the centre leads; reduced motion lands the slides, keeps the fades\n");
+        printf("grid: the center leads; reduced motion lands the slides, keeps the fades\n");
     }
     return s_failed;
 }

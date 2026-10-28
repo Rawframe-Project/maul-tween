@@ -38,7 +38,7 @@ static void TestRow(void)
     mtwnStagger stagger = mtwnDefaultStagger();
     double got[5];
     CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success, "the default");
-    CHECK(NearAll(got, (const double[]){0.0, 0.1, 0.2, 0.3, 0.4}, 5), "each between neighbours");
+    CHECK(NearAll(got, (const double[]){0.0, 0.1, 0.2, 0.3, 0.4}, 5), "each between neighbors");
     CHECK(got[0] == 0.0, "the first at the start");
     double last[5];
     stagger.origin = mtwn_staggerLast;
@@ -49,13 +49,13 @@ static void TestRow(void)
         reversed = reversed && last[i] == got[4 - i];
     }
     CHECK(reversed, "the last reverses the first");
-    stagger.origin = mtwn_staggerCentre;
+    stagger.origin = mtwn_staggerCenter;
     CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success &&
               NearAll(got, (const double[]){0.2, 0.1, 0.0, 0.1, 0.2}, 5),
-          "from the centre of an odd count");
+          "from the center of an odd count");
     CHECK(mtwnComputeStagger(&stagger, 4, got) == mtwn_success &&
               NearAll(got, (const double[]){0.1, 0.0, 0.0, 0.1}, 4),
-          "from the centre of an even count, the nearest at the start");
+          "from the center of an even count, the nearest at the start");
     stagger.origin = mtwn_staggerEdges;
     CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success &&
               NearAll(got, (const double[]){0.0, 0.1, 0.2, 0.1, 0.0}, 5),
@@ -103,18 +103,18 @@ static void TestGrid(void)
 {
     mtwnStagger stagger = mtwnDefaultStagger();
     stagger.columns = 3;
-    stagger.origin = mtwn_staggerCentre;
+    stagger.origin = mtwn_staggerCenter;
     double got[9];
     CHECK(mtwnComputeStagger(&stagger, 9, got) == mtwn_success, "a 3 by 3 grid");
     CHECK(got[4] == 0.0 && Near(got[1], 0.1) && Near(got[3], 0.1) && Near(got[5], 0.1) &&
               Near(got[7], 0.1),
-          "a cell from the centre is each from it");
+          "a cell from the center is each from it");
     CHECK(Near(got[0], 0.1 * sqrt(2.0)) && got[0] == got[2] && got[0] == got[6] && got[0] == got[8],
           "the corners at the diagonal");
     stagger.origin = mtwn_staggerEdges;
     CHECK(mtwnComputeStagger(&stagger, 9, got) == mtwn_success && got[4] == 0.1 && got[0] == 0.0 &&
               got[1] == 0.0 && got[3] == 0.0 && got[5] == 0.0 && got[7] == 0.0 && got[8] == 0.0,
-          "from the edges of a grid, every border cell first, the centre last");
+          "from the edges of a grid, every border cell first, the center last");
     stagger.columns = 1;
     CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[0] == 0.0 && got[4] == 0.0 &&
               Near(got[1], 0.1) && Near(got[2], 0.2) && Near(got[3], 0.1),
@@ -129,16 +129,16 @@ static void TestGrid(void)
     CHECK(mtwnComputeStagger(&stagger, 6, got) == mtwn_success && got[0] == got[2] &&
               got[3] == got[5] && Near(got[3], 0.1),
           "along the rows only");
-    // From the centre, so items lie on both sides of the origin.
-    stagger.origin = mtwn_staggerCentre;
+    // From the center, so items lie on both sides of the origin.
+    stagger.origin = mtwn_staggerCenter;
     stagger.axis = mtwn_staggerX;
     CHECK(mtwnComputeStagger(&stagger, 6, got) == mtwn_success && got[1] == 0.0 &&
               Near(got[0], 0.1) && got[0] == got[2] && got[3] == got[5],
-          "along the columns, either side of the centre");
+          "along the columns, either side of the center");
     stagger.axis = mtwn_staggerY;
     CHECK(mtwnComputeStagger(&stagger, 9, got) == mtwn_success && got[4] == 0.0 &&
               Near(got[1], 0.1) && got[1] == got[7],
-          "along the rows, either side of the centre");
+          "along the rows, either side of the center");
     stagger.origin = mtwn_staggerFirst;
     stagger.axis = mtwn_staggerBoth;
     stagger.origin = mtwn_staggerPoint;
@@ -154,7 +154,7 @@ static void TestGrid(void)
               Near(got[2], 0.1) && Near(got[0], 0.2) && Near(got[3], 0.1 * sqrt(2.0)),
           "from the last item of a partial row");
     // Seven items in three columns: the grid is still three wide, so its
-    // edges and centre are the full rectangle's, and the short last row
+    // edges and center are the full rectangle's, and the short last row
     // lies on the bottom edge.
     stagger.columns = 3;
     stagger.origin = mtwn_staggerEdges;
@@ -162,10 +162,10 @@ static void TestGrid(void)
     CHECK(mtwnComputeStagger(&stagger, 7, got) == mtwn_success && got[6] == 0.0 && got[3] == 0.0 &&
               Near(got[4], 0.1),
           "a short last row on the bottom edge");
-    stagger.origin = mtwn_staggerCentre;
+    stagger.origin = mtwn_staggerCenter;
     CHECK(mtwnComputeStagger(&stagger, 7, got) == mtwn_success && got[4] == 0.0 &&
               Near(got[6], 0.1 * sqrt(2.0)) && Near(got[1], 0.1),
-          "a short last row measured to the full rectangle's centre");
+          "a short last row measured to the full rectangle's center");
 }
 
 static void TestRandom(void)

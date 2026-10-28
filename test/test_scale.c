@@ -4,7 +4,7 @@
 // Scales and zooms: against 60-digit decimals
 // (tools/oracle/zoom_oracle.py), van Wijk and Nuij's path written as the
 // paper writes it, out to the doubles' largest progress; ends exact, equal
-// ratios for equal steps, the zoom of equal centres the limit of a pan
+// ratios for equal steps, the zoom of equal centers the limit of a pan
 // going to 0, no NaN however far a path extends, and the refusals.
 
 #include "test_harness.h"
@@ -126,7 +126,7 @@ static void TestZoomCases(void)
         double error = fmax(Beyond(v.x, c->x), Beyond(v.y, c->y)) / scale;
         error = fmax(error, fabs(v.width - c->width) / c->width);
         worstView = error > worstView ? error : worstView;
-        double length = fabs(ZoomLength(&mix) - c->length) / fmax(c->length, 1e-300);
+        double length = fabs(ComputeZoomLength(&mix) - c->length) / fmax(c->length, 1e-300);
         worstLength = length > worstLength ? length : worstLength;
     }
     if (!(worstView <= 1e-12 && worstLength <= 1e-12))
@@ -160,7 +160,7 @@ static void TestZoomFarCases(void)
             continue;
         }
         mtwnZoomView v = MixZoom(&mix, c->progress);
-        // A centre settled far from the views is measured against itself.
+        // A center settled far from the views is measured against itself.
         double scale = fmax(hypot(c->x1 - c->x0, c->y1 - c->y0), fmax(c->w0, c->w1));
         double x = Beyond(v.x, c->x) / fmax(scale, fabs(c->x));
         double y = Beyond(v.y, c->y) / fmax(scale, fabs(c->y));
@@ -271,26 +271,27 @@ static void TestZoomShape(void)
         widest = fmax(widest, MixZoom(&mix, k / 64.0).width);
     }
     CHECK(widest > a.width, "it zooms out past both ends to pan");
-    // Equal centres: a geometric zoom, the length |log(w1 / w0)| / rho,
+    // Equal centers: a geometric zoom, the length |log(w1 / w0)| / rho,
     // also the limit of a pan going to 0.
     mtwnZoomView c = {5.0, 5.0, 8.0};
     mtwnZoomView d = {5.0, 5.0, 1.0};
     CHECK(mtwnMakeZoomMix(c, d, 2.0, &mix) == mtwn_success, "a zoom alone");
-    CHECK(fabs(ZoomLength(&mix) - log(8.0) / 2.0) <= 1e-15, "its length");
+    CHECK(fabs(ComputeZoomLength(&mix) - log(8.0) / 2.0) <= 1e-15, "its length");
     CHECK(fabs(MixZoom(&mix, 1.0 / 3.0).width - 4.0) <= 1e-14, "a third of the way, 4");
     mtwnZoomMix near;
     mtwnZoomView e = {5.0 + 1e-12, 5.0, 1.0};
     CHECK(mtwnMakeZoomMix(c, e, 2.0, &near) == mtwn_success, "a zoom with a tiny pan");
-    double gap = fabs(ZoomLength(&near) - ZoomLength(&mix)) / ZoomLength(&mix);
+    double gap = fabs(ComputeZoomLength(&near) - ComputeZoomLength(&mix)) / ComputeZoomLength(&mix);
     gap = fmax(gap, fabs(MixZoom(&near, 0.4).width - MixZoom(&mix, 0.4).width) /
                         MixZoom(&mix, 0.4).width);
     CHECK(gap <= 1e-10, "a pan going to 0 meets the zoom alone");
     // Zooming in has a positive length, as zooming out (d3's
     // interpolateZoom gives a negative duration there).
     mtwnZoomMix in;
-    CHECK(mtwnMakeZoomMix(d, c, 2.0, &in) == mtwn_success && ZoomLength(&in) == ZoomLength(&mix),
+    CHECK(mtwnMakeZoomMix(d, c, 2.0, &in) == mtwn_success &&
+              ComputeZoomLength(&in) == ComputeZoomLength(&mix),
           "in and out the same length");
-    CHECK(mtwnMakeZoomMix(c, c, 2.0, &mix) == mtwn_success && ZoomLength(&mix) == 0.0 &&
+    CHECK(mtwnMakeZoomMix(c, c, 2.0, &mix) == mtwn_success && ComputeZoomLength(&mix) == 0.0 &&
               MixZoom(&mix, 0.5).width == c.width,
           "equal views stay");
     int refused = 0;
@@ -408,7 +409,7 @@ static bool ZoomRefused(const mtwnZoomMix* mix)
     mtwnZoomView view = {2.0, 2.0, 2.0};
     double length = 2.0;
     return mtwnMixZoom(mix, 0.5, &view) == mtwn_errorInvalid &&
-           mtwnZoomLength(mix, &length) == mtwn_errorInvalid && view.x == 2.0 &&
+           mtwnComputeZoomLength(mix, &length) == mtwn_errorInvalid && view.x == 2.0 &&
            view.width == 2.0 && length == 2.0;
 }
 
@@ -443,8 +444,8 @@ static void TestZoomChecks(void)
     refused += mtwnMixZoom(&pan, 0.5, NULL) == mtwn_errorInvalid;
     refused += mtwnMixZoom(&pan, (double)NAN, &view) == mtwn_errorInvalid && view.x == 2.0;
     refused += mtwnMixZoom(&pan, -(double)INFINITY, &view) == mtwn_errorInvalid;
-    refused += mtwnZoomLength(NULL, &length) == mtwn_errorInvalid && length == 2.0;
-    refused += mtwnZoomLength(&pan, NULL) == mtwn_errorInvalid;
+    refused += mtwnComputeZoomLength(NULL, &length) == mtwn_errorInvalid && length == 2.0;
+    refused += mtwnComputeZoomLength(&pan, NULL) == mtwn_errorInvalid;
     CHECK(refused == 6, "a null mix or out and a progress not finite refused");
 
     mtwnZoomMix m = pan;

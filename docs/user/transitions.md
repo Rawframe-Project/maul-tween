@@ -25,7 +25,7 @@ made = mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0}, &o
 
 The default def is for a medium host: 1024 targets, 256 players (transitions included) with 64 points of `linear()` for each, 16 clips, 256 event records, 1024 bindings and the C library's allocator. Every capacity is allocated when the context is made; a full one refuses with `mtwn_errorCapacity`. `mtwnContext_GetMemoryBytes` says how large the block is, and `mtwnDestroyContext` gives everything back at once.
 
-A target has a base value, which `mtwnTarget_SetBase` sets and animations compose over, and a current value with its velocity, which `mtwnTarget_GetValue`, `mtwnTarget_GetState` and `mtwnReadTargets` read. A target no animation writes shows its base.
+A target has a base value, which `mtwnTarget_SetBase` sets and animations compose over, and a current value with its velocity, which `mtwnTarget_GetValue`, `mtwnTarget_GetState` and `mtwnContext_ReadTargets` read. A target no animation writes shows its base.
 
 ## Starting a transition
 
@@ -90,7 +90,7 @@ Each frame the host updates the context to its clock and redraws the targets who
 ```c
 mtwnTargetId changed[64];
 uint32_t total = 0;
-mtwnResult updated = mtwnUpdate(context, nowNs, changed, 64, &total);
+mtwnResult updated = mtwnContext_Update(context, nowNs, changed, 64, &total);
 for (uint32_t i = 0; i < total && i < 64; ++i)
 {
     mtwnVec4 value;

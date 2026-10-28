@@ -24,9 +24,9 @@ The makers:
 | `mtwnMakeBackEasing` | Back, with GSAP's and Penner's overshoot (1.70158 by default). |
 | `mtwnMakeElasticEasing` | Elastic, with GSAP's amplitude and period. |
 | `mtwnMakeCssEasing` | CSS's keywords: `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, `step-start`, `step-end`. |
-| `mtwnMakeCubicBezier` | CSS's `cubic-bezier(x1, y1, x2, y2)`. |
-| `mtwnMakeSteps` | CSS's `steps(n, position)`, every jump position. |
-| `mtwnMakeLinearEasing` | CSS's `linear()` with points. |
+| `mtwnMakeCubicBezierEasing` | CSS's `cubic-bezier(x1, y1, x2, y2)`. |
+| `mtwnMakeStepsEasing` | CSS's `steps(n, position)`, every jump position. |
+| `mtwnMakeLinearPointsEasing` | CSS's `linear()` with points. |
 | `mtwnMakeRoughEasing` | A rough curve from a seed, below. |
 | `mtwnMakeSpringEasing` | A spring over a duration (see [physics.md](physics.md)). |
 | `mtwnMakeHostEasing` | A function of the host's. |
@@ -61,4 +61,4 @@ mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);
 
 ## Tables and `linear()`
 
-`mtwnSampleEasing` fills a table of evenly spaced samples, for a shader or a lookup. `mtwnFitLinearEasing` turns any easing but steps into CSS `linear()` points within a tolerance, to hand to a browser or another engine: the points lie on the curve and the line between them is within the tolerance at 32 probes in each segment. A buffer that is too small gets `mtwn_errorCapacity` and the count needed, so call again with that capacity. A fit makes at most `MTWN_MAX_FIT_POINTS` points; a tolerance the curve cannot meet (below its rounding) ends with `mtwn_errorLimit` rather than with millions of them. Steps are refused: CSS writes them as `steps()`.
+`mtwnSampleEasingTable` fills a table of evenly spaced samples, for a shader or a lookup. `mtwnFitLinearEasing` turns any easing but steps into CSS `linear()` points within a tolerance, to hand to a browser or another engine: the points lie on the curve and the line between them is within the tolerance at 32 probes in each segment. A buffer that is too small gets `mtwn_errorCapacity` and the count needed, so call again with that capacity. A fit makes at most `MTWN_MAX_FIT_POINTS` points; a tolerance the curve cannot meet (below its rounding) ends with `mtwn_errorLimit` rather than with millions of them. Steps are refused: CSS writes them as `steps()`.

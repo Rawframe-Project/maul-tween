@@ -120,9 +120,9 @@ extern "C"
     ///         counted as misuse, the others read.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnReadTargets(mtwnContext* context,
-                                                       const mtwnTargetId* targets, uint32_t count,
-                                                       mtwnVec4* valuesOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_ReadTargets(mtwnContext* context,
+                                                               const mtwnTargetId* targets,
+                                                               uint32_t count, mtwnVec4* valuesOut);
 
 #ifdef __cplusplus
 }

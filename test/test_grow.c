@@ -76,7 +76,8 @@ static mtwnContextDef Small(Budget* budget)
 
 static void Update(mtwnContext* context, double seconds)
 {
-    CHECK(mtwnUpdate(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "updated");
 }
 
@@ -139,7 +140,7 @@ static void TestGrow(void)
     // One record read before growing: the ring starts part way round.
     mtwnEvent first;
     uint32_t taken = 0;
-    CHECK(mtwnReadEvents(context, &first, 1, &taken, NULL) == mtwn_success && taken == 1,
+    CHECK(mtwnContext_ReadEvents(context, &first, 1, &taken, NULL) == mtwn_success && taken == 1,
           "the first record read");
     Update(context, 1.0);
     CHECK(mtwnContext_GetEventCount(context) == 2, "two records queued");
@@ -190,8 +191,8 @@ static void TestGrow(void)
           "the players' ids carried");
     mtwnTargetId changed[4];
     uint32_t total = 0;
-    CHECK(mtwnUpdate(context, 2000000000u, changed, 4, &total) == mtwn_success && total == 2 &&
-              changed[0].index1 == b.index1 && changed[1].index1 == a.index1,
+    CHECK(mtwnContext_Update(context, 2000000000u, changed, 4, &total) == mtwn_success &&
+              total == 2 && changed[0].index1 == b.index1 && changed[1].index1 == a.index1,
           "the change made before growing reported, then the clip's");
     CHECK(ValueOf(context, a) == 2.0f && ValueOf(context, b) == 0.0f, "and they play on");
     // The sharing is a cache made again: any capacities, here none, its
@@ -209,7 +210,7 @@ static void TestGrow(void)
     uint32_t n = 0;
     // Queued before: the track's start and the first transition's; after,
     // the second transition's start.
-    CHECK(mtwnReadEvents(context, e, 8, &n, NULL) == mtwn_success && n == 3 &&
+    CHECK(mtwnContext_ReadEvents(context, e, 8, &n, NULL) == mtwn_success && n == 3 &&
               e[0].kind == mtwn_eventStart && e[0].node == MTWN_ROOT_NODE + 1 &&
               e[0].player.index1 == player.index1 && e[1].kind == mtwn_eventStart &&
               e[1].node == 0 && e[2].kind == mtwn_eventStart && e[2].node == 0 &&
@@ -347,10 +348,10 @@ static void TestNoRecords(void)
         }
     }
     CHECK(differ == 0, "no records, the same values");
-    CHECK(mtwnReadEvents(quiet, events, 32, &count, &dropped) == mtwn_success && count == 0 &&
-              dropped == 0 && mtwnContext_GetDroppedEvents(quiet) == 0,
+    CHECK(mtwnContext_ReadEvents(quiet, events, 32, &count, &dropped) == mtwn_success &&
+              count == 0 && dropped == 0 && mtwnContext_GetDroppedEvents(quiet) == 0,
           "none made, none dropped");
-    CHECK(mtwnReadEvents(loud, events, 32, &count, &dropped) == mtwn_success && count > 4,
+    CHECK(mtwnContext_ReadEvents(loud, events, 32, &count, &dropped) == mtwn_success && count > 4,
           "where the other made its starts and repeats");
     // Grown to hold records, it records what is crossed from there on:
     // the mark at 1.1 and the repeat at 1.25, not the second before.
@@ -361,8 +362,8 @@ static void TestNoRecords(void)
     Update(loud, 1.3);
     mtwnEvent heard[32];
     uint32_t heardCount = 0;
-    CHECK(mtwnReadEvents(quiet, heard, 32, &heardCount, &dropped) == mtwn_success &&
-              mtwnReadEvents(loud, events, 32, &count, NULL) == mtwn_success,
+    CHECK(mtwnContext_ReadEvents(quiet, heard, 32, &heardCount, &dropped) == mtwn_success &&
+              mtwnContext_ReadEvents(loud, events, 32, &count, NULL) == mtwn_success,
           "read");
     bool same = heardCount == count && heardCount == 2;
     for (uint32_t k = 0; same && k < count; ++k)
@@ -388,8 +389,8 @@ static void TestGrowLinearPoints(void)
     mtwnLinearPoint points[2][5] = {{{0.0, 0.0}, {0.2, 0.5}, {0.5, 0.6}, {0.8, 1.1}, {1.0, 1.0}},
                                     {{0.0, 0.0}, {0.1, -0.2}, {0.4, 0.3}, {0.9, 0.95}, {1.0, 1.0}}};
     mtwnEasing easings[2];
-    CHECK(mtwnMakeLinearEasing(points[0], 5, &easings[0]) == mtwn_success &&
-              mtwnMakeLinearEasing(points[1], 5, &easings[1]) == mtwn_success,
+    CHECK(mtwnMakeLinearPointsEasing(points[0], 5, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(points[1], 5, &easings[1]) == mtwn_success,
           "two linear() easings");
     for (int k = 0; k < 2; ++k)
     {

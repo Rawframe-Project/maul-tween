@@ -78,14 +78,15 @@ static World MakeWorld(float base)
     CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){base, 0, 0, 0}, &w.target) ==
               mtwn_success,
           "a target");
-    CHECK(mtwnUpdate(w.context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
+    CHECK(mtwnContext_Update(w.context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
     return w;
 }
 
 // The target's value at seconds from the world's start.
 static float At(World* w, double seconds)
 {
-    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "updated");
     mtwnTargetState state;
     CHECK(mtwnTarget_GetState(w->context, w->target, &state) == mtwn_success, "read");
@@ -299,7 +300,8 @@ static void TestStill(void)
         CHECK(mtwnStartTransition(w.context, &def, &player) == mtwn_success, "a transition");
         for (int k = 1; k <= 120; ++k)
         {
-            CHECK(mtwnUpdate(w.context, (uint64_t)k * 25000000u, NULL, 0, NULL) == mtwn_success,
+            CHECK(mtwnContext_Update(w.context, (uint64_t)k * 25000000u, NULL, 0, NULL) ==
+                      mtwn_success,
                   "updated");
             mtwnTargetState state;
             CHECK(mtwnTarget_GetState(w.context, w.target, &state) == mtwn_success, "read");
@@ -322,7 +324,7 @@ static void TestStill(void)
     mtwnPlayerId flung;
     mtwnTargetState start;
     CHECK(mtwnStartTransition(top.context, &fling, &flung) == mtwn_success &&
-              mtwnUpdate(top.context, 25000000u, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(top.context, 25000000u, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetState(top.context, top.target, &start) == mtwn_success,
           "flung down from the largest float");
     CHECK(start.value.x == 0x1.fffffep127f && start.velocity.x == -100.0f,
@@ -352,8 +354,8 @@ static void TestStill(void)
         }
         for (int k = 1; k < 60; ++k)
         {
-            CHECK(mtwnUpdate(w.context, 1000000000u + (uint64_t)k * 16666667u, NULL, 0, NULL) ==
-                      mtwn_success,
+            CHECK(mtwnContext_Update(w.context, 1000000000u + (uint64_t)k * 16666667u, NULL, 0,
+                                     NULL) == mtwn_success,
                   "updated");
             mtwnTargetState state;
             CHECK(mtwnTarget_GetState(w.context, w.target, &state) == mtwn_success, "read");

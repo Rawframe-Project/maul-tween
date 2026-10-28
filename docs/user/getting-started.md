@@ -33,11 +33,11 @@ or through pkg-config, `pkg-config --cflags --libs maul-tween`. A project can al
 - `sample_button`: a button's hover and press states as transitions interrupted midway, its scale on a spring, its lift and fill eased.
 - `sample_sequence`: a card's entrance as a clip, with a mark where a sound plays, read as events, then reversed.
 - `sample_layers`: an endless idle clip with a hit clip added over it, and a wheel turned on by an incremental track.
-- `sample_grid`: a grid of tiles staggered from its centre, played with motion and under reduced motion.
+- `sample_grid`: a grid of tiles staggered from its center, played with motion and under reduced motion.
 
 ## The model
 
-- **Host time.** Nothing runs by itself. The host calls `mtwnUpdate` with its own clock in nanoseconds, never going back, and every transition, clip and event follows that time. A paused game, a slowed one or a replay is the host's choice of clock.
+- **Host time.** Nothing runs by itself. The host calls `mtwnContext_Update` with its own clock in nanoseconds, never going back, and every transition, clip and event follows that time. A paused game, a slowed one or a replay is the host's choice of clock.
 - **Two layers.** Easings, springs, decays, the interpolation of every value kind, paths, timing and staggers are plain functions on values, with no context and no allocation (`easing.h`, `sample.h`, `spring.h`, `interpolate.h`, `path.h`, `timing.h`), safe from any thread. The context (`context.h`, `target.h`, `transition.h`, `clip.h`, `player.h`, `event.h`) holds targets, transitions, clips and players and is used by one thread at a time.
 - **Memory.** A context is one block from the host's allocator, sized by its def; each clip is one more block, counted against the context's clip storage. Nothing else is allocated, an update never allocates, and nothing grows unless the host calls `mtwnGrowContext`.
 - **Same results everywhere.** The library computes in its own floating-point environment (round to nearest, subnormals kept), whatever the host's is, with its own exponential, logarithm and trigonometry, so the same calls at the same times give the same bits on every platform and compiler.

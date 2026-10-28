@@ -77,8 +77,8 @@ static bool Heading(const mtwnPath* path, const mtwnCubic* cubic, double u, doub
     return true;
 }
 
-static MTWN_NOINLINE void mtwnPathDirectionWork(const mtwnPath* path, double progress,
-                                                double directionOut[4])
+static MTWN_NOINLINE void mtwnComputePathDirectionWork(const mtwnPath* path, double progress,
+                                                       double directionOut[4])
 {
     uint32_t i = 0;
     double u = 0.0;
@@ -117,42 +117,43 @@ static bool Takes(const mtwnPath* path, double progress)
     return mtwnValidPath(path) && mtwnPathReadsValid(path, progress);
 }
 
-static MTWN_NOINLINE mtwnResult mtwnPathDirectionChecked(const mtwnPath* path, double progress,
-                                                         double directionOut[4])
+static MTWN_NOINLINE mtwnResult mtwnComputePathDirectionChecked(const mtwnPath* path,
+                                                                double progress,
+                                                                double directionOut[4])
 {
     if (directionOut == NULL || !Takes(path, progress))
     {
         return mtwn_errorInvalid;
     }
-    mtwnPathDirectionWork(path, progress, directionOut);
+    mtwnComputePathDirectionWork(path, progress, directionOut);
     return mtwn_success;
 }
 
-mtwnResult mtwnPathDirection(const mtwnPath* path, double progress, double directionOut[4])
+mtwnResult mtwnComputePathDirection(const mtwnPath* path, double progress, double directionOut[4])
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPathDirectionChecked(path, progress, directionOut);
+    mtwnResult result = mtwnComputePathDirectionChecked(path, progress, directionOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnPathAngleChecked(const mtwnPath* path, double progress,
-                                                     double* angleOut)
+static MTWN_NOINLINE mtwnResult mtwnComputePathAngleChecked(const mtwnPath* path, double progress,
+                                                            double* angleOut)
 {
     if (angleOut == NULL || !Takes(path, progress))
     {
         return mtwn_errorInvalid;
     }
     double direction[4];
-    mtwnPathDirectionWork(path, progress, direction);
+    mtwnComputePathDirectionWork(path, progress, direction);
     *angleOut = mtwnAtan2(direction[1], direction[0]);
     return mtwn_success;
 }
 
-mtwnResult mtwnPathAngle(const mtwnPath* path, double progress, double* angleOut)
+mtwnResult mtwnComputePathAngle(const mtwnPath* path, double progress, double* angleOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPathAngleChecked(path, progress, angleOut);
+    mtwnResult result = mtwnComputePathAngleChecked(path, progress, angleOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

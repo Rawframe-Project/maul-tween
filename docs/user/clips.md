@@ -12,12 +12,13 @@ A clip is an animation written ahead of time: tracks of keyframes on nested time
 
 ## Building a clip
 
-A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnGetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
+A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnContext_GetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
 
 ```c
 mtwnClipDef clipDef = mtwnDefaultClipDef();
 uint64_t bytes = 0;
-mtwnResult built = mtwnGetClipBytes(context, &clipDef, &bytes); // its share of the clip storage
+// Its share of the clip storage.
+mtwnResult built = mtwnContext_GetClipBytes(context, &clipDef, &bytes);
 mtwnClipId clip;
 built = mtwnCreateClip(context, &clipDef, &clip);
 
@@ -95,7 +96,7 @@ A timeline's easing shapes its children's time. Eased by `steps()`, it holds the
 // Held 12 times a second (on twos at 24 frames): 2 s in 24 steps.
 mtwnClipTimelineDef twos = mtwnDefaultClipTimelineDef();
 twos.timing.duration = 2.0;
-made = mtwnMakeSteps(24, mtwn_jumpEnd, &twos.timing.easing);
+made = mtwnMakeStepsEasing(24, mtwn_jumpEnd, &twos.timing.easing);
 mtwnNode held;
 made = mtwnClip_AddTimeline(context, clip, &twos, &held);
 ```
@@ -106,19 +107,19 @@ A track with `incremental` set moves on each iteration by its last keyframe minu
 
 ## Staggers
 
-A stagger spreads offsets over items by their distance from an origin: the first or last item, the centre, the nearest edge, an item, a point of the grid, or an order from a seed.
+A stagger spreads offsets over items by their distance from an origin: the first or last item, the center, the nearest edge, an item, a point of the grid, or an order from a seed.
 
 ```c
 mtwnStagger stagger = mtwnDefaultStagger(); // 0.1 s apart, from the first
 stagger.columns = 4;                        // a grid of four columns
-stagger.origin = mtwn_staggerCentre;        // spreading from its centre
+stagger.origin = mtwn_staggerCenter;        // spreading from its center
 double delays[12];
 mtwnResult spread = mtwnComputeStagger(&stagger, 12, delays);
 ```
 
 The offsets go wherever a time does, such as a track's position offset or a transition's delay, or where a value does, such as a scale from item to item. Items one cell apart are the spacing apart, or with `mtwn_staggerAmount` the spacing is the whole spread; an axis measures along the columns or the rows only, and an easing redistributes the offsets.
 
-Porting from GSAP: a grid with a short last row stays its columns wide, its centre and edges the full rectangle's. GSAP's `distribute` puts the centre row at `count * 0.5 / columns - 0.5`, so for seven items in three columns its centre is 0.67 rows down where here it is 1, and its "edges" is the centre's distance reversed where here it is the nearest edge of the rectangle as drawn.
+Porting from GSAP: a grid with a short last row stays its columns wide, its center and edges the full rectangle's. GSAP's `distribute` puts the center row at `count * 0.5 / columns - 0.5`, so for seven items in three columns its center is 0.67 rows down where here it is 1, and its "edges" is the center's distance reversed where here it is the nearest edge of the rectangle as drawn.
 
 ## Not obvious
 

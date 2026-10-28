@@ -61,7 +61,8 @@ static mtwnNode Track(mtwnContext* context, mtwnClipId clip, uint32_t slot, mtwn
     keys[0].value = from;
     keys[1].value = to;
     keys[1].offset = 1.0;
-    Expect(mtwnMakeCubicBezier(0.2, 0.0, 0.0, 1.0, &keys[0].easing) == mtwn_success, "an easing");
+    Expect(mtwnMakeCubicBezierEasing(0.2, 0.0, 0.0, 1.0, &keys[0].easing) == mtwn_success,
+           "an easing");
     keys[1].easing = keys[0].easing;
     mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
     def.slot = slot;
@@ -100,7 +101,8 @@ static void ReadEvents(mtwnContext* context, mtwnNode body, uint32_t* chimes, ui
     mtwnEvent events[16];
     uint32_t count = 0;
     uint64_t dropped = 0;
-    Expect(mtwnReadEvents(context, events, 16, &count, &dropped) == mtwn_success && dropped == 0,
+    Expect(mtwnContext_ReadEvents(context, events, 16, &count, &dropped) == mtwn_success &&
+               dropped == 0,
            "the events read");
     for (uint32_t i = 0; i < count; ++i)
     {
@@ -168,7 +170,8 @@ int main(void)
     uint32_t frame = 0;
     for (; frame < 60; ++frame)
     {
-        Expect(mtwnUpdate(context, frame * s_frame, NULL, 0, NULL) == mtwn_success, "an update");
+        Expect(mtwnContext_Update(context, frame * s_frame, NULL, 0, NULL) == mtwn_success,
+               "an update");
         ReadEvents(context, body, &chimes, &bodyEnds, &bodyStarts);
     }
     mtwnTargetState shown;
@@ -183,7 +186,8 @@ int main(void)
     printf("hiding:\n");
     for (; frame < 120; ++frame)
     {
-        Expect(mtwnUpdate(context, frame * s_frame, NULL, 0, NULL) == mtwn_success, "an update");
+        Expect(mtwnContext_Update(context, frame * s_frame, NULL, 0, NULL) == mtwn_success,
+               "an update");
         ReadEvents(context, body, &chimes, &bodyEnds, &bodyStarts);
     }
     mtwnTargetState backdrop;

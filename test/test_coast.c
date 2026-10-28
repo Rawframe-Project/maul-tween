@@ -36,7 +36,7 @@ static mtwnTargetId Target(mtwnContext* context, mtwnValueKind kind, mtwnVec4 va
 
 static void Update(mtwnContext* context, uint64_t timeNs)
 {
-    CHECK(mtwnUpdate(context, timeNs, NULL, 0, NULL) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, timeNs, NULL, 0, NULL) == mtwn_success, "updated");
 }
 
 static mtwnTargetState State(mtwnContext* context, mtwnTargetId target)
@@ -126,13 +126,13 @@ static void TestBounded(void)
         differ += state.value.x != (float)px || state.value.y != (float)py;
     }
     CHECK(differ == 0, "each channel its bounded decay, sampled as alone");
-    double stop = BoundedDecayStopTime(&x, 40.0, 1500.0, 0.5, 1.0);
+    double stop = ComputeBoundedDecayStopTime(&x, 40.0, 1500.0, 0.5, 1.0);
     Update(context, (uint64_t)(stop * 1e9) + s_second);
     mtwnTargetState end = State(context, t);
     double rest = 0.0;
     SampleDecay(&def.decay, 300.0, -200.0,
-                DecayStopTime(&def.decay, -200.0, 1.0) > stop
-                    ? DecayStopTime(&def.decay, -200.0, 1.0)
+                ComputeDecayStopTime(&def.decay, -200.0, 1.0) > stop
+                    ? ComputeDecayStopTime(&def.decay, -200.0, 1.0)
                     : stop,
                 &rest, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) && end.base.x == 600.0f &&
@@ -240,8 +240,8 @@ static void TestLanding(void)
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "an angle landing");
     Update(context, 201u * s_second);
     Update(context, 300u * s_second);
-    float want = (float)mtwnMixAngle(350.0 * s_degree, (double)(float)(10.0 * s_degree),
-                                     mtwn_angleShorter, 1.0);
+    float want =
+        (float)MixAngle(350.0 * s_degree, (double)(float)(10.0 * s_degree), mtwn_angleShorter, 1.0);
     CHECK(State(context, a).base.x == want && want > 6.2f, "ending on 370 degrees");
     mtwnDestroyContext(context);
 }

@@ -32,7 +32,7 @@ static void TestMissingContext(void)
     refused += mtwnDestroyClip(c, noClip) == mtwn_errorInvalid;
     refused += mtwnClip_Finish(c, noClip) == mtwn_errorInvalid;
     refused += mtwnContext_SetReducedMotion(c, true) == mtwn_errorInvalid;
-    refused += mtwnUpdate(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
+    refused += mtwnContext_Update(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
     refused += mtwnPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Reverse(c, noPlayer) == mtwn_errorInvalid;
@@ -68,12 +68,13 @@ static void TestMakers(void)
           "a host easing");
     double coordinates[4] = {0.5, 0.5, 0.5, 1.0};
     mtwnColor color = {0.5f, 0.5f, 0.5f, 1.0f};
-    CHECK(mtwnColorToSpace(color, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
-              mtwnColorToSpace(color, (mtwnColorSpace)99, coordinates) == mtwn_errorInvalid,
+    CHECK(mtwnConvertColorToSpace(color, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
+              mtwnConvertColorToSpace(color, (mtwnColorSpace)99, coordinates) == mtwn_errorInvalid,
           "a color's coordinates: no output, an unknown space");
-    CHECK(mtwnColorFromSpace(NULL, mtwn_colorSrgb, &color) == mtwn_errorInvalid &&
-              mtwnColorFromSpace(coordinates, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
-              mtwnColorFromSpace(coordinates, (mtwnColorSpace)99, &color) == mtwn_errorInvalid,
+    CHECK(mtwnConvertColorFromSpace(NULL, mtwn_colorSrgb, &color) == mtwn_errorInvalid &&
+              mtwnConvertColorFromSpace(coordinates, mtwn_colorSrgb, NULL) == mtwn_errorInvalid &&
+              mtwnConvertColorFromSpace(coordinates, (mtwnColorSpace)99, &color) ==
+                  mtwn_errorInvalid,
           "a color from coordinates: none, no output, an unknown space");
 }
 

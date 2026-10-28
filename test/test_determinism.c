@@ -126,7 +126,7 @@ static mtwnEasing EasingFor(uint32_t seed)
         made = mtwnMakePowerEasing(mtwn_easeOut, 2.0, &easing);
         break;
     case 1:
-        made = mtwnMakeCubicBezier(0.25, 0.1, 0.25, 1.0, &easing);
+        made = mtwnMakeCubicBezierEasing(0.25, 0.1, 0.25, 1.0, &easing);
         break;
     case 2:
         made = mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &easing);
@@ -135,7 +135,7 @@ static mtwnEasing EasingFor(uint32_t seed)
         made = mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeInOut, &easing);
         break;
     case 4:
-        made = mtwnMakeSteps(4, mtwn_jumpEnd, &easing);
+        made = mtwnMakeStepsEasing(4, mtwn_jumpEnd, &easing);
         break;
     case 5:
         made = mtwnMakePowerEasing(mtwn_easeInOut, 2.5, &easing);
@@ -372,7 +372,7 @@ static void HashFrame(World* w)
     mtwnEvent events[64];
     uint32_t n = 0;
     uint64_t dropped = 0;
-    CHECK(mtwnReadEvents(w->context, events, 64, &n, &dropped) == mtwn_success, "events");
+    CHECK(mtwnContext_ReadEvents(w->context, events, 64, &n, &dropped) == mtwn_success, "events");
     Hash(&dropped, sizeof dropped);
     for (uint32_t e = 0; e < n; ++e)
     {
@@ -390,14 +390,14 @@ static void HashFrame(World* w)
     }
 }
 
-// Staggers: a grid from its centre, eased, and a seeded order, as
+// Staggers: a grid from its center, eased, and a seeded order, as
 // offsets hashed.
 static void HashStaggers(void)
 {
     double offsets[TARGETS];
     mtwnStagger grid = mtwnDefaultStagger();
     grid.columns = 6;
-    grid.origin = mtwn_staggerCentre;
+    grid.origin = mtwn_staggerCenter;
     grid.easing = EasingFor(5);
     CHECK(mtwnComputeStagger(&grid, TARGETS, offsets) == mtwn_success, "a grid stagger");
     for (uint32_t i = 0; i < TARGETS; ++i)
@@ -442,11 +442,11 @@ static void HashPathAt(const mtwnPath* path, double progress)
     double tangent[4];
     double direction[4];
     SamplePath(path, progress, value, tangent);
-    PathDirection(path, progress, direction);
+    ComputePathDirection(path, progress, direction);
     HashDoubles(value, 4);
     HashDoubles(tangent, 4);
     HashDoubles(direction, 4);
-    HashDouble(PathAngle(path, progress));
+    HashDouble(ComputePathAngle(path, progress));
 }
 
 static void HashPath(const mtwnPath* path)
@@ -540,7 +540,7 @@ static void HashValues(void)
         {
             mtwnZoomMix mix;
             CHECK(mtwnMakeZoomMix(views[v], views[v + 1], rhos[r], &mix) == mtwn_success, "a zoom");
-            HashDouble(ZoomLength(&mix));
+            HashDouble(ComputeZoomLength(&mix));
             for (uint32_t k = 0; k < SAMPLES; ++k)
             {
                 mtwnZoomView view = MixZoom(&mix, Progress(k));
@@ -562,7 +562,7 @@ static void HashValues(void)
         for (uint32_t channel = 0; channel < 4; ++channel)
         {
             HashDouble(SampleShake(&shake, channel, seconds));
-            HashDouble(ShakeNoise(&shake, channel, seconds));
+            HashDouble(SampleShakeNoise(&shake, channel, seconds));
         }
     }
 }
@@ -584,7 +584,7 @@ static void HashSprings(void)
         for (uint32_t k = 0; k < SAMPLES; ++k)
         {
             double seconds = 0.03125 * (double)k;
-            mtwnSpringMotion motion = SpringMotionAt(&springs[s], seconds);
+            mtwnSpringMotion motion = ComputeSpringMotion(&springs[s], seconds);
             HashDouble(motion.offsetFromOffset);
             HashDouble(motion.offsetFromVelocity);
             HashDouble(motion.velocityFromOffset);
@@ -595,7 +595,7 @@ static void HashSprings(void)
             HashDouble(offset);
             HashDouble(velocity);
         }
-        HashDouble(SpringSettlingTime(&springs[s], -1.0, 2.5, 1e-3, 1e-2));
+        HashDouble(ComputeSpringSettlingTime(&springs[s], -1.0, 2.5, 1e-3, 1e-2));
     }
 }
 
@@ -633,7 +633,7 @@ static void HashEasings(void)
         mtwnEasing easing = EasingFor(seed);
         HashEasing(&easing);
         float table[SAMPLES];
-        CHECK(mtwnSampleEasing(&easing, SAMPLES, table) == mtwn_success, "a table");
+        CHECK(mtwnSampleEasingTable(&easing, SAMPLES, table) == mtwn_success, "a table");
         Hash(table, sizeof table);
         mtwnLinearPoint points[1024];
         uint32_t count = 0;
@@ -688,12 +688,12 @@ static void HashDecays(void)
         SampleBoundedDecay(&bounded, 10.0, 900.0, seconds, &out[0], &out[1]);
         HashDoubles(out, 2);
         double distance = 40.0 * Progress(k);
-        HashDouble(RubberBand(distance, 320.0, 0.55));
-        HashDouble(RubberBandInverse(distance, 320.0, 0.55));
+        HashDouble(ApplyRubberBand(distance, 320.0, 0.55));
+        HashDouble(InvertRubberBand(distance, 320.0, 0.55));
     }
-    HashDouble(DecayStopTime(&decay, 900.0, 0.5));
-    HashDouble(DecayCrossingTime(&decay, 10.0, 900.0, 150.0));
-    HashDouble(BoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
+    HashDouble(ComputeDecayStopTime(&decay, 900.0, 0.5));
+    HashDouble(ComputeDecayCrossingTime(&decay, 10.0, 900.0, 150.0));
+    HashDouble(ComputeBoundedDecayStopTime(&bounded, 10.0, 900.0, 1e-3, 1e-2));
 }
 
 // Inputs just below and just above each switch between two forms, which
@@ -720,8 +720,8 @@ static void HashEdges(void)
     for (uint32_t b = 0; b < 5; ++b)
     {
         mtwnEasing bezier;
-        CHECK(mtwnMakeCubicBezier(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
-                                  &bezier) == mtwn_success,
+        CHECK(mtwnMakeCubicBezierEasing(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
+                                        &bezier) == mtwn_success,
               "a Bezier");
         HashEasing(&bezier);
     }
@@ -752,7 +752,7 @@ static void HashEdges(void)
     static const double series[2][2] = {{1.1, 1.13}, {0.0288, 0.0289}};
     for (uint32_t i = 0; i < 3; ++i)
     {
-        mtwnSpringMotion motion = SpringMotionAt(&undamped, far[i]);
+        mtwnSpringMotion motion = ComputeSpringMotion(&undamped, far[i]);
         HashDouble(motion.offsetFromOffset);
         HashDouble(motion.offsetFromVelocity);
         HashDouble(motion.velocityFromOffset);
@@ -779,7 +779,7 @@ static void HashEdges(void)
     static const double noiseAt[4] = {7.5e14, 7.51e14, -0.0, -1e-300};
     for (uint32_t i = 0; i < 4; ++i)
     {
-        HashDouble(ShakeNoise(&shake, 1, noiseAt[i]));
+        HashDouble(SampleShakeNoise(&shake, 1, noiseAt[i]));
     }
     mtwnResult inside = mtwnMakeShake(1.0, 0x1.fffffffffffffp52, 1.0, 1, &refused);
     mtwnResult past = mtwnMakeShake(1.0, 0x1p53, 1.0, 1, &refused);
@@ -804,7 +804,7 @@ int main(int argc, char** argv)
         Control(&w, frame);
         // Irregular steps of 4 to 30 ms.
         now += 4000000u + (uint64_t)((frame * 7919u) % 27u) * 1000000u;
-        CHECK(mtwnUpdate(w.context, now, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(w.context, now, NULL, 0, NULL) == mtwn_success, "an update");
         HashFrame(&w);
     }
     mtwnDestroyContext(w.context);

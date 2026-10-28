@@ -12,7 +12,7 @@
 #   r_i = log(sqrt(b_i^2 + 1) - b_i), S = (r1 - r0) / rho, and at s = p S
 #   u(s) = w0 / rho^2 (cosh r0 tanh(rho s + r0) - sinh r0),
 #   w(s) = w0 cosh r0 / cosh(rho s + r0);
-#   with equal centres S = |log(w1 / w0)| / rho and w = w0 (w1 / w0)^p.
+#   with equal centers S = |log(w1 / w0)| / rho and w = w0 (w1 / w0)^p.
 #
 # The library computes u another way (without the cancellation near 0)
 # and in units of w0; at 60 digits the paper's form loses nothing that
@@ -38,7 +38,7 @@ FAR_PROGRESS = [16.0, 1e3, 1e4, 1e10, 1e300, sys.float_info.max,
                 -16.0, -1e3, -1e4, -1e300, -sys.float_info.max]
 # Views whose paths are followed far past their ends: the example of #78,
 # a zoom in, a small rho, a pan along x whose share passes the doubles'
-# range, and far centres.
+# range, and far centers.
 FAR_VIEWS = [
     ((0.0, 0.0, 1.0), (10.0, 0.0, 2.0), math.sqrt(2.0)),
     ((0.0, 0.0, 1.0), (100.0, 50.0, 0.01), 1.42),

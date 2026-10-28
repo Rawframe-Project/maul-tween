@@ -59,12 +59,13 @@ static void Play(World* w)
     def.keep = true;
     mtwnPlayerId p;
     CHECK(mtwnCreatePlayer(w->context, &def, &p) == mtwn_success, "a player");
-    CHECK(mtwnUpdate(w->context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(w->context, 0, NULL, 0, NULL) == mtwn_success, "started");
 }
 
 static mtwnTargetState At(World* w, double seconds)
 {
-    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(w->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "updated");
     mtwnTargetState state;
     CHECK(mtwnTarget_GetState(w->context, w->target, &state) == mtwn_success, "read");

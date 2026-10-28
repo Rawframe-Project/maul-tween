@@ -126,8 +126,9 @@ extern "C"
     ///         unknown space or a color outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnColorToSpace(mtwnColor color, mtwnColorSpace space,
-                                                        double coordinatesOut[4]);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnConvertColorToSpace(mtwnColor color,
+                                                               mtwnColorSpace space,
+                                                               double coordinatesOut[4]);
 
     /// Converts a space's coordinates and an alpha back to a color.
     ///
@@ -141,9 +142,9 @@ extern "C"
     ///         hue excepted.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnColorFromSpace(const double coordinates[4],
-                                                          mtwnColorSpace space,
-                                                          mtwnColor* colorOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnConvertColorFromSpace(const double coordinates[4],
+                                                                 mtwnColorSpace space,
+                                                                 mtwnColor* colorOut);
 
     // How an angle interpolates: raw, or by CSS's hue methods with a
     // period of a full turn.
@@ -169,12 +170,15 @@ extern "C"
     ///
     /// @param from      The angle at progress 0, finite.
     /// @param to        The angle at progress 1, finite.
-    /// @param method    The method; an unknown one is raw.
+    /// @param method    The method.
     /// @param progress  The progress, finite; outside 0 to 1 extends.
-    /// @return The angle.
+    /// @param angleOut  Receives the angle; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null angleOut, an
+    ///         unknown method, or an angle or progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixAngle(double from, double to, mtwnAngleMethod method,
+                                                    double progress, double* angleOut);
 
     // A rotation as a unit quaternion (x, y, z, w): the axis times the sine
     // of half the angle, then its cosine. q and -q are the same rotation.
@@ -284,7 +288,7 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMixScale(const mtwnScaleMix* mix, double progress,
                                                     double* scaleOut);
 
-    // A view of a plane: the point at its centre and the width it shows.
+    // A view of a plane: the point at its center and the width it shows.
     typedef struct mtwnZoomView
     {
         double x;
@@ -309,7 +313,7 @@ extern "C"
     /// Makes the zoom and pan between two views that van Wijk and Nuij
     /// found optimal ("Smooth and efficient zooming and panning", 2003):
     /// it zooms out as far as the pan needs and back in, so the eye can
-    /// follow; with the centres equal it is a geometric zoom.
+    /// follow; with the centers equal it is a geometric zoom.
     ///
     /// @param from    The view at progress 0: finite, its width above 0.
     /// @param to      The view at progress 1, likewise.
@@ -328,7 +332,7 @@ extern "C"
 
     /// Samples a zoom mix: exactly from at 0 and to at 1, between them the
     /// path at that share of its length; outside 0 to 1 it extends, its
-    /// width going to 0 as its centre settles on a point either way (an
+    /// width going to 0 as its center settles on a point either way (an
     /// infinity where that point is past the doubles' range), never NaN.
     ///
     /// @param mix       A mix made by this library, or one whose fields pass
@@ -338,7 +342,7 @@ extern "C"
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
     ///         progress not finite, or a mix outside its check: views as
     ///         mtwnMakeZoomMix takes them with a finite difference between
-    ///         their centres, rho finite and above 0, a length finite and
+    ///         their centers, rho finite and above 0, a length finite and
     ///         not below 0, r0 within 700 of 0, cosh r0 finite and at
     ///         least 1, a finite pan's scale, and with a pan's scale of 0
     ///         widths whose scale mix passes its check and runs from one
@@ -359,7 +363,8 @@ extern "C"
     ///         mtwnMixZoom refuses.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnZoomLength(const mtwnZoomMix* mix, double* lengthOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeZoomLength(const mtwnZoomMix* mix,
+                                                             double* lengthOut);
 
     /// Interpolates an integer: the interpolation in double, rounded to
     /// nearest with ties away from zero, so it passes through every integer
@@ -369,10 +374,13 @@ extern "C"
     /// @param to        The value at progress 1.
     /// @param progress  The progress, finite; outside 0 to 1 extends,
     ///                  clamped to the type's range.
-    /// @return The value.
+    /// @param valueOut  Receives the value; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null valueOut or a
+    ///         progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API int64_t mtwnMixInteger(int64_t from, int64_t to, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixInteger(int64_t from, int64_t to, double progress,
+                                                      int64_t* valueOut);
 
     /// Interpolates a discrete value the host indexes (an enumeration, a
     /// flag): from below progress 1/2, to from it, as Web Animations
@@ -380,11 +388,14 @@ extern "C"
     ///
     /// @param from      The value at progress 0.
     /// @param to        The value at progress 1.
-    /// @param progress  The progress.
-    /// @return from or to.
+    /// @param progress  The progress, finite.
+    /// @param valueOut  Receives from or to; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null valueOut or a
+    ///         progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixDiscrete(uint32_t from, uint32_t to, double progress,
+                                                       uint32_t* valueOut);
 
     // A punch: a sine fading out over a duration, sin(2 pi f t) (1 - t /
     // duration)^exponent. Make one with mtwnMakePunch; its fields are the
@@ -488,8 +499,9 @@ extern "C"
     ///         whose fields mtwnMakeShake would refuse, or a NaN clock.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnShakeNoise(const mtwnShake* shake, uint32_t channel,
-                                                      double seconds, double* factorOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleShakeNoise(const mtwnShake* shake,
+                                                            uint32_t channel, double seconds,
+                                                            double* factorOut);
 
 #ifdef __cplusplus
 }

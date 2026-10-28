@@ -99,7 +99,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
     mtwnSpringMotion motion = {0};
     if (slot->transitionKind == mtwn_transitionSpring)
     {
-        motion = mtwnSpringMotionAtWork(&slot->spring, t);
+        motion = mtwnComputeSpringMotionWork(&slot->spring, t);
     }
     for (uint8_t i = 0; i < 4; ++i)
     {
@@ -494,9 +494,10 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnUpdateWork(mtwnContext* context, uint64_t timeNs,
-                                               mtwnTargetId* changedOut, uint32_t changedCapacity,
-                                               uint32_t* changedTotalOut)
+static MTWN_NOINLINE mtwnResult mtwnContext_UpdateWork(mtwnContext* context, uint64_t timeNs,
+                                                       mtwnTargetId* changedOut,
+                                                       uint32_t changedCapacity,
+                                                       uint32_t* changedTotalOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (changedTotalOut != NULL)
@@ -512,12 +513,12 @@ static MTWN_NOINLINE mtwnResult mtwnUpdateWork(mtwnContext* context, uint64_t ti
     return result;
 }
 
-mtwnResult mtwnUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
-                      uint32_t changedCapacity, uint32_t* changedTotalOut)
+mtwnResult mtwnContext_Update(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
+                              uint32_t changedCapacity, uint32_t* changedTotalOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result =
-        mtwnUpdateWork(context, timeNs, changedOut, changedCapacity, changedTotalOut);
+        mtwnContext_UpdateWork(context, timeNs, changedOut, changedCapacity, changedTotalOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

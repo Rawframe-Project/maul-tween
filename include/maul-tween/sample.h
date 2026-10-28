@@ -31,8 +31,8 @@ extern "C"
     ///         easing no maker produced or a count below 2.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleEasing(const mtwnEasing* easing, uint32_t count,
-                                                        float* valuesOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleEasingTable(const mtwnEasing* easing,
+                                                             uint32_t count, float* valuesOut);
 
     /// Fits CSS linear() points to an easing over progress 0 to 1: their
     /// interpolation is within the tolerance of the eased progress at every

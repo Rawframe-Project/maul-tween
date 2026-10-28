@@ -58,7 +58,7 @@ static mtwnPlayerId Start(mtwnContext* context, const mtwnTransitionDef* def)
 static void Update(mtwnContext* context, uint64_t timeNs)
 {
     uint32_t total = 0;
-    CHECK(mtwnUpdate(context, timeNs, NULL, 0, &total) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, timeNs, NULL, 0, &total) == mtwn_success, "updated");
 }
 
 static mtwnTargetState State(mtwnContext* context, mtwnTargetId target)
@@ -84,10 +84,11 @@ static void TestScalar(void)
     CHECK(fabsf(state.velocity.x - 10.0f) <= 1e-3f, "10 a second");
     mtwnTargetId changed[2];
     uint32_t total = 0;
-    CHECK(mtwnUpdate(context, t0 + s_second / 2, changed, 2, &total) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, t0 + s_second / 2, changed, 2, &total) == mtwn_success &&
               total == 1 && changed[0].index1 == x.index1 && changed[0].generation == x.generation,
           "reported as changed");
-    CHECK(mtwnUpdate(context, t0 + s_second / 2, changed, 2, &total) == mtwn_success && total == 0,
+    CHECK(mtwnContext_Update(context, t0 + s_second / 2, changed, 2, &total) == mtwn_success &&
+              total == 0,
           "and not again while it holds");
     Update(context, t0 + s_second);
     state = State(context, x);
@@ -188,9 +189,9 @@ static void TestKinds(void)
     CHECK(State(context, flag).value.x == 9.0f && State(context, flag).velocity.x == 0.0f,
           "a discrete value flips at 1/2, at rest");
     double reached = (double)State(context, angle).value.x;
-    CHECK(State(context, angle).value.x == (float)mtwnMixAngle((double)(float)(350 * pi / 180),
-                                                               (double)(float)(10 * pi / 180),
-                                                               mtwn_angleShorter, 0.5) &&
+    CHECK(State(context, angle).value.x == (float)MixAngle((double)(float)(350 * pi / 180),
+                                                           (double)(float)(10 * pi / 180),
+                                                           mtwn_angleShorter, 0.5) &&
               fabs(sin(reached)) < 1e-6 && cos(reached) > 0.0,
           "the shorter way through 0");
     mtwnColorMix mix;
@@ -409,7 +410,7 @@ static void TestExactness(void)
     // that only commits the base is reported.
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0.1f, 0, 0, 0});
     mtwnTransitionDef def = Linear(x, (mtwnVec4){0.7f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &def.easing) == mtwn_success, "steps(1, start)");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpStart, &def.easing) == mtwn_success, "steps(1, start)");
     Start(context, &def);
     Update(context, 0);
     Update(context, s_second / 2);
@@ -424,7 +425,7 @@ static void TestExactness(void)
     Update(context, s_second / 2 + 2);
     CHECK(State(context, far).value.x == 1e-30f && State(context, far).value.y == 1e30f,
           "even between ends thirty orders apart");
-    CHECK(mtwnUpdate(context, s_second, changed, 1, &total) == mtwn_success && total == 1 &&
+    CHECK(mtwnContext_Update(context, s_second, changed, 1, &total) == mtwn_success && total == 1 &&
               State(context, x).base.x == 0.7f,
           "the commit of the base alone is a change");
     // Inside the first millisecond velocity spans from the start.
@@ -478,7 +479,8 @@ static void TestSpring(void)
     mtwnTargetId x = Target(context, mtwn_valueScalar, (mtwnVec4){0});
     mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     mtwnPlayerId player = Start(context, &def);
-    double settle = SpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
+    double settle =
+        ComputeSpringSettlingTime(&def.spring, -1.0, 0.0, def.restOffset, def.restSpeed);
     CHECK(settle > 0.3 && settle < 2.0, "a critical spring settles within a second or so");
     Update(context, 0);
     double worst = 0.0;
@@ -512,8 +514,8 @@ static void TestStiffSpringEnds(void)
     mtwnTransitionDef def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     CHECK(mtwnMakeSpring(1e300, 1e150, 1.0, &def.spring) == mtwn_success, "a stiff spring");
     mtwnPlayerId player = Start(context, &def);
-    double settle =
-        SpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0, def.restOffset, def.restSpeed);
+    double settle = ComputeSpringSettlingTime(&def.spring, (double)-3e38f - 1.0, 0.0,
+                                              def.restOffset, def.restSpeed);
     CHECK(settle > 0.0 && settle < 1e-9, "it settles within a nanosecond");
     Update(context, 0);
     Update(context, 1);
@@ -565,8 +567,9 @@ static void TestDecay(void)
     def.velocitySource = mtwn_velocityGiven;
     def.velocity = (mtwnVec4){2000.0f, -50.0f, 0, 0};
     mtwnPlayerId player = Start(context, &def);
-    double stop = DecayStopTime(&def.decay, 2000.0, def.restSpeed);
-    CHECK(stop > DecayStopTime(&def.decay, -50.0, def.restSpeed), "the faster channel stops last");
+    double stop = ComputeDecayStopTime(&def.decay, 2000.0, def.restSpeed);
+    CHECK(stop > ComputeDecayStopTime(&def.decay, -50.0, def.restSpeed),
+          "the faster channel stops last");
     Update(context, 0);
     Update(context, s_second / 4);
     double position = 0.0;
@@ -707,7 +710,7 @@ static void TestScales(void)
               fabs((double)State(context, z).velocity.x - exp(position) * rate) <=
                   1e-5 * exp(position) * rate,
           "the decay in the logarithm, its velocity the value times the rate");
-    double stop = DecayStopTime(&coast.decay, 3.0, coast.restSpeed);
+    double stop = ComputeDecayStopTime(&coast.decay, 3.0, coast.restSpeed);
     Update(context, 40 * s_second + (uint64_t)(stop * 1e9) + 1);
     SampleDecay(&coast.decay, log(2.0), 3.0, stop, &position, NULL);
     CHECK(!mtwnPlayer_IsValid(context, player) &&
@@ -718,7 +721,7 @@ static void TestScales(void)
     // at the largest float, never infinite.
     mtwnLinearPoint points[2] = {{0.0, 0.0}, {1.0, 400.0}};
     def = Linear(s, (mtwnVec4){10.0f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMakeLinearEasing(points, 2, &def.easing) == mtwn_success, "linear() to 400");
+    CHECK(mtwnMakeLinearPointsEasing(points, 2, &def.easing) == mtwn_success, "linear() to 400");
     Start(context, &def);
     Update(context, 1000 * s_second);
     Update(context, 1000 * s_second + s_second / 2);
@@ -814,7 +817,7 @@ static void TestMeasure(void)
           "no cookie, no def, no context");
     def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
     CHECK(mtwnMeasureTransition(context, &def, NULL) == mtwn_errorInvalid, "nowhere to put it");
-    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, s_second, NULL, 0, NULL) == mtwn_success &&
               State(context, red).value.x == 1.0f && State(context, red).velocity.x == 0.0f,
           "nothing started or changed");
     mtwnDestroyContext(context);
@@ -831,7 +834,7 @@ static void TestAngleTurns(void)
     Update(context, s_second - 1);
     float near = State(context, angle).value.x;
     Update(context, s_second);
-    float turned = (float)mtwnMixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
+    float turned = (float)MixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
     CHECK(State(context, angle).base.x == turned && fabsf(near - turned) <= 1e-6f,
           "the end moved by its turn is what is committed: no jump of a turn");
     // An unknown method is refused for an angle, by every spec; a number
@@ -988,15 +991,16 @@ static void TestUpdateReport(void)
     CHECK(mtwnDestroyTarget(context, ids[1]) == mtwn_success, "one destroyed");
     mtwnTargetId changed[1];
     uint32_t total = 0;
-    CHECK(mtwnUpdate(context, 10, changed, 1, &total) == mtwn_success && total == 2 &&
+    CHECK(mtwnContext_Update(context, 10, changed, 1, &total) == mtwn_success && total == 2 &&
               changed[0].index1 == ids[3].index1,
           "in the order they changed, once each, the destroyed one gone, the rest counted");
     CHECK(State(context, ids[4]).value.x == 1.0f && State(context, ids[4]).base.x == 1.0f,
           "a zero duration ends at its first update");
-    CHECK(mtwnUpdate(context, 10, NULL, 0, NULL) == mtwn_success, "no report wanted");
-    CHECK(mtwnUpdate(context, 9, NULL, 0, &total) == mtwn_errorInvalid, "time going back");
-    CHECK(mtwnUpdate(context, 11, NULL, 1, &total) == mtwn_errorInvalid, "a capacity, no array");
-    CHECK(mtwnUpdate(NULL, 11, NULL, 0, &total) == mtwn_errorInvalid, "no context");
+    CHECK(mtwnContext_Update(context, 10, NULL, 0, NULL) == mtwn_success, "no report wanted");
+    CHECK(mtwnContext_Update(context, 9, NULL, 0, &total) == mtwn_errorInvalid, "time going back");
+    CHECK(mtwnContext_Update(context, 11, NULL, 1, &total) == mtwn_errorInvalid,
+          "a capacity, no array");
+    CHECK(mtwnContext_Update(NULL, 11, NULL, 0, &total) == mtwn_errorInvalid, "no context");
     CHECK(mtwnGetContextMisuse(context) == 2, "the two with a context counted");
     // Setting the base under a transition changes the base only.
     def = Linear(ids[0], (mtwnVec4){4.0f, 0, 0, 0}, 1.0);
@@ -1049,8 +1053,9 @@ static uint64_t Scenario(TestFloatSetting host, int* restoredOut)
     }
     for (int k = 0; k <= 60; ++k)
     {
-        restored &= mtwnUpdate(context, (uint64_t)k * 16666667u, NULL, 0, NULL) == mtwn_success &&
-                    TestFloatSame(TestFloatGet(), host);
+        restored &=
+            mtwnContext_Update(context, (uint64_t)k * 16666667u, NULL, 0, NULL) == mtwn_success &&
+            TestFloatSame(TestFloatGet(), host);
         for (int i = 0; i < 4; ++i)
         {
             mtwnTargetState state;
@@ -1102,8 +1107,8 @@ static void TestReplacedVelocity(void)
     CHECK(mtwnMakePowerEasing(mtwn_easeOut, 2.0, &def.easing) == mtwn_success, "quad out");
     mtwnPlayerId first;
     CHECK(mtwnStartTransition(context, &def, &first) == mtwn_success, "a transition");
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
-    CHECK(mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success, "a quarter in");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success, "a quarter in");
     mtwnTargetState before;
     CHECK(mtwnTarget_GetState(context, x, &before) == mtwn_success && before.velocity.x > 14.0f,
           "moving at about 15 a second");
@@ -1122,8 +1127,8 @@ static void TestReplacedVelocity(void)
     SampleSpring(&def.spring, (double)before.value.x + 5.0, (double)before.velocity.x, 0.25,
                  &offset, &speed);
     // It starts at the next update, from where the target is then.
-    CHECK(mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetState(context, x, &after) == mtwn_success &&
               fabs((double)after.value.x - (offset - 5.0)) <= 1e-5,
           "and the spring starts from it");
@@ -1168,11 +1173,12 @@ static void TestPowerModes(void)
                   "a power");
             mtwnPlayerId player;
             CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
-                      mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success,
+                      mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success,
                   "started");
             for (uint32_t k = 1; k < 16; ++k)
             {
-                CHECK(mtwnUpdate(context, now + k * (s_second / 16), NULL, 0, NULL) == mtwn_success,
+                CHECK(mtwnContext_Update(context, now + k * (s_second / 16), NULL, 0, NULL) ==
+                          mtwn_success,
                       "an update");
                 mtwnTargetState state;
                 CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success, "read");
@@ -1180,7 +1186,7 @@ static void TestPowerModes(void)
                 wrong += fabs((double)state.value.x - expected) <= 1e-6 ? 0u : 1u;
             }
             now += 2 * s_second;
-            CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "ended");
+            CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "ended");
         }
     }
     CHECK(wrong == 0, "every mode's power as the easing gives it");
@@ -1204,10 +1210,11 @@ static void TestFirstMillisecond(void)
     def.duration = 2.0;
     def.easing = mtwnLinearEasing();
     mtwnPlayerId player;
-    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, s_second, NULL, 0, NULL) == mtwn_success &&
               mtwnStartTransition(context, &def, &player) == mtwn_success &&
-              mtwnUpdate(context, 2 * s_second, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 2 * s_second + s_second / 2000, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, 2 * s_second, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 2 * s_second + s_second / 2000, NULL, 0, NULL) ==
+                  mtwn_success,
           "to red over 2 s, half a millisecond in");
     mtwnTargetState state;
     // Near black OkLab's mix reddens slowly at first: half a millisecond in,
@@ -1236,17 +1243,17 @@ static void TestStartRecordTime(void)
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
     def.delay = 0.7;
     mtwnPlayerId player;
-    CHECK(mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, start, NULL, 0, NULL) == mtwn_success &&
               mtwnStartTransition(context, &def, &player) == mtwn_success &&
-              mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, start, NULL, 0, NULL) == mtwn_success,
           "started, 0.7 s of delay");
     for (uint64_t ns = start + 700000000u - 2u; ns <= start + 700000000u + 2u; ++ns)
     {
-        CHECK(mtwnUpdate(context, ns, NULL, 0, NULL) == mtwn_success, "about its end");
+        CHECK(mtwnContext_Update(context, ns, NULL, 0, NULL) == mtwn_success, "about its end");
     }
     mtwnEvent events[8];
     uint32_t count = 0;
-    CHECK(mtwnReadEvents(context, events, 8, &count, NULL) == mtwn_success && count == 1 &&
+    CHECK(mtwnContext_ReadEvents(context, events, 8, &count, NULL) == mtwn_success && count == 1 &&
               events[0].kind == mtwn_eventStart && events[0].hostTime == (double)start / 1e9 + 0.7,
           "begun at its start plus its delay");
     mtwnDestroyContext(context);
@@ -1294,8 +1301,8 @@ static void TestPathVelocity(void)
           "the mix");
     mtwnColor want = MixColor(&mix, 1.0 + offset);
     mtwnTargetState state;
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 10, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 10, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetState(context, color, &state) == mtwn_success &&
               fabsf(state.value.x - want.red) <= 1e-6f &&
               fabsf(state.value.y - want.green) <= 1e-6f &&
@@ -1311,14 +1318,14 @@ static void TestPathVelocity(void)
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung");
     mtwnEvent events[8];
     uint32_t count = 0;
-    CHECK(mtwnReadEvents(context, events, 8, &count, NULL) == mtwn_success, "read");
+    CHECK(mtwnContext_ReadEvents(context, events, 8, &count, NULL) == mtwn_success, "read");
     def.value = (mtwnVec4){from[0], from[1], from[2], from[3]};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung to itself");
-    CHECK(mtwnReadEvents(context, events, 8, &count, NULL) == mtwn_success && count == 1 &&
+    CHECK(mtwnContext_ReadEvents(context, events, 8, &count, NULL) == mtwn_success && count == 1 &&
               events[0].kind == mtwn_eventCancel && events[0].clipTime == 0.0,
           "the first cancelled at 0 s in");
-    CHECK(mtwnUpdate(context, s_second / 5, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, s_second / 5, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetState(context, still, &state) == mtwn_success &&
               state.value.x == from[0] && state.velocity.x == 0.0f,
           "no velocity in progress");
@@ -1344,7 +1351,7 @@ static void TestStartVelocity(void)
     CHECK(mtwnMakeSpringFromDuration(0.5, 0.0, &def.spring) == mtwn_success, "a spring");
     mtwnPlayerId player;
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "flung at 5 a second");
-    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success, "its first update");
+    CHECK(mtwnContext_Update(context, s_second, NULL, 0, NULL) == mtwn_success, "its first update");
     mtwnTargetState state;
     CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success && state.value.x == 0.0f &&
               state.velocity.x == 5.0f,
@@ -1352,13 +1359,13 @@ static void TestStartVelocity(void)
     def.velocitySource = mtwn_velocityInherit;
     def.value = (mtwnVec4){2.0f, 0, 0, 0};
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "replaced at once");
-    CHECK(mtwnUpdate(context, s_second, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, s_second, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetState(context, x, &state) == mtwn_success && state.velocity.x == 5.0f,
           "the replacement keeps the fling");
     // A delay holds the start at rest until it ends.
     def.delay = 0.5;
     CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success, "a delayed one");
-    CHECK(mtwnUpdate(context, s_second + s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, s_second + s_second / 4, NULL, 0, NULL) == mtwn_success,
           "in its delay");
     CHECK(mtwnTarget_GetState(context, x, &state) == mtwn_success && state.velocity.x == 0.0f,
           "at rest in the delay");
@@ -1384,7 +1391,7 @@ static mtwnPlayerId Toward(mtwnContext* context, mtwnTargetId x, float value, do
 // The first channel of x after an update at a host time.
 static float ValueAt(mtwnContext* context, mtwnTargetId x, uint64_t now)
 {
-    CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "updated");
     return State(context, x).value.x;
 }
 
@@ -1394,14 +1401,14 @@ static float ValueAt(mtwnContext* context, mtwnTargetId x, uint64_t now)
 static bool Lasts(mtwnContext* context, mtwnTargetId x, mtwnPlayerId player, uint64_t start,
                   uint64_t ns, mtwnVec4 end)
 {
-    bool before = mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success;
+    bool before = mtwnContext_Update(context, start, NULL, 0, NULL) == mtwn_success;
     if (ns > 0)
     {
         before = before && mtwnPlayer_IsValid(context, player) &&
-                 mtwnUpdate(context, start + ns - 1, NULL, 0, NULL) == mtwn_success &&
+                 mtwnContext_Update(context, start + ns - 1, NULL, 0, NULL) == mtwn_success &&
                  mtwnPlayer_IsValid(context, player);
     }
-    bool after = mtwnUpdate(context, start + ns, NULL, 0, NULL) == mtwn_success &&
+    bool after = mtwnContext_Update(context, start + ns, NULL, 0, NULL) == mtwn_success &&
                  !mtwnPlayer_IsValid(context, player);
     mtwnVec4 value = State(context, x).value;
     return before && after && value.x == end.x && value.y == end.y && value.z == end.z &&
@@ -1473,8 +1480,8 @@ static void TestReversal(void)
     spring.reverses = true;
     mtwnPlayerId springing;
     CHECK(mtwnStartTransition(context, &spring, &springing) == mtwn_success, "a spring");
-    CHECK(mtwnUpdate(context, sprung, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, sprung + s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, sprung, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, sprung + s_second / 4, NULL, 0, NULL) == mtwn_success,
           "springing");
     mtwnPlayerId after = Toward(context, x, 0.0f, 1.0, &quadOut, true);
     CHECK(Lasts(context, x, after, sprung + s_second / 4, s_second, s_zero),
@@ -1495,8 +1502,8 @@ static void TestReversalSignedZero(void)
           "a target at -0");
     mtwnEasing linear = mtwnLinearEasing();
     (void)Toward(context, x, 1.0f, 1.0, &linear, true);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "a quarter in");
     mtwnPlayerId back = Toward(context, x, 0.0f, 1.0, &linear, true);
     CHECK(Lasts(context, x, back, s_second / 4, s_second / 4, s_zero),
@@ -1509,9 +1516,9 @@ static void TestReversalSignedZero(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
           "a target");
     mtwnEasing steps;
-    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &steps) == mtwn_success, "steps(4, jump-start)");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &steps) == mtwn_success, "steps(4, jump-start)");
     (void)Toward(context, x, 1.0f, 1.0, &steps, true);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "at its start");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "at its start");
     back = Toward(context, x, 0.0f, 1.0, &steps, true);
     CHECK(Lasts(context, x, back, 0, s_second / 4, s_zero), "back over the step already taken");
     mtwnDestroyContext(context);
@@ -1539,8 +1546,8 @@ static void TestReversalSignedZero(void)
         def.reverses = true;
         mtwnPlayerId player;
         CHECK(mtwnStartTransition(context, &def, &player) == mtwn_success &&
-                  mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-                  mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+                  mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+                  mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
               "a quarter in");
         def.value = (mtwnVec4){1, 2, 3, 4};
         (&def.value.x)[channel] += 0.5f;
@@ -1565,8 +1572,8 @@ static void TestReversalOvershoot(void)
     CHECK(mtwnMakeBackEasing(mtwn_easeOut, 1.70158, &backOut) == mtwn_success, "a back out");
     (void)Toward(context, x, 1.0f, 1.0, &backOut, true);
     CHECK(EaseAt(&backOut, 0.75, false) > 1.0, "past 1 three quarters in");
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success,
           "three quarters in");
     mtwnEasing linear = mtwnLinearEasing();
     mtwnPlayerId back = Toward(context, x, 0.0f, 1.0, &linear, true);
@@ -1586,10 +1593,11 @@ static void TestReversalEdges(void)
     mtwnEasing linear = mtwnLinearEasing();
     // From 2 to 3 and back to 2 a quarter in: the way back ends a
     // quarter of a second later, its value committed.
-    CHECK(mtwnUpdate(context, 5 * s_second, NULL, 0, NULL) == mtwn_success, "at 5 s");
+    CHECK(mtwnContext_Update(context, 5 * s_second, NULL, 0, NULL) == mtwn_success, "at 5 s");
     (void)Toward(context, x, 3.0f, 1.0, &linear, true);
-    CHECK(mtwnUpdate(context, 5 * s_second, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 5 * s_second + s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 5 * s_second, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 5 * s_second + s_second / 4, NULL, 0, NULL) ==
+                  mtwn_success,
           "a quarter in");
     const mtwnVec4 two = {2.0f, 0, 0, 0};
     mtwnPlayerId back = Toward(context, x, 2.0f, 1.0, &linear, true);
@@ -1609,10 +1617,11 @@ static void TestReversalEdges(void)
     late.delay = 0.5;
     late.reverses = true;
     mtwnPlayerId waiting;
-    CHECK(mtwnUpdate(context, 6 * s_second, NULL, 0, NULL) == mtwn_success &&
+    CHECK(mtwnContext_Update(context, 6 * s_second, NULL, 0, NULL) == mtwn_success &&
               mtwnStartTransition(context, &late, &waiting) == mtwn_success &&
-              mtwnUpdate(context, 6 * s_second, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 6 * s_second + s_second / 10, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, 6 * s_second, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 6 * s_second + s_second / 10, NULL, 0, NULL) ==
+                  mtwn_success,
           "in its delay");
     undone = Toward(context, x, 2.0f, 1.0, &linear, true);
     CHECK(Lasts(context, x, undone, 6 * s_second + s_second / 10, 0, two), "reversed in its delay");
@@ -1625,18 +1634,18 @@ static void TestReversalEdges(void)
     mtwnEasing backIn;
     CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1.70158, &backIn) == mtwn_success, "back in");
     (void)Toward(context, x, 1.0f, 1.0, &backIn, true);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "a quarter in, below the start");
     double p = EaseAt(&backIn, 0.25, false);
     back = Toward(context, x, 0.0f, 1.0, &backIn, true);
     // The way back lasts -p seconds, to the nanosecond either side.
     uint64_t start = s_second / 4;
     uint64_t lower = (uint64_t)floor(-p * 1e9);
-    CHECK(p < 0.0 && mtwnUpdate(context, start, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, start + lower - 1, NULL, 0, NULL) == mtwn_success &&
+    CHECK(p < 0.0 && mtwnContext_Update(context, start, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, start + lower - 1, NULL, 0, NULL) == mtwn_success &&
               mtwnPlayer_IsValid(context, back) &&
-              mtwnUpdate(context, start + lower + 2, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, start + lower + 2, NULL, 0, NULL) == mtwn_success &&
               !mtwnPlayer_IsValid(context, back) && State(context, x).value.x == 0.0f,
           "back over the size of the share");
     mtwnDestroyContext(context);
@@ -1667,8 +1676,8 @@ static void TestLinearPointsCopied(void)
     memcpy(kept, points, sizeof kept);
     mtwnEasing easing;
     mtwnEasing reference;
-    CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success &&
-              mtwnMakeLinearEasing(kept, 4, &reference) == mtwn_success,
+    CHECK(mtwnMakeLinearPointsEasing(points, 4, &easing) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(kept, 4, &reference) == mtwn_success,
           "a linear() easing and a copy of it");
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     transition.target = x;
@@ -1690,7 +1699,7 @@ static void TestLinearPointsCopied(void)
     uint64_t misuse = mtwnGetContextMisuse(context);
     mtwnEasing longer;
     mtwnLinearPoint five[5] = {{0.0, 0.0}, {0.2, 0.1}, {0.4, 0.5}, {0.7, 0.8}, {1.0, 1.0}};
-    CHECK(mtwnMakeLinearEasing(five, 5, &longer) == mtwn_success, "five points");
+    CHECK(mtwnMakeLinearPointsEasing(five, 5, &longer) == mtwn_success, "five points");
     transition.easing = longer;
     mtwnPlayerId refused;
     CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorCapacity &&
@@ -1698,7 +1707,7 @@ static void TestLinearPointsCopied(void)
           "more points than a transition holds: refused, not misuse, the running one kept");
     mtwnLinearPoint swapped[4] = {{0.0, 0.0}, {0.5, 0.2}, {0.25, 0.6}, {1.0, 1.0}};
     mtwnEasing changed;
-    CHECK(mtwnMakeLinearEasing(swapped, 4, &changed) == mtwn_success, "canonical points");
+    CHECK(mtwnMakeLinearPointsEasing(swapped, 4, &changed) == mtwn_success, "canonical points");
     swapped[2].input = 0.25;
     swapped[1].input = 0.5;
     transition.easing = changed;

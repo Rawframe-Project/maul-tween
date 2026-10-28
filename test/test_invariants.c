@@ -220,7 +220,7 @@ static void TestPositionNeverStepsBack(void)
         double sign = t.playbackRate > 0.0 ? 1.0 : -1.0;
         // The local times of each iteration's start and end, then of the
         // active interval's ends.
-        double centres[2 * 9 + 2];
+        double centers[2 * 9 + 2];
         uint32_t count = 0;
         for (double j = floor(s) + 1.0; j <= ceil(s + t.iterations); ++j)
         {
@@ -229,14 +229,14 @@ static void TestPositionNeverStepsBack(void)
             {
                 double scaled =
                     (positions[w] - floor(s) * cycle - (s - floor(s)) * d) / fabs(t.playbackRate);
-                centres[count++] = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
+                centers[count++] = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
             }
         }
-        centres[count++] = t.delay;
-        centres[count++] = t.delay + shape.activeDuration;
+        centers[count++] = t.delay;
+        centers[count++] = t.delay + shape.activeDuration;
         for (uint32_t c = 0; c < count; ++c)
         {
-            double x = centres[c];
+            double x = centers[c];
             for (int k = 0; k < 40; ++k)
             {
                 x = nextafter(x, -HUGE_VAL);
@@ -567,7 +567,7 @@ static void TestPlaying(void)
             }
             uint64_t before = now;
             now += 1000000u + (uint64_t)(Next() % 50) * 1000000u;
-            CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
+            CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "an update");
             // Under reduced motion a player still running is essential,
             // or one that cannot finish: an infinite end ahead, or a rate
             // of 0.
@@ -592,7 +592,8 @@ static void TestPlaying(void)
             static mtwnEvent events[1024];
             uint32_t n = 0;
             uint64_t dropped = 0;
-            CHECK(mtwnReadEvents(context, events, 1024, &n, &dropped) == mtwn_success, "read");
+            CHECK(mtwnContext_ReadEvents(context, events, 1024, &n, &dropped) == mtwn_success,
+                  "read");
             records += n;
             for (uint32_t e = 0; e < n; ++e)
             {
@@ -680,7 +681,7 @@ static void TestTransitions(void)
             last[k] = started ? player : last[k];
         }
         now += 1000000u + (uint64_t)(Next() % 30) * 1000000u;
-        CHECK(mtwnUpdate(context, now, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "an update");
         for (uint32_t t = 0; t < 10; ++t)
         {
             mtwnTargetState state;

@@ -125,17 +125,18 @@ static void TestWithin(void)
     mtwnBoundedDecay past;
     CHECK(mtwnMakeBoundedDecay(&ulp, &bounce, -1e9, -0x1.a2c5572e58c5dp-2, &past) == mtwn_success,
           "its rest an ulp past the upper bound");
-    CHECK(BoundedDecayStopTime(&past, -0x1.1e67f6p+1, 0x1.15298e199999ap+4, 0.5, 1.0) ==
-              DecayStopTime(&ulp, 0x1.15298e199999ap+4, 1.0),
+    CHECK(ComputeBoundedDecayStopTime(&past, -0x1.1e67f6p+1, 0x1.15298e199999ap+4, 0.5, 1.0) ==
+              ComputeDecayStopTime(&ulp, 0x1.15298e199999ap+4, 1.0),
           "the decay's stop");
-    CHECK(BoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 1.0) ==
-              DecayStopTime(&decay, 1500.0, 1.0),
+    CHECK(ComputeBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 1.0) ==
+              ComputeDecayStopTime(&decay, 1500.0, 1.0),
           "and its stop");
     double stop = 0.0;
-    CHECK(mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.0, 1.0, &stop) == mtwn_errorInvalid &&
-              mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, -0.5, 1.0, &stop) ==
+    CHECK(mtwnComputeBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.0, 1.0, &stop) ==
                   mtwn_errorInvalid &&
-              mtwnBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 0.0, &stop) ==
+              mtwnComputeBoundedDecayStopTime(&bounded, 40.0, 1500.0, -0.5, 1.0, &stop) ==
+                  mtwn_errorInvalid &&
+              mtwnComputeBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 0.0, &stop) ==
                   mtwn_errorInvalid &&
               stop == 0.0,
           "a tolerance not above 0 refused, though this one never needs it");
@@ -151,7 +152,7 @@ static void TestWithin(void)
     double at = 0.0;
     double speed = 0.0;
     CHECK(mtwnSampleBoundedDecay(&below, -HUGE_VAL, 300.0, 0.5, &at, &speed) == mtwn_errorInvalid &&
-              mtwnBoundedDecayStopTime(&below, -HUGE_VAL, 300.0, 0.5, 1.0, &stop) ==
+              mtwnComputeBoundedDecayStopTime(&below, -HUGE_VAL, 300.0, 0.5, 1.0, &stop) ==
                   mtwn_errorInvalid &&
               at == 0.0 && speed == 0.0 && stop == 0.0,
           "a start at an infinite bound refused");
@@ -163,7 +164,7 @@ static void TestCrossing(void)
     // bound at 600 is reached first.
     mtwnBoundedDecay bounded = Bounded(0.0, 600.0);
     mtwnDecay decay = Ios();
-    double crossing = DecayCrossingTime(&decay, 40.0, 1500.0, 600.0);
+    double crossing = ComputeDecayCrossingTime(&decay, 40.0, 1500.0, 600.0);
     CHECK(crossing > 0.0 && isfinite(crossing), "a crossing");
     // Up to the crossing the decay; at it the bound exactly.
     double before = 0.0;
@@ -198,7 +199,7 @@ static void TestCrossing(void)
         furthest = fmax(furthest, p);
     }
     CHECK(furthest > 600.0 && furthest < 789.0, "over the bound, short of the natural rest");
-    double stop = BoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 1.0);
+    double stop = ComputeBoundedDecayStopTime(&bounded, 40.0, 1500.0, 0.5, 1.0);
     int restless = 0;
     for (int k = 0; k <= 100; ++k)
     {
@@ -210,7 +211,7 @@ static void TestCrossing(void)
     CHECK(stop > crossing && isfinite(stop) && restless == 0, "at rest on the bound from its stop");
     // The lower bound, flung down.
     bounded = Bounded(-100.0, 600.0);
-    double low = DecayCrossingTime(&decay, 40.0, -1500.0, -100.0);
+    double low = ComputeDecayCrossingTime(&decay, 40.0, -1500.0, -100.0);
     SampleBoundedDecay(&bounded, 40.0, -1500.0, low, &at, NULL);
     CHECK(isfinite(low) && at == -100.0, "the lower bound alike");
 }
@@ -234,12 +235,13 @@ static void TestStartPast(void)
     double start = 0.0;
     SampleBoundedDecay(&bounded, -20.0, -300.0, 0.0, &start, NULL);
     CHECK(differ == 0 && start == -20.0, "the spring from the start, to the nearer bound");
-    CHECK(BoundedDecayStopTime(&bounded, 650.0, 300.0, 0.5, 1.0) ==
-              SpringSettlingTime(&spring, 50.0, 300.0, 0.5, 1.0),
+    CHECK(ComputeBoundedDecayStopTime(&bounded, 650.0, 300.0, 0.5, 1.0) ==
+              ComputeSpringSettlingTime(&spring, 50.0, 300.0, 0.5, 1.0),
           "its stop the spring's settling");
     double stop = 0.0;
-    CHECK(mtwnBoundedDecayStopTime(&bounded, 650.0, 300.0, 0.0, 1.0, &stop) == mtwn_errorInvalid &&
-              mtwnBoundedDecayStopTime(&bounded, 650.0, 300.0, 0.5, (double)NAN, &stop) ==
+    CHECK(mtwnComputeBoundedDecayStopTime(&bounded, 650.0, 300.0, 0.0, 1.0, &stop) ==
+                  mtwn_errorInvalid &&
+              mtwnComputeBoundedDecayStopTime(&bounded, 650.0, 300.0, 0.5, (double)NAN, &stop) ==
                   mtwn_errorInvalid &&
               stop == 0.0,
           "no tolerance, refused");
@@ -286,8 +288,8 @@ static int Refusals(const mtwnBoundedDecay* bounded)
     int refused = 0;
     refused +=
         mtwnSampleBoundedDecay(bounded, 0.5, 1.0, 0.5, &values[0], &values[1]) == mtwn_errorInvalid;
-    refused +=
-        mtwnBoundedDecayStopTime(bounded, 0.5, 1.0, 0.5, 1.0, &values[2]) == mtwn_errorInvalid;
+    refused += mtwnComputeBoundedDecayStopTime(bounded, 0.5, 1.0, 0.5, 1.0, &values[2]) ==
+               mtwn_errorInvalid;
     if (refused == 2 && !(values[0] == 7.0 && values[1] == 7.0 && values[2] == 7.0))
     {
         return -1;
