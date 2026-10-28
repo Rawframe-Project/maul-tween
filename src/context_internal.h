@@ -110,10 +110,10 @@ typedef struct mtwnPlayerSlot
         mtwnClipPlay play;
         // A transition: what every update reads first, in the slot's first
         // three cache lines with the header, then what it
-        // reads when it starts, ends or is replaced. One curve, by its spec.
+        // reads when it starts, ends or is replaced. One curve, by its kind.
         struct
         {
-            mtwnTransitionKind spec;
+            mtwnTransitionKind transitionKind;
             // For an easing that is an integer power already normal, its
             // exponent and mode, so the update reads no more of it;
             // otherwise 0.

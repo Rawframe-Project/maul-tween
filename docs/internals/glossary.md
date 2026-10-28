@@ -14,7 +14,7 @@ Terms the code, the tests and the documentation use with one meaning.
 - **Id:** a 1-based index and a generation naming a target, player or clip. A **stale** id names one destroyed since.
 - **Misuse:** a call on a live context refused for an invalid argument, a stale id or a call back in, counted on the context.
 - **Transition:** a player that moves one target to a value by an easing, a spring or a decay, started from the target's current value.
-- **Spec:** how a transition moves: an easing, a spring or a decay.
+- **Transition kind:** how a transition moves: an easing, a spring or a decay (`mtwnTransitionKind`).
 - **Clip:** an immutable description of tracks on timelines, built node by node and **finished** before it plays.
 - **Node:** a clip's track, timeline, label or mark, named by its 1-based index; node 1 is the **root** timeline.
 - **Track:** keyframes of one value kind on a **slot**. A **path** is the curve through keyframes of one to four channels that a track is built on.

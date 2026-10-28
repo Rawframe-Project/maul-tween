@@ -67,12 +67,12 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
 // others leave the velocity to the caller.
 static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double velocity[4])
 {
-    if (slot->spec == mtwn_transitionEasing)
+    if (slot->transitionKind == mtwn_transitionEasing)
     {
         PathAt(slot, mtwnEaseWork(&slot->easing, t / slot->duration, false), value);
         return false;
     }
-    if (slot->spec == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))
+    if (slot->transitionKind == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))
     {
         double offset = 0.0;
         mtwnSampleSpringWork(&slot->spring, -1.0, slot->velocity[0], t, &offset, NULL);
@@ -97,7 +97,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
         return true;
     }
     mtwnSpringMotion motion = {0};
-    if (slot->spec == mtwn_transitionSpring)
+    if (slot->transitionKind == mtwn_transitionSpring)
     {
         motion = mtwnSpringMotionAtWork(&slot->spring, t);
     }
@@ -109,7 +109,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
             continue;
         }
         double v = slot->velocity[i];
-        if (slot->spec == mtwn_transitionSpring)
+        if (slot->transitionKind == mtwn_transitionSpring)
         {
             double offset = (double)from[i] - (double)to[i];
             value[i] =
@@ -159,7 +159,7 @@ static inline void WriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 v
 // only when read.
 static bool IsEasedNumbers(const mtwnPlayerSlot* slot)
 {
-    return slot->spec == mtwn_transitionEasing && !mtwnIsPathKind(slot->kind) &&
+    return slot->transitionKind == mtwn_transitionEasing && !mtwnIsPathKind(slot->kind) &&
            slot->kind != mtwn_valueDiscrete;
 }
 
@@ -354,7 +354,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     // The delay holds the start at rest. At its end a spring or decay of
     // numbers begins with its start velocity; the others have no last
     // millisecond yet, so no velocity.
-    bool analytic = slot->spec != mtwn_transitionEasing && !mtwnIsPathKind(slot->kind);
+    bool analytic = slot->transitionKind != mtwn_transitionEasing && !mtwnIsPathKind(slot->kind);
     if (t < 0.0 || (t == 0.0 && !analytic))
     {
         WriteTarget(context, target, slot->from, (mtwnVec4){0});
