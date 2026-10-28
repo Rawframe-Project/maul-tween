@@ -46,12 +46,12 @@ The libraries are one product family: a program may link several of them, and a 
   - `P_errorInvalid` -1: an argument a correct program never passes: a null pointer, an object of the wrong kind, a value outside the documented range of its parameter, a combination the call does not take.
   - `P_errorCapacity` -2: room is too small for the result: a pool sized at creation, a caller's buffer, the allocator, or a limit the caller set on a pool, a buffer or the work (a triangle budget, points per transition). More room would succeed.
   - `P_errorStale` -3: an id names an object that no longer exists.
-  - `P_errorUnsupported` -4: this build, CPU, backend or device cannot do what is asked.
+  - `P_errorUnsupported` -4: this build, CPU, backend or device cannot do what is asked, or the object was created without the feature the call needs (a spatializer built without reflections, an edit to a navmesh created static). No later call of the program can add it, so this is not `P_errorState`.
   - `P_errorPlatform` -5: the operating system or a driver failed or refused the call.
   - `P_errorState` -6: the call is not allowed in the object's current state, which only another call of the program changes (before a setup step, after a stream started, a recording not begun).
   - `P_errorVersion` -7: headers, a def, a file or a record come from another version of the library or its format.
   - `P_errorFormat` -8: stored or received bytes are malformed (a file, a snapshot, a tape, a catalog, a packet). Every check a reader makes on such bytes fails with this status (or `P_errorVersion`), whatever value it concerns, a bound included.
-  - `P_errorLimit` -9: an argument, or its content, passes a fixed bound of the library (a count, a depth, a length, a magnitude). More room would not help. Every fixed bound a call can refuse this way is published as a named constant (`P_MAX_*` or `P_*_LIMIT`). A range a parameter's own documentation gives, with no named constant, is `P_errorInvalid`.
+  - `P_errorLimit` -9: an argument, or its content, passes a fixed bound of the library (a count, a depth, a length, a magnitude). More room would not help. Every fixed bound a call can refuse this way is published as a named constant: `P_MAX_*` or `P_*_LIMIT` for an upper bound, `P_MIN_*` for a floor. A range a parameter's own documentation gives, with no named constant, is `P_errorInvalid`.
   - `P_errorBusy` -10: the object is in use by work under way (a step or query running on it, a callback the library is inside, a player still holding a clip), and the same call succeeds once that work ends.
 
   A library defines only the shared errors it returns, at these values, and numbers its own errors from -32 down. A library error whose name matches a shared one but whose meaning differs takes another name and an own value. Positive outcomes (`P_empty`, `P_done`) are each library's own.
@@ -77,7 +77,7 @@ The libraries are one product family: a program may link several of them, and a 
 - A library starts no thread unless a platform leaves no other way to meet a requirement. Such a thread is declared in the library's overview with its purpose, started by the object that needs it only while needed, joined when that object stops and never later than the root's destroy, and never runs application code.
 - On a thread the platform owns (an audio callback, a platform callback), a library only publishes into bounded queues or reads what was published: no allocation, lock or wait, and no application code except a callback the overview declares real-time.
 - Parallel work runs on the host's task system through the library's task hooks. Scheduling never changes results.
-- Host code a library calls (the allocator, task hooks, callbacks) calls no function of the object it serves unless the library's overview allows it. The object's mutating functions refuse such a call with the state error, one misuse counted. A callback that must call back in is given a named list of allowed calls, kept free of the state the outer call is changing.
+- Host code a library calls (the allocator, task hooks, callbacks) calls no function of the object it serves unless the library's overview allows it. The object's mutating functions refuse such a call with `P_errorBusy`, one misuse counted. A callback that must call back in is given a named list of allowed calls, kept free of the state the outer call is changing.
 
 ## API shape
 

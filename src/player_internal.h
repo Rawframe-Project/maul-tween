@@ -62,12 +62,12 @@ static inline void mtwnApplyPendingRate(mtwnClipPlay* play)
 // 0, every start time finite (MTWN_SEEK_LIMIT).
 static inline bool mtwnIsRate(double rate)
 {
-    return rate == 0.0 || (fabs(rate) >= 1.0 / MTWN_RATE_LIMIT && fabs(rate) <= MTWN_RATE_LIMIT);
+    return rate == 0.0 || (fabs(rate) >= MTWN_MIN_RATE && fabs(rate) <= MTWN_RATE_LIMIT);
 }
 
 // A rate's refusal: none for a rate, mtwn_errorInvalid for NaN, and
-// mtwn_errorLimit for one past MTWN_RATE_LIMIT's bounds, infinite or below
-// its inverse in size.
+// mtwn_errorLimit for one other than 0 outside [MTWN_MIN_RATE,
+// MTWN_RATE_LIMIT] in size, infinite included.
 static inline mtwnResult mtwnCheckRate(double rate)
 {
     if (isnan(rate))

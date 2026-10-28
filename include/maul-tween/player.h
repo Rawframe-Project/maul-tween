@@ -96,8 +96,8 @@ extern "C"
         // fade, a color, or motion essential to what it shows; the others
         // finish at once if their end is finite.
         bool essential;
-        // The playback rate: 0, which holds, or from 1 / MTWN_RATE_LIMIT
-        // to MTWN_RATE_LIMIT in size; negative plays backwards.
+        // The playback rate: 0, which holds, or from MTWN_MIN_RATE to
+        // MTWN_RATE_LIMIT in size; negative plays backwards.
         double rate;
         // In [0, 1]: scales every binding's weight; mtwnPlayer_SetWeight
         // changes it while it plays.
@@ -107,13 +107,16 @@ extern "C"
 // The cookie mtwnDefaultPlayerDef sets and mtwnCreatePlayer checks.
 #define MTWN_PLAYER_DEF_COOKIE 0x59414C50u
 
-// The largest size of a clip's player's rate, 2^20, and the inverse of
-// the smallest other than 0. A rate change keeps the current time as Web
-// Animations does, by the start time, so to within an ulp of the host
-// time times the rate: at this limit and 10^7 s of host time (116 days),
-// 2 ms. A smaller rate would overflow the start time (MTWN_SEEK_LIMIT).
-// A rate past either is refused as misuse.
+// The largest size of a clip's player's rate, 2^20. A rate change keeps
+// the current time as Web Animations does, by the start time, so to
+// within an ulp of the host time times the rate: at this limit and 10^7 s
+// of host time (116 days), 2 ms. A rate past it is refused as misuse.
 #define MTWN_RATE_LIMIT 1048576.0
+
+// The smallest size of a clip's player's rate other than 0, 2^-20, the
+// inverse of MTWN_RATE_LIMIT. A smaller rate would overflow the start
+// time (MTWN_SEEK_LIMIT); one below it is refused as misuse.
+#define MTWN_MIN_RATE 0x1p-20
 
     /// Makes a player def: no clip, no bindings, playing at once at rate 1
     /// and full weight, freed when it ends.
@@ -176,7 +179,7 @@ extern "C"
     ///         without its cookie, a rate NaN, a weight outside [0, 1], a
     ///         binding outside the above; mtwn_errorLimit for a rate above
     ///         MTWN_RATE_LIMIT in size, or other than 0 below
-    ///         1 / MTWN_RATE_LIMIT; mtwn_errorStale for a clip that is not
+    ///         MTWN_MIN_RATE; mtwn_errorStale for a clip that is not
     ///         alive; mtwn_errorState for one not finished;
     ///         mtwn_errorCapacity when the context holds its capacity of
     ///         players or of bindings.
@@ -312,13 +315,14 @@ extern "C"
     ///
     /// @param context  The context.
     /// @param player   A clip's player.
-    /// @param rate     0, which holds, or from 1 / MTWN_RATE_LIMIT to
+    /// @param rate     0, which holds, or from MTWN_MIN_RATE to
     ///                 MTWN_RATE_LIMIT in size; negative plays backwards.
     ///                 NaN is refused with mtwn_errorInvalid and another
     ///                 with mtwn_errorLimit, as misuse, the player
     ///                 unchanged.
     /// @return As mtwnPlayer_Play; mtwn_errorInvalid also for a NaN rate;
-    ///         mtwn_errorLimit for a rate past MTWN_RATE_LIMIT's bounds.
+    ///         mtwn_errorLimit for a rate other than 0 outside
+    ///         [MTWN_MIN_RATE, MTWN_RATE_LIMIT] in size.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnPlayer_SetRate(mtwnContext* context, mtwnPlayerId player,

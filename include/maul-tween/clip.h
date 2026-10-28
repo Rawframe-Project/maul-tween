@@ -341,7 +341,7 @@ extern "C"
 //   at most MTWN_RATE_LIMIT (2^20) for at most the host's time, which
 //   mtwnUpdate takes in nanoseconds as a uint64_t, below 2^35 s: below
 //   2^1000 + 2^55 in size;
-// - a rate other than 0 is at least 1 / MTWN_RATE_LIMIT in size;
+// - a rate other than 0 is at least MTWN_MIN_RATE (2^-20) in size;
 // - so t / rate is below 2^1021 in size, and now - t / rate is finite,
 //   16 times short of the largest double.
 #define MTWN_SEEK_LIMIT 0x1p1000
