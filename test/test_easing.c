@@ -537,7 +537,7 @@ static void TestLinearRunEnd(void)
 {
     mtwnEasing easing;
     mtwnLinearPoint points[4] = {{0.0, 0.0}, {0.03, 0.2}, {(double)NAN, 0.5}, {0.3, 0.8}};
-    CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success && points[3].input == 0.3,
+    CHECK(mtwnMakeLinearPointsEasing(points, 4, &easing) == mtwn_success && points[3].input == 0.3,
           "the run's end input kept");
 }
 
@@ -570,8 +570,8 @@ static void TestCubicBezierSampler(void)
     for (size_t c = 0; c < sizeof s_curves / sizeof s_curves[0]; ++c)
     {
         mtwnEasing easing;
-        CHECK(mtwnMakeCubicBezier(s_curves[c][0], s_curves[c][1], s_curves[c][2], s_curves[c][3],
-                                  &easing) == mtwn_success,
+        CHECK(mtwnMakeCubicBezierEasing(s_curves[c][0], s_curves[c][1], s_curves[c][2],
+                                        s_curves[c][3], &easing) == mtwn_success,
               "a cubic bezier");
         for (int mode = mtwn_easeIn; mode <= mtwn_easeOutIn; ++mode)
         {
@@ -608,7 +608,7 @@ static void TestCubicBezierSampler(void)
     mtwnEasing others[4];
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &others[0]) == mtwn_success &&
               mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeOut, &others[1]) == mtwn_success &&
-              mtwnMakeSteps(4, mtwn_jumpEnd, &others[2]) == mtwn_success &&
+              mtwnMakeStepsEasing(4, mtwn_jumpEnd, &others[2]) == mtwn_success &&
               mtwnMakeCssEasing(mtwn_cssStepStart, &others[3]) == mtwn_success,
           "easings of other kinds");
     for (int k = 0; k < 4; ++k)
@@ -618,7 +618,7 @@ static void TestCubicBezierSampler(void)
               "another kind refused");
     }
     mtwnEasing bezier;
-    CHECK(mtwnMakeCubicBezier(0.3, 0.1, 0.7, 0.9, &bezier) == mtwn_success, "a bezier");
+    CHECK(mtwnMakeCubicBezierEasing(0.3, 0.1, 0.7, 0.9, &bezier) == mtwn_success, "a bezier");
     mtwnEasing mode = bezier;
     mode.mode = 4;
     mtwnEasing outside = bezier;
@@ -736,9 +736,9 @@ static void TestForgedOthers(void)
     mtwnEasing linear = host;
     mtwnLinearPoint points[3] = {{0.0, 0.0}, {0.5, 0.8}, {1.0, 1.0}};
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, ReturnHalf, NULL, &host) == mtwn_success &&
-              mtwnMakeCubicBezier(0.25, 0.1, 0.25, 1.0, &bezier) == mtwn_success &&
-              mtwnMakeSteps(4, mtwn_jumpEnd, &steps) == mtwn_success &&
-              mtwnMakeLinearEasing(points, 3, &linear) == mtwn_success,
+              mtwnMakeCubicBezierEasing(0.25, 0.1, 0.25, 1.0, &bezier) == mtwn_success &&
+              mtwnMakeStepsEasing(4, mtwn_jumpEnd, &steps) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(points, 3, &linear) == mtwn_success,
           "the others");
     mtwnEasing zeroed;
     memset(&zeroed, 0, sizeof zeroed);
@@ -755,8 +755,8 @@ static void TestForgedOthers(void)
     FORGED(steps, e.position = 4, "an unknown position");
     FORGED(linear, e.points = NULL, "linear() without its points");
     FORGED(linear, e.count = 1, "linear() of one point");
-    CHECK(mtwnMakeCubicBezier(0.5, 0x1.0p1000, 0.5, -0x1.0p1000, &bezier) == mtwn_success &&
-              mtwnMakeCubicBezier(0.5, nextafter(0x1.0p1000, HUGE_VAL), 0.5, 0.0, &bezier) ==
+    CHECK(mtwnMakeCubicBezierEasing(0.5, 0x1.0p1000, 0.5, -0x1.0p1000, &bezier) == mtwn_success &&
+              mtwnMakeCubicBezierEasing(0.5, nextafter(0x1.0p1000, HUGE_VAL), 0.5, 0.0, &bezier) ==
                   mtwn_errorInvalid,
           "a control y of 2^1000 taken, past it refused");
 }

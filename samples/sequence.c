@@ -61,7 +61,8 @@ static mtwnNode Track(mtwnContext* context, mtwnClipId clip, uint32_t slot, mtwn
     keys[0].value = from;
     keys[1].value = to;
     keys[1].offset = 1.0;
-    Expect(mtwnMakeCubicBezier(0.2, 0.0, 0.0, 1.0, &keys[0].easing) == mtwn_success, "an easing");
+    Expect(mtwnMakeCubicBezierEasing(0.2, 0.0, 0.0, 1.0, &keys[0].easing) == mtwn_success,
+           "an easing");
     keys[1].easing = keys[0].easing;
     mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
     def.slot = slot;

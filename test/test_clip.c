@@ -1084,10 +1084,10 @@ static void TestLinearPointsCopied(void)
     memcpy(keptSegment, segment, sizeof segment);
     memcpy(keptTiming, timing, sizeof timing);
     mtwnEasing easings[4];
-    CHECK(mtwnMakeLinearEasing(segment, 3, &easings[0]) == mtwn_success &&
-              mtwnMakeLinearEasing(timing, 3, &easings[1]) == mtwn_success &&
-              mtwnMakeLinearEasing(keptSegment, 3, &easings[2]) == mtwn_success &&
-              mtwnMakeLinearEasing(keptTiming, 3, &easings[3]) == mtwn_success,
+    CHECK(mtwnMakeLinearPointsEasing(segment, 3, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(timing, 3, &easings[1]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(keptSegment, 3, &easings[2]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(keptTiming, 3, &easings[3]) == mtwn_success,
           "linear() easings and copies of them");
     mtwnKeyframe keys[2] = {Key(0.0, 0.0f), Key(1.0, 10.0f)};
     keys[0].easing = easings[0];
@@ -1155,7 +1155,7 @@ static void TestLinearPointsCopied(void)
     keys[0].easing = easings[2];
     keptSegment[1].output = 0.25;
     mtwnEasing other;
-    CHECK(mtwnMakeLinearEasing(keptSegment, 3, &other) == mtwn_success, "other points");
+    CHECK(mtwnMakeLinearPointsEasing(keptSegment, 3, &other) == mtwn_success, "other points");
     keys[0].easing = other;
     CHECK(mtwnClip_AddTrack(context, third, &def, &node) == mtwn_success &&
               mtwnClip_Finish(context, third) == mtwn_success,
@@ -1218,8 +1218,8 @@ static void TestLinearPointsNotShared(void)
     mtwnLinearPoint first[3] = {{0.0, 0.0}, {0.5, 0.1}, {1.0, 1.0}};
     mtwnLinearPoint second[3] = {{0.0, 0.0}, {0.5, 0.9}, {1.0, 1.0}};
     mtwnEasing easings[2];
-    CHECK(mtwnMakeLinearEasing(first, 3, &easings[0]) == mtwn_success &&
-              mtwnMakeLinearEasing(second, 3, &easings[1]) == mtwn_success,
+    CHECK(mtwnMakeLinearPointsEasing(first, 3, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(second, 3, &easings[1]) == mtwn_success,
           "two easings of as many points");
     float alone = LastEasedBy(&easings[1], 1);
     float after = LastEasedBy(easings, 2);

@@ -89,7 +89,7 @@ keys[1].offset = 1.0;
 keys[1].value = (mtwnVec4){10.0f, 0, 0, 0};
 keys[1].in = (mtwnVec4){10.0f, 0, 0, 0}; // the in handle's value
 // Their times, 0.5 s and 1.2 s, as shares of the 2 s span.
-mtwnResult made = mtwnMakeCubicBezier(0.25, 1.0 / 3.0, 0.6, 2.0 / 3.0, &keys[0].easing);
+mtwnResult made = mtwnMakeCubicBezierEasing(0.25, 1.0 / 3.0, 0.6, 2.0 / 3.0, &keys[0].easing);
 ```
 
 A segment's channels share its easing, so handles timed apart per channel are one track a channel, as Blender's F-curves are.

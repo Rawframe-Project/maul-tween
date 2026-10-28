@@ -400,8 +400,8 @@ mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnMakeCubicBezierWork(double x1, double y1, double x2, double y2,
-                                                        mtwnEasing* easingOut)
+static MTWN_NOINLINE mtwnResult mtwnMakeCubicBezierEasingWork(double x1, double y1, double x2,
+                                                              double y2, mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !mtwnValidCubicBezier(x1, y1, x2, y2))
     {
@@ -416,15 +416,16 @@ static MTWN_NOINLINE mtwnResult mtwnMakeCubicBezierWork(double x1, double y1, do
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2, double y2, mtwnEasing* easingOut)
+mtwnResult mtwnMakeCubicBezierEasing(double x1, double y1, double x2, double y2,
+                                     mtwnEasing* easingOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnMakeCubicBezierWork(x1, y1, x2, y2, easingOut);
+    mtwnResult result = mtwnMakeCubicBezierEasingWork(x1, y1, x2, y2, easingOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-mtwnResult mtwnMakeSteps(uint32_t count, mtwnStepPosition position, mtwnEasing* easingOut)
+mtwnResult mtwnMakeStepsEasing(uint32_t count, mtwnStepPosition position, mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !mtwnValidSteps(count, position))
     {
@@ -457,11 +458,11 @@ static MTWN_NOINLINE mtwnResult mtwnMakeCssEasingWork(mtwnCssKeyword keyword, mt
     }
     if (keyword == mtwn_cssStepStart || keyword == mtwn_cssStepEnd)
     {
-        return mtwnMakeSteps(1, keyword == mtwn_cssStepStart ? mtwn_jumpStart : mtwn_jumpEnd,
-                             easingOut);
+        return mtwnMakeStepsEasing(1, keyword == mtwn_cssStepStart ? mtwn_jumpStart : mtwn_jumpEnd,
+                                   easingOut);
     }
     const double* c = s_beziers[keyword - mtwn_cssEase];
-    return mtwnMakeCubicBezier(c[0], c[1], c[2], c[3], easingOut);
+    return mtwnMakeCubicBezierEasing(c[0], c[1], c[2], c[3], easingOut);
 }
 
 mtwnResult mtwnMakeCssEasing(mtwnCssKeyword keyword, mtwnEasing* easingOut)
@@ -472,8 +473,8 @@ mtwnResult mtwnMakeCssEasing(mtwnCssKeyword keyword, mtwnEasing* easingOut)
     return result;
 }
 
-MTWN_NOINLINE mtwnResult mtwnMakeLinearEasingWork(mtwnLinearPoint* points, uint32_t count,
-                                                  mtwnEasing* easingOut)
+MTWN_NOINLINE mtwnResult mtwnMakeLinearPointsEasingWork(mtwnLinearPoint* points, uint32_t count,
+                                                        mtwnEasing* easingOut)
 {
     if (easingOut == NULL || !mtwnCanonicalizeLinearPoints(points, count))
     {
@@ -486,10 +487,11 @@ MTWN_NOINLINE mtwnResult mtwnMakeLinearEasingWork(mtwnLinearPoint* points, uint3
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count, mtwnEasing* easingOut)
+mtwnResult mtwnMakeLinearPointsEasing(mtwnLinearPoint* points, uint32_t count,
+                                      mtwnEasing* easingOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnMakeLinearEasingWork(points, count, easingOut);
+    mtwnResult result = mtwnMakeLinearPointsEasingWork(points, count, easingOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

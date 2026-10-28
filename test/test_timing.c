@@ -58,11 +58,11 @@ static mtwnTiming MakeTiming(const TimingInput* in)
     timing.alternateEasing = (mtwnAlternateEasing)in->alternate;
     if (in->easing == 1)
     {
-        CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &timing.easing) == mtwn_success, "steps");
+        CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &timing.easing) == mtwn_success, "steps");
     }
     else if (in->easing == 2)
     {
-        CHECK(mtwnMakeSteps(3, mtwn_jumpEnd, &timing.easing) == mtwn_success, "steps");
+        CHECK(mtwnMakeStepsEasing(3, mtwn_jumpEnd, &timing.easing) == mtwn_success, "steps");
     }
     return timing;
 }

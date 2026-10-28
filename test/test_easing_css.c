@@ -87,7 +87,7 @@ static void TestBezierAgainstBisection(void)
     {
         const double* q = s_beziers[c].control;
         mtwnEasing easing;
-        CHECK(mtwnMakeCubicBezier(q[0], q[1], q[2], q[3], &easing) == mtwn_success, "made");
+        CHECK(mtwnMakeCubicBezierEasing(q[0], q[1], q[2], q[3], &easing) == mtwn_success, "made");
         double worst = 0.0;
         for (int i = 1; i < 20000; ++i)
         {
@@ -109,7 +109,7 @@ static void TestBezierAgainstBisection(void)
 static double Ease(double x1, double y1, double x2, double y2, double x)
 {
     mtwnEasing easing;
-    if (mtwnMakeCubicBezier(x1, y1, x2, y2, &easing) != mtwn_success)
+    if (mtwnMakeCubicBezierEasing(x1, y1, x2, y2, &easing) != mtwn_success)
     {
         return NONE;
     }
@@ -139,7 +139,7 @@ static void TestBezierMonotonicAndRefusals(void)
     for (size_t c = 0; c < sizeof s_beziers / sizeof s_beziers[0]; ++c)
     {
         const double* q = s_beziers[c].control;
-        CHECK(mtwnMakeCubicBezier(q[0], q[1], q[2], q[3], &easing) == mtwn_success, "made");
+        CHECK(mtwnMakeCubicBezierEasing(q[0], q[1], q[2], q[3], &easing) == mtwn_success, "made");
         bool expected = q[1] >= 0.0 && q[1] <= 1.0 && q[3] >= 0.0 && q[3] <= 1.0;
         wrong += IsMonotonicEasing(&easing) != expected;
         if (!expected)
@@ -156,22 +156,26 @@ static void TestBezierMonotonicAndRefusals(void)
     }
     CHECK(wrong == 0, "a bezier with both y in [0, 1] never decreases, tangents included");
     // The rule is y in [0, 1] for both points, either end of the range.
-    CHECK(mtwnMakeCubicBezier(0.3, 1.2, 0.7, 0.9, &easing) == mtwn_success &&
+    CHECK(mtwnMakeCubicBezierEasing(0.3, 1.2, 0.7, 0.9, &easing) == mtwn_success &&
               !IsMonotonicEasing(&easing),
           "y1 above 1");
-    CHECK(mtwnMakeCubicBezier(0.3, 0.2, 0.7, -0.1, &easing) == mtwn_success &&
+    CHECK(mtwnMakeCubicBezierEasing(0.3, 0.2, 0.7, -0.1, &easing) == mtwn_success &&
               !IsMonotonicEasing(&easing),
           "y2 below 0");
     easing = mtwnLinearEasing();
-    CHECK(mtwnMakeCubicBezier(-0.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "x1 below 0");
-    CHECK(mtwnMakeCubicBezier(0.1, 0.0, 1.1, 1.0, &easing) == mtwn_errorInvalid, "x2 above 1");
-    CHECK(mtwnMakeCubicBezier(0.1, 0.0, -0.1, 1.0, &easing) == mtwn_errorInvalid, "x2 below 0");
-    CHECK(mtwnMakeCubicBezier(1.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "x1 above 1");
-    CHECK(mtwnMakeCubicBezier(NONE, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "NaN x");
-    CHECK(mtwnMakeCubicBezier(0.1, HUGE_VAL, 0.5, 1.0, &easing) == mtwn_errorInvalid,
+    CHECK(mtwnMakeCubicBezierEasing(-0.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid,
+          "x1 below 0");
+    CHECK(mtwnMakeCubicBezierEasing(0.1, 0.0, 1.1, 1.0, &easing) == mtwn_errorInvalid,
+          "x2 above 1");
+    CHECK(mtwnMakeCubicBezierEasing(0.1, 0.0, -0.1, 1.0, &easing) == mtwn_errorInvalid,
+          "x2 below 0");
+    CHECK(mtwnMakeCubicBezierEasing(1.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid,
+          "x1 above 1");
+    CHECK(mtwnMakeCubicBezierEasing(NONE, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid, "NaN x");
+    CHECK(mtwnMakeCubicBezierEasing(0.1, HUGE_VAL, 0.5, 1.0, &easing) == mtwn_errorInvalid,
           "infinite y1");
-    CHECK(mtwnMakeCubicBezier(0.1, 0.0, 0.5, NONE, &easing) == mtwn_errorInvalid, "NaN y2");
-    CHECK(mtwnMakeCubicBezier(0.1, 0.0, 0.5, 1.0, NULL) == mtwn_errorInvalid, "null out");
+    CHECK(mtwnMakeCubicBezierEasing(0.1, 0.0, 0.5, NONE, &easing) == mtwn_errorInvalid, "NaN y2");
+    CHECK(mtwnMakeCubicBezierEasing(0.1, 0.0, 0.5, 1.0, NULL) == mtwn_errorInvalid, "null out");
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
 }
 
@@ -238,7 +242,7 @@ static void TestSteps(void)
     {
         const StepCase* c = &s_steps[i];
         mtwnEasing easing;
-        bool made = mtwnMakeSteps(c->count, c->position, &easing) == mtwn_success;
+        bool made = mtwnMakeStepsEasing(c->count, c->position, &easing) == mtwn_success;
         double value = made ? EaseAt(&easing, c->progress, c->before) : NONE;
         if (value != c->expected)
         {
@@ -247,12 +251,14 @@ static void TestSteps(void)
         CHECK(value == c->expected, "steps as CSS defines them");
     }
     mtwnEasing easing = mtwnLinearEasing();
-    CHECK(mtwnMakeSteps(0, mtwn_jumpEnd, &easing) == mtwn_errorInvalid, "no steps");
-    CHECK(mtwnMakeSteps(1, mtwn_jumpNone, &easing) == mtwn_errorInvalid, "one step, jump-none");
-    CHECK(mtwnMakeSteps(2, 4, &easing) == mtwn_errorInvalid, "an unknown position");
-    CHECK(mtwnMakeSteps(2, mtwn_jumpEnd, NULL) == mtwn_errorInvalid, "null out");
+    CHECK(mtwnMakeStepsEasing(0, mtwn_jumpEnd, &easing) == mtwn_errorInvalid, "no steps");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpNone, &easing) == mtwn_errorInvalid,
+          "one step, jump-none");
+    CHECK(mtwnMakeStepsEasing(2, 4, &easing) == mtwn_errorInvalid, "an unknown position");
+    CHECK(mtwnMakeStepsEasing(2, mtwn_jumpEnd, NULL) == mtwn_errorInvalid, "null out");
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
-    CHECK(mtwnMakeSteps(2, mtwn_jumpNone, &easing) == mtwn_success && IsMonotonicEasing(&easing),
+    CHECK(mtwnMakeStepsEasing(2, mtwn_jumpNone, &easing) == mtwn_success &&
+              IsMonotonicEasing(&easing),
           "steps are monotonic");
 }
 
@@ -272,12 +278,12 @@ static void TestLinearCanonicalization(void)
 {
     mtwnEasing easing;
     mtwnLinearPoint even[] = {{NONE, 0.0}, {NONE, 0.25}, {NONE, 1.0}};
-    CHECK(mtwnMakeLinearEasing(even, 3, &easing) == mtwn_success, "linear(0, 0.25, 1)");
+    CHECK(mtwnMakeLinearPointsEasing(even, 3, &easing) == mtwn_success, "linear(0, 0.25, 1)");
     CHECK(SameInputs(even, (const double[]){0.0, 0.5, 1.0}, 3), "inputs 0, 1/2 and 1");
     CHECK(EaseAt(&easing, 0.25, false) == 0.125 && EaseAt(&easing, 0.75, false) == 0.625,
           "interpolated between its points");
     mtwnLinearPoint raised[] = {{0.0, 0.0}, {0.6, 0.5}, {0.4, 0.8}, {1.0, 1.0}};
-    CHECK(mtwnMakeLinearEasing(raised, 4, &easing) == mtwn_success, "a decreasing input");
+    CHECK(mtwnMakeLinearPointsEasing(raised, 4, &easing) == mtwn_success, "a decreasing input");
     CHECK(SameInputs(raised, (const double[]){0.0, 0.6, 0.6, 1.0}, 4), "raised to the largest");
     CHECK(EaseAt(&easing, 0.6, false) == 0.8 && EaseAt(&easing, 0.3, false) == 0.25,
           "the jump takes the later point");
@@ -285,35 +291,35 @@ static void TestLinearCanonicalization(void)
     // overflows, the value between them does not: no -inf at the second
     // point.
     mtwnLinearPoint wide[] = {{0.0, 1e308}, {1.0, -1e308}};
-    CHECK(mtwnMakeLinearEasing(wide, 2, &easing) == mtwn_success, "a wide linear()");
+    CHECK(mtwnMakeLinearPointsEasing(wide, 2, &easing) == mtwn_success, "a wide linear()");
     CHECK(EaseAt(&easing, 1.0, false) == -1e308 && EaseAt(&easing, 0.0, false) == 1e308 &&
               EaseAt(&easing, 0.5, false) == 0.0,
           "each point at its input, and finite between");
     mtwnLinearPoint run[] = {{0.0, 0.0}, {NONE, 0.2}, {NONE, 0.4}, {0.9, 1.0}};
-    CHECK(mtwnMakeLinearEasing(run, 4, &easing) == mtwn_success, "a run without inputs");
+    CHECK(mtwnMakeLinearPointsEasing(run, 4, &easing) == mtwn_success, "a run without inputs");
     CHECK(fabs(run[1].input - 0.3) <= 1e-16 && fabs(run[2].input - 0.6) <= 1e-16,
           "spread evenly between its neighbors");
     // A run after a point past 0: spread over the span from it, a third
     // and two thirds of the way from 0.5 to 1.
     mtwnLinearPoint later[] = {{0.0, 0.0}, {0.5, 0.5}, {NONE, 0.6}, {NONE, 0.7}, {1.0, 1.0}};
-    CHECK(mtwnMakeLinearEasing(later, 5, &easing) == mtwn_success, "a run after 0.5");
+    CHECK(mtwnMakeLinearPointsEasing(later, 5, &easing) == mtwn_success, "a run after 0.5");
     CHECK(fabs(later[2].input - 2.0 / 3.0) <= 1e-15 && fabs(later[3].input - 5.0 / 6.0) <= 1e-15,
           "spread from its neighbor past 0");
     mtwnLinearPoint late[] = {{NONE, 0.0}, {1.5, 1.0}, {NONE, 0.5}};
-    CHECK(mtwnMakeLinearEasing(late, 3, &easing) == mtwn_success, "an input past 1");
+    CHECK(mtwnMakeLinearPointsEasing(late, 3, &easing) == mtwn_success, "an input past 1");
     CHECK(SameInputs(late, (const double[]){0.0, 1.5, 1.5}, 3), "the last is at least it");
     CHECK(EaseAt(&easing, 2.0, false) == 0.5, "past equal last inputs, the last output");
     mtwnLinearPoint early[] = {{-0.5, -1.0}, {NONE, 1.0}};
-    CHECK(mtwnMakeLinearEasing(early, 2, &easing) == mtwn_success, "a first input below 0");
+    CHECK(mtwnMakeLinearPointsEasing(early, 2, &easing) == mtwn_success, "a first input below 0");
     CHECK(SameInputs(early, (const double[]){-0.5, 1.0}, 2), "kept, and the last is 1");
     CHECK(fabs(EaseAt(&easing, -1.0, false) - (-1.0 - 0.5 * 2.0 / 1.5)) <= 1e-15,
           "extended along the first segment");
     mtwnLinearPoint ends[] = {{NONE, 0.0}, {NONE, 1.0}};
-    CHECK(mtwnMakeLinearEasing(ends, 2, &easing) == mtwn_success &&
+    CHECK(mtwnMakeLinearPointsEasing(ends, 2, &easing) == mtwn_success &&
               EaseAt(&easing, 2.0, false) == 2.0 && EaseAt(&easing, -1.0, true) == -1.0,
           "linear(0, 1) extends both ways");
     mtwnLinearPoint flat[] = {{0.0, 0.0}, {1.0, 0.5}, {1.0, 1.0}};
-    CHECK(mtwnMakeLinearEasing(flat, 3, &easing) == mtwn_success &&
+    CHECK(mtwnMakeLinearPointsEasing(flat, 3, &easing) == mtwn_success &&
               EaseAt(&easing, 1.0, false) == 1.0 && EaseAt(&easing, 3.0, false) == 1.0,
           "equal inputs at the end give the later output");
 }
@@ -322,21 +328,24 @@ static void TestLinearRefusalsAndMonotonic(void)
 {
     mtwnEasing easing = mtwnLinearEasing();
     mtwnLinearPoint one[] = {{NONE, 0.0}};
-    CHECK(mtwnMakeLinearEasing(one, 1, &easing) == mtwn_errorInvalid, "one point");
-    CHECK(mtwnMakeLinearEasing(NULL, 2, &easing) == mtwn_errorInvalid, "no points");
+    CHECK(mtwnMakeLinearPointsEasing(one, 1, &easing) == mtwn_errorInvalid, "one point");
+    CHECK(mtwnMakeLinearPointsEasing(NULL, 2, &easing) == mtwn_errorInvalid, "no points");
     mtwnLinearPoint bad[] = {{NONE, 0.0}, {NONE, 0.5}, {NONE, NONE}};
-    CHECK(mtwnMakeLinearEasing(bad, 3, &easing) == mtwn_errorInvalid, "a NaN output");
+    CHECK(mtwnMakeLinearPointsEasing(bad, 3, &easing) == mtwn_errorInvalid, "a NaN output");
     CHECK(isnan(bad[0].input) && isnan(bad[1].input), "a refusal leaves the points as they were");
     mtwnLinearPoint infinite[] = {{0.0, 0.0}, {HUGE_VAL, 1.0}};
-    CHECK(mtwnMakeLinearEasing(infinite, 2, &easing) == mtwn_errorInvalid, "an infinite input");
+    CHECK(mtwnMakeLinearPointsEasing(infinite, 2, &easing) == mtwn_errorInvalid,
+          "an infinite input");
     mtwnLinearPoint fine[] = {{NONE, 0.0}, {NONE, 1.0}};
-    CHECK(mtwnMakeLinearEasing(fine, 2, NULL) == mtwn_errorInvalid, "null out");
+    CHECK(mtwnMakeLinearPointsEasing(fine, 2, NULL) == mtwn_errorInvalid, "null out");
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
     mtwnLinearPoint rising[] = {{NONE, 0.0}, {NONE, 0.5}, {NONE, 0.5}, {NONE, 1.0}};
-    CHECK(mtwnMakeLinearEasing(rising, 4, &easing) == mtwn_success && IsMonotonicEasing(&easing),
+    CHECK(mtwnMakeLinearPointsEasing(rising, 4, &easing) == mtwn_success &&
+              IsMonotonicEasing(&easing),
           "outputs that never decrease are monotonic");
     mtwnLinearPoint dipping[] = {{NONE, 0.0}, {NONE, 0.6}, {NONE, 0.5}, {NONE, 1.0}};
-    CHECK(mtwnMakeLinearEasing(dipping, 4, &easing) == mtwn_success && !IsMonotonicEasing(&easing),
+    CHECK(mtwnMakeLinearPointsEasing(dipping, 4, &easing) == mtwn_success &&
+              !IsMonotonicEasing(&easing),
           "a dip is not");
 }
 
@@ -356,7 +365,7 @@ static void TestModesAndTheBeforeFlag(void)
     CHECK(EaseAt(&bezier, 1.5, false) == 1.0 + 0.5 * (0.0 - 1.0) / (0.42 - 1.0),
           "CSS curves are not clamped");
     mtwnEasing steps;
-    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &steps) == mtwn_success, "steps");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &steps) == mtwn_success, "steps");
     CHECK(EaseAt(&steps, 0.0, true) == 0.0 && EaseAt(&steps, 0.0, false) == 0.25,
           "in: the before flag reaches the curve");
     CHECK(mtwnSetEaseMode(&steps, mtwn_easeInOut) == mtwn_success, "in-out");
@@ -378,7 +387,7 @@ static void TestLinearFiniteForAnyPoints(void)
 {
     mtwnLinearPoint points[4] = {{0.0, 0.0}, {0.4, 0.3}, {0.6, 0.9}, {1.0, 1.0}};
     mtwnEasing easing;
-    CHECK(mtwnMakeLinearEasing(points, 4, &easing) == mtwn_success, "made");
+    CHECK(mtwnMakeLinearPointsEasing(points, 4, &easing) == mtwn_success, "made");
     points[1] = (mtwnLinearPoint){0.9, -DBL_MAX};
     points[2] = (mtwnLinearPoint){0.1, DBL_MAX};
     int finite = 0;
@@ -390,19 +399,19 @@ static void TestLinearFiniteForAnyPoints(void)
     }
     CHECK(finite == 81, "out of order and huge, finite");
     mtwnLinearPoint wide[2] = {{-1e308, -1.0}, {1e308, 1.0}};
-    CHECK(mtwnMakeLinearEasing(wide, 2, &easing) == mtwn_success &&
+    CHECK(mtwnMakeLinearPointsEasing(wide, 2, &easing) == mtwn_success &&
               EaseAt(&easing, 0.0, false) == 0.0 && EaseAt(&easing, 5e307, false) == 0.5,
           "inputs spanning more than the doubles interpolate as their halves");
     mtwnLinearPoint steep[2] = {{0.0, 0.0}, {1e-300, 1.0}};
-    CHECK(mtwnMakeLinearEasing(steep, 2, &easing) == mtwn_success &&
+    CHECK(mtwnMakeLinearPointsEasing(steep, 2, &easing) == mtwn_success &&
               EaseAt(&easing, 1e10, false) == DBL_MAX && EaseAt(&easing, -1e10, false) == -DBL_MAX,
           "an extension past the doubles saturates, each way");
     mtwnLinearPoint flat[2] = {{0.0, 5.0}, {0x1.0p-1074, 5.0}};
-    CHECK(mtwnMakeLinearEasing(flat, 2, &easing) == mtwn_success &&
+    CHECK(mtwnMakeLinearPointsEasing(flat, 2, &easing) == mtwn_success &&
               EaseAt(&easing, 1e300, false) == 5.0,
           "a flat segment's infinite share is its output");
     mtwnLinearPoint far[2] = {{0.0, -DBL_MAX}, {1.0, DBL_MAX}};
-    CHECK(mtwnMakeLinearEasing(far, 2, &easing) == mtwn_success &&
+    CHECK(mtwnMakeLinearPointsEasing(far, 2, &easing) == mtwn_success &&
               EaseAt(&easing, 3.0, false) == DBL_MAX && EaseAt(&easing, -2.0, false) == -DBL_MAX,
           "outputs whose difference overflows, extended, saturate");
 }
@@ -411,18 +420,18 @@ static void TestLinearFiniteForAnyPoints(void)
 static void TestCssCurvesFinite(void)
 {
     mtwnEasing easing;
-    CHECK(mtwnMakeCubicBezier(0x1.0p-1074, 0x1.0p1000, 0.5, 1.0, &easing) == mtwn_success &&
+    CHECK(mtwnMakeCubicBezierEasing(0x1.0p-1074, 0x1.0p1000, 0.5, 1.0, &easing) == mtwn_success &&
               EaseAt(&easing, -0.5, false) == -DBL_MAX,
           "a tangent steeper than the doubles saturates below 0");
-    CHECK(mtwnMakeCubicBezier(0.5, 0.0, nextafter(1.0, 0.0), -0x1.0p1000, &easing) ==
+    CHECK(mtwnMakeCubicBezierEasing(0.5, 0.0, nextafter(1.0, 0.0), -0x1.0p1000, &easing) ==
                   mtwn_success &&
               EaseAt(&easing, 1e300, false) == DBL_MAX,
           "and past 1");
-    CHECK(mtwnMakeSteps(4, mtwn_jumpBoth, &easing) == mtwn_success &&
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpBoth, &easing) == mtwn_success &&
               EaseAt(&easing, 1e308, false) == 1e308 * (4.0 / 5.0) &&
               EaseAt(&easing, -1e308, false) == -1e308 * (4.0 / 5.0),
           "steps whose count overflows the progress: steps of 1 / jumps");
-    CHECK(mtwnMakeSteps(2, mtwn_jumpNone, &easing) == mtwn_success &&
+    CHECK(mtwnMakeStepsEasing(2, mtwn_jumpNone, &easing) == mtwn_success &&
               EaseAt(&easing, -DBL_MAX, false) == -DBL_MAX &&
               EaseAt(&easing, DBL_MAX, false) == DBL_MAX,
           "steps longer than 1 past the doubles saturate");
@@ -432,9 +441,9 @@ static void TestCssCurvesFinite(void)
     mtwnEasing curves[5];
     CHECK(mtwnMakeCssEasing(mtwn_cssEaseIn, &curves[0]) == mtwn_success &&
               mtwnMakeCssEasing(mtwn_cssEaseOut, &curves[1]) == mtwn_success &&
-              mtwnMakeSteps(2, mtwn_jumpNone, &curves[2]) == mtwn_success &&
-              mtwnMakeSteps(3, mtwn_jumpBoth, &curves[3]) == mtwn_success &&
-              mtwnMakeLinearEasing(points, 3, &curves[4]) == mtwn_success,
+              mtwnMakeStepsEasing(2, mtwn_jumpNone, &curves[2]) == mtwn_success &&
+              mtwnMakeStepsEasing(3, mtwn_jumpBoth, &curves[3]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(points, 3, &curves[4]) == mtwn_success,
           "CSS curves");
     const double far[4] = {-DBL_MAX, -0x1.8p1023, 0x1.8p1023, DBL_MAX};
     int finite = 0;

@@ -126,7 +126,7 @@ static mtwnEasing EasingFor(uint32_t seed)
         made = mtwnMakePowerEasing(mtwn_easeOut, 2.0, &easing);
         break;
     case 1:
-        made = mtwnMakeCubicBezier(0.25, 0.1, 0.25, 1.0, &easing);
+        made = mtwnMakeCubicBezierEasing(0.25, 0.1, 0.25, 1.0, &easing);
         break;
     case 2:
         made = mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &easing);
@@ -135,7 +135,7 @@ static mtwnEasing EasingFor(uint32_t seed)
         made = mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeInOut, &easing);
         break;
     case 4:
-        made = mtwnMakeSteps(4, mtwn_jumpEnd, &easing);
+        made = mtwnMakeStepsEasing(4, mtwn_jumpEnd, &easing);
         break;
     case 5:
         made = mtwnMakePowerEasing(mtwn_easeInOut, 2.5, &easing);
@@ -720,8 +720,8 @@ static void HashEdges(void)
     for (uint32_t b = 0; b < 5; ++b)
     {
         mtwnEasing bezier;
-        CHECK(mtwnMakeCubicBezier(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
-                                  &bezier) == mtwn_success,
+        CHECK(mtwnMakeCubicBezierEasing(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
+                                        &bezier) == mtwn_success,
               "a Bezier");
         HashEasing(&bezier);
     }

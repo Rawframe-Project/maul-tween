@@ -135,14 +135,14 @@ static void TestMakers(void)
     UNCHANGED(easing, mtwnMakeBackEasing(mtwn_easeOut, (double)NAN, &easing), "a back easing");
     UNCHANGED(easing, mtwnMakeElasticEasing(mtwn_easeOut, (double)NAN, 0.3, &easing), "an elastic");
     UNCHANGED(easing, mtwnMakeHostEasing(mtwn_easeIn, NULL, NULL, &easing), "a host easing");
-    UNCHANGED(easing, mtwnMakeCubicBezier(2.0, 0.0, 0.5, 1.0, &easing), "a cubic bezier");
-    UNCHANGED(easing, mtwnMakeSteps(0, mtwn_jumpEnd, &easing), "steps");
+    UNCHANGED(easing, mtwnMakeCubicBezierEasing(2.0, 0.0, 0.5, 1.0, &easing), "a cubic bezier");
+    UNCHANGED(easing, mtwnMakeStepsEasing(0, mtwn_jumpEnd, &easing), "steps");
     UNCHANGED(easing, mtwnMakeCssEasing((mtwnCssKeyword)99, &easing), "a CSS keyword");
     mtwnLinearPoint points[3] = {
         {(double)NAN, 0.0}, {(double)NAN, 0.5}, {(double)NAN, (double)INFINITY}};
     mtwnLinearPoint given[3];
     memcpy(given, points, sizeof points);
-    UNCHANGED(easing, mtwnMakeLinearEasing(points, 3, &easing), "linear()");
+    UNCHANGED(easing, mtwnMakeLinearPointsEasing(points, 3, &easing), "linear()");
     CHECK(memcmp(points, given, sizeof points) == 0, "its points as they were");
     mtwnSpring spring;
     UNCHANGED(spring, mtwnMakeSpring(-1.0, 1.0, 1.0, &spring), "a spring");

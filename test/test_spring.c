@@ -916,7 +916,7 @@ static void TestSpringEasingFitsLinear(void)
     uint32_t count = 0;
     CHECK(mtwnFitLinearEasing(&easing, 1e-3, points, 512, &count) == mtwn_success, "fitted");
     mtwnEasing fitted;
-    CHECK(mtwnMakeLinearEasing(points, count, &fitted) == mtwn_success, "as linear()");
+    CHECK(mtwnMakeLinearPointsEasing(points, count, &fitted) == mtwn_success, "as linear()");
     double worst = 0.0;
     for (int k = 0; k <= 100000; ++k)
     {

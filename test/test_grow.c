@@ -389,8 +389,8 @@ static void TestGrowLinearPoints(void)
     mtwnLinearPoint points[2][5] = {{{0.0, 0.0}, {0.2, 0.5}, {0.5, 0.6}, {0.8, 1.1}, {1.0, 1.0}},
                                     {{0.0, 0.0}, {0.1, -0.2}, {0.4, 0.3}, {0.9, 0.95}, {1.0, 1.0}}};
     mtwnEasing easings[2];
-    CHECK(mtwnMakeLinearEasing(points[0], 5, &easings[0]) == mtwn_success &&
-              mtwnMakeLinearEasing(points[1], 5, &easings[1]) == mtwn_success,
+    CHECK(mtwnMakeLinearPointsEasing(points[0], 5, &easings[0]) == mtwn_success &&
+              mtwnMakeLinearPointsEasing(points[1], 5, &easings[1]) == mtwn_success,
           "two linear() easings");
     for (int k = 0; k < 2; ++k)
     {

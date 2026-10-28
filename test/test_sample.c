@@ -36,7 +36,7 @@ static void TestEvenTables(void)
     CHECK(values[5] == -7.0f, "nothing written past the count");
     // Outside the before phase: a jump at the start is taken at 0.
     mtwnEasing steps;
-    CHECK(mtwnMakeSteps(4, mtwn_jumpStart, &steps) == mtwn_success, "steps");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpStart, &steps) == mtwn_success, "steps");
     CHECK(mtwnSampleEasing(&steps, 5, values) == mtwn_success && values[0] == 0.25f &&
               values[1] == 0.5f && values[2] == 0.75f && values[3] == 1.0f && values[4] == 1.0f,
           "jump-start steps from their first step");
@@ -70,7 +70,7 @@ static double FitError(const mtwnEasing* easing, uint32_t count, bool* shapeOut)
     }
     *shapeOut = shape;
     mtwnEasing fitted;
-    if (mtwnMakeLinearEasing(s_points, count, &fitted) != mtwn_success)
+    if (mtwnMakeLinearPointsEasing(s_points, count, &fitted) != mtwn_success)
     {
         *shapeOut = false;
         return HUGE_VAL;
@@ -98,7 +98,7 @@ static void TestFitsWithinTolerance(void)
            mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeOut, &easings[n++]) == mtwn_success;
     made =
         made && mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeIn, &easings[n++]) == mtwn_success;
-    made = made && mtwnMakeCubicBezier(0.0, 1.0, 1.0, 0.0, &easings[n++]) == mtwn_success;
+    made = made && mtwnMakeCubicBezierEasing(0.0, 1.0, 1.0, 0.0, &easings[n++]) == mtwn_success;
     CHECK(made, "the easings");
     static const double tolerances[] = {1e-2, 1e-3, 1e-4};
     for (int e = 0; e < n; ++e)
@@ -128,7 +128,7 @@ static void TestFitLastProbe(void)
     static mtwnLinearPoint bump[5] = {
         {0.0, 0.0}, {0.96, 0.96}, {0.97, 1.5}, {0.98, 0.98}, {1.0, 1.0}};
     mtwnEasing easing;
-    CHECK(mtwnMakeLinearEasing(bump, 5, &easing) == mtwn_success, "a bump");
+    CHECK(mtwnMakeLinearPointsEasing(bump, 5, &easing) == mtwn_success, "a bump");
     uint32_t count = 0;
     CHECK(mtwnFitLinearEasing(&easing, 1e-3, s_points, s_capacity, &count) == mtwn_success,
           "fitted");
@@ -219,7 +219,7 @@ static void TestJumpsEnd(void)
     CHECK(mtwnFitLinearEasing(&jump, 1e-3, s_points, s_capacity, &count) == mtwn_success,
           "a jump is fitted");
     mtwnEasing fitted;
-    CHECK(count < 300 && mtwnMakeLinearEasing(s_points, count, &fitted) == mtwn_success,
+    CHECK(count < 300 && mtwnMakeLinearPointsEasing(s_points, count, &fitted) == mtwn_success,
           "in a bounded count");
     double worst = 0.0;
     for (int i = 0; i <= s_grid; ++i)
@@ -313,7 +313,7 @@ static void TestFitRefusals(void)
 {
     uint32_t count = 7;
     mtwnEasing steps;
-    CHECK(mtwnMakeSteps(4, mtwn_jumpEnd, &steps) == mtwn_success, "steps");
+    CHECK(mtwnMakeStepsEasing(4, mtwn_jumpEnd, &steps) == mtwn_success, "steps");
     CHECK(mtwnFitLinearEasing(&steps, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
           "steps are refused");
     mtwnEasing quad;

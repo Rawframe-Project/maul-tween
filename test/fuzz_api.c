@@ -187,7 +187,7 @@ static mtwnResult MakeLinear(mtwnLinearPoint* points, mtwnEasing* easingOut)
 {
     static const mtwnLinearPoint s_rising[4] = {{0.0, 0.0}, {0.4, 0.3}, {0.7, 0.8}, {1.0, 1.0}};
     memcpy(points, s_rising, sizeof s_rising);
-    return mtwnMakeLinearEasing(points, 4, easingOut);
+    return mtwnMakeLinearPointsEasing(points, 4, easingOut);
 }
 
 static void Scribble(mtwnLinearPoint* points)
