@@ -192,7 +192,7 @@ refused with `mtwn_errorVersion`.
 - **Breaking: makers refuse easings that could not stay finite.**
   `mtwnMakeElasticEasing` refuses an amplitude past 512, and a period
   below 2^-10, after an amplitude below 1 has stretched it.
-  `mtwnMakeCubicBezierEasing` refuses a y past 2^1000 in magnitude.
+  `mtwnMakeCubicBezier` refuses a y past 2^1000 in magnitude.
   `mtwnMakeSpringEasing` refuses a spring that oscillates more than
   once in 2^-10 of the duration, and one whose eased progress could pass
   the doubles' range
