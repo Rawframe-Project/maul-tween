@@ -804,15 +804,16 @@ static void TestRateLimit(void)
           "a def past the limit refused");
     def.rate = -MTWN_RATE_LIMIT;
     CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_success, "a def at the limit");
-    // A rate other than 0 below 1 / MTWN_RATE_LIMIT would overflow the
-    // start time (MTWN_SEEK_LIMIT): 5e-324 took a player at 1 s to its end.
+    // A rate other than 0 below MTWN_MIN_RATE would overflow the start
+    // time (MTWN_SEEK_LIMIT): 5e-324 took a player at 1 s to its end.
+    CHECK(MTWN_MIN_RATE == 0x1p-20 && MTWN_MIN_RATE * MTWN_RATE_LIMIT == 1.0,
+          "the floor is 2^-20, the limit's inverse");
     misuse = mtwnGetContextMisuse(f.context);
-    CHECK(mtwnPlayer_SetRate(f.context, p, 1.0 / MTWN_RATE_LIMIT) == mtwn_success &&
-              mtwnPlayer_SetRate(f.context, p, -1.0 / MTWN_RATE_LIMIT) == mtwn_success &&
+    CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success &&
+              mtwnPlayer_SetRate(f.context, p, -MTWN_MIN_RATE) == mtwn_success &&
               mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success,
           "the smallest rate, either way, and 0");
-    CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(1.0 / MTWN_RATE_LIMIT, 0.0)) ==
-                  mtwn_errorLimit &&
+    CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(MTWN_MIN_RATE, 0.0)) == mtwn_errorLimit &&
               mtwnPlayer_SetRate(f.context, p, -0x1p-1074) == mtwn_errorLimit &&
               mtwnPlayer_SetRate(f.context, p, 1e-300) == mtwn_errorLimit,
           "below it refused");
@@ -844,7 +845,7 @@ static void TestSeekLimit(void)
     CHECK(State(&f, p).currentTime == 1.0 && mtwnGetContextMisuse(f.context) == misuse + 6,
           "the player where it was, each counted as misuse");
     // At the smallest rate the limit's time and the start time stay finite.
-    CHECK(mtwnPlayer_SetRate(f.context, p, 1.0 / MTWN_RATE_LIMIT) == mtwn_success, "slowed");
+    CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success, "slowed");
     Update(&f, 2.5);
     CHECK(mtwnPlayer_Seek(f.context, p, -MTWN_SEEK_LIMIT) == mtwn_success &&
               State(&f, p).currentTime == -MTWN_SEEK_LIMIT,
@@ -855,7 +856,7 @@ static void TestSeekLimit(void)
           "still there, running, after an update");
     CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.5) == mtwn_success, "back to 1 s");
     Update(&f, 4.5);
-    CHECK(Near(State(&f, p).currentTime, 1.0 + 1.0 / MTWN_RATE_LIMIT),
+    CHECK(Near(State(&f, p).currentTime, 1.0 + MTWN_MIN_RATE),
           "a second on at the smallest rate, not to the end");
     // A label of the root past the limit is refused too.
     mtwnClipDef clipDef = mtwnDefaultClipDef();
