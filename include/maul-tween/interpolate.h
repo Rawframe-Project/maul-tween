@@ -170,12 +170,15 @@ extern "C"
     ///
     /// @param from      The angle at progress 0, finite.
     /// @param to        The angle at progress 1, finite.
-    /// @param method    The method; an unknown one is raw.
+    /// @param method    The method.
     /// @param progress  The progress, finite; outside 0 to 1 extends.
-    /// @return The angle.
+    /// @param angleOut  Receives the angle; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null angleOut, an
+    ///         unknown method, or an angle or progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API double mtwnMixAngle(double from, double to, mtwnAngleMethod method, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixAngle(double from, double to, mtwnAngleMethod method,
+                                                    double progress, double* angleOut);
 
     // A rotation as a unit quaternion (x, y, z, w): the axis times the sine
     // of half the angle, then its cosine. q and -q are the same rotation.
@@ -371,10 +374,13 @@ extern "C"
     /// @param to        The value at progress 1.
     /// @param progress  The progress, finite; outside 0 to 1 extends,
     ///                  clamped to the type's range.
-    /// @return The value.
+    /// @param valueOut  Receives the value; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null valueOut or a
+    ///         progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API int64_t mtwnMixInteger(int64_t from, int64_t to, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixInteger(int64_t from, int64_t to, double progress,
+                                                      int64_t* valueOut);
 
     /// Interpolates a discrete value the host indexes (an enumeration, a
     /// flag): from below progress 1/2, to from it, as Web Animations
@@ -382,11 +388,14 @@ extern "C"
     ///
     /// @param from      The value at progress 0.
     /// @param to        The value at progress 1.
-    /// @param progress  The progress.
-    /// @return from or to.
+    /// @param progress  The progress, finite.
+    /// @param valueOut  Receives from or to; unchanged on failure.
+    /// @return mtwn_success; mtwn_errorInvalid for a null valueOut or a
+    ///         progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMixDiscrete(uint32_t from, uint32_t to, double progress,
+                                                       uint32_t* valueOut);
 
     // A punch: a sine fading out over a duration, sin(2 pi f t) (1 - t /
     // duration)^exponent. Make one with mtwnMakePunch; its fields are the

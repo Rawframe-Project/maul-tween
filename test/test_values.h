@@ -203,6 +203,27 @@ static inline mtwnZoomView MixZoom(const mtwnZoomMix* mix, double progress)
     return view;
 }
 
+static inline double MixAngle(double from, double to, mtwnAngleMethod method, double progress)
+{
+    double angle = (double)NAN;
+    CHECK(mtwnMixAngle(from, to, method, progress, &angle) == mtwn_success, "an angle's mix");
+    return angle;
+}
+
+static inline int64_t MixInteger(int64_t from, int64_t to, double progress)
+{
+    int64_t value = 0;
+    CHECK(mtwnMixInteger(from, to, progress, &value) == mtwn_success, "an integer's mix");
+    return value;
+}
+
+static inline uint32_t MixDiscrete(uint32_t from, uint32_t to, double progress)
+{
+    uint32_t value = 0;
+    CHECK(mtwnMixDiscrete(from, to, progress, &value) == mtwn_success, "a discrete value's mix");
+    return value;
+}
+
 static inline double ComputeZoomLength(const mtwnZoomMix* mix)
 {
     double length = (double)NAN;

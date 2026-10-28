@@ -46,23 +46,40 @@ static MTWN_NOINLINE int64_t mtwnMixIntegerWork(int64_t from, int64_t to, double
     return (int64_t)value;
 }
 
-int64_t mtwnMixInteger(int64_t from, int64_t to, double progress)
+static MTWN_NOINLINE mtwnResult mtwnMixIntegerChecked(int64_t from, int64_t to, double progress,
+                                                      int64_t* valueOut)
+{
+    if (valueOut == NULL || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *valueOut = mtwnMixIntegerWork(from, to, progress);
+    return mtwn_success;
+}
+
+mtwnResult mtwnMixInteger(int64_t from, int64_t to, double progress, int64_t* valueOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    int64_t result = mtwnMixIntegerWork(from, to, progress);
+    mtwnResult result = mtwnMixIntegerChecked(from, to, progress, valueOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-static MTWN_NOINLINE uint32_t mtwnMixDiscreteWork(uint32_t from, uint32_t to, double progress)
+static MTWN_NOINLINE mtwnResult mtwnMixDiscreteChecked(uint32_t from, uint32_t to, double progress,
+                                                       uint32_t* valueOut)
 {
-    return progress < 0.5 ? from : to;
+    if (valueOut == NULL || !isfinite(progress))
+    {
+        return mtwn_errorInvalid;
+    }
+    *valueOut = progress < 0.5 ? from : to;
+    return mtwn_success;
 }
 
-uint32_t mtwnMixDiscrete(uint32_t from, uint32_t to, double progress)
+mtwnResult mtwnMixDiscrete(uint32_t from, uint32_t to, double progress, uint32_t* valueOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    uint32_t result = mtwnMixDiscreteWork(from, to, progress);
+    mtwnResult result = mtwnMixDiscreteChecked(from, to, progress, valueOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

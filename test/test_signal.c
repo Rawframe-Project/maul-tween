@@ -32,14 +32,13 @@ static const double s_slack = DBL_EPSILON;
 
 static void TestIntegers(void)
 {
-    CHECK(mtwnMixInteger(3, 9, 0.0) == 3 && mtwnMixInteger(3, 9, 1.0) == 9, "the ends");
-    CHECK(mtwnMixInteger(0, 10, 0.25) == 3 && mtwnMixInteger(0, -10, 0.25) == -3,
-          "ties away from zero");
-    CHECK(mtwnMixInteger(0, 10, 0.24) == 2, "to nearest");
+    CHECK(MixInteger(3, 9, 0.0) == 3 && MixInteger(3, 9, 1.0) == 9, "the ends");
+    CHECK(MixInteger(0, 10, 0.25) == 3 && MixInteger(0, -10, 0.25) == -3, "ties away from zero");
+    CHECK(MixInteger(0, 10, 0.24) == 2, "to nearest");
     int seen[101] = {0};
     for (int k = 0; k <= 100000; ++k)
     {
-        int64_t v = mtwnMixInteger(0, 100, (double)k / 100000.0);
+        int64_t v = MixInteger(0, 100, (double)k / 100000.0);
         if (v >= 0 && v <= 100)
         {
             seen[v] = 1;
@@ -52,27 +51,35 @@ static void TestIntegers(void)
     }
     CHECK(missing == 0, "every integer between the ends is passed");
     int64_t big = (int64_t)1 << 52;
-    CHECK(mtwnMixInteger(big, big + 10, 0.5) == big + 5, "exact within 2^53");
-    CHECK(mtwnMixInteger(INT64_MAX, INT64_MIN, 0.0) == INT64_MAX &&
-              mtwnMixInteger(INT64_MAX, INT64_MIN, 1.0) == INT64_MIN,
+    CHECK(MixInteger(big, big + 10, 0.5) == big + 5, "exact within 2^53");
+    CHECK(MixInteger(INT64_MAX, INT64_MIN, 0.0) == INT64_MAX &&
+              MixInteger(INT64_MAX, INT64_MIN, 1.0) == INT64_MIN,
           "the type's ends exactly");
-    CHECK(mtwnMixInteger(0, INT64_MAX, 2.0) == INT64_MAX &&
-              mtwnMixInteger(0, INT64_MIN, 2.0) == INT64_MIN,
+    CHECK(MixInteger(0, INT64_MAX, 2.0) == INT64_MAX && MixInteger(0, INT64_MIN, 2.0) == INT64_MIN,
           "clamped past the type's range");
-    CHECK(mtwnMixInteger(10, 20, -0.5) == 5, "extended below 0");
+    CHECK(MixInteger(10, 20, -0.5) == 5, "extended below 0");
     int64_t odd = ((int64_t)1 << 60) + 1;
-    CHECK(mtwnMixInteger(odd, 5, 0.0) == odd && mtwnMixInteger(5, odd, 1.0) == odd,
+    CHECK(MixInteger(odd, 5, 0.0) == odd && MixInteger(5, odd, 1.0) == odd,
           "ends past 2^53, which double cannot hold, exactly");
-    CHECK(mtwnMixInteger(0, INT64_MIN, 0.75) == -3 * ((int64_t)1 << 61),
+    CHECK(MixInteger(0, INT64_MIN, 0.75) == -3 * ((int64_t)1 << 61),
           "large values short of the range are not clamped");
-    CHECK(mtwnMixInteger(1, 2, (double)NAN) == 1, "NaN progress keeps the start");
+    int64_t kept = 5;
+    CHECK(mtwnMixInteger(1, 2, (double)NAN, &kept) == mtwn_errorInvalid &&
+              mtwnMixInteger(1, 2, HUGE_VAL, &kept) == mtwn_errorInvalid &&
+              mtwnMixInteger(1, 2, 0.5, NULL) == mtwn_errorInvalid && kept == 5,
+          "a progress not finite and a null out refused, the value as it was");
 }
 
 static void TestDiscrete(void)
 {
-    CHECK(mtwnMixDiscrete(7, 9, 0.0) == 7 && mtwnMixDiscrete(7, 9, 0.4999) == 7, "before 1/2");
-    CHECK(mtwnMixDiscrete(7, 9, 0.5) == 9 && mtwnMixDiscrete(7, 9, 1.0) == 9, "from 1/2");
-    CHECK(mtwnMixDiscrete(7, 9, -3.0) == 7 && mtwnMixDiscrete(7, 9, 3.0) == 9, "outside");
+    CHECK(MixDiscrete(7, 9, 0.0) == 7 && MixDiscrete(7, 9, 0.4999) == 7, "before 1/2");
+    CHECK(MixDiscrete(7, 9, 0.5) == 9 && MixDiscrete(7, 9, 1.0) == 9, "from 1/2");
+    CHECK(MixDiscrete(7, 9, -3.0) == 7 && MixDiscrete(7, 9, 3.0) == 9, "outside");
+    uint32_t kept = 5;
+    CHECK(mtwnMixDiscrete(7, 9, (double)NAN, &kept) == mtwn_errorInvalid &&
+              mtwnMixDiscrete(7, 9, -HUGE_VAL, &kept) == mtwn_errorInvalid &&
+              mtwnMixDiscrete(7, 9, 0.5, NULL) == mtwn_errorInvalid && kept == 5,
+          "a progress not finite and a null out refused, the value as it was");
 }
 
 static void TestPunch(void)
@@ -223,7 +230,7 @@ static void TestShakeNoise(void)
 // weighted sum's terms cancelled.
 static void TestIntegerFarProgress(void)
 {
-    CHECK(mtwnMixInteger(7, 7, 1e20) == 7 && mtwnMixInteger(-3, -3, -1e20) == -3,
+    CHECK(MixInteger(7, 7, 1e20) == 7 && MixInteger(-3, -3, -1e20) == -3,
           "equal ends, far out: the end");
 }
 
@@ -231,8 +238,7 @@ static void TestIntegerFarProgress(void)
 // past it.
 static void TestIntegerTop(void)
 {
-    CHECK(mtwnMixInteger(INT64_MAX, INT64_MAX, 0.5) == INT64_MAX,
-          "a mix of 2^63 exactly: the largest");
+    CHECK(MixInteger(INT64_MAX, INT64_MAX, 0.5) == INT64_MAX, "a mix of 2^63 exactly: the largest");
 }
 
 // Whether a punch's sample refuses it, its out as it was.

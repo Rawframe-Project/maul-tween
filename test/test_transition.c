@@ -188,9 +188,9 @@ static void TestKinds(void)
     CHECK(State(context, flag).value.x == 9.0f && State(context, flag).velocity.x == 0.0f,
           "a discrete value flips at 1/2, at rest");
     double reached = (double)State(context, angle).value.x;
-    CHECK(State(context, angle).value.x == (float)mtwnMixAngle((double)(float)(350 * pi / 180),
-                                                               (double)(float)(10 * pi / 180),
-                                                               mtwn_angleShorter, 0.5) &&
+    CHECK(State(context, angle).value.x == (float)MixAngle((double)(float)(350 * pi / 180),
+                                                           (double)(float)(10 * pi / 180),
+                                                           mtwn_angleShorter, 0.5) &&
               fabs(sin(reached)) < 1e-6 && cos(reached) > 0.0,
           "the shorter way through 0");
     mtwnColorMix mix;
@@ -833,7 +833,7 @@ static void TestAngleTurns(void)
     Update(context, s_second - 1);
     float near = State(context, angle).value.x;
     Update(context, s_second);
-    float turned = (float)mtwnMixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
+    float turned = (float)MixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
     CHECK(State(context, angle).base.x == turned && fabsf(near - turned) <= 1e-6f,
           "the end moved by its turn is what is committed: no jump of a turn");
     // An unknown method is refused for an angle, by every spec; a number

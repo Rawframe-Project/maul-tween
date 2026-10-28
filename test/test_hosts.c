@@ -230,11 +230,17 @@ static void Values(Out* out)
         r = mtwnConvertColorFromSpace(lch, mtwn_colorOklab, &back);
         PUT(out, r);
         PUT(out, back);
-        double angle = mtwnMixAngle(0.3, 5.9, mtwn_angleShorter, s_progress[i]);
+        double angle = 0.0;
+        r = mtwnMixAngle(0.3, 5.9, mtwn_angleShorter, s_progress[i], &angle);
+        PUT(out, r);
         PUT(out, angle);
-        int64_t integer = mtwnMixInteger(-7, 1000003, s_progress[i]);
-        uint32_t discrete = mtwnMixDiscrete(2, 9, s_progress[i]);
+        int64_t integer = 0;
+        r = mtwnMixInteger(-7, 1000003, s_progress[i], &integer);
+        PUT(out, r);
         PUT(out, integer);
+        uint32_t discrete = 0;
+        r = mtwnMixDiscrete(2, 9, s_progress[i], &discrete);
+        PUT(out, r);
         PUT(out, discrete);
     }
     mtwnRotationMix rotation;
