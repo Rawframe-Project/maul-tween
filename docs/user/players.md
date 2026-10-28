@@ -83,7 +83,7 @@ What a player's time crosses between updates is recorded exactly, however far it
 mtwnEvent events[32];
 uint32_t count = 0;
 uint64_t dropped = 0;
-mtwnResult read = mtwnReadEvents(context, events, 32, &count, &dropped);
+mtwnResult read = mtwnContext_ReadEvents(context, events, 32, &count, &dropped);
 for (uint32_t i = 0; i < count; ++i)
 {
     if (events[i].kind == mtwn_eventMark && events[i].key == 7)

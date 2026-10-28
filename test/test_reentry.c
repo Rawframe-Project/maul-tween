@@ -71,8 +71,8 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnGrowContext(&grown, NULL) == mtwn_errorBusy;
     // Reduced motion as it is: the one call that succeeds when not busy.
     r += mtwnContext_SetReducedMotion(c, false) == mtwn_errorBusy;
-    r += mtwnUpdate(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
-    r += mtwnReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
+    r += mtwnContext_Update(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
+    r += mtwnContext_ReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     r += mtwnCreatePlayer(c, &playerDef, NULL) == mtwn_errorBusy;
     r += mtwnPlayer_Play(c, noPlayer) == mtwn_errorBusy;
@@ -93,7 +93,7 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorBusy;
     r += mtwnTarget_GetValue(c, noTarget, NULL) == mtwn_errorBusy;
     r += mtwnTarget_GetState(c, noTarget, NULL) == mtwn_errorBusy;
-    r += mtwnReadTargets(c, NULL, 1, NULL) == mtwn_errorBusy;
+    r += mtwnContext_ReadTargets(c, NULL, 1, NULL) == mtwn_errorBusy;
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     r += mtwnStartTransition(c, &transition, NULL) == mtwn_errorBusy;
     r += mtwnMeasureTransition(c, &transition, NULL) == mtwn_errorBusy;
@@ -198,8 +198,8 @@ static void TestHostEasing(void)
               mtwnContext_SetReducedMotion(context, false) == mtwn_success,
           "not busy, none of the calls returns a state error, the last left too");
     uint64_t before = mtwnGetContextMisuse(context);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
@@ -234,7 +234,7 @@ static void* CallingAlloc(size_t size, size_t alignment, void* user)
     Calling* calling = user;
     if (calling->context != NULL)
     {
-        calling->inAlloc = mtwnUpdate(calling->context, 0, NULL, 0, NULL);
+        calling->inAlloc = mtwnContext_Update(calling->context, 0, NULL, 0, NULL);
         calling->allocs += 1;
     }
     (void)alignment;
@@ -301,7 +301,7 @@ static void CallingFinish(void* userTask, void* userContext)
     (void)userTask;
     (void)userContext;
     s_finished += 1;
-    s_taskRefused += mtwnUpdate(s_tasksContext, 0, NULL, 0, NULL) == mtwn_errorBusy;
+    s_taskRefused += mtwnContext_Update(s_tasksContext, 0, NULL, 0, NULL) == mtwn_errorBusy;
 }
 
 static void TestTasks(void)
@@ -344,8 +344,8 @@ static void TestTasks(void)
         CHECK(mtwnCreatePlayer(context, &def2, &player) == mtwn_success, "a player");
     }
     uint64_t before = mtwnGetContextMisuse(context);
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_enqueued > 0 && s_finished > 0, "the clips' players ran on the tasks");
     CHECK(s_taskRefused == s_enqueued + s_finished, "every call back in refused");

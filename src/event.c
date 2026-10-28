@@ -146,9 +146,9 @@ static mtwnResult RunReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnReadEventsWork(mtwnContext* context, mtwnEvent* eventsOut,
-                                                   uint32_t capacity, uint32_t* countOut,
-                                                   uint64_t* droppedOut)
+static MTWN_NOINLINE mtwnResult mtwnContext_ReadEventsWork(mtwnContext* context,
+                                                           mtwnEvent* eventsOut, uint32_t capacity,
+                                                           uint32_t* countOut, uint64_t* droppedOut)
 {
     // Cleared first, so a busy or missing context's failure clears them too.
     if (countOut != NULL)
@@ -168,11 +168,12 @@ static MTWN_NOINLINE mtwnResult mtwnReadEventsWork(mtwnContext* context, mtwnEve
     return result;
 }
 
-mtwnResult mtwnReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
-                          uint32_t* countOut, uint64_t* droppedOut)
+mtwnResult mtwnContext_ReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
+                                  uint32_t* countOut, uint64_t* droppedOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnReadEventsWork(context, eventsOut, capacity, countOut, droppedOut);
+    mtwnResult result =
+        mtwnContext_ReadEventsWork(context, eventsOut, capacity, countOut, droppedOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

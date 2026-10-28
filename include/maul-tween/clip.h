@@ -98,7 +98,7 @@ extern "C"
 #define MTWN_CLIP_DEF_COOKIE 0x50494C43u
 
     /// Makes a clip def for a small clip: 16 nodes, 32 keyframes, 8 slots,
-    /// 64 points of linear(), about 14 KB of clip storage (mtwnGetClipBytes
+    /// 64 points of linear(), about 14 KB of clip storage (mtwnContext_GetClipBytes
     /// says how much).
     ///
     /// @return The def.
@@ -257,8 +257,9 @@ extern "C"
     ///         MTWN_MAX_COUNT; mtwn_errorBusy while the context is busy.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnGetClipBytes(mtwnContext* context,
-                                                        const mtwnClipDef* def, uint64_t* bytesOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_GetClipBytes(mtwnContext* context,
+                                                                const mtwnClipDef* def,
+                                                                uint64_t* bytesOut);
 
     /// Makes a clip: allocates its storage in one block, counted against the
     /// context's clip storage. Its root timeline, node 1, lasts as long as
@@ -339,7 +340,7 @@ extern "C"
 // - every time a player holds or reaches is a seek's or a clip's end (at
 //   most this; an infinite end is never held), or 0, run on at a rate of
 //   at most MTWN_RATE_LIMIT (2^20) for at most the host's time, which
-//   mtwnUpdate takes in nanoseconds as a uint64_t, below 2^35 s: below
+//   mtwnContext_Update takes in nanoseconds as a uint64_t, below 2^35 s: below
 //   2^1000 + 2^55 in size;
 // - a rate other than 0 is at least MTWN_MIN_RATE (2^-20) in size;
 // - so t / rate is below 2^1021 in size, and now - t / rate is finite,

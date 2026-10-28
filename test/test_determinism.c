@@ -372,7 +372,7 @@ static void HashFrame(World* w)
     mtwnEvent events[64];
     uint32_t n = 0;
     uint64_t dropped = 0;
-    CHECK(mtwnReadEvents(w->context, events, 64, &n, &dropped) == mtwn_success, "events");
+    CHECK(mtwnContext_ReadEvents(w->context, events, 64, &n, &dropped) == mtwn_success, "events");
     Hash(&dropped, sizeof dropped);
     for (uint32_t e = 0; e < n; ++e)
     {
@@ -804,7 +804,7 @@ int main(int argc, char** argv)
         Control(&w, frame);
         // Irregular steps of 4 to 30 ms.
         now += 4000000u + (uint64_t)((frame * 7919u) % 27u) * 1000000u;
-        CHECK(mtwnUpdate(w.context, now, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(w.context, now, NULL, 0, NULL) == mtwn_success, "an update");
         HashFrame(&w);
     }
     mtwnDestroyContext(w.context);

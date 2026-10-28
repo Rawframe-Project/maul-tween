@@ -221,8 +221,8 @@ static uint32_t Step(Twin twins[2], uint64_t now, uint32_t* records)
     uint32_t totals[2] = {0, 0};
     for (int k = 0; k < 2; ++k)
     {
-        CHECK(mtwnUpdate(twins[k].context, now, changed[k], s_players * s_slots, &totals[k]) ==
-                  mtwn_success,
+        CHECK(mtwnContext_Update(twins[k].context, now, changed[k], s_players * s_slots,
+                                 &totals[k]) == mtwn_success,
               "an update");
     }
     uint32_t differences = totals[0] == totals[1] ? 0u : 1u;
@@ -250,7 +250,8 @@ static uint32_t Step(Twin twins[2], uint64_t now, uint32_t* records)
     uint64_t dropped[2] = {0, 0};
     for (int k = 0; k < 2; ++k)
     {
-        CHECK(mtwnReadEvents(twins[k].context, read[k], 4096, &n[k], &dropped[k]) == mtwn_success,
+        CHECK(mtwnContext_ReadEvents(twins[k].context, read[k], 4096, &n[k], &dropped[k]) ==
+                  mtwn_success,
               "the records");
     }
     differences += n[0] == n[1] && dropped[0] == dropped[1] ? 0u : 1u;
@@ -454,7 +455,8 @@ static uint32_t CompareRecords(Twin twins[2], uint32_t* count)
     uint64_t dropped[2] = {0, 0};
     for (int k = 0; k < 2; ++k)
     {
-        CHECK(mtwnReadEvents(twins[k].context, read[k], 4096, &n[k], &dropped[k]) == mtwn_success,
+        CHECK(mtwnContext_ReadEvents(twins[k].context, read[k], 4096, &n[k], &dropped[k]) ==
+                  mtwn_success,
               "the records");
     }
     uint32_t differences = n[0] == n[1] && dropped[0] == dropped[1] ? 0u : 1u;

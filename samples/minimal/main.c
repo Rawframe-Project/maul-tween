@@ -41,7 +41,7 @@ int main(void)
     // Host time in nanoseconds, a frame of 60 Hz at a time.
     for (uint64_t frame = 0; ok && frame <= 40; ++frame)
     {
-        ok = mtwnUpdate(context, frame * 16666667u, NULL, 0, NULL) == mtwn_success;
+        ok = mtwnContext_Update(context, frame * 16666667u, NULL, 0, NULL) == mtwn_success;
     }
     mtwnTargetState state = {0};
     ok = ok && mtwnTarget_GetState(context, x, &state) == mtwn_success && state.value.x == 100.0f;

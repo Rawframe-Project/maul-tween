@@ -63,7 +63,8 @@ static Scene MakeScene(void)
 
 static void Update(Scene* s, double seconds)
 {
-    CHECK(mtwnUpdate(s->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(s->context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "an update");
 }
 
@@ -296,8 +297,10 @@ static void TestBackwardsAtEnd(void)
         def.keep = true;
         mtwnPlayerId id = {0, 0};
         CHECK(mtwnCreatePlayer(s.context, &def, &id) == mtwn_success, "a player");
-        CHECK(mtwnUpdate(s.context, 1000000000u, NULL, 0, NULL) == mtwn_success, "the start");
-        CHECK(mtwnUpdate(s.context, 1000000000u + ns, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(s.context, 1000000000u, NULL, 0, NULL) == mtwn_success,
+              "the start");
+        CHECK(mtwnContext_Update(s.context, 1000000000u + ns, NULL, 0, NULL) == mtwn_success,
+              "an update");
         mtwnPlayerState state;
         CHECK(mtwnPlayer_GetState(s.context, id, &state) == mtwn_success, "a state");
         if (state.currentTime + 0.001 == 2.0)

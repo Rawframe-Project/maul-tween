@@ -538,8 +538,10 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
     uint32_t nB = 0;
     uint64_t droppedA = 0;
     uint64_t droppedB = 0;
-    CHECK(mtwnReadEvents(a->context, recordsA, 4096, &nA, &droppedA) == mtwn_success, "read");
-    CHECK(mtwnReadEvents(b->context, recordsB, 4096, &nB, &droppedB) == mtwn_success, "read");
+    CHECK(mtwnContext_ReadEvents(a->context, recordsA, 4096, &nA, &droppedA) == mtwn_success,
+          "read");
+    CHECK(mtwnContext_ReadEvents(b->context, recordsB, 4096, &nB, &droppedB) == mtwn_success,
+          "read");
     differences += nA == nB && droppedA == droppedB &&
                            mtwnContext_GetDroppedEvents(a->context) ==
                                mtwnContext_GetDroppedEvents(b->context) &&
@@ -645,7 +647,8 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
             {
                 mtwnTestTasksBefore(twins[k].context, twins[k].clips, s_clips, &order);
             }
-            CHECK(mtwnUpdate(twins[k].context, now, changed[k], 512, &totals[k]) == mtwn_success,
+            CHECK(mtwnContext_Update(twins[k].context, now, changed[k], 512, &totals[k]) ==
+                      mtwn_success,
                   "an update");
         }
         script = s_script;
@@ -876,11 +879,11 @@ static void TestOneTimeOrder(void)
             mtwnPlayerId player;
             CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
         }
-        CHECK(mtwnUpdate(context, 10000000u, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(context, 10000000u, NULL, 0, NULL) == mtwn_success, "an update");
         CHECK(mtwnContext_SetReducedMotion(context, true) == mtwn_success, "reduced motion");
-        CHECK(mtwnUpdate(context, 20000000u, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(context, 20000000u, NULL, 0, NULL) == mtwn_success, "an update");
         uint64_t dropped = 0;
-        CHECK(mtwnReadEvents(context, records[k], 64, &counts[k], &dropped) == mtwn_success,
+        CHECK(mtwnContext_ReadEvents(context, records[k], 64, &counts[k], &dropped) == mtwn_success,
               "read");
         CHECK(mtwnTarget_GetState(context, target, &finished[k]) == mtwn_success, "state");
         mtwnDestroyContext(context);
@@ -1012,7 +1015,8 @@ static mtwnClipId TwoTracks(mtwnContext* context)
 
 static void Step(mtwnContext* context, double seconds)
 {
-    CHECK(mtwnUpdate(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "an update");
 }
 

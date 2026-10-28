@@ -306,7 +306,7 @@ refused with `mtwn_errorVersion`.
 - Every public call that computes switches to the library's
   floating-point environment and back, about 45 instructions:
   `mtwnEaseCubicBezier` takes 315 instructions where it took 272,
-  `mtwnSampleSpring` 474 where it took 399, and an empty `mtwnUpdate`
+  `mtwnSampleSpring` 474 where it took 399, and an empty `mtwnContext_Update`
   188 where it took 166.
 - Code is larger. A program links 0.8 to 4.7 kB more, by the parts it
   uses: curves 27,161 bytes (from 26,345), values 59,289 (57,945),
@@ -419,7 +419,7 @@ host's clock, with the same results on every platform.
   an underdamped spring sampled that far into its oscillation, an
   elastic easing of a very short period, and an OkLCh color mix, a
   sine easing or a slerp extrapolated that far.
-- Breaking against the withdrawn 1.0 releases: `mtwnGetClipBytes` now
+- Breaking against the withdrawn 1.0 releases: `mtwnContext_GetClipBytes` now
   takes the context as its first argument; the transition, clip, clip
   track, clip timeline and player defs lose their `version` field, the
   transition def's value methods move after `target`, the player def's

@@ -372,9 +372,9 @@ static mtwnResult RunReadTargets(mtwnContext* context, const mtwnTargetId* targe
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnReadTargetsWork(mtwnContext* context,
-                                                    const mtwnTargetId* targets, uint32_t count,
-                                                    mtwnVec4* valuesOut)
+static MTWN_NOINLINE mtwnResult mtwnContext_ReadTargetsWork(mtwnContext* context,
+                                                            const mtwnTargetId* targets,
+                                                            uint32_t count, mtwnVec4* valuesOut)
 {
     if (!mtwnEnter(context))
     {
@@ -385,11 +385,11 @@ static MTWN_NOINLINE mtwnResult mtwnReadTargetsWork(mtwnContext* context,
     return result;
 }
 
-mtwnResult mtwnReadTargets(mtwnContext* context, const mtwnTargetId* targets, uint32_t count,
-                           mtwnVec4* valuesOut)
+mtwnResult mtwnContext_ReadTargets(mtwnContext* context, const mtwnTargetId* targets,
+                                   uint32_t count, mtwnVec4* valuesOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnReadTargetsWork(context, targets, count, valuesOut);
+    mtwnResult result = mtwnContext_ReadTargetsWork(context, targets, count, valuesOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

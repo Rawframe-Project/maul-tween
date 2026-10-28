@@ -100,7 +100,8 @@ static void ReadEvents(mtwnContext* context, mtwnNode body, uint32_t* chimes, ui
     mtwnEvent events[16];
     uint32_t count = 0;
     uint64_t dropped = 0;
-    Expect(mtwnReadEvents(context, events, 16, &count, &dropped) == mtwn_success && dropped == 0,
+    Expect(mtwnContext_ReadEvents(context, events, 16, &count, &dropped) == mtwn_success &&
+               dropped == 0,
            "the events read");
     for (uint32_t i = 0; i < count; ++i)
     {
@@ -168,7 +169,8 @@ int main(void)
     uint32_t frame = 0;
     for (; frame < 60; ++frame)
     {
-        Expect(mtwnUpdate(context, frame * s_frame, NULL, 0, NULL) == mtwn_success, "an update");
+        Expect(mtwnContext_Update(context, frame * s_frame, NULL, 0, NULL) == mtwn_success,
+               "an update");
         ReadEvents(context, body, &chimes, &bodyEnds, &bodyStarts);
     }
     mtwnTargetState shown;
@@ -183,7 +185,8 @@ int main(void)
     printf("hiding:\n");
     for (; frame < 120; ++frame)
     {
-        Expect(mtwnUpdate(context, frame * s_frame, NULL, 0, NULL) == mtwn_success, "an update");
+        Expect(mtwnContext_Update(context, frame * s_frame, NULL, 0, NULL) == mtwn_success,
+               "an update");
         ReadEvents(context, body, &chimes, &bodyEnds, &bodyStarts);
     }
     mtwnTargetState backdrop;

@@ -106,8 +106,9 @@ static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, 
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnGetClipBytesWork(mtwnContext* context, const mtwnClipDef* def,
-                                                     uint64_t* bytesOut)
+static MTWN_NOINLINE mtwnResult mtwnContext_GetClipBytesWork(mtwnContext* context,
+                                                             const mtwnClipDef* def,
+                                                             uint64_t* bytesOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (bytesOut != NULL)
@@ -123,10 +124,11 @@ static MTWN_NOINLINE mtwnResult mtwnGetClipBytesWork(mtwnContext* context, const
     return result;
 }
 
-mtwnResult mtwnGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
+mtwnResult mtwnContext_GetClipBytes(mtwnContext* context, const mtwnClipDef* def,
+                                    uint64_t* bytesOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnGetClipBytesWork(context, def, bytesOut);
+    mtwnResult result = mtwnContext_GetClipBytesWork(context, def, bytesOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
