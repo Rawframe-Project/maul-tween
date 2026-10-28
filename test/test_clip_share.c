@@ -139,7 +139,7 @@ static void TestDiffering(void)
     int wrong = 0;
     for (size_t k = 0; k < sizeof s_times / sizeof s_times[0]; ++k)
     {
-        CHECK(mtwnUpdate(context, (uint64_t)llround(s_times[k] * 1e9), NULL, 0, NULL) ==
+        CHECK(mtwnContext_Update(context, (uint64_t)llround(s_times[k] * 1e9), NULL, 0, NULL) ==
                   mtwn_success,
               "an update");
         for (uint32_t i = 0; i < TRACKS; ++i)
@@ -211,8 +211,8 @@ static void HeldValues(const double* rates, uint32_t count, float* valuesOut)
         mtwnPlayerId id = {0, 0};
         CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
     }
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 400000000u, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 400000000u, NULL, 0, NULL) == mtwn_success,
           "the updates");
     for (uint32_t i = 0; i < count; ++i)
     {
@@ -295,9 +295,9 @@ static int HostCalls(bool apart)
     player.bindingCount = 3;
     mtwnPlayerId id = {0, 0};
     CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
     s_calls = 0;
-    CHECK(mtwnUpdate(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
+    CHECK(mtwnContext_Update(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
     int calls = s_calls;
     mtwnDestroyContext(context);
     return calls;
@@ -354,9 +354,9 @@ static int InStepCalls(int players)
         mtwnPlayerId id = {0, 0};
         CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
     }
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
     s_calls = 0;
-    CHECK(mtwnUpdate(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
+    CHECK(mtwnContext_Update(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
     int calls = s_calls;
     mtwnDestroyContext(context);
     return calls;
@@ -406,11 +406,11 @@ static void TestHeldInStep(void)
                 CHECK(mtwnPlayer_SetRate(context, players[i], 1.0) == mtwn_success, "going");
             }
         }
-        CHECK(mtwnUpdate(context, (uint64_t)k * 250000000u, NULL, 0, NULL) == mtwn_success,
+        CHECK(mtwnContext_Update(context, (uint64_t)k * 250000000u, NULL, 0, NULL) == mtwn_success,
               "an update");
         mtwnEvent events[64];
         uint32_t n = 0;
-        CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+        CHECK(mtwnContext_ReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
         for (uint32_t e = 0; e < n; ++e)
         {
             for (int i = 0; i < 4; ++i)
@@ -467,11 +467,11 @@ static void TestTurnAfterSeek(void)
                 CHECK(mtwnPlayer_SetRate(context, players[i], -1.0) == mtwn_success, "back");
             }
         }
-        CHECK(mtwnUpdate(context, (uint64_t)k * 500000000u, NULL, 0, NULL) == mtwn_success,
+        CHECK(mtwnContext_Update(context, (uint64_t)k * 500000000u, NULL, 0, NULL) == mtwn_success,
               "an update");
         mtwnEvent events[64];
         uint32_t n = 0;
-        CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+        CHECK(mtwnContext_ReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
         for (uint32_t e = 0; e < n; ++e)
         {
             for (int i = 0; i < 4 && k == 3; ++i)
@@ -517,12 +517,13 @@ static void TestFullSharedNodes(void)
         playerDef.keep = true;
         CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
     }
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
     mtwnEvent events[64];
     uint32_t n = 0;
-    CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
-    CHECK(mtwnUpdate(context, 100000000u, NULL, 0, NULL) == mtwn_success, "a tenth of a second");
-    CHECK(mtwnReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+    CHECK(mtwnContext_ReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
+    CHECK(mtwnContext_Update(context, 100000000u, NULL, 0, NULL) == mtwn_success,
+          "a tenth of a second");
+    CHECK(mtwnContext_ReadEvents(context, events, 64, &n, NULL) == mtwn_success, "read");
     double first[8];
     double fourth[8];
     uint32_t firstCount = 0;
@@ -582,8 +583,8 @@ static void TestInStepMoreSlots(void)
         mtwnPlayerId player;
         CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
     }
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
-    CHECK(mtwnUpdate(context, 500000000u, NULL, 0, NULL) == mtwn_success, "half way");
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(context, 500000000u, NULL, 0, NULL) == mtwn_success, "half way");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, last, &value) == mtwn_success, "read");
     CHECK(value.x == Expected(context, clip, second, 0.5) && value.x > 0.0f,

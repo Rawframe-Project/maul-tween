@@ -86,7 +86,7 @@ static mtwnPlayerId Player(Fixture* f, bool play, double rate)
 
 static void Update(Fixture* f, double seconds)
 {
-    CHECK(mtwnUpdate(f->context, (uint64_t)(seconds * (double)s_second), NULL, 0, NULL) ==
+    CHECK(mtwnContext_Update(f->context, (uint64_t)(seconds * (double)s_second), NULL, 0, NULL) ==
               mtwn_success,
           "updated");
 }
@@ -440,7 +440,7 @@ static void TestSlotPastFull(void)
     mtwnPlayerId player;
     CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_success &&
               mtwnPlayer_Seek(context, player, 0x1.0000000000001p-1) == mtwn_success &&
-              mtwnUpdate(context, 1000000u, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, 1000000u, NULL, 0, NULL) == mtwn_success,
           "sampled at a time ending in the byte 1");
     binding = mtwnBind(16, target);
     mtwnPlayerId past;
@@ -637,7 +637,7 @@ static void TestFirstSweepAtRest(void)
     Update(&f, 0.0);
     mtwnEvent events[16];
     uint32_t count = 0;
-    CHECK(mtwnReadEvents(f.context, events, 16, &count, NULL) == mtwn_success && count > 0,
+    CHECK(mtwnContext_ReadEvents(f.context, events, 16, &count, NULL) == mtwn_success && count > 0,
           "records");
     uint32_t starts = 0;
     uint32_t ends = 0;
@@ -778,7 +778,7 @@ static void TestRateLimit(void)
 {
     Fixture f = Make(false, 8);
     mtwnPlayerId p = Player(&f, true, 1.0);
-    CHECK(mtwnUpdate(f.context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(f.context, 0, NULL, 0, NULL) == mtwn_success, "started");
     uint64_t misuse = mtwnGetContextMisuse(f.context);
     CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_RATE_LIMIT) == mtwn_success &&
               mtwnPlayer_SetRate(f.context, p, -MTWN_RATE_LIMIT) == mtwn_success,

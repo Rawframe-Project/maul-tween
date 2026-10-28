@@ -30,7 +30,7 @@ timing.c stagger.c                           clip_tasks.c  sweep.c  crossing.c  
              \_______ elementary.c, fpenv.c, mix and bounds helpers _______/
 ```
 
-The values layer is plain structs and functions: a maker validates a value once and returns a status, and its sample takes the value and returns a result with nothing to check. The public headers of this layer include only `base.h` and each other. The context holds targets, transitions, clips and players, and is advanced by `mtwnUpdate` with the host's time.
+The values layer is plain structs and functions: a maker validates a value once and returns a status, and its sample takes the value and returns a result with nothing to check. The public headers of this layer include only `base.h` and each other. The context holds targets, transitions, clips and players, and is advanced by `mtwnContext_Update` with the host's time.
 
 `tools/modules.txt` declares which module may include which, and `tools/check_modules.py` enforces it.
 

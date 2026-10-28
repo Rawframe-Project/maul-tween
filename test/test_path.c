@@ -801,7 +801,8 @@ static void TestEdges(void)
         curve[i] = Key(i / 3.0, p[i], 0.0f, mtwn_segmentCatmullRom);
     }
     curve[3].offset = 1.0;
-    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &curve[1].easing) == mtwn_success, "steps(1, start)");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpStart, &curve[1].easing) == mtwn_success,
+          "steps(1, start)");
     mtwnPath early;
     CHECK(mtwnMakePath(curve, 4, 1, 0.5, NULL, &early) == mtwn_success, "made");
     double at[4];

@@ -87,7 +87,7 @@ static void Easings(Out* out)
     r = mtwnMakeElasticEasing(mtwn_easeInOut, 1.25, 0.3, &e);
     PUT(out, r);
     EaseAll(out, &e);
-    r = mtwnMakeCubicBezier(0.68, -0.6, 0.32, 1.6, &e);
+    r = mtwnMakeCubicBezierEasing(0.68, -0.6, 0.32, 1.6, &e);
     PUT(out, r);
     EaseAll(out, &e);
     for (int i = 0; i < s_progressCount; ++i)
@@ -107,7 +107,7 @@ static void Easings(Out* out)
         {0.0, 0.0}, {0x1p-1040, 0.3}, {0.6, 0.2}, {1.0, 1.0}};
     mtwnLinearPoint points[4];
     memcpy(points, s_points, sizeof points);
-    r = mtwnMakeLinearEasing(points, 4, &e);
+    r = mtwnMakeLinearPointsEasing(points, 4, &e);
     PUT(out, r);
     PUT(out, points);
     EaseAll(out, &e);
@@ -438,7 +438,7 @@ static void Context(Out* out)
     // A clip: a timeline holding a track, a label and a mark.
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
-    r = mtwnGetClipBytes(context, &clipDef, &bytes);
+    r = mtwnContext_GetClipBytes(context, &clipDef, &bytes);
     PUT(out, r);
     PUT(out, bytes);
     mtwnClipId clip;
@@ -505,11 +505,11 @@ static void Context(Out* out)
         now = s_times[u];
         mtwnTargetId changed[8];
         uint32_t total = 0;
-        r = mtwnUpdate(context, now, changed, 8, &total);
+        r = mtwnContext_Update(context, now, changed, 8, &total);
         PUT(out, r);
         PUT(out, total);
         mtwnVec4 values[5];
-        r = mtwnReadTargets(context, t, 5, values);
+        r = mtwnContext_ReadTargets(context, t, 5, values);
         PUT(out, r);
         PUT(out, values);
         for (int i = 0; i < 5; ++i)
@@ -551,7 +551,7 @@ static void Context(Out* out)
     mtwnEvent events[64] = {0};
     uint32_t eventCount = 0;
     uint64_t dropped = 0;
-    r = mtwnReadEvents(context, events, 64, &eventCount, &dropped);
+    r = mtwnContext_ReadEvents(context, events, 64, &eventCount, &dropped);
     PUT(out, r);
     PUT(out, eventCount);
     PUT(out, dropped);

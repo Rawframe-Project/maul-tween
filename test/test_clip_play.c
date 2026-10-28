@@ -84,7 +84,7 @@ static uint32_t Update(World* w, double seconds)
 {
     uint32_t total = 0;
     mtwnTargetId changed[8];
-    CHECK(mtwnUpdate(w->context, (uint64_t)llround(seconds * 1e9), changed, 8, &total) ==
+    CHECK(mtwnContext_Update(w->context, (uint64_t)llround(seconds * 1e9), changed, 8, &total) ==
               mtwn_success,
           "updated");
     return total;
@@ -559,7 +559,8 @@ static void TestCommitReported(void)
           "filled, not yet committed");
     mtwnTargetId changed[4];
     uint32_t total = 0;
-    CHECK(mtwnUpdate(w.context, 3000000000u, changed, 4, &total) == mtwn_success, "the end");
+    CHECK(mtwnContext_Update(w.context, 3000000000u, changed, 4, &total) == mtwn_success,
+          "the end");
     bool reported = false;
     for (uint32_t i = 0; i < total && i < 4; ++i)
     {
@@ -759,8 +760,9 @@ static float FullOrRoomy(uint32_t capacity, double seconds)
     playerDef.keep = true;
     mtwnPlayerId player;
     CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success, "started");
-    CHECK(mtwnUpdate(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
+    CHECK(mtwnContext_Update(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
+              mtwn_success,
           "updated");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, target, &value) == mtwn_success, "read");

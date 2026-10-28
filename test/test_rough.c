@@ -153,7 +153,7 @@ static void TestZigZag(void)
     // A shape sampled outside its before phase, at a strength of 0: a
     // zig-zag of three points puts its middle at 0.5, steps(2)'s jump.
     mtwnRoughDef plain = Def(0.0, 0, mtwn_roughTaperNone, mtwn_roughZigZag);
-    CHECK(mtwnMakeSteps(2, mtwn_jumpEnd, &plain.shape) == mtwn_success, "steps");
+    CHECK(mtwnMakeStepsEasing(2, mtwn_jumpEnd, &plain.shape) == mtwn_success, "steps");
     CHECK(mtwnMakeRoughEasing(&plain, points, 3, &easing) == mtwn_success &&
               points[1].input == 0.5 && points[1].output == 0.5,
           "steps(2) at its jump, no offset");

@@ -100,7 +100,7 @@ static void Enter(Grid* g, bool reduced)
 
 static void Update(Grid* g, int frame)
 {
-    Expect(mtwnUpdate(g->context, (uint64_t)frame * s_frame, NULL, 0, NULL) == mtwn_success,
+    Expect(mtwnContext_Update(g->context, (uint64_t)frame * s_frame, NULL, 0, NULL) == mtwn_success,
            "an update");
 }
 

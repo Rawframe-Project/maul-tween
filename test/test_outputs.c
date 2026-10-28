@@ -84,7 +84,7 @@ static void TestOnContext(void)
         mtwnClipId clip;
         CLEARED(clip, mtwnCreateClip(c, NULL, &clip), "a clip: the null id");
         uint64_t bytes;
-        CLEARED(bytes, mtwnGetClipBytes(c, NULL, &bytes), "a clip's bytes: 0");
+        CLEARED(bytes, mtwnContext_GetClipBytes(c, NULL, &bytes), "a clip's bytes: 0");
         mtwnClipId noClip = {0, 0};
         mtwnNode node;
         CLEARED(node, mtwnClip_AddTrack(c, noClip, NULL, &node), "a track: 0");
@@ -102,17 +102,17 @@ static void TestOnContext(void)
         mtwnPlayerState playerState;
         CLEARED(playerState, mtwnPlayer_GetState(c, noPlayer, &playerState), "its state: zero");
         uint32_t count;
-        CLEARED(count, mtwnReadEvents(c, NULL, 1, &count, NULL), "events taken: 0");
+        CLEARED(count, mtwnContext_ReadEvents(c, NULL, 1, &count, NULL), "events taken: 0");
         uint64_t dropped;
-        CLEARED(dropped, mtwnReadEvents(c, NULL, 1, &count, &dropped), "events dropped: 0");
+        CLEARED(dropped, mtwnContext_ReadEvents(c, NULL, 1, &count, &dropped), "events dropped: 0");
     }
     // An update back in time changes nothing; its total is 0, its report
     // unwritten.
-    CHECK(mtwnUpdate(context, 1000, NULL, 0, NULL) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, 1000, NULL, 0, NULL) == mtwn_success, "updated");
     mtwnTargetId changed[2];
     memset(changed, 0xAB, sizeof changed);
     uint32_t total = 7;
-    CHECK(mtwnUpdate(context, 10, changed, 2, &total) == mtwn_errorInvalid && total == 0 &&
+    CHECK(mtwnContext_Update(context, 10, changed, 2, &total) == mtwn_errorInvalid && total == 0 &&
               AllBytes(changed, sizeof changed, 0xAB),
           "an update back in time: 0 changed, nothing written");
     mtwnTargetId target;
@@ -120,7 +120,7 @@ static void TestOnContext(void)
           "a target");
     mtwnVec4 values[2];
     memset(values, 0xAB, sizeof values);
-    CHECK(mtwnReadTargets(context, NULL, 2, values) == mtwn_errorInvalid &&
+    CHECK(mtwnContext_ReadTargets(context, NULL, 2, values) == mtwn_errorInvalid &&
               AllBytes(values, sizeof values, 0xAB),
           "targets read with no ids: nothing written");
     mtwnDestroyContext(context);
@@ -135,14 +135,14 @@ static void TestMakers(void)
     UNCHANGED(easing, mtwnMakeBackEasing(mtwn_easeOut, (double)NAN, &easing), "a back easing");
     UNCHANGED(easing, mtwnMakeElasticEasing(mtwn_easeOut, (double)NAN, 0.3, &easing), "an elastic");
     UNCHANGED(easing, mtwnMakeHostEasing(mtwn_easeIn, NULL, NULL, &easing), "a host easing");
-    UNCHANGED(easing, mtwnMakeCubicBezier(2.0, 0.0, 0.5, 1.0, &easing), "a cubic bezier");
-    UNCHANGED(easing, mtwnMakeSteps(0, mtwn_jumpEnd, &easing), "steps");
+    UNCHANGED(easing, mtwnMakeCubicBezierEasing(2.0, 0.0, 0.5, 1.0, &easing), "a cubic bezier");
+    UNCHANGED(easing, mtwnMakeStepsEasing(0, mtwn_jumpEnd, &easing), "steps");
     UNCHANGED(easing, mtwnMakeCssEasing((mtwnCssKeyword)99, &easing), "a CSS keyword");
     mtwnLinearPoint points[3] = {
         {(double)NAN, 0.0}, {(double)NAN, 0.5}, {(double)NAN, (double)INFINITY}};
     mtwnLinearPoint given[3];
     memcpy(given, points, sizeof points);
-    UNCHANGED(easing, mtwnMakeLinearEasing(points, 3, &easing), "linear()");
+    UNCHANGED(easing, mtwnMakeLinearPointsEasing(points, 3, &easing), "linear()");
     CHECK(memcmp(points, given, sizeof points) == 0, "its points as they were");
     mtwnSpring spring;
     UNCHANGED(spring, mtwnMakeSpring(-1.0, 1.0, 1.0, &spring), "a spring");

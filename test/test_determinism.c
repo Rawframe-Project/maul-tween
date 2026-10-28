@@ -126,7 +126,7 @@ static mtwnEasing EasingFor(uint32_t seed)
         made = mtwnMakePowerEasing(mtwn_easeOut, 2.0, &easing);
         break;
     case 1:
-        made = mtwnMakeCubicBezier(0.25, 0.1, 0.25, 1.0, &easing);
+        made = mtwnMakeCubicBezierEasing(0.25, 0.1, 0.25, 1.0, &easing);
         break;
     case 2:
         made = mtwnMakeElasticEasing(mtwn_easeOut, 1.0, 0.3, &easing);
@@ -135,7 +135,7 @@ static mtwnEasing EasingFor(uint32_t seed)
         made = mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeInOut, &easing);
         break;
     case 4:
-        made = mtwnMakeSteps(4, mtwn_jumpEnd, &easing);
+        made = mtwnMakeStepsEasing(4, mtwn_jumpEnd, &easing);
         break;
     case 5:
         made = mtwnMakePowerEasing(mtwn_easeInOut, 2.5, &easing);
@@ -372,7 +372,7 @@ static void HashFrame(World* w)
     mtwnEvent events[64];
     uint32_t n = 0;
     uint64_t dropped = 0;
-    CHECK(mtwnReadEvents(w->context, events, 64, &n, &dropped) == mtwn_success, "events");
+    CHECK(mtwnContext_ReadEvents(w->context, events, 64, &n, &dropped) == mtwn_success, "events");
     Hash(&dropped, sizeof dropped);
     for (uint32_t e = 0; e < n; ++e)
     {
@@ -720,8 +720,8 @@ static void HashEdges(void)
     for (uint32_t b = 0; b < 5; ++b)
     {
         mtwnEasing bezier;
-        CHECK(mtwnMakeCubicBezier(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
-                                  &bezier) == mtwn_success,
+        CHECK(mtwnMakeCubicBezierEasing(beziers[b][0], beziers[b][1], beziers[b][2], beziers[b][3],
+                                        &bezier) == mtwn_success,
               "a Bezier");
         HashEasing(&bezier);
     }
@@ -804,7 +804,7 @@ int main(int argc, char** argv)
         Control(&w, frame);
         // Irregular steps of 4 to 30 ms.
         now += 4000000u + (uint64_t)((frame * 7919u) % 27u) * 1000000u;
-        CHECK(mtwnUpdate(w.context, now, NULL, 0, NULL) == mtwn_success, "an update");
+        CHECK(mtwnContext_Update(w.context, now, NULL, 0, NULL) == mtwn_success, "an update");
         HashFrame(&w);
     }
     mtwnDestroyContext(w.context);

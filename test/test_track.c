@@ -306,7 +306,8 @@ static void TestRotations(void)
     mtwnVec4 odd = {0.1f, -0.7f, 0.3f, 0.6f};
     mtwnKeyframe early[3] = {Key(0.0, a, mtwn_segmentCatmullRom), Key(0.5, odd, mtwn_segmentLinear),
                              Key(1.0, c, mtwn_segmentLinear)};
-    CHECK(mtwnMakeSteps(1, mtwn_jumpStart, &early[0].easing) == mtwn_success, "steps(1, start)");
+    CHECK(mtwnMakeStepsEasing(1, mtwn_jumpStart, &early[0].easing) == mtwn_success,
+          "steps(1, start)");
     def = mtwnDefaultTrackDef(mtwn_valueRotation);
     mtwnSegmentMix earlyMixes[2];
     CHECK(mtwnMakeTrack(&def, early, 3, NULL, earlyMixes, &track) == mtwn_success, "made");

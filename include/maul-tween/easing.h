@@ -299,8 +299,8 @@ extern "C"
     ///         point outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeCubicBezier(double x1, double y1, double x2,
-                                                           double y2, mtwnEasing* easingOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeCubicBezierEasing(double x1, double y1, double x2,
+                                                                 double y2, mtwnEasing* easingOut);
 
     /// Makes CSS's steps(count, position), with CSS's before flag: in the
     /// before phase, a progress landing exactly on a step takes the step
@@ -314,8 +314,9 @@ extern "C"
     ///         unknown position or a count outside the above.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeSteps(uint32_t count, mtwnStepPosition position,
-                                                     mtwnEasing* easingOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeStepsEasing(uint32_t count,
+                                                           mtwnStepPosition position,
+                                                           mtwnEasing* easingOut);
 
     /// Makes the easing a CSS keyword names.
     ///
@@ -348,8 +349,9 @@ extern "C"
     ///         outside the above, leaving the points as they were.
     /// @par Thread safety
     /// Safe from any thread; the points are used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeLinearEasing(mtwnLinearPoint* points, uint32_t count,
-                                                            mtwnEasing* easingOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeLinearPointsEasing(mtwnLinearPoint* points,
+                                                                  uint32_t count,
+                                                                  mtwnEasing* easingOut);
 
     /// Makes a rough easing: linear() through points
     /// that wander from a shape by a seed, as GSAP's RoughEase and
@@ -432,7 +434,7 @@ extern "C"
     /// dispatch, Penner's curves or the spring easing; without either, the
     /// makers and mtwnSetEaseMode bring them along.
     ///
-    /// @param easing    An easing made by mtwnMakeCubicBezier or
+    /// @param easing    An easing made by mtwnMakeCubicBezierEasing or
     ///                  mtwnMakeCssEasing, its mode set by mtwnSetEaseMode,
     ///                  or the linear easing.
     /// @param progress  The progress, finite; outside 0 to 1 the curve

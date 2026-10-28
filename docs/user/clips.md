@@ -12,12 +12,13 @@ A clip is an animation written ahead of time: tracks of keyframes on nested time
 
 ## Building a clip
 
-A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnGetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
+A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnContext_GetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
 
 ```c
 mtwnClipDef clipDef = mtwnDefaultClipDef();
 uint64_t bytes = 0;
-mtwnResult built = mtwnGetClipBytes(context, &clipDef, &bytes); // its share of the clip storage
+// Its share of the clip storage.
+mtwnResult built = mtwnContext_GetClipBytes(context, &clipDef, &bytes);
 mtwnClipId clip;
 built = mtwnCreateClip(context, &clipDef, &clip);
 
@@ -95,7 +96,7 @@ A timeline's easing shapes its children's time. Eased by `steps()`, it holds the
 // Held 12 times a second (on twos at 24 frames): 2 s in 24 steps.
 mtwnClipTimelineDef twos = mtwnDefaultClipTimelineDef();
 twos.timing.duration = 2.0;
-made = mtwnMakeSteps(24, mtwn_jumpEnd, &twos.timing.easing);
+made = mtwnMakeStepsEasing(24, mtwn_jumpEnd, &twos.timing.easing);
 mtwnNode held;
 made = mtwnClip_AddTimeline(context, clip, &twos, &held);
 ```

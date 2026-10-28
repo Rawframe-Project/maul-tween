@@ -148,7 +148,7 @@ static void TestHandles(void)
     keys[1].value = (mtwnVec4){10.0f, 0, 0, 0};
     keys[1].in = (mtwnVec4){10.0f, 0, 0, 0}; // the in handle's value
     // Their times, 0.5 s and 1.2 s, as shares of the 2 s span.
-    mtwnResult made = mtwnMakeCubicBezier(0.25, 1.0 / 3.0, 0.6, 2.0 / 3.0, &keys[0].easing);
+    mtwnResult made = mtwnMakeCubicBezierEasing(0.25, 1.0 / 3.0, 0.6, 2.0 / 3.0, &keys[0].easing);
 
     mtwnPath path;
     CHECK(made == mtwn_success && mtwnMakePath(keys, 2, 1, 0.5, NULL, &path) == mtwn_success,
@@ -215,7 +215,8 @@ static void TestThreads(void)
     threaded.userTaskContext = NULL; // passed to both, the host's own
     mtwnContext* parallel = NULL;
     mtwnResult madeThreaded = mtwnCreateContext(&threaded, &parallel);
-    CHECK(madeThreaded == mtwn_success && mtwnUpdate(parallel, 0, NULL, 0, NULL) == mtwn_success,
+    CHECK(madeThreaded == mtwn_success &&
+              mtwnContext_Update(parallel, 0, NULL, 0, NULL) == mtwn_success,
           "a context on the host's tasks");
     mtwnDestroyContext(parallel);
 }
@@ -240,8 +241,8 @@ static void TestFling(void)
     mtwnPlayerId flinging;
     mtwnResult flung = mtwnStartTransition(context, &fling, &flinging);
     CHECK(flung == mtwn_success, "a bounded fling");
-    CHECK(mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnUpdate(context, 30000000000u, NULL, 0, NULL) == mtwn_success,
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, 30000000000u, NULL, 0, NULL) == mtwn_success,
           "played out");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, scroll, &value) == mtwn_success && value.x == 600.0f,
@@ -312,7 +313,8 @@ static void TestScroll(void)
         chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
         mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
         CHECK(chased == mtwn_success && swept == mtwn_success, "swept");
-        CHECK(mtwnUpdate(context, (uint64_t)llround(now * 1e9), NULL, 0, NULL) == mtwn_success,
+        CHECK(mtwnContext_Update(context, (uint64_t)llround(now * 1e9), NULL, 0, NULL) ==
+                  mtwn_success,
               "updated");
         mtwnVec4 value;
         CHECK(mtwnTarget_GetValue(context, shown, &value) == mtwn_success, "read");
@@ -320,7 +322,7 @@ static void TestScroll(void)
     }
     mtwnEvent events[16];
     uint32_t count = 0;
-    CHECK(mtwnReadEvents(context, events, 16, &count, NULL) == mtwn_success, "the records");
+    CHECK(mtwnContext_ReadEvents(context, events, 16, &count, NULL) == mtwn_success, "the records");
     int marks = 0;
     for (uint32_t k = 0; k < count; ++k)
     {
@@ -394,13 +396,15 @@ static void TestJump(void)
     playerDef.keep = true;
     mtwnPlayerId player;
     CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
-              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
           "a jump");
     int off = 0;
     for (int k = 1; k <= 12; ++k)
     {
         double t = k * 0.1;
-        CHECK(mtwnUpdate(context, (uint64_t)llround(t * 1e9), NULL, 0, NULL) == mtwn_success, "on");
+        CHECK(mtwnContext_Update(context, (uint64_t)llround(t * 1e9), NULL, 0, NULL) ==
+                  mtwn_success,
+              "on");
         mtwnVec4 vx;
         mtwnVec4 vy;
         CHECK(mtwnTarget_GetValue(context, x, &vx) == mtwn_success &&
@@ -430,7 +434,7 @@ static void TestTwos(void)
     // Held 12 times a second (on twos at 24 frames): 2 s in 24 steps.
     mtwnClipTimelineDef twos = mtwnDefaultClipTimelineDef();
     twos.timing.duration = 2.0;
-    made = mtwnMakeSteps(24, mtwn_jumpEnd, &twos.timing.easing);
+    made = mtwnMakeStepsEasing(24, mtwn_jumpEnd, &twos.timing.easing);
     mtwnNode held;
     made = mtwnClip_AddTimeline(context, clip, &twos, &held);
 
@@ -456,14 +460,16 @@ static void TestTwos(void)
     playerDef.bindingCount = 1;
     mtwnPlayerId player;
     CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
-              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
           "played");
     // At t it shows the pose of the last twelfth of a second: 10 floor(12 t).
     int off = 0;
     for (int k = 0; k < 28; ++k)
     {
         double t = 0.03 + 0.07 * k;
-        CHECK(mtwnUpdate(context, (uint64_t)llround(t * 1e9), NULL, 0, NULL) == mtwn_success, "on");
+        CHECK(mtwnContext_Update(context, (uint64_t)llround(t * 1e9), NULL, 0, NULL) ==
+                  mtwn_success,
+              "on");
         mtwnVec4 v;
         CHECK(mtwnTarget_GetValue(context, x, &v) == mtwn_success, "read");
         off += (double)v.x != 10.0 * floor(12.0 * t);
@@ -501,7 +507,7 @@ static double EasedRateStop(uint32_t fps, bool exact)
     playerDef.bindingCount = 1;
     mtwnPlayerId player;
     CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
-              mtwnUpdate(context, 0, NULL, 0, NULL) == mtwn_success,
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
           "playing");
     mtwnTransitionDef slow = mtwnDefaultTransitionDef();
     slow.target = speed;
@@ -531,7 +537,7 @@ static double EasedRateStop(uint32_t fps, bool exact)
 
             CHECK(made == mtwn_success, "swept");
         }
-        CHECK(mtwnUpdate(context, (uint64_t)frame * 1000000000u / fps, NULL, 0, NULL) ==
+        CHECK(mtwnContext_Update(context, (uint64_t)frame * 1000000000u / fps, NULL, 0, NULL) ==
                   mtwn_success,
               "a frame");
         if (frame == fps && exact)
@@ -642,7 +648,7 @@ static void TestHost(void)
     mtwnPlayerId fading;
     started = mtwnStartTransition(context, &fade, &fading);
     CHECK(started == mtwn_success, "a fade");
-    CHECK(mtwnUpdate(context, 100000000u, NULL, 0, NULL) == mtwn_success, "under way");
+    CHECK(mtwnContext_Update(context, 100000000u, NULL, 0, NULL) == mtwn_success, "under way");
     mtwnTransitionDef settle = mtwnDefaultTransitionDef();
     settle.target = opacity;
     settle.value = (mtwnVec4){1.0f, 0, 0, 0};
@@ -669,7 +675,7 @@ static void TestHost(void)
     nowNs = 200000000u;
     mtwnTargetId changed[64];
     uint32_t total = 0;
-    mtwnResult updated = mtwnUpdate(context, nowNs, changed, 64, &total);
+    mtwnResult updated = mtwnContext_Update(context, nowNs, changed, 64, &total);
     for (uint32_t i = 0; i < total && i < 64; ++i)
     {
         mtwnVec4 value;
@@ -682,7 +688,8 @@ static void TestHost(void)
           "the opacity reported changed");
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
-    mtwnResult built = mtwnGetClipBytes(context, &clipDef, &bytes); // its share of the clip storage
+    // Its share of the clip storage.
+    mtwnResult built = mtwnContext_GetClipBytes(context, &clipDef, &bytes);
     mtwnClipId clip;
     built = mtwnCreateClip(context, &clipDef, &clip);
 
@@ -721,7 +728,7 @@ static void TestHost(void)
     playing = mtwnPlayer_SetRate(context, intro, -1.0); // backwards
     playing = mtwnPlayer_Play(context, intro);
     CHECK(playing == mtwn_success, "a player paused, seeked, reversed and played");
-    CHECK(mtwnUpdate(context, 300000000u, NULL, 0, NULL) == mtwn_success, "updated");
+    CHECK(mtwnContext_Update(context, 300000000u, NULL, 0, NULL) == mtwn_success, "updated");
     mtwnPlayerState state;
     CHECK(mtwnPlayer_GetState(context, intro, &state) == mtwn_success && state.rate == -1.0 &&
               state.currentTime == 0.2,
@@ -729,7 +736,7 @@ static void TestHost(void)
     mtwnEvent events[32];
     uint32_t count = 0;
     uint64_t dropped = 0;
-    mtwnResult read = mtwnReadEvents(context, events, 32, &count, &dropped);
+    mtwnResult read = mtwnContext_ReadEvents(context, events, 32, &count, &dropped);
     for (uint32_t i = 0; i < count; ++i)
     {
         if (events[i].kind == mtwn_eventMark && events[i].key == 7)

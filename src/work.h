@@ -19,8 +19,8 @@
 #include "maul-tween/spring.h"
 #include "maul-tween/timing.h"
 
-MTWN_NOINLINE mtwnResult mtwnMakeLinearEasingWork(mtwnLinearPoint* points, uint32_t count,
-                                                  mtwnEasing* easingOut);
+MTWN_NOINLINE mtwnResult mtwnMakeLinearPointsEasingWork(mtwnLinearPoint* points, uint32_t count,
+                                                        mtwnEasing* easingOut);
 MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
 MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, bool before);
 MTWN_NOINLINE mtwnSpringMotion mtwnComputeSpringMotionWork(const mtwnSpring* spring,
