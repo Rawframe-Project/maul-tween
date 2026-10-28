@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Zooms: van Wijk and Nuij's optimal path between
-// views (u, w), a centre and a width, with rho trading zoom against pan.
+// views (u, w), a center and a width, with rho trading zoom against pan.
 // With d the pan's distance, b0 = (w1^2 - w0^2 + rho^4 d^2) / (2 w0
 // rho^2 d) and b1 likewise with w1 and -rho^4 d^2, r = -asinh(b), the
 // length is S = (r1 - r0) / rho and at s along it
@@ -14,7 +14,7 @@
 // log(|b| + sqrt(b^2 + 1)), stable for either sign, and log(2 |b|) where
 // b^2 would overflow (where the two agree to the last bit). The terms
 // are computed in units of w0, so views of any scale give the same path.
-// Equal centres zoom geometrically: S is |log(w1 / w0)| / rho, the limit
+// Equal centers zoom geometrically: S is |log(w1 / w0)| / rho, the limit
 // of the above as d goes to 0.
 
 #include "elementary.h"
@@ -71,7 +71,7 @@ static double Sinh(double x)
 // sinh(a) / cosh(a + r0) written so that nothing overflows, for where the
 // direct quotient is not finite (sinh and cosh overflow from |a| about 710
 // on): (1 - e^(-2a)) / (e^r0 + e^(-2a - r0)), and its mirror for a below 0.
-// Toward either infinity it goes to e^-r0 and -e^r0, where the centre
+// Toward either infinity it goes to e^-r0 and -e^r0, where the center
 // settles. Out of line, since a sample rarely takes it.
 static MTWN_NOINLINE double FarShare(double along, double r0)
 {
@@ -157,7 +157,7 @@ static MTWN_NOINLINE mtwnZoomView mtwnMixZoomWork(const mtwnZoomMix* mix, double
     const mtwnZoomView* b = &mix->to;
     if (mix->panScale == 0.0)
     {
-        // Equal centres: the width geometric, the centre where it is.
+        // Equal centers: the width geometric, the center where it is.
         return (mtwnZoomView){a->x, a->y, mtwnMixScaleWork(&mix->widths, progress)};
     }
     double along = mix->rho * progress * mix->length;

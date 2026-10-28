@@ -390,14 +390,14 @@ static void HashFrame(World* w)
     }
 }
 
-// Staggers: a grid from its centre, eased, and a seeded order, as
+// Staggers: a grid from its center, eased, and a seeded order, as
 // offsets hashed.
 static void HashStaggers(void)
 {
     double offsets[TARGETS];
     mtwnStagger grid = mtwnDefaultStagger();
     grid.columns = 6;
-    grid.origin = mtwn_staggerCentre;
+    grid.origin = mtwn_staggerCenter;
     grid.easing = EasingFor(5);
     CHECK(mtwnComputeStagger(&grid, TARGETS, offsets) == mtwn_success, "a grid stagger");
     for (uint32_t i = 0; i < TARGETS; ++i)

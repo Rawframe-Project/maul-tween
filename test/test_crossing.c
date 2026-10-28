@@ -526,7 +526,7 @@ static double Way(mtwnCrossings c, mtwnCrossingWay way)
 }
 
 // Whether a found time is where the count flips: the sweep to it (from
-// it, for the last) counts one, and to its neighbour toward the near end
+// it, for the last) counts one, and to its neighbor toward the near end
 // does not; or it is the near end itself, which counts.
 static bool Flips(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, double t1,
                   double t2, bool last, mtwnCrossingWay way, double t)

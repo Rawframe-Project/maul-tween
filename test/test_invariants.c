@@ -220,7 +220,7 @@ static void TestPositionNeverStepsBack(void)
         double sign = t.playbackRate > 0.0 ? 1.0 : -1.0;
         // The local times of each iteration's start and end, then of the
         // active interval's ends.
-        double centres[2 * 9 + 2];
+        double centers[2 * 9 + 2];
         uint32_t count = 0;
         for (double j = floor(s) + 1.0; j <= ceil(s + t.iterations); ++j)
         {
@@ -229,14 +229,14 @@ static void TestPositionNeverStepsBack(void)
             {
                 double scaled =
                     (positions[w] - floor(s) * cycle - (s - floor(s)) * d) / fabs(t.playbackRate);
-                centres[count++] = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
+                centers[count++] = t.delay + (sign > 0.0 ? scaled : shape.activeDuration - scaled);
             }
         }
-        centres[count++] = t.delay;
-        centres[count++] = t.delay + shape.activeDuration;
+        centers[count++] = t.delay;
+        centers[count++] = t.delay + shape.activeDuration;
         for (uint32_t c = 0; c < count; ++c)
         {
-            double x = centres[c];
+            double x = centers[c];
             for (int k = 0; k < 40; ++k)
             {
                 x = nextafter(x, -HUGE_VAL);

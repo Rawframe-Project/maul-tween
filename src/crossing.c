@@ -743,7 +743,7 @@ static bool Beyond(bool up, int64_t a, int64_t b)
 }
 
 // A guess past the near end is tested, and when it counts so is its
-// neighbour toward the near end: a right guess leaves the two neighbours
+// neighbor toward the near end: a right guess leaves the two neighbors
 // the halving ends with. A guess past the far end is the far end, which
 // counts: an interpolated guess can pass the sweep's end by a double.
 static void TestGuess(Search* search, double guess)
@@ -780,7 +780,7 @@ double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnL
         return end;
     }
     // The count is not reached at the near end and is at the far one;
-    // halve the doubles between until they are neighbours.
+    // halve the doubles between until they are neighbors.
     Search search = {levels,
                      count,
                      leaf,

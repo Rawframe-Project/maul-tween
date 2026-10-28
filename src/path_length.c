@@ -49,7 +49,7 @@ enum
 
 // Gauss-Kronrod on [-1, 1] (QUADPACK's qk15): the 15-point rule's
 // nonnegative abscissas, its weights and the 7-point Gauss rule's on the
-// odd ones (0 on the others), the centre last.
+// odd ones (0 on the others), the center last.
 static const double s_kronrod[8][3] = {
     {0.991455371120812639206854697526329, 0.022935322010529224963732008058970, 0.0},
     {0.949107912342758524526189684047851, 0.063092092629978553290700663189204,
@@ -111,9 +111,9 @@ static void Kronrod(const mtwnCubic* cubic, uint8_t channels, double a, double b
         j[c] = 3.0 * cubic->d[c];
         sum += v[c] * v[c];
     }
-    double centre = mtwnRootOfSquares(sum);
-    double k = s_kronrod[7][1] * centre;
-    double g = s_kronrod[7][2] * centre;
+    double center = mtwnRootOfSquares(sum);
+    double k = s_kronrod[7][1] * center;
+    double g = s_kronrod[7][2] * center;
     for (int i = 0; i < 7; ++i)
     {
         double t = half * s_kronrod[i][0];

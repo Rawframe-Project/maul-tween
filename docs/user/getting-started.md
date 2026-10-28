@@ -33,7 +33,7 @@ or through pkg-config, `pkg-config --cflags --libs maul-tween`. A project can al
 - `sample_button`: a button's hover and press states as transitions interrupted midway, its scale on a spring, its lift and fill eased.
 - `sample_sequence`: a card's entrance as a clip, with a mark where a sound plays, read as events, then reversed.
 - `sample_layers`: an endless idle clip with a hit clip added over it, and a wheel turned on by an incremental track.
-- `sample_grid`: a grid of tiles staggered from its centre, played with motion and under reduced motion.
+- `sample_grid`: a grid of tiles staggered from its center, played with motion and under reduced motion.
 
 ## The model
 

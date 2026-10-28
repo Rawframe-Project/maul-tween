@@ -174,8 +174,8 @@ extern "C"
         mtwn_staggerFirst = 0,
         // The last item.
         mtwn_staggerLast = 1,
-        // The grid's centre.
-        mtwn_staggerCentre = 2,
+        // The grid's center.
+        mtwn_staggerCenter = 2,
         // The nearest edge, so the outermost items begin.
         mtwn_staggerEdges = 3,
         // The item at index.
@@ -231,7 +231,7 @@ extern "C"
         // The order's seed, for mtwn_staggerRandom.
         uint64_t seed;
         // Items per row; 0 puts them all in one row. A short last row
-        // keeps the grid this wide: the centre and the edges are the full
+        // keeps the grid this wide: the center and the edges are the full
         // rectangle's, and the short row lies on its bottom edge.
         uint32_t columns;
         // The origin's item, for mtwn_staggerIndex.
@@ -242,7 +242,7 @@ extern "C"
     } mtwnStagger;
 
     /// Returns the default stagger: from the first item, 0.1 between
-    /// neighbours in one row, from 0, linear, both axes.
+    /// neighbors in one row, from 0, linear, both axes.
     ///
     /// @return The stagger.
     /// @par Thread safety

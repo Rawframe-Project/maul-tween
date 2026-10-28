@@ -287,7 +287,7 @@ extern "C"
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMixScale(const mtwnScaleMix* mix, double progress,
                                                     double* scaleOut);
 
-    // A view of a plane: the point at its centre and the width it shows.
+    // A view of a plane: the point at its center and the width it shows.
     typedef struct mtwnZoomView
     {
         double x;
@@ -312,7 +312,7 @@ extern "C"
     /// Makes the zoom and pan between two views that van Wijk and Nuij
     /// found optimal ("Smooth and efficient zooming and panning", 2003):
     /// it zooms out as far as the pan needs and back in, so the eye can
-    /// follow; with the centres equal it is a geometric zoom.
+    /// follow; with the centers equal it is a geometric zoom.
     ///
     /// @param from    The view at progress 0: finite, its width above 0.
     /// @param to      The view at progress 1, likewise.
@@ -331,7 +331,7 @@ extern "C"
 
     /// Samples a zoom mix: exactly from at 0 and to at 1, between them the
     /// path at that share of its length; outside 0 to 1 it extends, its
-    /// width going to 0 as its centre settles on a point either way (an
+    /// width going to 0 as its center settles on a point either way (an
     /// infinity where that point is past the doubles' range), never NaN.
     ///
     /// @param mix       A mix made by this library, or one whose fields pass
@@ -341,7 +341,7 @@ extern "C"
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a
     ///         progress not finite, or a mix outside its check: views as
     ///         mtwnMakeZoomMix takes them with a finite difference between
-    ///         their centres, rho finite and above 0, a length finite and
+    ///         their centers, rho finite and above 0, a length finite and
     ///         not below 0, r0 within 700 of 0, cosh r0 finite and at
     ///         least 1, a finite pan's scale, and with a pan's scale of 0
     ///         widths whose scale mix passes its check and runs from one

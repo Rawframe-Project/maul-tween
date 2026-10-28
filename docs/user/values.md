@@ -50,7 +50,7 @@ double half = 0.0;
 mtwnResult mixed = mtwnMixScale(&zoom, 0.5, &half); // 10, not 50.5
 ```
 
-To move a view (a centre and the width it shows) where both the centre and the zoom change, van Wijk and Nuij's path zooms out as far as the pan needs and back in, so the eye can follow. Its length gives a duration that suits it:
+To move a view (a center and the width it shows) where both the center and the zoom change, van Wijk and Nuij's path zooms out as far as the pan needs and back in, so the eye can follow. Its length gives a duration that suits it:
 
 ```c
 mtwnZoomView from = {0.0, 0.0, 1.0};
@@ -65,7 +65,7 @@ mtwnZoomView view;
 mtwnResult mixed = mtwnMixZoom(&flight, 0.5, &view);
 ```
 
-`rho` trades zoom against pan: the paper's measured `sqrt(2)` is d3's default, 1.42 Mapbox's. Past its ends the path goes on, its width going to 0 as its centre settles on a point.
+`rho` trades zoom against pan: the paper's measured `sqrt(2)` is d3's default, 1.42 Mapbox's. Past its ends the path goes on, its width going to 0 as its center settles on a point.
 
 ## Checking a mix
 

@@ -74,7 +74,7 @@ static Grid MakeGrid(const mtwnStagger* stagger, uint32_t count)
         grid.originY = (double)row;
         break;
     }
-    case mtwn_staggerCentre:
+    case mtwn_staggerCenter:
         grid.originX = grid.lastX / 2.0;
         grid.originY = grid.lastY / 2.0;
         break;
