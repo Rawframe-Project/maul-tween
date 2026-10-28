@@ -206,7 +206,7 @@ static uint32_t Chain(mtwnLevel* levels, const mtwnClipSlot* clip, uint32_t node
         // Its preparation writes the rest.
         levels[i].timing = n->timing;
         levels[i].start = n->start;
-        // Kept when its clip was finished, for timelines and tracks.
+        // Kept when its clip was sealed, for timelines and tracks.
         levels[i].activeDuration = n->activeDuration;
         levels[i].activeKnown = n->kind == mtwn_nodeTimeline || n->kind == mtwn_nodeTrack;
         if (i == 0)
@@ -479,13 +479,13 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
     }
 }
 
-// Whether a player's clip is the one it plays, finished, every node after
+// Whether a player's clip is the one it plays, sealed, every node after
 // its parent, a timeline, so the sweep has its parent's times when it
-// comes to it. A player's clip is finished before it plays and kept while
+// comes to it. A player's clip is sealed before it plays and kept while
 // it does: destroying it is refused as busy. Only an assertion calls it.
 [[maybe_unused]] static inline bool Playable(const mtwnClipSlot* clip, const mtwnClipPlay* play)
 {
-    if (clip->header.generation != play->clip.generation || !clip->finished ||
+    if (clip->header.generation != play->clip.generation || !clip->sealed ||
         clip->nodes[0].parent != 0)
     {
         return false;

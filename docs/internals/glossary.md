@@ -15,7 +15,7 @@ Terms the code, the tests and the documentation use with one meaning.
 - **Misuse:** a call on a live context refused for an invalid argument, a stale id or a call back in, counted on the context.
 - **Transition:** a player that moves one target to a value by an easing, a spring or a decay, started from the target's current value.
 - **Spec:** how a transition moves: an easing, a spring or a decay.
-- **Clip:** an immutable description of tracks on timelines, built node by node and **finished** before it plays.
+- **Clip:** an immutable description of tracks on timelines, built node by node and **sealed** before it plays.
 - **Node:** a clip's track, timeline, label or mark, named by its 1-based index; node 1 is the **root** timeline.
 - **Track:** keyframes of one value kind on a **slot**. A **path** is the curve through keyframes of one to four channels that a track is built on.
 - **Keyframe:** a value at an offset from 0 to 1, starting a **segment** of a kind (linear, step, Bezier, Catmull-Rom, monotone) with an easing.

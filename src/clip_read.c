@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Clips' reads: a finished clip's tracks, nodes, labels and duration, each
+// Clips' reads: a sealed clip's tracks, nodes, labels and duration, each
 // call in the library's floating-point environment.
 
 #include "clip_internal.h"
@@ -17,15 +17,15 @@ static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
     return result;
 }
 
-// The finished clip an id names, with the refusal counted.
-static mtwnResult Finished(mtwnContext* context, mtwnClipId clip, mtwnClipSlot** slotOut)
+// The sealed clip an id names, with the refusal counted.
+static mtwnResult Sealed(mtwnContext* context, mtwnClipId clip, mtwnClipSlot** slotOut)
 {
     *slotOut = mtwnFindClip(context, clip);
     if (*slotOut == NULL)
     {
         return Misuse(context, mtwn_errorStale);
     }
-    if (!(*slotOut)->finished)
+    if (!(*slotOut)->sealed)
     {
         return Misuse(context, mtwn_errorState);
     }
@@ -58,7 +58,7 @@ static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNod
     }
     memset(trackOut, 0, sizeof *trackOut);
     mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
+    mtwnResult result = Sealed(context, clip, &slot);
     if (result != mtwn_success)
     {
         return result;
@@ -115,7 +115,7 @@ static mtwnResult RunClipGetNode(mtwnContext* context, mtwnClipId clip, mtwnNode
     }
     memset(infoOut, 0, sizeof *infoOut);
     mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
+    mtwnResult result = Sealed(context, clip, &slot);
     if (result != mtwn_success)
     {
         return result;
@@ -179,7 +179,7 @@ static mtwnResult RunClipFindLabel(mtwnContext* context, mtwnClipId clip, mtwnNo
     }
     *secondsOut = 0.0;
     mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
+    mtwnResult result = Sealed(context, clip, &slot);
     if (result != mtwn_success)
     {
         return result;
@@ -234,7 +234,7 @@ static mtwnResult RunClipGetDuration(mtwnContext* context, mtwnClipId clip, doub
     }
     *secondsOut = 0.0;
     mtwnClipSlot* slot = NULL;
-    mtwnResult result = Finished(context, clip, &slot);
+    mtwnResult result = Sealed(context, clip, &slot);
     if (result == mtwn_success)
     {
         // As every timeline's children end (clip.c's Raise).

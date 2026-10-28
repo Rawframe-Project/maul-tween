@@ -146,7 +146,7 @@ static void Play(World* w, const mtwnClipTrackDef* track, int players, mtwnCompo
     CHECK(mtwnCreateClip(w->context, &clipDef, &clip) == mtwn_success, "a clip");
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(w->context, clip, track, &node) == mtwn_success &&
-              mtwnClip_Finish(w->context, clip) == mtwn_success,
+              mtwnClip_Seal(w->context, clip) == mtwn_success,
           "a track");
     for (int i = 0; i < players; ++i)
     {

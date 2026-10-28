@@ -351,7 +351,7 @@ static bool Scene(mtwnVec4 values[6])
     ClipTrackDefOver(&track, &trackOver);
     mtwnNode node;
     ok = ok && mtwnClip_AddTrack(context, clip, &trackOver, &node) == mtwn_success &&
-         mtwnClip_Finish(context, clip) == mtwn_success;
+         mtwnClip_Seal(context, clip) == mtwn_success;
     mtwnBinding binding = mtwnBind(0, played);
     mtwnBinding bindingOver;
     BindingOver(&binding, &bindingOver);

@@ -570,7 +570,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
     {
         AddNode(&in, &run, context, clip, timelines, &timelineCount);
     }
-    Status(&run, mtwnClip_Finish(context, clip));
+    Status(&run, mtwnClip_Seal(context, clip));
     mtwnPlayerId players[s_players];
     memset(players, 0, sizeof players);
     uint32_t playerCount = 1 + Below(&in, s_players);

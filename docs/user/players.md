@@ -1,6 +1,6 @@
 # Players, events and layers
 
-A player plays a finished [clip](clips.md) with its slots bound to targets, by Web Animations' procedures on the host's clock. Players report what they cross as event records, and layer over each other by composite operations and weights.
+A player plays a sealed [clip](clips.md) with its slots bound to targets, by Web Animations' procedures on the host's clock. Players report what they cross as event records, and layer over each other by composite operations and weights.
 
 ## Contents
 

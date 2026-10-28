@@ -140,7 +140,7 @@ int main(void)
     Expect(mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, After(mtwn_positionAbsolute, 0.3), CHIME,
                             &chime) == mtwn_success,
            "a mark for the sound");
-    Expect(mtwnClip_Finish(context, clip) == mtwn_success, "the clip finished");
+    Expect(mtwnClip_Seal(context, clip) == mtwn_success, "the clip sealed");
     double seconds = 0.0;
     Expect(mtwnClip_GetDuration(context, clip, &seconds) == mtwn_success, "its duration");
     printf("the entrance lasts %.3f s\n", seconds);

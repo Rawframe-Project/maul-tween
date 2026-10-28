@@ -233,7 +233,7 @@ static mtwnClipId MakeClip(World* w, double iterations)
     memset(&half, 0, sizeof half);
     half.offset = 0.5;
     CHECK(mtwnClip_AddMark(w->context, clip, 1, half, 7, &node) == mtwn_success, "a mark");
-    CHECK(mtwnClip_Finish(w->context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w->context, clip) == mtwn_success, "sealed");
     return clip;
 }
 

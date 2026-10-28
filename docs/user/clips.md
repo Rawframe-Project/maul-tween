@@ -1,6 +1,6 @@
 # Clips and timelines
 
-A clip is an animation written ahead of time: tracks of keyframes on nested timelines, with labels to seek to and marks to be told of. It is built once, finished, and then played by any number of [players](players.md), each on its own targets.
+A clip is an animation written ahead of time: tracks of keyframes on nested timelines, with labels to seek to and marks to be told of. It is built once, sealed, and then played by any number of [players](players.md), each on its own targets.
 
 ## Contents
 
@@ -37,10 +37,10 @@ track.slot = 1;
 track.position.kind = mtwn_positionAfterPrevious; // when the fade ends
 mtwnNode slideIn;
 built = mtwnClip_AddTrack(context, clip, &track, &slideIn);
-built = mtwnClip_Finish(context, clip);
+built = mtwnClip_Seal(context, clip);
 ```
 
-A track writes a slot, which a player binds to a target; a slot keeps one value kind. The track copies its keyframes into the clip. `mtwnClip_Finish` closes the clip: from then on it is read only, can be played, and its tracks can be read (`mtwnClip_GetTrack`) and sampled through the values layer from any thread while the clip lives.
+A track writes a slot, which a player binds to a target; a slot keeps one value kind. The track copies its keyframes into the clip. `mtwnClip_Seal` closes the clip: from then on it is read only, can be played, and its tracks can be read (`mtwnClip_GetTrack`) and sampled through the values layer from any thread while the clip lives.
 
 ## Positions
 

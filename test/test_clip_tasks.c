@@ -389,7 +389,7 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
         }
         lastTrack = false;
     }
-    CHECK(mtwnClip_Finish(twin->context, twin->clips[c]) == mtwn_success, "a finished clip");
+    CHECK(mtwnClip_Seal(twin->context, twin->clips[c]) == mtwn_success, "a sealed clip");
     // The replay and the kept timing forced off for the unshared twin.
     s_shared += mtwnTestShareTiming(twin->context, twin->clips[c], !twin->unshared);
 }
@@ -868,7 +868,7 @@ static void TestOneTimeOrder(void)
             mtwnNode node;
             CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
         }
-        CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "a finished clip");
+        CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "a sealed clip");
         mtwnBinding binding = mtwnBind(0, target);
         mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
         playerDef.clip = clip;
@@ -1009,7 +1009,7 @@ static mtwnClipId TwoTracks(mtwnContext* context)
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
     }
-    CHECK(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     return clip;
 }
 
@@ -1140,7 +1140,7 @@ static void TestExactFit(void)
     track.timing.duration = 1.0;
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a clip of one track");
     for (int p = 0; p < 2; ++p)
     {
@@ -1267,7 +1267,7 @@ static void TestOneChannel(void)
     track.timing.duration = 1.0;
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
-              mtwnClip_Finish(context, clip) == mtwn_success,
+              mtwnClip_Seal(context, clip) == mtwn_success,
           "a track moving z");
     (void)PlayTwo(context, clip, a, (mtwnTargetId){0, 0});
     (void)PlayTwo(context, clip, b, (mtwnTargetId){0, 0});

@@ -100,7 +100,7 @@ void mtwnTestTasksBefore(mtwnContext* context, const mtwnClipId* clips, uint32_t
 void mtwnTestTasksAfter(const mtwnContext* context, const mtwnClipId* clips, uint32_t clipCount,
                         const mtwnTestOrder* order, mtwnTestTasks* tasks);
 
-// The nodes of a finished clip that share their timing with a sibling;
+// The nodes of a sealed clip that share their timing with a sibling;
 // with keep false, that sharing forced off for every one.
 uint32_t mtwnTestShareTiming(mtwnContext* context, mtwnClipId clip, bool keep);
 

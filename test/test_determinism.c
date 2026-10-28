@@ -246,7 +246,7 @@ static void MakeClip(World* w)
     CHECK(mtwnClip_AddMark(w->context, w->clip, inner, At(0.1), 7, &mark) == mtwn_success &&
               mtwnClip_AddMark(w->context, w->clip, outer, At(0.9), 8, &mark) == mtwn_success,
           "marks");
-    CHECK(mtwnClip_Finish(w->context, w->clip) == mtwn_success, "finished");
+    CHECK(mtwnClip_Seal(w->context, w->clip) == mtwn_success, "sealed");
 }
 
 static void MakePlayers(World* w)

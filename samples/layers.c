@@ -54,7 +54,7 @@ static mtwnClipId Clip(mtwnContext* context, mtwnValueKind kind, const mtwnVec4 
     track.incremental = incremental;
     mtwnNode node = 0;
     Expect(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
-    Expect(mtwnClip_Finish(context, clip) == mtwn_success, "finished");
+    Expect(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     return clip;
 }
 
