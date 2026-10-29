@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.12.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.11.0...v0.12.0) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* thirteen public names are renamed by the family's API shape, their parameters and behavior unchanged: mtwnGetContextMisuse to mtwnContext_GetMisuse, mtwnGrowContext to mtwnContext_Grow, mtwnMeasureTransition to mtwnContext_MeasureTransition, mtwnContext_SetReducedMotion to mtwnContext_EnableReducedMotion, mtwnContext_IsReducedMotion to mtwnContext_IsReducedMotionEnabled, mtwnResultName to mtwnGetResultName, mtwnEase to mtwnSampleEasing, mtwnEaseCubicBezier to mtwnSampleCubicBezierEasing, mtwnBind to mtwnMakeBinding, mtwnLinearEasing to mtwnMakeLinearEasing, mtwnTaskFn to mtwnTaskFunction, mtwnEnqueueTaskFn to mtwnEnqueueTaskFunction and mtwnFinishTaskFn to mtwnFinishTaskFunction.
+
+### Changed
+
+* name every public call by the family's API shape ([#148](https://github.com/Rawframe-Project/maul-tween/issues/148)) ([a52f13a](https://github.com/Rawframe-Project/maul-tween/commit/a52f13a4135aea07758c9fcbcf5eaef87d57bbb7)), closes [#147](https://github.com/Rawframe-Project/maul-tween/issues/147) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+
 ## [0.11.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.10.0...v0.11.0) (2026-10-28)
 
 This release settles names and signatures ahead of 1.0.0 ([#135](https://github.com/Rawframe-Project/maul-tween/issues/135)). Every rename keeps the function's parameters and behavior. A caller updates its calls, and no value, velocity or event record changes, except a player weight given as a double (below).
