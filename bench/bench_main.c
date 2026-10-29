@@ -167,7 +167,7 @@ static void MakeValues(Values* v)
     {
         v->pathKeys[k].value = (mtwnVec4){points[k][0], points[k][1], 0.0f, 0.0f};
         v->pathKeys[k].offset = k == 7 ? 1.0 : k / 7.0;
-        v->pathKeys[k].easing = mtwnLinearEasing();
+        v->pathKeys[k].easing = mtwnMakeLinearEasing();
         v->pathKeys[k].kind = mtwn_segmentCatmullRom;
     }
     Check(mtwnMakePath(v->pathKeys, 8, 2, 0.5, v->pathLengths, &v->path), "a path");
@@ -188,7 +188,7 @@ static void MakeValues(Values* v)
     {
         v->monotoneKeys[k].value.x = rising[k];
         v->monotoneKeys[k].offset = at[k];
-        v->monotoneKeys[k].easing = mtwnLinearEasing();
+        v->monotoneKeys[k].easing = mtwnMakeLinearEasing();
         v->monotoneKeys[k].kind = mtwn_segmentMonotone;
     }
     Check(mtwnMakeTrack(&def, v->monotoneKeys, 5, NULL, NULL, &v->monotone), "a monotone track");

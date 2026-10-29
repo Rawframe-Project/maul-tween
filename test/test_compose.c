@@ -136,7 +136,7 @@ static mtwnClipId Clip(World* w, float a, float b, mtwnFill fill)
     keys[0].value.x = a;
     keys[1].offset = 1.0;
     keys[1].value.x = b;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -287,7 +287,7 @@ static void TestScales(void)
     keys[0].value.x = 1.0f;
     keys[1].offset = 1.0;
     keys[1].value.x = 100.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track = mtwnDefaultTrackDef(mtwn_valueScale);
     track.keyframes = keys;
@@ -326,7 +326,7 @@ static void TestPastFloats(void)
     keys[0].value.x = -3e38f;
     keys[1].offset = 1.0;
     keys[1].value.x = 3e38f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -363,7 +363,7 @@ static mtwnTargetState EasedOverTrack(bool under, float base, int reader)
     move.target = w.target;
     move.value = (mtwnVec4){1000.0f, 0, 0, 0};
     move.duration = 2.0;
-    move.easing = mtwnLinearEasing();
+    move.easing = mtwnMakeLinearEasing();
     mtwnPlayerId eased;
     CHECK(mtwnStartTransition(w.context, &move, &eased) == mtwn_success, "eased to 1000");
     Update(&w, 1.5);

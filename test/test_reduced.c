@@ -71,7 +71,7 @@ static mtwnTransitionDef Eased(float to, double delay, double duration)
 {
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.value = (mtwnVec4){to, 0, 0, 0};
-    def.easing = mtwnLinearEasing();
+    def.easing = mtwnMakeLinearEasing();
     def.delay = delay;
     def.duration = duration;
     return def;
@@ -220,7 +220,7 @@ static mtwnClipId MakeClip(World* w, double iterations)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;

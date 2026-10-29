@@ -198,7 +198,7 @@ static void TestPathsAndTracks(void)
     for (int i = 0; i < 3; ++i)
     {
         keys[i].offset = 0.5 * i;
-        keys[i].easing = mtwnLinearEasing();
+        keys[i].easing = mtwnMakeLinearEasing();
     }
     keys[2].value.x = NAN;
     double lengths[3];

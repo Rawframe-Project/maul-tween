@@ -24,7 +24,7 @@ static mtwnKeyframe Key(double offset, mtwnVec4 value, mtwnSegmentKind kind)
     memset(&k, 0, sizeof k);
     k.offset = offset;
     k.value = value;
-    k.easing = mtwnLinearEasing();
+    k.easing = mtwnMakeLinearEasing();
     k.kind = kind;
     return k;
 }
@@ -122,7 +122,7 @@ static void TestDiscrete(void)
           "a linear segment flips at an eased 1/2");
     CHECK(SampleTrack(&track, 0.99).x == 9.0f && SampleTrack(&track, 1.0).x == 2.0f,
           "a step holds to its end");
-    keys[0].easing = mtwnLinearEasing();
+    keys[0].easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_success &&
               SampleTrack(&track, 0.25).x == 9.0f,
           "at exactly 1/2 the end, as Web Animations steps it");
@@ -533,7 +533,7 @@ static void TestSampleRefusals(void)
     CHECK(TrackRefused(&track, 0.5), "a color track at constant speed");
     colors[0].easing.mode = 4;
     CHECK(TrackRefused(&made, 0.5), "an easing no maker gives where read");
-    colors[0].easing = mtwnLinearEasing();
+    colors[0].easing = mtwnMakeLinearEasing();
     CHECK(TrackTaken(&made, 0.5), "as made again");
 }
 

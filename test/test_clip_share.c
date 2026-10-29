@@ -42,7 +42,7 @@ static mtwnNode AddTrack(mtwnContext* context, mtwnClipId clip, mtwnNode parent,
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f + (float)slot;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = parent;
     track.slot = slot;
@@ -185,7 +185,7 @@ static void HeldValues(const double* rates, uint32_t count, float* valuesOut)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -274,13 +274,13 @@ static int HostCalls(bool apart)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 1.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.slot = i;
         track.keyframes = keys;
         track.keyframeCount = 2;
         track.timing.duration = 1.0;
-        track.timing.easing = apart && i == 1 ? mtwnLinearEasing() : host;
+        track.timing.easing = apart && i == 1 ? mtwnMakeLinearEasing() : host;
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
         mtwnTargetId target;
@@ -331,7 +331,7 @@ static int InStepCalls(int players)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;

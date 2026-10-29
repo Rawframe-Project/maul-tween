@@ -41,7 +41,7 @@ static void TestEasing(void)
 static void TestRough(void)
 {
     mtwnLinearPoint points[22]; // kept while the easing is used
-    mtwnRoughDef def = {.shape = mtwnLinearEasing(), .strength = 0.1, .seed = 42};
+    mtwnRoughDef def = {.shape = mtwnMakeLinearEasing(), .strength = 0.1, .seed = 42};
     def.taper = mtwn_roughTaperOut; // calm by the end
     mtwnEasing rough;
     mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);
@@ -260,7 +260,7 @@ static void TestScroll(void)
     mtwnKeyframe keys[2] = {0};
     keys[1].offset = 1.0;
     keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -366,7 +366,8 @@ static void TestJump(void)
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success &&
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &y) == mtwn_success &&
               mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
-              Line(context, clip, 0, 300.0f, 1.2, mtwnLinearEasing(), &across) == mtwn_success &&
+              Line(context, clip, 0, 300.0f, 1.2, mtwnMakeLinearEasing(), &across) ==
+                  mtwn_success &&
               Line(context, clip, 1, 20.0f, 1.2, outQuad, &rise) == mtwn_success,
           "across to 300 and up to 20, as DOJump's line");
     // Three hops of 50 over 1.2 s: up and down each 0.4 s, eased out
@@ -443,7 +444,7 @@ static void TestTwos(void)
     mtwnKeyframe keys[2] = {0};
     keys[1].offset = 1.0;
     keys[1].value = (mtwnVec4){240.0f, 0, 0, 0};
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef across = mtwnDefaultClipTrackDef();
     across.parent = held;
     across.keyframes = keys;
@@ -497,7 +498,8 @@ static double EasedRateStop(uint32_t fps, bool exact)
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0}, &speed) ==
                   mtwn_success &&
               mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
-              Line(context, clip, 0, 1000.0f, 10.0, mtwnLinearEasing(), &node) == mtwn_success &&
+              Line(context, clip, 0, 1000.0f, 10.0, mtwnMakeLinearEasing(), &node) ==
+                  mtwn_success &&
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track at 100 a second");
     mtwnBinding binding = mtwnMakeBinding(0, x);
@@ -696,7 +698,7 @@ static void TestHost(void)
     mtwnKeyframe keys[2] = {0};
     keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef(); // on the root at 0, slot 0, a number
     track.keyframes = keys;
     track.keyframeCount = 2;

@@ -193,7 +193,7 @@ static mtwnKeyframe Key(double offset, float x)
     memset(&k, 0, sizeof k);
     k.offset = offset;
     k.value = (mtwnVec4){x, 0, 0, 0};
-    k.easing = mtwnLinearEasing();
+    k.easing = mtwnMakeLinearEasing();
     return k;
 }
 

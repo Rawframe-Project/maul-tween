@@ -51,7 +51,7 @@ static mtwnNode AddTrack(World* w, double start, double seconds, double iteratio
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -229,7 +229,7 @@ static void TestIterationLeftBackwards(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 1.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.keyframes = keys;
         track.keyframeCount = 2;
@@ -408,7 +408,7 @@ static void TestTransitions(void)
     mtwnTransitionDef def = mtwnDefaultTransitionDef();
     def.target = w.target;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
-    def.easing = mtwnLinearEasing();
+    def.easing = mtwnMakeLinearEasing();
     def.duration = 1.0;
     def.delay = 0.5;
     mtwnPlayerId t;
@@ -483,7 +483,7 @@ static void TestOverflow(void)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -530,7 +530,7 @@ static void TestIterationStart(void)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -587,7 +587,7 @@ static void NestedTracks(World* w, mtwnNode tracks[NESTED_TRACKS])
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = inner;
     track.keyframes = keys;
@@ -705,7 +705,7 @@ static mtwnNode HeldEdges(World* w, double delay, double iterations)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = timeline;
     track.keyframes = keys;
@@ -859,7 +859,7 @@ static void TestSettledReversedParent(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
     def.parent = timeline;
     def.keyframes = keys;
@@ -922,7 +922,7 @@ static void TestBoundaryPlay(void)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = timeline;
     track.position = At(0.51963862180709841);
@@ -1073,7 +1073,7 @@ static void TestJumpStartMarks(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -1156,7 +1156,7 @@ static void TestUnderAZeroTimeline(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = later;
     track.position = At(0.1);
@@ -1200,7 +1200,7 @@ static void TestEndlessTimelineStart(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = timeline;
     track.keyframes = keys;
@@ -1324,7 +1324,7 @@ static void TestHeldReversedTimeline(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = timeline;
     track.keyframes = keys;
@@ -1379,7 +1379,7 @@ static void TestReflectedJumpStart(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = timeline;
     track.keyframes = keys;
@@ -1479,7 +1479,7 @@ static void TestUnderReversedEndless(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 1.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.parent = b;
         track.keyframes = keys;
@@ -1529,7 +1529,7 @@ static void TestPointPassedBack(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef inner = mtwnDefaultClipTrackDef();
     inner.parent = timeline;
     inner.keyframes = keys;

@@ -326,7 +326,7 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
             {
                 keys[i].value = KeyValue(s_kinds[slot]);
                 keys[i].offset = (double)i / (double)(count - 1);
-                keys[i].easing = mtwnLinearEasing();
+                keys[i].easing = mtwnMakeLinearEasing();
             }
             mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
             track.parent = parent;
@@ -855,8 +855,8 @@ static void TestOneTimeOrder(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 1.0f;
-        keys[0].easing = mtwnLinearEasing();
-        keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = mtwnMakeLinearEasing();
+        keys[1].easing = mtwnMakeLinearEasing();
         // Later in time first: tracks at 0.5, 0.3 and 0.1.
         for (int n = 0; n < 3; ++n)
         {
@@ -998,7 +998,7 @@ static mtwnClipId TwoTracks(mtwnContext* context)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     for (uint32_t slot = 0; slot < 2; ++slot)
     {
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
@@ -1133,7 +1133,7 @@ static void TestExactFit(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -1259,7 +1259,7 @@ static void TestOneChannel(void)
     keys[0].value = still;
     keys[1].value = (mtwnVec4){0, 0, 1.0f, 1.0f};
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = mtwn_valueVec4;
     track.keyframes = keys;

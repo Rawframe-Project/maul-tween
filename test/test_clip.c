@@ -67,7 +67,7 @@ static mtwnKeyframe Key(double offset, float x)
     memset(&k, 0, sizeof k);
     k.offset = offset;
     k.value = (mtwnVec4){x, 0, 0, 0};
-    k.easing = mtwnLinearEasing();
+    k.easing = mtwnMakeLinearEasing();
     return k;
 }
 
@@ -1133,7 +1133,7 @@ static void TestLinearPointsCopied(void)
               mtwnContext_GetMisuse(context) == misuse + 1,
           "points the host put out of order refused as misuse");
     keptTiming[1].input = 0.5;
-    def.timing.easing = mtwnLinearEasing();
+    def.timing.easing = mtwnMakeLinearEasing();
     CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_success,
           "3 points fit, the clip unchanged by the refusals");
     mtwnClipTimelineDef timeline = mtwnDefaultClipTimelineDef();
@@ -1151,7 +1151,7 @@ static void TestLinearPointsCopied(void)
     CHECK(mtwnCreateClip(context, &clipDef, &third) == mtwn_success, "a clip of 6 points");
     mtwnNode group;
     CHECK(mtwnClip_AddTimeline(context, third, &timeline, &group) == mtwn_success, "a timeline");
-    def.timing.easing = mtwnLinearEasing();
+    def.timing.easing = mtwnMakeLinearEasing();
     keys[0].easing = easings[2];
     keptSegment[1].output = 0.25;
     mtwnEasing other;

@@ -116,7 +116,7 @@ extern "C"
     typedef double (*mtwnEaseFunction)(void* context, double progress);
 
     // An easing: a curve and its mode. Make one with a mtwnMake...
-    // function or mtwnLinearEasing; its fields are the library's, set by
+    // function or mtwnMakeLinearEasing; its fields are the library's, set by
     // the maker, and a host reads none of them. Every call taking one
     // refuses an easing whose fields its kind reads are not as its maker
     // sets them, or for an elastic and a spring easing outside the ranges
@@ -185,12 +185,12 @@ extern "C"
         uint8_t flags;
     } mtwnRoughDef;
 
-    /// Returns the linear easing, whose eased progress is its progress.
+    /// Makes the linear easing, whose eased progress is its progress.
     ///
     /// @return The easing.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnEasing mtwnLinearEasing(void);
+    MTWN_API mtwnEasing mtwnMakeLinearEasing(void);
 
     /// Makes the power easing p^k: quad for k = 2, cubic 3, quart 4, quint
     /// 5. GSAP's power(n) is k = n + 1. Integer exponents up to 8 are

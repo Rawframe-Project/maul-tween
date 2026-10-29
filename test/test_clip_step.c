@@ -120,7 +120,7 @@ static mtwnClipId MakeClip(mtwnContext* context, float scale, double markShift)
         keys[0].value = (mtwnVec4){0.25f, 0.5f, 0.75f, 1.0f};
         keys[1].offset = 1.0;
         keys[1].value = (mtwnVec4){scale, 0.125f, 0.5f, 0.5f};
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.parent = nested;
         track.slot = s;
@@ -653,7 +653,7 @@ static void TestDirectionAtStart(void)
         keys[0].value.x = 7.0f;
         keys[1].offset = 1.0;
         keys[1].value.x = 9.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.position.offset = 0.25;
         track.keyframes = keys;

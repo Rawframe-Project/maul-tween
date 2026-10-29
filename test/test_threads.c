@@ -157,7 +157,7 @@ static mtwnClipId MakeClip(mtwnContext* context, mtwnNode* nodeOut)
     keys[1].value = (mtwnVec4){1.0f, 2.0f, 0, 0};
     keys[2].offset = 1.0;
     keys[2].value = (mtwnVec4){3.0f, 1.0f, 0, 0};
-    keys[0].easing = keys[1].easing = keys[2].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = keys[2].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = mtwn_valueVec2;
     track.keyframes = keys;

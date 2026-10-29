@@ -118,7 +118,7 @@ static mtwnVec4 ValueFor(mtwnValueKind kind, uint32_t seed)
 
 static mtwnEasing EasingFor(uint32_t seed)
 {
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     mtwnResult made = mtwn_success;
     switch (seed % 7)
     {

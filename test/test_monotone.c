@@ -24,7 +24,7 @@ static mtwnKeyframe Key(double offset, float x, float y)
     memset(&k, 0, sizeof k);
     k.offset = offset;
     k.value = (mtwnVec4){x, y, 0.0f, 0.0f};
-    k.easing = mtwnLinearEasing();
+    k.easing = mtwnMakeLinearEasing();
     k.kind = mtwn_segmentMonotone;
     return k;
 }

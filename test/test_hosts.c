@@ -297,7 +297,7 @@ static mtwnKeyframe Key(double offset, mtwnVec4 value, mtwnSegmentKind kind)
     memset(&key, 0, sizeof key);
     key.value = value;
     key.offset = offset;
-    key.easing = mtwnLinearEasing();
+    key.easing = mtwnMakeLinearEasing();
     key.kind = kind;
     return key;
 }

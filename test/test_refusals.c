@@ -145,7 +145,7 @@ static void TestClipsAndPlayers(void)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -179,7 +179,7 @@ static mtwnClipId OneTrack(mtwnContext* context)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;

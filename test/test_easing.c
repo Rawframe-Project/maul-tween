@@ -415,7 +415,7 @@ static void TestModesAreReflections(void)
     CHECK(wrong == 0, "out is 1 - in(1 - p)");
     CHECK(mtwnSetEaseMode(&out, 4) == mtwn_errorInvalid && out.mode == mtwn_easeOut,
           "an unknown mode is refused and changes nothing");
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     CHECK(EaseAt(&linear, 0.3, false) == 0.3 && EaseAt(&linear, -2.0, true) == -2.0,
           "linear is the identity, unclamped");
     CHECK(mtwnSetEaseMode(&linear, mtwn_easeInOut) == mtwn_success &&
@@ -458,7 +458,7 @@ static void TestHostEasing(void)
 
 static void TestRefusals(void)
 {
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 0.0, &easing) == mtwn_errorInvalid, "exponent 0");
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, -1.0, &easing) == mtwn_errorInvalid, "negative");
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, HUGE_VAL, &easing) == mtwn_errorInvalid, "infinite");
@@ -601,7 +601,7 @@ static void TestCubicBezierSampler(void)
                   SameBits(EaseBezierAt(&keyword, -0.25), EaseAt(&keyword, -0.25, false)),
               "CSS's keywords as mtwnSampleEasing gives them");
     }
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     CHECK(SameBits(EaseBezierAt(&linear, 0.3), 0.3) &&
               SameBits(EaseBezierAt(&linear, -2.5), EaseAt(&linear, -2.5, false)),
           "the linear easing, its progress");
@@ -678,7 +678,7 @@ static double ReturnHalf(void* context, double progress)
 
 static void TestForgedPenner(void)
 {
-    mtwnEasing power = mtwnLinearEasing();
+    mtwnEasing power = mtwnMakeLinearEasing();
     mtwnEasing sine = power;
     mtwnEasing expo = power;
     mtwnEasing circ = power;
@@ -731,7 +731,7 @@ static void TestForgedPenner(void)
 
 static void TestForgedOthers(void)
 {
-    mtwnEasing host = mtwnLinearEasing();
+    mtwnEasing host = mtwnMakeLinearEasing();
     mtwnEasing bezier = host;
     mtwnEasing steps = host;
     mtwnEasing linear = host;

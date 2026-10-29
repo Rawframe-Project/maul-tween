@@ -940,7 +940,7 @@ static void TestSpringEasingRefusals(void)
 {
     mtwnSpring spring;
     CHECK(mtwnMakeSpringFromFrequency(1.0, 0.5, &spring) == mtwn_success, "made");
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakeSpringEasing(&spring, 0.0, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
           "no duration");
     CHECK(mtwnMakeSpringEasing(&spring, HUGE_VAL, 0.0, mtwn_easeIn, &easing) == mtwn_errorInvalid,
@@ -967,7 +967,7 @@ static void TestSpringEasingRefusals(void)
           "an infinite velocity");
     CHECK(easing.kind == mtwn_easingLinear, "refusals leave the out-parameter as it was");
     mtwnSpring fast;
-    mtwnEasing edge = mtwnLinearEasing();
+    mtwnEasing edge = mtwnMakeLinearEasing();
     CHECK(mtwnMakeSpringFromFrequency(1000.0, 0.0, &fast) == mtwn_success &&
               mtwnMakeSpringEasing(&fast, 1.0001, 0.0, mtwn_easeIn, &edge) == mtwn_success &&
               mtwnMakeSpringEasing(&fast, 1.1001, 0.0, mtwn_easeIn, &edge) == mtwn_errorInvalid,
@@ -988,7 +988,7 @@ static void TestForgedSpringEasings(void)
 {
     mtwnSpring under;
     mtwnSpring over;
-    mtwnEasing u = mtwnLinearEasing();
+    mtwnEasing u = mtwnMakeLinearEasing();
     mtwnEasing o = u;
     CHECK(mtwnMakeSpringFromFrequency(2.0, 0.3, &under) == mtwn_success &&
               mtwnMakeSpringFromFrequency(2.0, 2.0, &over) == mtwn_success &&
@@ -1045,7 +1045,7 @@ static void TestForgedSpringEasings(void)
 static void TestForgedSquaredPastDoubles(void)
 {
     mtwnSpring over;
-    mtwnEasing o = mtwnLinearEasing();
+    mtwnEasing o = mtwnMakeLinearEasing();
     CHECK(mtwnMakeSpringFromFrequency(2.0, 2.0, &over) == mtwn_success &&
               mtwnMakeSpringEasing(&over, 1.0, 0.0, mtwn_easeIn, &o) == mtwn_success,
           "an overdamped spring easing");
@@ -1074,7 +1074,7 @@ static void TestLongestSpringEasing(void)
 {
     mtwnSpring critical;
     CHECK(mtwnMakeSpring(1.0, 2.0, 1.0, &critical) == mtwn_success, "a critical spring of 1");
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakeSpringEasing(&critical, 0x1.fffffffffffffp511, 0.0, mtwn_easeIn, &easing) ==
               mtwn_success,
           "the longest duration below 2^512 made");

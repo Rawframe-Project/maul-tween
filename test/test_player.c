@@ -40,7 +40,7 @@ static Fixture MakeFrom(const mtwnContextDef* def, bool endless)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -414,7 +414,7 @@ static void TestSlotPastFull(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     int added = 0;
     for (uint32_t slot = 0; slot < 16; ++slot)
     {
@@ -669,7 +669,7 @@ static void TestAfterLastPlayer(void)
     def.target = x;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
     def.duration = 1.0;
-    def.easing = mtwnLinearEasing();
+    def.easing = mtwnMakeLinearEasing();
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
     Update(&f, 1.5);

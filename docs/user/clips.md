@@ -25,7 +25,7 @@ built = mtwnCreateClip(context, &clipDef, &clip);
 mtwnKeyframe keys[2] = {0};
 keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
 keys[1].offset = 1.0;
-keys[0].easing = keys[1].easing = mtwnLinearEasing();
+keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
 mtwnClipTrackDef track = mtwnDefaultClipTrackDef(); // on the root at 0, slot 0, a number
 track.keyframes = keys;
 track.keyframeCount = 2;

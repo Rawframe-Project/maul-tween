@@ -268,7 +268,7 @@ static mtwnEasing Blank(mtwnEasingKind kind, mtwnEaseMode mode)
     return easing;
 }
 
-mtwnEasing mtwnLinearEasing(void)
+mtwnEasing mtwnMakeLinearEasing(void)
 {
     return Blank(mtwn_easingLinear, mtwn_easeIn);
 }
@@ -453,7 +453,7 @@ static MTWN_NOINLINE mtwnResult mtwnMakeCssEasingWork(mtwnCssKeyword keyword, mt
     }
     if (keyword == mtwn_cssLinear)
     {
-        *easingOut = mtwnLinearEasing();
+        *easingOut = mtwnMakeLinearEasing();
         return mtwn_success;
     }
     if (keyword == mtwn_cssStepStart || keyword == mtwn_cssStepEnd)

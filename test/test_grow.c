@@ -112,7 +112,7 @@ static void TestGrow(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -132,7 +132,7 @@ static void TestGrow(void)
     mtwnTransitionDef move = mtwnDefaultTransitionDef();
     move.target = b;
     move.value = (mtwnVec4){4.0f, 0, 0, 0};
-    move.easing = mtwnLinearEasing();
+    move.easing = mtwnMakeLinearEasing();
     move.duration = 4.0;
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(context, &move, &transition) == mtwn_success, "a transition");
@@ -298,7 +298,7 @@ static mtwnContext* Repeating(uint32_t events, mtwnTargetId* target, mtwnPlayerI
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 3.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;

@@ -323,7 +323,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         {
             keys[k].value = (mtwnVec4){(float)Value(in, 4.0), 0.5f, 0.0f, 1.0f};
             keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Progress(in, 1.0));
-            keys[k].easing = mtwnLinearEasing();
+            keys[k].easing = mtwnMakeLinearEasing();
             if (k == 1)
             {
                 (void)mtwnMakeHostEasing(mtwn_easeIn, Watched, NULL, &keys[k].easing);

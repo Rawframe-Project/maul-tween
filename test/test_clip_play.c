@@ -39,7 +39,7 @@ static mtwnNode AddTrack(World* w, mtwnNode parent, uint32_t slot, mtwnValueKind
     keys[0].value.x = a;
     keys[1].offset = 1.0;
     keys[1].value.x = b;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = kind;
     track.keyframes = keys;
@@ -261,7 +261,7 @@ static void TestOrder(void)
     mtwnTransitionDef move = mtwnDefaultTransitionDef();
     move.target = w.target;
     move.value = (mtwnVec4){8.0f, 0, 0, 0};
-    move.easing = mtwnLinearEasing();
+    move.easing = mtwnMakeLinearEasing();
     move.duration = 10.0;
     mtwnPlayerId t;
     CHECK(mtwnStartTransition(w.context, &move, &t) == mtwn_success, "a transition");
@@ -285,7 +285,7 @@ static void TestEndlessTimeline(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -342,7 +342,7 @@ static void TestNumbersPastFloats(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 3e38f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         if (path == 0)
         {
             CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &keys[0].easing) == mtwn_success,
@@ -439,7 +439,7 @@ static void TestSeeksPastEnds(void)
         keys[0].value.x = 2.0f;
         keys[1].offset = 1.0;
         keys[1].value.x = 8.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.track.kind = mtwn_valueScalar;
         track.keyframes = keys;
@@ -669,7 +669,7 @@ static void TestCommitLastComponent(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         *Component(&keys[1].value, c) = 1.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.track.kind = mtwn_valueVec4;
         track.keyframes = keys;
@@ -738,7 +738,7 @@ static float FullOrRoomy(uint32_t capacity, double seconds)
     keys[1].value.x = 10.0f;
     keys[2].offset = 1.0;
     keys[2].value.x = 20.0f;
-    keys[0].easing = keys[2].easing = mtwnLinearEasing();
+    keys[0].easing = keys[2].easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeOut, &keys[1].easing) == mtwn_success,
           "a sine easing");
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();

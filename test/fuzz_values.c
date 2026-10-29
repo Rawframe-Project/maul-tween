@@ -1024,7 +1024,7 @@ static void Paths(Bytes* in)
         keys[k].value = Vec(in, 100.0, 100.0, 1.0);
         keys[k].in = Vec(in, 100.0, 0.0, 0.0);
         keys[k].out = Vec(in, 100.0, 0.0, 0.0);
-        keys[k].easing = mtwnLinearEasing();
+        keys[k].easing = mtwnMakeLinearEasing();
         keys[k].kind = (mtwnSegmentKind)Below(in, 5);
     }
     // Every other keyframe eased by linear() over points of its own, set

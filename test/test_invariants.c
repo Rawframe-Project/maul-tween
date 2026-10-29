@@ -325,7 +325,7 @@ static void BuildOne(mtwnContext* context, mtwnClipId clip, mtwnNode* timelines,
         {
             keys[k].value = (mtwnVec4){(float)Wild(5.0), 1.0f, 0.0f, 1.0f};
             keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Wild(1.0));
-            keys[k].easing = mtwnLinearEasing();
+            keys[k].easing = mtwnMakeLinearEasing();
             keys[k].kind = (mtwnSegmentKind)(Next() % 5);
         }
         mtwnClipTrackDef def = mtwnDefaultClipTrackDef();
@@ -383,7 +383,7 @@ static bool KeyframesLeft(mtwnContext* context, mtwnClipId clip, const mtwnClipD
     for (uint32_t k = 0; k <= left; ++k)
     {
         keys[k].offset = left == 0 ? 0.0 : (double)k / (double)left;
-        keys[k].easing = mtwnLinearEasing();
+        keys[k].easing = mtwnMakeLinearEasing();
     }
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.slot = slot;

@@ -44,7 +44,7 @@ static mtwnTransitionDef Linear(mtwnTargetId target, mtwnVec4 value, double dura
     def.target = target;
     def.value = value;
     def.duration = duration;
-    def.easing = mtwnLinearEasing();
+    def.easing = mtwnMakeLinearEasing();
     return def;
 }
 
@@ -1219,7 +1219,7 @@ static void TestFirstMillisecond(void)
     def.target = color;
     def.value = (mtwnVec4){1.0f, 0.0f, 0.0f, 1.0f};
     def.duration = 2.0;
-    def.easing = mtwnLinearEasing();
+    def.easing = mtwnMakeLinearEasing();
     mtwnPlayerId player;
     CHECK(mtwnContext_Update(context, s_second, NULL, 0, NULL) == mtwn_success &&
               mtwnStartTransition(context, &def, &player) == mtwn_success &&
@@ -1436,7 +1436,7 @@ static void TestReversal(void)
     mtwnTargetId x;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
           "a target");
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     // 0 to 1 over a second, left a quarter of the way: back in a quarter,
     // so half way back an eighth of a second later.
     (void)Toward(context, x, 1.0f, 1.0, &linear, true);
@@ -1511,7 +1511,7 @@ static void TestReversalSignedZero(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){-0.0f, 0, 0, 0}, &x) ==
               mtwn_success,
           "a target at -0");
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     (void)Toward(context, x, 1.0f, 1.0, &linear, true);
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
@@ -1586,7 +1586,7 @@ static void TestReversalOvershoot(void)
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, 3 * s_second / 4, NULL, 0, NULL) == mtwn_success,
           "three quarters in");
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     mtwnPlayerId back = Toward(context, x, 0.0f, 1.0, &linear, true);
     CHECK(Lasts(context, x, back, 3 * s_second / 4, s_second, s_zero), "back over the whole way");
     mtwnDestroyContext(context);
@@ -1601,7 +1601,7 @@ static void TestReversalEdges(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){2.0f, 0, 0, 0}, &x) ==
               mtwn_success,
           "a target at 2");
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     // From 2 to 3 and back to 2 a quarter in: the way back ends a
     // quarter of a second later, its value committed.
     CHECK(mtwnContext_Update(context, 5 * s_second, NULL, 0, NULL) == mtwn_success, "at 5 s");

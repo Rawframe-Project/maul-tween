@@ -140,7 +140,7 @@ static void TestFitLastProbe(void)
 static void TestFitCounts(void)
 {
     uint32_t count = 0;
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     CHECK(mtwnFitLinearEasing(&linear, 1e-6, s_points, s_capacity, &count) == mtwn_success &&
               count == 2,
           "linear is two points");

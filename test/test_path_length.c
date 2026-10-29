@@ -76,7 +76,7 @@ static RandomPath MakeRandom(void)
         key->value = Point(p.channels);
         key->in = Point(p.channels);
         key->out = Point(p.channels);
-        key->easing = mtwnLinearEasing();
+        key->easing = mtwnMakeLinearEasing();
         double kind = Random();
         key->kind = kind < 0.4   ? mtwn_segmentBezier
                     : kind < 0.8 ? mtwn_segmentCatmullRom

@@ -18,7 +18,7 @@ The makers:
 
 | Maker | Curves |
 |---|---|
-| `mtwnLinearEasing` | The identity; it cannot fail. |
+| `mtwnMakeLinearEasing` | The identity; it cannot fail. |
 | `mtwnMakePowerEasing` | `p^k`: quad, cubic, quart, quint and any exponent above 0. GSAP's `power(n)` is `k = n + 1`. |
 | `mtwnMakePennerEasing` | Sine, expo, circ and bounce. |
 | `mtwnMakeBackEasing` | Back, with GSAP's and Penner's overshoot (1.70158 by default). |
@@ -53,7 +53,7 @@ A rough easing wanders from a shape at points drawn from a seed, as GSAP's Rough
 
 ```c
 mtwnLinearPoint points[22]; // kept while the easing is used
-mtwnRoughDef def = {.shape = mtwnLinearEasing(), .strength = 0.1, .seed = 42};
+mtwnRoughDef def = {.shape = mtwnMakeLinearEasing(), .strength = 0.1, .seed = 42};
 def.taper = mtwn_roughTaperOut; // calm by the end
 mtwnEasing rough;
 mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);

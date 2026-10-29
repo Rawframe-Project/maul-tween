@@ -25,7 +25,7 @@ mtwnTiming mtwnDefaultTiming(void)
     mtwnTiming timing = {0};
     timing.iterations = 1.0;
     timing.playbackRate = 1.0;
-    timing.easing = mtwnLinearEasing();
+    timing.easing = mtwnMakeLinearEasing();
     return timing;
 }
 

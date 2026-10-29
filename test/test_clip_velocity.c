@@ -41,7 +41,7 @@ static Scene MakeSceneAt(double start)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -226,7 +226,7 @@ static void TestInteger(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track = mtwnDefaultTrackDef(mtwn_valueInteger);
     track.keyframes = keys;
@@ -280,7 +280,7 @@ static void TestBackwardsAtEnd(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 10.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.keyframes = keys;
         track.keyframeCount = 2;

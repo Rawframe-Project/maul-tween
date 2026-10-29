@@ -38,7 +38,7 @@ mtwnStagger mtwnDefaultStagger(void)
 {
     mtwnStagger stagger = {0};
     stagger.spacing = 0.1;
-    stagger.easing = mtwnLinearEasing();
+    stagger.easing = mtwnMakeLinearEasing();
     return stagger;
 }
 

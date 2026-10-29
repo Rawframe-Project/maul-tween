@@ -43,7 +43,7 @@ static mtwnClipId Clip(mtwnContext* context, mtwnValueKind kind, const mtwnVec4 
     {
         keys[i].value = values[i];
         keys[i].offset = 0.5 * i;
-        keys[i].easing = mtwnLinearEasing();
+        keys[i].easing = mtwnMakeLinearEasing();
     }
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = kind;
