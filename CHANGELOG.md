@@ -6,6 +6,30 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.11.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.10.0...v0.11.0) (2026-10-28)
+
+This release settles names and signatures ahead of 1.0.0 ([#135](https://github.com/Rawframe-Project/maul-tween/issues/135)). Every rename keeps the function's parameters and behavior. A caller updates its calls, and no value, velocity or event record changes, except a player weight given as a double (below).
+
+### Changed
+
+- **Breaking:** an unknown angle method is refused with `mtwn_errorInvalid`, counted as misuse, wherever an angle reads one. That covers `mtwnStartTransition` and `mtwnMeasureTransition` for an angle target, and `mtwnMakeTrack` and `mtwnClip_AddTrack` for an angle track. They took it as `mtwn_angleRaw`. Every call still taken gives the same results ([#137](https://github.com/Rawframe-Project/maul-tween/pull/137)).
+- **Breaking:** `mtwnMixAngle`, `mtwnMixInteger` and `mtwnMixDiscrete` return `mtwnResult` and give their value through a new last parameter: `angleOut`, `valueOut` and `valueOut`. Each refuses with `mtwn_errorInvalid` a null out and a progress that is not finite, as every other mix does. `mtwnMixAngle` also refuses an unknown method, which it took as raw, and an angle that is not finite. Every call still taken gives the same bits ([#140](https://github.com/Rawframe-Project/maul-tween/pull/140)).
+- **Breaking:** `mtwnPlayerDef.weight` is a `float`, and `mtwnPlayer_SetWeight` takes a `float`, as `mtwnBinding.weight` is. The def's layout changes. Hosts that give a player a weight that is not a float's value (`0.3` rather than `0.3f`) see every target the player writes compose by the float nearest it. A weight a float holds keeps its bits ([#138](https://github.com/Rawframe-Project/maul-tween/pull/138)).
+- **Breaking:** the context's operations carry its name: `mtwnUpdate`, `mtwnReadEvents`, `mtwnReadTargets` and `mtwnGetClipBytes` are `mtwnContext_Update`, `mtwnContext_ReadEvents`, `mtwnContext_ReadTargets` and `mtwnContext_GetClipBytes` ([#141](https://github.com/Rawframe-Project/maul-tween/pull/141)).
+- **Breaking:** every easing maker is named for its kind: `mtwnMakeCubicBezier`, `mtwnMakeSteps` and `mtwnMakeLinearEasing` (CSS `linear()` from points) are `mtwnMakeCubicBezierEasing`, `mtwnMakeStepsEasing` and `mtwnMakeLinearPointsEasing`. `mtwnLinearEasing`, the identity, keeps its name ([#142](https://github.com/Rawframe-Project/maul-tween/pull/142)).
+- **Breaking:** every free function starts with its verb ([#143](https://github.com/Rawframe-Project/maul-tween/pull/143)):
+  - `mtwnSpringMotionAt` and `mtwnSpringSettlingTime` are `mtwnComputeSpringMotion` and `mtwnComputeSpringSettlingTime`;
+  - `mtwnDecayStopTime`, `mtwnDecayCrossingTime` and `mtwnBoundedDecayStopTime` are `mtwnComputeDecayStopTime`, `mtwnComputeDecayCrossingTime` and `mtwnComputeBoundedDecayStopTime`;
+  - `mtwnPathDirection`, `mtwnPathAngle` and `mtwnZoomLength` are `mtwnComputePathDirection`, `mtwnComputePathAngle` and `mtwnComputeZoomLength`;
+  - `mtwnShakeNoise` is `mtwnSampleShakeNoise`;
+  - `mtwnColorToSpace` and `mtwnColorFromSpace` are `mtwnConvertColorToSpace` and `mtwnConvertColorFromSpace`;
+  - `mtwnRubberBand` and `mtwnRubberBandInverse` are `mtwnApplyRubberBand` and `mtwnInvertRubberBand`;
+  - and `mtwnSampleEasing`, which fills a table, is `mtwnSampleEasingTable`.
+- **Breaking:** `mtwn_staggerCentre` is `mtwn_staggerCenter`, with the same value, as the family spells it ([#144](https://github.com/Rawframe-Project/maul-tween/pull/144)).
+- **Breaking:** a transition's kind is named as every other kind: `mtwnTransitionSpec` is `mtwnTransitionKind`, and `mtwnTransitionDef.spec` is `kind` ([#145](https://github.com/Rawframe-Project/maul-tween/pull/145)).
+- **Breaking:** a clip is sealed, so finishing is a player's alone: `mtwnClip_Finish` is `mtwnClip_Seal`, with the same statuses. The docs call such a clip sealed ([#146](https://github.com/Rawframe-Project/maul-tween/pull/146)).
+- The user guides use the new names throughout ([#141](https://github.com/Rawframe-Project/maul-tween/pull/141) to [#146](https://github.com/Rawframe-Project/maul-tween/pull/146)).
+
 ## [0.10.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.9.0...v0.10.0) (2026-10-28)
 
 ### Added
