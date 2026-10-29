@@ -8,14 +8,30 @@ refused with `mtwn_errorVersion`.
 
 ## [0.12.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.11.0...v0.12.0) (2026-10-29)
 
-
-### ⚠ BREAKING CHANGES
-
-* thirteen public names are renamed by the family's API shape, their parameters and behavior unchanged: mtwnGetContextMisuse to mtwnContext_GetMisuse, mtwnGrowContext to mtwnContext_Grow, mtwnMeasureTransition to mtwnContext_MeasureTransition, mtwnContext_SetReducedMotion to mtwnContext_EnableReducedMotion, mtwnContext_IsReducedMotion to mtwnContext_IsReducedMotionEnabled, mtwnResultName to mtwnGetResultName, mtwnEase to mtwnSampleEasing, mtwnEaseCubicBezier to mtwnSampleCubicBezierEasing, mtwnBind to mtwnMakeBinding, mtwnLinearEasing to mtwnMakeLinearEasing, mtwnTaskFn to mtwnTaskFunction, mtwnEnqueueTaskFn to mtwnEnqueueTaskFunction and mtwnFinishTaskFn to mtwnFinishTaskFunction.
+This release gives every public name the Maul family's shape ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)): a call on the context starts with `mtwnContext_`, every other function starts with its verb, a switch is an `Enable` and `Is...Enabled` pair, and a callback type ends in `Function`. Each rename keeps the function's parameters and behavior, so a caller only updates its calls. No value, velocity or event record changes.
 
 ### Changed
 
-* name every public call by the family's API shape ([#148](https://github.com/Rawframe-Project/maul-tween/issues/148)) ([a52f13a](https://github.com/Rawframe-Project/maul-tween/commit/a52f13a4135aea07758c9fcbcf5eaef87d57bbb7)), closes [#147](https://github.com/Rawframe-Project/maul-tween/issues/147) [#135](https://github.com/Rawframe-Project/maul-tween/issues/135)
+- **Breaking:** thirteen public names are renamed ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)):
+
+  | Before | Now |
+  |---|---|
+  | `mtwnGetContextMisuse` | `mtwnContext_GetMisuse` |
+  | `mtwnGrowContext` | `mtwnContext_Grow` |
+  | `mtwnMeasureTransition` | `mtwnContext_MeasureTransition` |
+  | `mtwnContext_SetReducedMotion` | `mtwnContext_EnableReducedMotion` |
+  | `mtwnContext_IsReducedMotion` | `mtwnContext_IsReducedMotionEnabled` |
+  | `mtwnResultName` | `mtwnGetResultName` |
+  | `mtwnEase` | `mtwnSampleEasing` |
+  | `mtwnEaseCubicBezier` | `mtwnSampleCubicBezierEasing` |
+  | `mtwnBind` | `mtwnMakeBinding` |
+  | `mtwnLinearEasing` | `mtwnMakeLinearEasing` |
+  | `mtwnTaskFn` | `mtwnTaskFunction` |
+  | `mtwnEnqueueTaskFn` | `mtwnEnqueueTaskFunction` |
+  | `mtwnFinishTaskFn` | `mtwnFinishTaskFunction` |
+
+  Before 0.11.0, `mtwnMakeLinearEasing` was the maker of CSS's `linear()` from points, which is `mtwnMakeLinearPointsEasing` since 0.11.0. A call written for that maker passes points, so it no longer compiles.
+- The user guides and samples use the new names ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)).
 
 ## [0.11.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.10.0...v0.11.0) (2026-10-28)
 
