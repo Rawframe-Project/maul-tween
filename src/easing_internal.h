@@ -76,7 +76,7 @@ static inline double mtwnEaseNormalPower(const mtwnEasing* easing, double progre
 static inline double mtwnEaseFast(const mtwnEasing* easing, double progress)
 {
     return mtwnIsNormalPower(easing) ? mtwnEaseNormalPower(easing, progress)
-                                     : mtwnEaseWork(easing, progress, false);
+                                     : mtwnSampleEasingWork(easing, progress, false);
 }
 
 #endif

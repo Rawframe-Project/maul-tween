@@ -518,7 +518,7 @@ static void TestPlaying(void)
                                                             : (mtwnVec4){0};
             CHECK(mtwnCreateTarget(context, valueKind, start, &targets[s]) == mtwn_success,
                   "a target");
-            bindings[s] = mtwnBind(used, targets[s]);
+            bindings[s] = mtwnMakeBinding(used, targets[s]);
         }
         mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
         playerDef.clip = clip;
@@ -558,7 +558,7 @@ static void TestPlaying(void)
                     r = mtwnPlayer_Finish(context, player);
                     break;
                 case 7:
-                    r = mtwnContext_SetReducedMotion(context, Next() % 2 == 0);
+                    r = mtwnContext_EnableReducedMotion(context, Next() % 2 == 0);
                     break;
                 default:
                     break;
@@ -572,7 +572,7 @@ static void TestPlaying(void)
             // or one that cannot finish: an infinite end ahead, or a rate
             // of 0.
             mtwnPlayerState played;
-            if (mtwnContext_IsReducedMotion(context) && !playerDef.essential &&
+            if (mtwnContext_IsReducedMotionEnabled(context) && !playerDef.essential &&
                 mtwnPlayer_GetState(context, player, &played) == mtwn_success &&
                 played.state == mtwn_playRunning)
             {
@@ -642,8 +642,8 @@ static void TestTransitions(void)
     {
         if (Next() % 50 == 0)
         {
-            CHECK(mtwnContext_SetReducedMotion(context, !mtwnContext_IsReducedMotion(context)) ==
-                      mtwn_success,
+            CHECK(mtwnContext_EnableReducedMotion(
+                      context, !mtwnContext_IsReducedMotionEnabled(context)) == mtwn_success,
                   "reduced motion switched");
         }
         uint32_t k = Next() % 10;
@@ -690,10 +690,11 @@ static void TestTransitions(void)
             bool ok = read && Finite(state.value) && Finite(state.velocity) && Finite(state.base) &&
                       (!resting || SameBits(state.value, state.base));
             // Reduced: nothing but an essential transition is left moving.
-            bool reducedOk = !mtwnContext_IsReducedMotion(context) || resting || essential[t];
+            bool reducedOk =
+                !mtwnContext_IsReducedMotionEnabled(context) || resting || essential[t];
             bad += ok && reducedOk ? 0u : 1u;
         }
-        reducedFrames += mtwnContext_IsReducedMotion(context) ? 1u : 0u;
+        reducedFrames += mtwnContext_IsReducedMotionEnabled(context) ? 1u : 0u;
     }
     CHECK(reducedFrames > 300 && reducedFrames < 2700, "reduced motion on and off by turns");
     CHECK(bad == 0, "every transition started, values finite, each at rest on its base, "

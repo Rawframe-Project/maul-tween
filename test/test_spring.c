@@ -976,11 +976,11 @@ static void TestSpringEasingRefusals(void)
           "a velocity whose eased progress could pass the doubles refused");
 }
 
-// Whether mtwnEase refuses a spring easing, its output as it was.
+// Whether mtwnSampleEasing refuses a spring easing, its output as it was.
 static bool EaseRefuses(const mtwnEasing* easing)
 {
     double eased = 7.0;
-    return mtwnEase(easing, 0.5, false, &eased) == mtwn_errorInvalid && eased == 7.0;
+    return mtwnSampleEasing(easing, 0.5, false, &eased) == mtwn_errorInvalid && eased == 7.0;
 }
 
 // A spring easing with a field written as its maker never writes it.
@@ -1058,7 +1058,8 @@ static void TestForgedSquaredPastDoubles(void)
     for (size_t i = 0; i < sizeof progress / sizeof progress[0]; ++i)
     {
         double eased = (double)NAN;
-        wrong += mtwnEase(&e, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
+        wrong +=
+            mtwnSampleEasing(&e, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
     }
     CHECK(wrong == 0, "a squared frequency of DBL_MAX, the fast rate 2^1000: taken, finite");
     e.parameters[2] = (double)INFINITY;
@@ -1082,7 +1083,8 @@ static void TestLongestSpringEasing(void)
     for (size_t i = 0; i < sizeof progress / sizeof progress[0]; ++i)
     {
         double eased = (double)NAN;
-        wrong += mtwnEase(&easing, progress[i], false, &eased) != mtwn_success || !isfinite(eased);
+        wrong += mtwnSampleEasing(&easing, progress[i], false, &eased) != mtwn_success ||
+                 !isfinite(eased);
     }
     CHECK(wrong == 0, "and eased finite");
     mtwnEasing kept;

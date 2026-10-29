@@ -51,7 +51,7 @@ static mtwnClipTrackDef Incremental(mtwnValueKind kind, mtwnKeyframe* keys, doub
 
 static void Play(World* w)
 {
-    mtwnBinding binding = mtwnBind(0, w->target);
+    mtwnBinding binding = mtwnMakeBinding(0, w->target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;

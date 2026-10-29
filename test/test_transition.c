@@ -750,51 +750,60 @@ static void TestMeasure(void)
     double d = 0.0;
     mtwnTransitionDef def =
         Linear(Target(context, mtwn_valueVec2, (mtwnVec4){0}), (mtwnVec4){3.0f, 4.0f, 0, 0}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && d == 5.0, "a vector: 5");
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success && d == 5.0,
+          "a vector: 5");
     def = Linear(Target(context, mtwn_valueInteger, (mtwnVec4){2.0f, 0, 0, 0}),
                  (mtwnVec4){-1.0f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && d == 3.0, "an integer: 3");
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success && d == 3.0,
+          "an integer: 3");
     const double deg = 3.14159265358979323846 / 180.0;
     def = Linear(Target(context, mtwn_valueAngle, (mtwnVec4){(float)(350 * deg), 0, 0, 0}),
                  (mtwnVec4){(float)(10 * deg), 0, 0, 0}, 1.0);
     def.angleMethod = mtwn_angleShorter;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 20 * deg) <= 1e-6,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - 20 * deg) <= 1e-6,
           "an angle the shorter way: 20 degrees");
     def.angleMethod = mtwn_angleLonger;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 340 * deg) <= 1e-6,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - 340 * deg) <= 1e-6,
           "the longer way: 340");
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     def.angleMethod = mtwn_angleDecreasing + 1;
     d = 7.0;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0 &&
-              mtwnGetContextMisuse(context) == misuse + 1,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0 &&
+              mtwnContext_GetMisuse(context) == misuse + 1,
           "an unknown method refused, as misuse, the distance cleared");
     // A quarter turn about z, and the other way round.
     float s = (float)sin(3.14159265358979323846 / 4.0);
     def = Linear(Target(context, mtwn_valueRotation, (mtwnVec4){0, 0, 0, 1.0f}),
                  (mtwnVec4){0, 0, s, s}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 90 * deg) <= 1e-6,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - 90 * deg) <= 1e-6,
           "a rotation: the angle it turns, 90 degrees");
     def.rotationPath = mtwn_rotationLongest;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 270 * deg) <= 1e-6,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - 270 * deg) <= 1e-6,
           "the longest way: 270");
     // The longest way to itself turns about no axis: refused, its distance
     // cleared.
     def.value = (mtwnVec4){0, 0, 0, 1.0f};
     d = 7.0;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
           "the longest way round no axis refused, 0");
     def = Linear(Target(context, mtwn_valueScale, (mtwnVec4){2.0f, 0, 0, 0}),
                  (mtwnVec4){8.0f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - log(4.0)) <= 1e-15,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - log(4.0)) <= 1e-15,
           "a scale: ln 4");
     // A color by deltaEOK with alpha: a fade alone has a length.
     mtwnTargetId red = Target(context, mtwn_valueColor, (mtwnVec4){1.0f, 0, 0, 1.0f});
     def = Linear(red, (mtwnVec4){1.0f, 0, 0, 0.0f}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 1.0) <= 1e-12,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - 1.0) <= 1e-12,
           "a fade: its alpha, 1");
     def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_success && fabs(d - 0.537) <= 1e-3,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_success &&
+              fabs(d - 0.537) <= 1e-3,
           "red to blue: deltaEOK 0.537");
     // The recipe: at 2 a second, within 0.15 and 1 second.
     def.duration = fmin(fmax(d / 2.0, 0.15), 1.0);
@@ -802,21 +811,22 @@ static void TestMeasure(void)
     // Refusals; nothing started.
     def =
         Linear(Target(context, mtwn_valueDiscrete, (mtwnVec4){0}), (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_errorInvalid && d == 0.0,
           "a discrete value has no distance");
     mtwnTargetId gone = Target(context, mtwn_valueScalar, (mtwnVec4){0});
     CHECK(mtwnDestroyTarget(context, gone) == mtwn_success, "destroyed");
     def = Linear(gone, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorStale, "a stale target");
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_errorStale, "a stale target");
     def = Linear(red, (mtwnVec4){1.0f, 0, 0, 2.0f}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid, "an alpha over 1");
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_errorInvalid, "an alpha over 1");
     def.cookie = 0;
-    CHECK(mtwnMeasureTransition(context, &def, &d) == mtwn_errorInvalid &&
-              mtwnMeasureTransition(context, NULL, &d) == mtwn_errorInvalid &&
-              mtwnMeasureTransition(NULL, &def, &d) == mtwn_errorInvalid,
+    CHECK(mtwnContext_MeasureTransition(context, &def, &d) == mtwn_errorInvalid &&
+              mtwnContext_MeasureTransition(context, NULL, &d) == mtwn_errorInvalid &&
+              mtwnContext_MeasureTransition(NULL, &def, &d) == mtwn_errorInvalid,
           "no cookie, no def, no context");
     def = Linear(red, (mtwnVec4){0, 0, 1.0f, 1.0f}, 1.0);
-    CHECK(mtwnMeasureTransition(context, &def, NULL) == mtwn_errorInvalid, "nowhere to put it");
+    CHECK(mtwnContext_MeasureTransition(context, &def, NULL) == mtwn_errorInvalid,
+          "nowhere to put it");
     CHECK(mtwnContext_Update(context, s_second, NULL, 0, NULL) == mtwn_success &&
               State(context, red).value.x == 1.0f && State(context, red).velocity.x == 0.0f,
           "nothing started or changed");
@@ -840,7 +850,7 @@ static void TestAngleTurns(void)
     // An unknown method is refused for an angle, by every spec; a number
     // reads no method, so it takes any.
     mtwnPlayerId id;
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     def.angleMethod = mtwn_angleDecreasing + 1;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid && id.index1 == 0,
           "an eased angle with an unknown method refused");
@@ -848,7 +858,7 @@ static void TestAngleTurns(void)
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a spring");
     def.kind = mtwn_transitionDecay;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "and a decay");
-    CHECK(mtwnGetContextMisuse(context) == misuse + 3 && State(context, angle).base.x == turned,
+    CHECK(mtwnContext_GetMisuse(context) == misuse + 3 && State(context, angle).base.x == turned,
           "each counted as misuse, the target as it was");
     def.angleMethod = mtwn_angleLonger;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success,
@@ -880,7 +890,8 @@ static void TestSpecRefusals(void)
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
           "an easing no maker produced");
     double distance = 0.0;
-    CHECK(mtwnMeasureTransition(context, &def, &distance) == mtwn_errorInvalid, "nor measured");
+    CHECK(mtwnContext_MeasureTransition(context, &def, &distance) == mtwn_errorInvalid,
+          "nor measured");
     def = SpringTo(x, (mtwnVec4){1.0f, 0, 0, 0});
     def.spring.parameters[4] = nextafter(def.spring.parameters[4], 0.0);
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid,
@@ -946,14 +957,14 @@ static void TestRefusals(void)
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "an infinite delay");
     def = Linear((mtwnTargetId){9, 1}, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorStale, "a stale target");
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     CHECK(misuse == 7, "each refusal with a context counted");
     def = Linear(x, (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     mtwnPlayerId first = Start(context, &def);
     def.target = y;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorCapacity && id.index1 == 0,
           "the pool full");
-    CHECK(mtwnGetContextMisuse(context) == misuse, "a full pool is not misuse");
+    CHECK(mtwnContext_GetMisuse(context) == misuse, "a full pool is not misuse");
     CHECK(mtwnDestroyTarget(context, x) == mtwn_success && !mtwnPlayer_IsValid(context, first),
           "destroying a target ends its transition");
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "its slot free again");
@@ -1001,7 +1012,7 @@ static void TestUpdateReport(void)
     CHECK(mtwnContext_Update(context, 11, NULL, 1, &total) == mtwn_errorInvalid,
           "a capacity, no array");
     CHECK(mtwnContext_Update(NULL, 11, NULL, 0, &total) == mtwn_errorInvalid, "no context");
-    CHECK(mtwnGetContextMisuse(context) == 2, "the two with a context counted");
+    CHECK(mtwnContext_GetMisuse(context) == 2, "the two with a context counted");
     // Setting the base under a transition changes the base only.
     def = Linear(ids[0], (mtwnVec4){4.0f, 0, 0, 0}, 1.0);
     Start(context, &def);
@@ -1696,14 +1707,14 @@ static void TestLinearPointsCopied(void)
         same += XOf(context, x) == expected;
     }
     CHECK(same == 9, "eased by the copy, the host's points changed");
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     mtwnEasing longer;
     mtwnLinearPoint five[5] = {{0.0, 0.0}, {0.2, 0.1}, {0.4, 0.5}, {0.7, 0.8}, {1.0, 1.0}};
     CHECK(mtwnMakeLinearPointsEasing(five, 5, &longer) == mtwn_success, "five points");
     transition.easing = longer;
     mtwnPlayerId refused;
     CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorCapacity &&
-              mtwnGetContextMisuse(context) == misuse && mtwnPlayer_IsValid(context, id),
+              mtwnContext_GetMisuse(context) == misuse && mtwnPlayer_IsValid(context, id),
           "more points than a transition holds: refused, not misuse, the running one kept");
     mtwnLinearPoint swapped[4] = {{0.0, 0.0}, {0.5, 0.2}, {0.25, 0.6}, {1.0, 1.0}};
     mtwnEasing changed;
@@ -1712,7 +1723,7 @@ static void TestLinearPointsCopied(void)
     swapped[1].input = 0.5;
     transition.easing = changed;
     CHECK(mtwnStartTransition(context, &transition, &refused) == mtwn_errorInvalid &&
-              mtwnGetContextMisuse(context) == misuse + 1 && mtwnPlayer_IsValid(context, id),
+              mtwnContext_GetMisuse(context) == misuse + 1 && mtwnPlayer_IsValid(context, id),
           "points the host put out of order: refused as misuse, the running one kept");
     swapped[1].input = 0.25;
     swapped[2].input = (double)NAN;

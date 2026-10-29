@@ -70,7 +70,7 @@ static void Update(Scene* s, double seconds)
 
 static mtwnPlayerId PlayKept(Scene* s, double rate, mtwnComposite composite, bool keep)
 {
-    mtwnBinding binding = mtwnBind(0, s->target);
+    mtwnBinding binding = mtwnMakeBinding(0, s->target);
     binding.composite = composite;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = s->clip;
@@ -185,7 +185,7 @@ static void TestHalfWeight(void)
     // Half way from the base toward the track: half its velocity, so not
     // the track's own.
     Scene s = MakeScene();
-    mtwnBinding binding = mtwnBind(0, s.target);
+    mtwnBinding binding = mtwnMakeBinding(0, s.target);
     binding.weight = 0.5f;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = s.clip;
@@ -235,7 +235,7 @@ static void TestInteger(void)
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "an integer track");
     CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
-    mtwnBinding binding = mtwnBind(0, integer);
+    mtwnBinding binding = mtwnMakeBinding(0, integer);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
@@ -288,7 +288,7 @@ static void TestBackwardsAtEnd(void)
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "a track");
         CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
-        mtwnBinding binding = mtwnBind(0, s.target);
+        mtwnBinding binding = mtwnMakeBinding(0, s.target);
         mtwnPlayerDef def = mtwnDefaultPlayerDef();
         def.clip = clip;
         def.bindings = &binding;

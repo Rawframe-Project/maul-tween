@@ -181,7 +181,7 @@ extern "C"
     /// @return A static, NUL-terminated string such as "mtwn_errorCapacity".
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API const char* mtwnResultName(mtwnResult result);
+    MTWN_API const char* mtwnGetResultName(mtwnResult result);
 
 #ifdef __cplusplus
 }

@@ -80,7 +80,7 @@ static void TestOnContext(void)
         mtwnPlayerId player;
         CLEARED(player, mtwnStartTransition(c, NULL, &player), "a transition: the null id");
         double seconds;
-        CLEARED(seconds, mtwnMeasureTransition(c, NULL, &seconds), "a distance: 0");
+        CLEARED(seconds, mtwnContext_MeasureTransition(c, NULL, &seconds), "a distance: 0");
         mtwnClipId clip;
         CLEARED(clip, mtwnCreateClip(c, NULL, &clip), "a clip: the null id");
         uint64_t bytes;
@@ -231,8 +231,9 @@ static void TestSamplers(void)
     mtwnEasing easing;
     CHECK(mtwnMakeCssEasing(mtwn_cssEase, &easing) == mtwn_success, "an easing");
     double eased;
-    UNCHANGED(eased, mtwnEase(&easing, (double)NAN, false, &eased), "an easing at NaN");
-    UNCHANGED(eased, mtwnEaseCubicBezier(&easing, HUGE_VAL, &eased), "a bezier at infinity");
+    UNCHANGED(eased, mtwnSampleEasing(&easing, (double)NAN, false, &eased), "an easing at NaN");
+    UNCHANGED(eased, mtwnSampleCubicBezierEasing(&easing, HUGE_VAL, &eased),
+              "a bezier at infinity");
     mtwnEasing forgedEasing = easing;
     forgedEasing.parameters[0] = 2.0;
     bool monotonic;

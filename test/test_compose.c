@@ -151,7 +151,7 @@ static mtwnClipId Clip(World* w, float a, float b, mtwnFill fill)
 static mtwnPlayerId Layer(World* w, mtwnClipId clip, mtwnComposite composite, float weight,
                           bool keep)
 {
-    mtwnBinding binding = mtwnBind(0, w->target);
+    mtwnBinding binding = mtwnMakeBinding(0, w->target);
     binding.composite = composite;
     binding.weight = weight;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
@@ -222,7 +222,7 @@ static void TestCommitAndRefusals(void)
               state.base.x == 5.0f && state.value.x == 5.0f && !mtwnPlayer_IsValid(w.context, p),
           "an add layer that ends commits the base plus its end");
     mtwnClipId clip = Clip(&w, 0.0f, 1.0f, mtwn_fillNone);
-    mtwnBinding binding = mtwnBind(0, w.target);
+    mtwnBinding binding = mtwnMakeBinding(0, w.target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
     def.bindings = &binding;

@@ -566,7 +566,7 @@ mtwnResult mtwnIsEasingMonotonic(const mtwnEasing* easing, bool* monotonicOut)
     return result;
 }
 
-MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, bool before)
+MTWN_NOINLINE double mtwnSampleEasingWork(const mtwnEasing* easing, double progress, bool before)
 {
     if (easing->kind == mtwn_easingLinear)
     {
@@ -596,21 +596,22 @@ MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, boo
     }
 }
 
-static MTWN_NOINLINE mtwnResult mtwnEaseChecked(const mtwnEasing* easing, double progress,
-                                                bool before, double* easedOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleEasingChecked(const mtwnEasing* easing, double progress,
+                                                        bool before, double* easedOut)
 {
     if (!mtwnValidEasing(easing) || !isfinite(progress) || easedOut == NULL)
     {
         return mtwn_errorInvalid;
     }
-    *easedOut = mtwnEaseWork(easing, progress, before);
+    *easedOut = mtwnSampleEasingWork(easing, progress, before);
     return mtwn_success;
 }
 
-mtwnResult mtwnEase(const mtwnEasing* easing, double progress, bool before, double* easedOut)
+mtwnResult mtwnSampleEasing(const mtwnEasing* easing, double progress, bool before,
+                            double* easedOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnEaseChecked(easing, progress, before, easedOut);
+    mtwnResult result = mtwnSampleEasingChecked(easing, progress, before, easedOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

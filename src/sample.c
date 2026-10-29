@@ -44,7 +44,7 @@ static MTWN_NOINLINE mtwnResult mtwnSampleEasingTableWork(const mtwnEasing* easi
     double last = (double)(count - 1);
     for (uint32_t i = 0; i < count; ++i)
     {
-        valuesOut[i] = (float)mtwnEaseWork(easing, (double)i / last, false);
+        valuesOut[i] = (float)mtwnSampleEasingWork(easing, (double)i / last, false);
     }
     return mtwn_success;
 }
@@ -76,7 +76,7 @@ static int WorstProbe(const mtwnEasing* easing, Point a, Point b, double toleran
         double share = (double)k / (double)(s_probes + 1);
         double x = a.x + width * share;
         double chord = a.y + (b.y - a.y) * share;
-        double miss = fabs(mtwnEaseWork(easing, x, false) - chord);
+        double miss = fabs(mtwnSampleEasingWork(easing, x, false) - chord);
         if (miss > worst)
         {
             worst = miss;
@@ -96,7 +96,7 @@ static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe
     // At least 5/33 of a segment no narrower than s_narrowest from each
     // end, far more than the rounding of x within [0, 1].
     MTWN_ASSERT(split->x > start.x && split->x < next.x);
-    split->y = mtwnEaseWork(easing, split->x, false);
+    split->y = mtwnSampleEasingWork(easing, split->x, false);
     return isfinite(split->y);
 }
 
@@ -119,8 +119,8 @@ static MTWN_NOINLINE mtwnResult mtwnFitLinearEasingWork(const mtwnEasing* easing
     }
     Point stack[s_stackDepth];
     int depth = 0;
-    Point start = {0.0, mtwnEaseWork(easing, 0.0, false)};
-    Point end = {1.0, mtwnEaseWork(easing, 1.0, false)};
+    Point start = {0.0, mtwnSampleEasingWork(easing, 0.0, false)};
+    Point end = {1.0, mtwnSampleEasingWork(easing, 1.0, false)};
     if (!isfinite(start.y) || !isfinite(end.y))
     {
         return mtwn_errorInvalid;

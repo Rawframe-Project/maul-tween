@@ -111,7 +111,7 @@ static void TestStorage(void)
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "one fits");
     CHECK(mtwnCreateClip(context, &def, &b) == mtwn_errorCapacity && counter.allocations == 2,
           "a second would pass the clip storage, nothing allocated");
-    CHECK(mtwnGetContextMisuse(context) == 0, "a limit is not misuse");
+    CHECK(mtwnContext_GetMisuse(context) == 0, "a limit is not misuse");
     mtwnDestroyContext(context);
     // Two that fill it to the byte both fit.
     context = Make(&counter, 4, 2 * one);
@@ -282,7 +282,7 @@ static void TestTracks(void)
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorState && node == 0,
           "nothing is added once sealed");
     CHECK(mtwnClip_Seal(context, clip) == mtwn_errorState, "sealed once");
-    CHECK(mtwnGetContextMisuse(context) == 4, "each refusal counted");
+    CHECK(mtwnContext_GetMisuse(context) == 4, "each refusal counted");
     mtwnDestroyContext(context);
 }
 
@@ -313,7 +313,7 @@ static void TestRefusals(void)
     def.keyframes = keys;
     def.keyframeCount = 2;
     mtwnNode node;
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     def.parent = 2;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no such parent");
     def.parent = MTWN_ROOT_NODE;
@@ -344,7 +344,7 @@ static void TestRefusals(void)
     def.cookie = 0;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid, "no cookie");
     def.cookie = MTWN_CLIP_TRACK_DEF_COOKIE;
-    CHECK(mtwnGetContextMisuse(context) == misuse + 10, "each counted");
+    CHECK(mtwnContext_GetMisuse(context) == misuse + 10, "each counted");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "then it fits");
     def.parent = node;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorInvalid,
@@ -652,9 +652,9 @@ static void TestDepth(void)
     CHECK(nested, "timelines nest to the deepest");
     group.parent = parent;
     mtwnNode deeper;
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     CHECK(mtwnClip_AddTimeline(context, clip, &group, &deeper) == mtwn_errorLimit && deeper == 0 &&
-              mtwnGetContextMisuse(context) == misuse + 1,
+              mtwnContext_GetMisuse(context) == misuse + 1,
           "and no deeper: past MTWN_MAX_CLIP_DEPTH, counted as misuse");
     CHECK(mtwnClip_AddMark(context, clip, parent, At(mtwn_positionAbsolute, 0.0), 1, &deeper) ==
               mtwn_success,
@@ -663,10 +663,10 @@ static void TestDepth(void)
     mtwnClipId full;
     clipDef.nodeCapacity = 0;
     group.parent = MTWN_ROOT_NODE;
-    misuse = mtwnGetContextMisuse(context);
+    misuse = mtwnContext_GetMisuse(context);
     CHECK(mtwnCreateClip(context, &clipDef, &full) == mtwn_success &&
               mtwnClip_AddTimeline(context, full, &group, &deeper) == mtwn_errorCapacity &&
-              deeper == 0 && mtwnGetContextMisuse(context) == misuse,
+              deeper == 0 && mtwnContext_GetMisuse(context) == misuse,
           "a clip of no room refuses a timeline, not as misuse");
     mtwnDestroyContext(context);
 }
@@ -881,7 +881,7 @@ static void TestEndLimit(void)
               mtwnClip_GetDuration(context, clip, &duration) == mtwn_success &&
               duration == HUGE_VAL,
           "the clip endless");
-    CHECK(mtwnGetContextMisuse(context) == 3, "each refusal counted");
+    CHECK(mtwnContext_GetMisuse(context) == 3, "each refusal counted");
     mtwnDestroyContext(context);
 }
 
@@ -1046,7 +1046,7 @@ static void TestDefaults(void)
     uint64_t more = 0;
     CHECK(mtwnContext_GetClipBytes(context, &clipDef, &more) == mtwn_success && more > bytes,
           "more keyframes");
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     CHECK(mtwnContext_GetClipBytes(context, NULL, &more) == mtwn_errorInvalid &&
               mtwnContext_GetClipBytes(context, &clipDef, NULL) == mtwn_errorInvalid,
           "null arguments refused");
@@ -1057,7 +1057,7 @@ static void TestDefaults(void)
     clipDef.slotCapacity = MTWN_MAX_COUNT + 1;
     CHECK(mtwnContext_GetClipBytes(context, &clipDef, &more) == mtwn_errorLimit,
           "a count past the limit");
-    CHECK(mtwnGetContextMisuse(context) == misuse + 4, "each counted");
+    CHECK(mtwnContext_GetMisuse(context) == misuse + 4, "each counted");
     CHECK(mtwnContext_GetClipBytes(NULL, &clipDef, &more) == mtwn_errorInvalid && more == 0,
           "no context, no def read");
     mtwnDestroyContext(context);
@@ -1124,13 +1124,13 @@ static void TestLinearPointsCopied(void)
     CHECK(mtwnCreateClip(context, &clipDef, &small) == mtwn_success, "a clip of 5 points");
     def.timing.easing = easings[3];
     keys[0].easing = easings[2];
-    uint64_t misuse = mtwnGetContextMisuse(context);
+    uint64_t misuse = mtwnContext_GetMisuse(context);
     CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_errorCapacity && node == 0 &&
-              mtwnGetContextMisuse(context) == misuse,
+              mtwnContext_GetMisuse(context) == misuse,
           "6 points past 5 refused, not misuse");
     keptTiming[1].input = 1.5;
     CHECK(mtwnClip_AddTrack(context, small, &def, &node) == mtwn_errorInvalid &&
-              mtwnGetContextMisuse(context) == misuse + 1,
+              mtwnContext_GetMisuse(context) == misuse + 1,
           "points the host put out of order refused as misuse");
     keptTiming[1].input = 0.5;
     def.timing.easing = mtwnLinearEasing();
@@ -1193,7 +1193,7 @@ static float LastEasedBy(const mtwnEasing* easings, uint32_t count)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success &&
                   mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success,
               "a track");
-        bindings[i] = mtwnBind(i, target);
+        bindings[i] = mtwnMakeBinding(i, target);
     }
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;

@@ -45,7 +45,7 @@ static MTWN_NOINLINE mtwnLinearPoint Point(const mtwnRoughDef* def, uint32_t k, 
     bool zigZag = (def->flags & mtwn_roughZigZag) != 0;
     double x = ((double)k + (zigZag ? 0.5 : u)) / m;
     double side = zigZag ? (double)((k & 1u) == 0) : v;
-    double y = mtwnEaseWork(&def->shape, x, false) +
+    double y = mtwnSampleEasingWork(&def->shape, x, false) +
                def->strength * Taper(def->taper, x) * (2.0 * side - 1.0);
     return (mtwnLinearPoint){x, y};
 }

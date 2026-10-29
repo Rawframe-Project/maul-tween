@@ -354,7 +354,7 @@ static void MoveInto(mtwnContext* to, const mtwnContext* from, unsigned char* bl
     SetGroups(to, block, layout);
 }
 
-static mtwnResult RunGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+static mtwnResult RunContextGrow(mtwnContext** contextInOut, const mtwnContextDef* def)
 {
     if (contextInOut == NULL || *contextInOut == NULL)
     {
@@ -393,23 +393,23 @@ static mtwnResult RunGrowContext(mtwnContext** contextInOut, const mtwnContextDe
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnGrowContextWork(mtwnContext** contextInOut,
-                                                    const mtwnContextDef* def)
+static MTWN_NOINLINE mtwnResult mtwnContext_GrowWork(mtwnContext** contextInOut,
+                                                     const mtwnContextDef* def)
 {
     // The context moves: what it was enters, what it is leaves.
     if (!mtwnEnter(contextInOut == NULL ? NULL : *contextInOut))
     {
         return mtwn_errorBusy;
     }
-    mtwnResult result = RunGrowContext(contextInOut, def);
+    mtwnResult result = RunContextGrow(contextInOut, def);
     mtwnLeave(contextInOut == NULL ? NULL : *contextInOut);
     return result;
 }
 
-mtwnResult mtwnGrowContext(mtwnContext** contextInOut, const mtwnContextDef* def)
+mtwnResult mtwnContext_Grow(mtwnContext** contextInOut, const mtwnContextDef* def)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnGrowContextWork(contextInOut, def);
+    mtwnResult result = mtwnContext_GrowWork(contextInOut, def);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -436,7 +436,7 @@ void mtwnDestroyContext(mtwnContext* context)
     mtwnRelease(&allocator, context, (size_t)context->blockBytes, s_blockAlignment);
 }
 
-uint64_t mtwnGetContextMisuse(const mtwnContext* context)
+uint64_t mtwnContext_GetMisuse(const mtwnContext* context)
 {
     return atomic_load_explicit(&context->misuse, memory_order_relaxed);
 }
@@ -451,36 +451,37 @@ uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context)
     return context->blockBytes;
 }
 
-static mtwnResult RunContextSetReducedMotion(mtwnContext* context, bool reduced)
+static mtwnResult RunContextEnableReducedMotion(mtwnContext* context, bool enabled)
 {
     if (context == NULL)
     {
         return mtwn_errorInvalid;
     }
-    context->reducedMotion = reduced;
+    context->reducedMotion = enabled;
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnContext_SetReducedMotionWork(mtwnContext* context, bool reduced)
+static MTWN_NOINLINE mtwnResult mtwnContext_EnableReducedMotionWork(mtwnContext* context,
+                                                                    bool enabled)
 {
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
     }
-    mtwnResult result = RunContextSetReducedMotion(context, reduced);
+    mtwnResult result = RunContextEnableReducedMotion(context, enabled);
     mtwnLeave(context);
     return result;
 }
 
-mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context, bool reduced)
+mtwnResult mtwnContext_EnableReducedMotion(mtwnContext* context, bool enabled)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnContext_SetReducedMotionWork(context, reduced);
+    mtwnResult result = mtwnContext_EnableReducedMotionWork(context, enabled);
     mtwnFloatEnvLeave(env);
     return result;
 }
 
-bool mtwnContext_IsReducedMotion(const mtwnContext* context)
+bool mtwnContext_IsReducedMotionEnabled(const mtwnContext* context)
 {
     return context != NULL && context->reducedMotion;
 }

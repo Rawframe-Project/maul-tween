@@ -68,7 +68,7 @@ static World MakeWorld(void)
 
 static mtwnPlayerId Play(World* w, mtwnTargetId target, bool keep, double rate)
 {
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;
@@ -187,7 +187,7 @@ static void TestTree(void)
     mtwnTargetId count;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){0}, &count) == mtwn_success,
           "an integer target");
-    mtwnBinding bindings[2] = {mtwnBind(0, w.target), mtwnBind(1, count)};
+    mtwnBinding bindings[2] = {mtwnMakeBinding(0, w.target), mtwnMakeBinding(1, count)};
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
     def.bindings = bindings;
@@ -209,14 +209,14 @@ static void TestTree(void)
     CHECK(Read(&w, w.target).value.x == 0.0f && Read(&w, count).value.x == 0.0f,
           "past the reversed end, filled at the start; the integer's track over, its base");
     // Wrong bindings.
-    mtwnBinding wrong = mtwnBind(1, w.target);
+    mtwnBinding wrong = mtwnMakeBinding(1, w.target);
     def.bindings = &wrong;
     def.bindingCount = 1;
     mtwnPlayerId q;
     CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid,
           "a scalar on an integer slot");
     CHECK(mtwnDestroyTarget(w.context, count) == mtwn_success, "a target destroyed");
-    wrong = mtwnBind(1, count);
+    wrong = mtwnMakeBinding(1, count);
     CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "a stale target");
     mtwnTargetId reused;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){42.0f, 0, 0, 0}, &reused) ==
@@ -360,7 +360,7 @@ static void TestNumbersPastFloats(void)
               "a track");
         for (int p = 0; p < (path == 2 ? 2 : 1); ++p)
         {
-            mtwnBinding binding = mtwnBind(0, w.target);
+            mtwnBinding binding = mtwnMakeBinding(0, w.target);
             binding.composite = path == 2 ? mtwn_compositeAdd : mtwn_compositeReplace;
             mtwnPlayerDef def = mtwnDefaultPlayerDef();
             def.clip = w.clip;
@@ -546,7 +546,7 @@ static void TestCommitReported(void)
     mtwnTargetId other;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
-    mtwnBinding bindings[2] = {mtwnBind(0, w.target), mtwnBind(1, other)};
+    mtwnBinding bindings[2] = {mtwnMakeBinding(0, w.target), mtwnMakeBinding(1, other)};
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
     def.bindings = bindings;
@@ -582,7 +582,7 @@ static void TestAddsOverBase(void)
     mtwnTargetId other;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
-    mtwnBinding binding = mtwnBind(0, w.target);
+    mtwnBinding binding = mtwnMakeBinding(0, w.target);
     binding.composite = mtwn_compositeAdd;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
@@ -608,7 +608,7 @@ static void TestZeroWeight(void)
     CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     CHECK(mtwnTarget_SetBase(w.context, w.target, (mtwnVec4){10.0f, 0, 0, 0}) == mtwn_success,
           "a base of 10");
-    mtwnBinding binding = mtwnBind(0, w.target);
+    mtwnBinding binding = mtwnMakeBinding(0, w.target);
     binding.weight = 0.0f;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
@@ -752,7 +752,7 @@ static float FullOrRoomy(uint32_t capacity, double seconds)
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;

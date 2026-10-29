@@ -185,7 +185,7 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     mtwnPlayerDef player = mtwnDefaultPlayerDef();
     player.clip = clip;
     player.bindings = &binding;

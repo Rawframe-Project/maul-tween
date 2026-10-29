@@ -221,7 +221,7 @@ static void TestThreads(void)
     uint64_t now = 0;
     for (int round = 0; round < 400; ++round)
     {
-        mtwnBinding binding = mtwnBind(0, targets[round % 8]);
+        mtwnBinding binding = mtwnMakeBinding(0, targets[round % 8]);
         mtwnPlayerDef player = mtwnDefaultPlayerDef();
         player.clip = clip;
         player.bindings = &binding;

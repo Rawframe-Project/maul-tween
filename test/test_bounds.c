@@ -150,7 +150,7 @@ static void Play(World* w, const mtwnClipTrackDef* track, int players, mtwnCompo
           "a track");
     for (int i = 0; i < players; ++i)
     {
-        mtwnBinding binding = mtwnBind(0, w->target);
+        mtwnBinding binding = mtwnMakeBinding(0, w->target);
         binding.composite = composite;
         mtwnPlayerDef def = mtwnDefaultPlayerDef();
         def.clip = clip;

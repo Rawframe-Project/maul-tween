@@ -69,7 +69,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
 {
     if (slot->transitionKind == mtwn_transitionEasing)
     {
-        PathAt(slot, mtwnEaseWork(&slot->easing, t / slot->duration, false), value);
+        PathAt(slot, mtwnSampleEasingWork(&slot->easing, t / slot->duration, false), value);
         return false;
     }
     if (slot->transitionKind == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))

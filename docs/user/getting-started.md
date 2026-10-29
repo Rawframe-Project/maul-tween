@@ -39,12 +39,12 @@ or through pkg-config, `pkg-config --cflags --libs maul-tween`. A project can al
 
 - **Host time.** Nothing runs by itself. The host calls `mtwnContext_Update` with its own clock in nanoseconds, never going back, and every transition, clip and event follows that time. A paused game, a slowed one or a replay is the host's choice of clock.
 - **Two layers.** Easings, springs, decays, the interpolation of every value kind, paths, timing and staggers are plain functions on values, with no context and no allocation (`easing.h`, `sample.h`, `spring.h`, `interpolate.h`, `path.h`, `timing.h`), safe from any thread. The context (`context.h`, `target.h`, `transition.h`, `clip.h`, `player.h`, `event.h`) holds targets, transitions, clips and players and is used by one thread at a time.
-- **Memory.** A context is one block from the host's allocator, sized by its def; each clip is one more block, counted against the context's clip storage. Nothing else is allocated, an update never allocates, and nothing grows unless the host calls `mtwnGrowContext`.
+- **Memory.** A context is one block from the host's allocator, sized by its def; each clip is one more block, counted against the context's clip storage. Nothing else is allocated, an update never allocates, and nothing grows unless the host calls `mtwnContext_Grow`.
 - **Same results everywhere.** The library computes in its own floating-point environment (round to nearest, subnormals kept), whatever the host's is, with its own exponential, logarithm and trigonometry, so the same calls at the same times give the same bits on every platform and compiler.
 
 ## Results, defs and ids
 
-Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negative error. `mtwnResultName` names any result for logs, and the functions are marked `[[nodiscard]]` where the compiler supports it.
+Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negative error. `mtwnGetResultName` names any result for logs, and the functions are marked `[[nodiscard]]` where the compiler supports it.
 
 | Result | Value | Meaning |
 |---|---|---|
@@ -58,7 +58,7 @@ Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negati
 
 The values are the Maul family's, the same in every library, so a log of a raw value reads one way.
 
-A refused call changes nothing. A context counts the calls refused for an invalid argument, one past a named bound, a stale id or a call back in (`mtwnGetContextMisuse`), so a host can assert the count stays 0; a full capacity is not misuse.
+A refused call changes nothing. A context counts the calls refused for an invalid argument, one past a named bound, a stale id or a call back in (`mtwnContext_GetMisuse`), so a host can assert the count stays 0; a full capacity is not misuse.
 
 Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
 

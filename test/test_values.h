@@ -92,14 +92,15 @@ static inline double ComputeBoundedDecayStopTime(const mtwnBoundedDecay* bounded
 static inline double EaseAt(const mtwnEasing* easing, double progress, bool before)
 {
     double eased = (double)NAN;
-    CHECK(mtwnEase(easing, progress, before, &eased) == mtwn_success, "an easing's sample");
+    CHECK(mtwnSampleEasing(easing, progress, before, &eased) == mtwn_success, "an easing's sample");
     return eased;
 }
 
 static inline double EaseBezierAt(const mtwnEasing* easing, double progress)
 {
     double eased = (double)NAN;
-    CHECK(mtwnEaseCubicBezier(easing, progress, &eased) == mtwn_success, "a cubic bezier's sample");
+    CHECK(mtwnSampleCubicBezierEasing(easing, progress, &eased) == mtwn_success,
+          "a cubic bezier's sample");
     return eased;
 }
 

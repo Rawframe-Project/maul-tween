@@ -167,7 +167,7 @@ static double FitTolerance(Bytes* in, bool* deep)
 static double Eased(const mtwnEasing* e, double progress, bool before)
 {
     double eased = (double)NAN;
-    if (mtwnEase(e, progress, before, &eased) != mtwn_success || !isfinite(eased))
+    if (mtwnSampleEasing(e, progress, before, &eased) != mtwn_success || !isfinite(eased))
     {
         Fail("an easing's value", eased);
     }
@@ -191,7 +191,7 @@ static double AnyDouble(Bytes* in)
 static void ForgedAt(const mtwnEasing* e, double progress)
 {
     double eased = 0.0;
-    if (mtwnEase(e, progress, false, &eased) == mtwn_success && !isfinite(eased))
+    if (mtwnSampleEasing(e, progress, false, &eased) == mtwn_success && !isfinite(eased))
     {
         Fail("a forged easing taken and not finite", eased);
     }

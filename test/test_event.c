@@ -65,7 +65,7 @@ static mtwnNode AddTrack(World* w, double start, double seconds, double iteratio
 
 static mtwnPlayerId Play(World* w, bool keep, double rate)
 {
-    mtwnBinding binding = mtwnBind(0, w->target);
+    mtwnBinding binding = mtwnMakeBinding(0, w->target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;
@@ -938,7 +938,7 @@ static void TestBoundaryPlay(void)
     // Played at a host time of 10.192 s, as the random clip was: the play
     // resolves its start time there, and its first time lands one ulp
     // short of the clip's end.
-    mtwnBinding binding = mtwnBind(0, w.target);
+    mtwnBinding binding = mtwnMakeBinding(0, w.target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w.clip;
     def.bindings = &binding;
@@ -1120,11 +1120,11 @@ static void TestReverseAfterReducedFinish(void)
     Update(&w, 0.0);
     Update(&w, 0.1);
     CHECK(mtwnPlayer_SetRate(w.context, p, 1.5) == mtwn_success &&
-              mtwnContext_SetReducedMotion(w.context, true) == mtwn_success,
+              mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success,
           "a rate pending, reduced motion");
     Update(&w, 0.25);
     (void)Read(&w, e, 16);
-    CHECK(mtwnContext_SetReducedMotion(w.context, false) == mtwn_success &&
+    CHECK(mtwnContext_EnableReducedMotion(w.context, false) == mtwn_success &&
               mtwnPlayer_Reverse(w.context, p) == mtwn_success,
           "reversed");
     Update(&w, 0.5);

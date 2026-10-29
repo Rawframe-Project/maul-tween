@@ -61,7 +61,7 @@ static mtwnClipId Clip(mtwnContext* context, mtwnValueKind kind, const mtwnVec4 
 static mtwnPlayerId Play(mtwnContext* context, mtwnClipId clip, mtwnTargetId target,
                          mtwnComposite composite, bool keep)
 {
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     binding.composite = composite;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;

@@ -352,7 +352,7 @@ static bool Scene(mtwnVec4 values[6])
     mtwnNode node;
     ok = ok && mtwnClip_AddTrack(context, clip, &trackOver, &node) == mtwn_success &&
          mtwnClip_Seal(context, clip) == mtwn_success;
-    mtwnBinding binding = mtwnBind(0, played);
+    mtwnBinding binding = mtwnMakeBinding(0, played);
     mtwnBinding bindingOver;
     BindingOver(&binding, &bindingOver);
     mtwnPlayerDef player = mtwnDefaultPlayerDef();
@@ -370,7 +370,7 @@ static bool Scene(mtwnVec4 values[6])
              mtwnTarget_GetValue(context, moved, &values[2 * i]) == mtwn_success &&
              mtwnTarget_GetValue(context, played, &values[2 * i + 1]) == mtwn_success;
     }
-    ok = ok && mtwnGetContextMisuse(context) == 0;
+    ok = ok && mtwnContext_GetMisuse(context) == 0;
     mtwnDestroyContext(context);
     return ok;
 }

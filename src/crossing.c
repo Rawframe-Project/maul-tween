@@ -91,11 +91,11 @@ static double ChildAt(const mtwnTiming* timing, bool forwards, double q)
     double eased = 0.0;
     if (!forwards && timing->alternateEasing == mtwn_alternateRepeatsShape)
     {
-        eased = 1.0 - mtwnEaseWork(&timing->easing, q, false);
+        eased = 1.0 - mtwnSampleEasingWork(&timing->easing, q, false);
     }
     else
     {
-        eased = mtwnEaseWork(&timing->easing, forwards ? q : 1.0 - q, false);
+        eased = mtwnSampleEasingWork(&timing->easing, forwards ? q : 1.0 - q, false);
     }
     return eased * timing->duration;
 }

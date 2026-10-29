@@ -259,7 +259,7 @@ static void MakePlayers(World* w)
         mtwnBinding bindings[4];
         for (uint32_t s = 0; s < 4; ++s)
         {
-            bindings[s] = mtwnBind(s, w->targets[bound[p][s]]);
+            bindings[s] = mtwnMakeBinding(s, w->targets[bound[p][s]]);
             bindings[s].composite = p == 1 ? mtwn_compositeAdd : mtwn_compositeReplace;
             bindings[s].weight = p == 1 ? 0.5f : 1.0f;
         }
@@ -334,10 +334,10 @@ static void Control(World* w, uint32_t frame)
         r = mtwnPlayer_Sweep(c, w->players[2], 0.5);
         break;
     case 450:
-        r = mtwnContext_SetReducedMotion(c, true);
+        r = mtwnContext_EnableReducedMotion(c, true);
         break;
     case 500:
-        r = mtwnContext_SetReducedMotion(c, false);
+        r = mtwnContext_EnableReducedMotion(c, false);
         break;
     default:
         break;

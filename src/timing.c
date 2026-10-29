@@ -416,12 +416,13 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
                      (result->phase == mtwn_phaseAfter && !goingForwards);
     if (!forwards && timing->alternateEasing == mtwn_alternateRepeatsShape)
     {
-        result->transformedProgress = 1.0 - mtwnEaseWork(&timing->easing, simple, result->before);
+        result->transformedProgress =
+            1.0 - mtwnSampleEasingWork(&timing->easing, simple, result->before);
     }
     else
     {
         result->transformedProgress =
-            mtwnEaseWork(&timing->easing, result->directedProgress, result->before);
+            mtwnSampleEasingWork(&timing->easing, result->directedProgress, result->before);
     }
     // The transformed progress is the easing's, a host's any double.
     MTWN_ASSERT(Resolved(timing, result));

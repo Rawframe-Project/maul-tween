@@ -46,7 +46,7 @@ typedef struct Twin
 } Twin;
 
 // A task system that runs every range at once.
-static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+static void* RunNow(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange, void* taskContext,
                     void* userContext)
 {
     (void)minRange;
@@ -148,7 +148,7 @@ static void MakePlayer(Twin* twin, uint32_t p, bool mixed, double seek)
         {
             continue;
         }
-        mtwnBinding binding = mtwnBind(s, twin->targets[p][s]);
+        mtwnBinding binding = mtwnMakeBinding(s, twin->targets[p][s]);
         binding.weight = mixed && p % 3 == 1 ? 0.5f : 1.0f;
         binding.composite = mixed && p % 5 == 2 ? mtwn_compositeAdd : mtwn_compositeReplace;
         bindings[bound++] = binding;
@@ -336,7 +336,7 @@ static Seen Crowd(double spread, bool mixed, bool tasks, uint32_t eventCapacity)
             }
             if (f == 120u || f == 128u)
             {
-                CHECK(mtwnContext_SetReducedMotion(twins[k].context, f == 120u) == mtwn_success,
+                CHECK(mtwnContext_EnableReducedMotion(twins[k].context, f == 120u) == mtwn_success,
                       "reduced motion");
             }
         }
@@ -666,7 +666,7 @@ static void TestDirectionAtStart(void)
         CHECK(mtwnClip_Seal(twins[k].context, twins[k].clip) == mtwn_success, "sealed");
         for (uint32_t p = 0; p < 8; ++p)
         {
-            mtwnBinding binding = mtwnBind(0, twins[k].targets[p][0]);
+            mtwnBinding binding = mtwnMakeBinding(0, twins[k].targets[p][0]);
             mtwnPlayerDef player = mtwnDefaultPlayerDef();
             player.clip = twins[k].clip;
             player.bindings = &binding;
