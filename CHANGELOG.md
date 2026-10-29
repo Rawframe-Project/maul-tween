@@ -6,6 +6,33 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.12.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.11.0...v0.12.0) (2026-10-29)
+
+This release gives every public name the Maul family's shape ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)): a call on the context starts with `mtwnContext_`, every other function starts with its verb, a switch is an `Enable` and `Is...Enabled` pair, and a callback type ends in `Function`. Each rename keeps the function's parameters and behavior, so a caller only updates its calls. No value, velocity or event record changes.
+
+### Changed
+
+- **Breaking:** thirteen public names are renamed ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)):
+
+  | Before | Now |
+  |---|---|
+  | `mtwnGetContextMisuse` | `mtwnContext_GetMisuse` |
+  | `mtwnGrowContext` | `mtwnContext_Grow` |
+  | `mtwnMeasureTransition` | `mtwnContext_MeasureTransition` |
+  | `mtwnContext_SetReducedMotion` | `mtwnContext_EnableReducedMotion` |
+  | `mtwnContext_IsReducedMotion` | `mtwnContext_IsReducedMotionEnabled` |
+  | `mtwnResultName` | `mtwnGetResultName` |
+  | `mtwnEase` | `mtwnSampleEasing` |
+  | `mtwnEaseCubicBezier` | `mtwnSampleCubicBezierEasing` |
+  | `mtwnBind` | `mtwnMakeBinding` |
+  | `mtwnLinearEasing` | `mtwnMakeLinearEasing` |
+  | `mtwnTaskFn` | `mtwnTaskFunction` |
+  | `mtwnEnqueueTaskFn` | `mtwnEnqueueTaskFunction` |
+  | `mtwnFinishTaskFn` | `mtwnFinishTaskFunction` |
+
+  Before 0.11.0, `mtwnMakeLinearEasing` was the maker of CSS's `linear()` from points, which is `mtwnMakeLinearPointsEasing` since 0.11.0. A call written for that maker passes points, so it no longer compiles.
+- The user guides and samples use the new names ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)).
+
 ## [0.11.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.10.0...v0.11.0) (2026-10-28)
 
 This release settles names and signatures ahead of 1.0.0 ([#135](https://github.com/Rawframe-Project/maul-tween/issues/135)). Every rename keeps the function's parameters and behavior. A caller updates its calls, and no value, velocity or event record changes, except a player weight given as a double (below).
