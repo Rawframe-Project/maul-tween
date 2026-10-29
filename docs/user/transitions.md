@@ -72,14 +72,14 @@ At its end (the duration, a spring's settling time, a decay's stop) a transition
 
 ## Duration by distance
 
-A long move and a short one need not take the same time. `mtwnMeasureTransition` gives how far a def would move its target, in its kind's own measure (a color's perceptual difference, deltaEOK; a rotation's angle; a scale's ratio as a logarithm), and the host sets the duration from its speed, within bounds of its choosing:
+A long move and a short one need not take the same time. `mtwnContext_MeasureTransition` gives how far a def would move its target, in its kind's own measure (a color's perceptual difference, deltaEOK; a rotation's angle; a scale's ratio as a logarithm), and the host sets the duration from its speed, within bounds of its choosing:
 
 ```c
 mtwnTransitionDef move = mtwnDefaultTransitionDef();
 move.target = opacity;
 move.value = (mtwnVec4){0.25f, 0, 0, 0};
 double distance = 0.0;
-mtwnResult measured = mtwnMeasureTransition(context, &move, &distance);
+mtwnResult measured = mtwnContext_MeasureTransition(context, &move, &distance);
 move.duration = fmin(fmax(distance / 2.0, 0.15), 0.4); // 2 a second, 150 to 400 ms
 ```
 
@@ -109,7 +109,7 @@ Under reduced motion every transition, and every playing clip with an end, finis
 
 ```c
 bool reduce = true; // the platform's preference, as the host reads it
-mtwnResult set = mtwnContext_SetReducedMotion(context, reduce);
+mtwnResult enabled = mtwnContext_EnableReducedMotion(context, reduce);
 fade.essential = true; // an opacity change is not motion: it may play on
 ```
 

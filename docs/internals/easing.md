@@ -4,7 +4,7 @@ An easing maps a timing's progress to eased progress. This page explains the eas
 
 ## One value type
 
-`mtwnEasing` is a plain value: a kind, a mode and the kind's parameters, precomputed by its maker where that saves work per sample. Makers validate and return a status, one maker per family of parameters, and `mtwnEase` samples with no status, so a timing or a track can hold an easing and sample it every frame with nothing to check. What an easing references (a host function's context, `linear()` points) stays the host's.
+`mtwnEasing` is a plain value: a kind, a mode and the kind's parameters, precomputed by its maker where that saves work per sample. Makers validate and return a status, one maker per family of parameters, and `mtwnSampleEasing` samples with no status, so a timing or a track can hold an easing and sample it every frame with nothing to check. What an easing references (a host function's context, `linear()` points) stays the host's.
 
 One mode applies to every kind: in is the curve as defined, out its reflection `1 - f(1 - p)`, in-out and out-in the reflected halves. Each kind has one native curve ([`src/easing.c`](../../src/easing.c)): Penner's in curve for most, the out curve for elastic and bounce, which GSAP and Penner define by it, and CSS's curves from [`src/css_easing.c`](../../src/css_easing.c). The modes are reflections of the native curve, taken so each half lands where the other starts.
 
@@ -18,7 +18,7 @@ CSS's `cubic-bezier()` needs `t` for `x(t) = x`. Newton's method from `t = x` co
 
 ## Steps and `linear()`
 
-`steps()` follows CSS's algorithm with its before flag: in a timing's before phase, a progress landing exactly on a step takes the step below. The flag is part of `mtwnEase` because the timing model computes it; a curve sampled alone passes `false`.
+`steps()` follows CSS's algorithm with its before flag: in a timing's before phase, a progress landing exactly on a step takes the step below. The flag is part of `mtwnSampleEasing` because the timing model computes it; a curve sampled alone passes `false`.
 
 `linear()` canonicalizes its points as CSS does, in the caller's array: a missing first input is 0 and a missing last one 1 or the largest before it, an input below an earlier one is raised to it, and runs of missing inputs spread evenly. A sample finds its segment by binary search.
 

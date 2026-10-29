@@ -37,7 +37,7 @@ static mtwnKeyframe Key(double offset, float x, float y, mtwnSegmentKind kind)
     memset(&k, 0, sizeof k);
     k.offset = offset;
     k.value = (mtwnVec4){x, y, 0.0f, 0.0f};
-    k.easing = mtwnLinearEasing();
+    k.easing = mtwnMakeLinearEasing();
     k.kind = kind;
     return k;
 }
@@ -1058,7 +1058,7 @@ static void TestSegmentRefusals(void)
     CHECK(PathRefused(&timed, 0.5), "an easing no maker gives where read");
     CHECK(PathTaken(&timed, 0.1) && PathTaken(&timed, 0.9), "such an easing elsewhere");
     CHECK(PathTaken(&even, 0.5), "such an easing at constant speed");
-    keys[1].easing = mtwnLinearEasing();
+    keys[1].easing = mtwnMakeLinearEasing();
     CHECK(PathTaken(&timed, 0.5) && PathTaken(&even, 0.5), "as made again");
 }
 

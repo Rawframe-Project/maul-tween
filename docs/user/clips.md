@@ -12,7 +12,7 @@ A clip is an animation written ahead of time: tracks of keyframes on nested time
 
 ## Building a clip
 
-A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnContext_GetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnGrowContext` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
+A clip's storage is one block sized by its def, counted against the context's clip storage; `mtwnContext_GetClipBytes` says how much a def takes, so a host can grow the context's `clipStorageBytes` with `mtwnContext_Grow` for the clips it makes. It takes the context, like every call that reads a def, so that only a library whose ABI the context def matched reads it.
 
 ```c
 mtwnClipDef clipDef = mtwnDefaultClipDef();
@@ -25,7 +25,7 @@ built = mtwnCreateClip(context, &clipDef, &clip);
 mtwnKeyframe keys[2] = {0};
 keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
 keys[1].offset = 1.0;
-keys[0].easing = keys[1].easing = mtwnLinearEasing();
+keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
 mtwnClipTrackDef track = mtwnDefaultClipTrackDef(); // on the root at 0, slot 0, a number
 track.keyframes = keys;
 track.keyframeCount = 2;
@@ -86,7 +86,7 @@ made = mtwnClip_AddTrack(context, clip, &jump, &hops);
 Its slots are bound to x, to y, and to y again, adding:
 
 ```c
-mtwnBinding bindings[3] = {mtwnBind(0, x), mtwnBind(1, y), mtwnBind(2, y)};
+mtwnBinding bindings[3] = {mtwnMakeBinding(0, x), mtwnMakeBinding(1, y), mtwnMakeBinding(2, y)};
 bindings[2].composite = mtwn_compositeAdd;
 ```
 

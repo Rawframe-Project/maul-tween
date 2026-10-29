@@ -31,7 +31,7 @@ static void TestMissingContext(void)
     uint32_t refused = 0;
     refused += mtwnDestroyClip(c, noClip) == mtwn_errorInvalid;
     refused += mtwnClip_Seal(c, noClip) == mtwn_errorInvalid;
-    refused += mtwnContext_SetReducedMotion(c, true) == mtwn_errorInvalid;
+    refused += mtwnContext_EnableReducedMotion(c, true) == mtwn_errorInvalid;
     refused += mtwnContext_Update(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
     refused += mtwnPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorInvalid;
@@ -83,7 +83,7 @@ static void TestContextDefs(void)
     mtwnContext* context = NULL;
     mtwnContextDef def = mtwnDefaultContextDef();
     def.finishTask = NULL;
-    def.enqueueTask = (mtwnEnqueueTaskFn*)(uintptr_t)1;
+    def.enqueueTask = (mtwnEnqueueTaskFunction*)(uintptr_t)1;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "a task system half given");
     def = mtwnDefaultContextDef();
     def.clipCapacity = MTWN_MAX_COUNT + 1u;
@@ -95,13 +95,13 @@ static void TestContextDefs(void)
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
     mtwnContextDef smaller = def;
     smaller.eventCapacity = def.eventCapacity - 1u;
-    CHECK(mtwnGrowContext(&context, &smaller) == mtwn_errorInvalid, "grown to fewer events");
+    CHECK(mtwnContext_Grow(&context, &smaller) == mtwn_errorInvalid, "grown to fewer events");
     smaller = def;
     smaller.bindingCapacity = def.bindingCapacity - 1u;
-    CHECK(mtwnGrowContext(&context, &smaller) == mtwn_errorInvalid, "grown to fewer bindings");
+    CHECK(mtwnContext_Grow(&context, &smaller) == mtwn_errorInvalid, "grown to fewer bindings");
     mtwnContext* none = NULL;
-    CHECK(mtwnGrowContext(NULL, &def) == mtwn_errorInvalid &&
-              mtwnGrowContext(&none, &def) == mtwn_errorInvalid,
+    CHECK(mtwnContext_Grow(NULL, &def) == mtwn_errorInvalid &&
+              mtwnContext_Grow(&none, &def) == mtwn_errorInvalid,
           "grown from no context");
     mtwnDestroyContext(context);
 }
@@ -145,7 +145,7 @@ static void TestClipsAndPlayers(void)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -179,7 +179,7 @@ static mtwnClipId OneTrack(mtwnContext* context)
     mtwnKeyframe keys[2];
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -211,7 +211,7 @@ static void TestBindings(void)
           "targets, one destroyed");
     mtwnTargetId never = scalar;
     never.index1 += 50;
-    mtwnBinding bindings[2] = {mtwnBind(0, scalar), mtwnBind(0, scalar)};
+    mtwnBinding bindings[2] = {mtwnMakeBinding(0, scalar), mtwnMakeBinding(0, scalar)};
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
     def.bindings = bindings;
@@ -224,9 +224,9 @@ static void TestBindings(void)
     bindings[0].target = color;
     CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid,
           "a target of another kind");
-    bindings[0] = mtwnBind(1, scalar);
+    bindings[0] = mtwnMakeBinding(1, scalar);
     CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a slot the clip lacks");
-    bindings[0] = mtwnBind(0, scalar);
+    bindings[0] = mtwnMakeBinding(0, scalar);
     def.bindingCount = 2;
     CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a slot bound twice");
     def.bindingCount = 1;

@@ -22,7 +22,7 @@
 MTWN_NOINLINE mtwnResult mtwnMakeLinearPointsEasingWork(mtwnLinearPoint* points, uint32_t count,
                                                         mtwnEasing* easingOut);
 MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
-MTWN_NOINLINE double mtwnEaseWork(const mtwnEasing* easing, double progress, bool before);
+MTWN_NOINLINE double mtwnSampleEasingWork(const mtwnEasing* easing, double progress, bool before);
 MTWN_NOINLINE mtwnSpringMotion mtwnComputeSpringMotionWork(const mtwnSpring* spring,
                                                            double seconds);
 MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset, double velocity,

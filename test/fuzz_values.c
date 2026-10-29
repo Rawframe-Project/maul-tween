@@ -167,7 +167,7 @@ static double FitTolerance(Bytes* in, bool* deep)
 static double Eased(const mtwnEasing* e, double progress, bool before)
 {
     double eased = (double)NAN;
-    if (mtwnEase(e, progress, before, &eased) != mtwn_success || !isfinite(eased))
+    if (mtwnSampleEasing(e, progress, before, &eased) != mtwn_success || !isfinite(eased))
     {
         Fail("an easing's value", eased);
     }
@@ -191,7 +191,7 @@ static double AnyDouble(Bytes* in)
 static void ForgedAt(const mtwnEasing* e, double progress)
 {
     double eased = 0.0;
-    if (mtwnEase(e, progress, false, &eased) == mtwn_success && !isfinite(eased))
+    if (mtwnSampleEasing(e, progress, false, &eased) == mtwn_success && !isfinite(eased))
     {
         Fail("a forged easing taken and not finite", eased);
     }
@@ -1024,7 +1024,7 @@ static void Paths(Bytes* in)
         keys[k].value = Vec(in, 100.0, 100.0, 1.0);
         keys[k].in = Vec(in, 100.0, 0.0, 0.0);
         keys[k].out = Vec(in, 100.0, 0.0, 0.0);
-        keys[k].easing = mtwnLinearEasing();
+        keys[k].easing = mtwnMakeLinearEasing();
         keys[k].kind = (mtwnSegmentKind)Below(in, 5);
     }
     // Every other keyframe eased by linear() over points of its own, set

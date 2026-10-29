@@ -86,7 +86,7 @@ static void TestSpacing(void)
               mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[1] == 2.0625 &&
               got[2] == 2.25 && got[4] == 3.0,
           "eased");
-    stagger.easing = mtwnLinearEasing();
+    stagger.easing = mtwnMakeLinearEasing();
     stagger.start = 3.0;
     stagger.spacing = -1.0;
     CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[0] == 3.0 && got[4] == 2.0,

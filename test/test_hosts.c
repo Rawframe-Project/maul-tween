@@ -297,7 +297,7 @@ static mtwnKeyframe Key(double offset, mtwnVec4 value, mtwnSegmentKind kind)
     memset(&key, 0, sizeof key);
     key.value = value;
     key.offset = offset;
-    key.easing = mtwnLinearEasing();
+    key.easing = mtwnMakeLinearEasing();
     key.kind = kind;
     return key;
 }
@@ -394,9 +394,9 @@ static void Context(Out* out)
         return;
     }
     def.targetCapacity = 32;
-    r = mtwnGrowContext(&context, &def);
+    r = mtwnContext_Grow(&context, &def);
     PUT(out, r);
-    r = mtwnContext_SetReducedMotion(context, false);
+    r = mtwnContext_EnableReducedMotion(context, false);
     PUT(out, r);
     mtwnTargetId t[5];
     mtwnResult made[5] = {
@@ -420,7 +420,7 @@ static void Context(Out* out)
         transition.kind = s_specs[i];
         transition.duration = 0.8;
         double distance = 0.0;
-        r = mtwnMeasureTransition(context, &transition, &distance);
+        r = mtwnContext_MeasureTransition(context, &transition, &distance);
         PUT(out, r);
         PUT(out, distance);
         mtwnPlayerId id;
@@ -488,7 +488,7 @@ static void Context(Out* out)
     PUT(out, r);
     PUT(out, seconds);
     // Its player, and every control.
-    mtwnBinding binding = mtwnBind(0, t[4]);
+    mtwnBinding binding = mtwnMakeBinding(0, t[4]);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;

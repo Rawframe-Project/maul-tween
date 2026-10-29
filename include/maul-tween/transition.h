@@ -218,9 +218,9 @@ extern "C"
     ///         distance; mtwn_errorStale for a target that is not alive.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnMeasureTransition(mtwnContext* context,
-                                                             const mtwnTransitionDef* def,
-                                                             double* distanceOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_MeasureTransition(mtwnContext* context,
+                                                                     const mtwnTransitionDef* def,
+                                                                     double* distanceOut);
 
 #ifdef __cplusplus
 }

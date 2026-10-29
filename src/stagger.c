@@ -38,7 +38,7 @@ mtwnStagger mtwnDefaultStagger(void)
 {
     mtwnStagger stagger = {0};
     stagger.spacing = 0.1;
-    stagger.easing = mtwnLinearEasing();
+    stagger.easing = mtwnMakeLinearEasing();
     return stagger;
 }
 
@@ -233,7 +233,7 @@ static MTWN_NOINLINE mtwnResult mtwnComputeStaggerWork(const mtwnStagger* stagge
     for (uint32_t i = 0; i < count; ++i)
     {
         double t = range > 0.0 ? (offsetsOut[i] - least) / range : 0.0;
-        offsetsOut[i] = stagger->start + span * mtwnEaseWork(&stagger->easing, t, false);
+        offsetsOut[i] = stagger->start + span * mtwnSampleEasingWork(&stagger->easing, t, false);
     }
     return mtwn_success;
 }

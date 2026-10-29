@@ -6,7 +6,7 @@
 // inside a bracket every step narrows, bisecting whenever a step would
 // leave it or the slope is not positive; the stop
 // on a tolerance is a comparison, so results are the same everywhere.
-// mtwnEaseCubicBezier is here, apart from mtwnEase's dispatch over every
+// mtwnSampleCubicBezierEasing is here, apart from mtwnSampleEasing's dispatch over every
 // kind: with link-time optimization or unused sections dropped, a program
 // that samples cubic beziers only through it links none of the other
 // curves (the makers in src/easing.c bring them along otherwise).
@@ -127,7 +127,7 @@ double mtwnSampleCubicBezier(const double control[4], double x)
     double high = 1.0;
     double t = x;
     // The returns above take 0, 1 and everything outside; NaN passes them,
-    // but no caller passes it, as mtwnEase refuses a progress not finite.
+    // but no caller passes it, as mtwnSampleEasing refuses a progress not finite.
     MTWN_ASSERT(StrictlyInside(x));
     for (int i = 0; i < s_bezierSteps; ++i)
     {
@@ -154,7 +154,7 @@ double mtwnSampleCubicBezier(const double control[4], double x)
     return Evaluate(&ys, t);
 }
 
-// mtwnEase's in and out curves of a cubic bezier, by the same arithmetic.
+// mtwnSampleEasing's in and out curves of a cubic bezier, by the same arithmetic.
 static double BezierIn(const double control[4], double x)
 {
     return mtwnSampleCubicBezier(control, x);
@@ -165,7 +165,7 @@ static double BezierOut(const double control[4], double x)
     return 1.0 - mtwnSampleCubicBezier(control, 1.0 - x);
 }
 
-// mtwnEase's linear easing, or its cubic bezier in its mode, by the same
+// mtwnSampleEasing's linear easing, or its cubic bezier in its mode, by the same
 // arithmetic; an easing of another kind is not one.
 static double EaseCubicBezier(const mtwnEasing* easing, double progress)
 {
@@ -190,8 +190,8 @@ static double EaseCubicBezier(const mtwnEasing* easing, double progress)
 
 // The checks of mtwnValidEasing for the two kinds this samples, kept here
 // so that sampling a cubic bezier links none of the other curves.
-static MTWN_NOINLINE mtwnResult mtwnEaseCubicBezierWork(const mtwnEasing* easing, double progress,
-                                                        double* easedOut)
+static MTWN_NOINLINE mtwnResult mtwnSampleCubicBezierEasingWork(const mtwnEasing* easing,
+                                                                double progress, double* easedOut)
 {
     if (easing == NULL || easing->mode > mtwn_easeOutIn || !isfinite(progress) || easedOut == NULL)
     {
@@ -208,10 +208,10 @@ static MTWN_NOINLINE mtwnResult mtwnEaseCubicBezierWork(const mtwnEasing* easing
     return mtwn_success;
 }
 
-mtwnResult mtwnEaseCubicBezier(const mtwnEasing* easing, double progress, double* easedOut)
+mtwnResult mtwnSampleCubicBezierEasing(const mtwnEasing* easing, double progress, double* easedOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnEaseCubicBezierWork(easing, progress, easedOut);
+    mtwnResult result = mtwnSampleCubicBezierEasingWork(easing, progress, easedOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

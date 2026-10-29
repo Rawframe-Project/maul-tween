@@ -554,8 +554,8 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     return mtwn_success;
 }
 
-static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                                       double* distanceOut)
+static mtwnResult RunContextMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                              double* distanceOut)
 {
     if (distanceOut != NULL)
     {
@@ -594,24 +594,24 @@ static mtwnResult RunMeasureTransition(mtwnContext* context, const mtwnTransitio
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnMeasureTransitionWork(mtwnContext* context,
-                                                          const mtwnTransitionDef* def,
-                                                          double* distanceOut)
+static MTWN_NOINLINE mtwnResult mtwnContext_MeasureTransitionWork(mtwnContext* context,
+                                                                  const mtwnTransitionDef* def,
+                                                                  double* distanceOut)
 {
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
     }
-    mtwnResult result = RunMeasureTransition(context, def, distanceOut);
+    mtwnResult result = RunContextMeasureTransition(context, def, distanceOut);
     mtwnLeave(context);
     return result;
 }
 
-mtwnResult mtwnMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                                 double* distanceOut)
+mtwnResult mtwnContext_MeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+                                         double* distanceOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnMeasureTransitionWork(context, def, distanceOut);
+    mtwnResult result = mtwnContext_MeasureTransitionWork(context, def, distanceOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

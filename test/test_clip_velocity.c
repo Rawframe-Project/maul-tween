@@ -41,7 +41,7 @@ static Scene MakeSceneAt(double start)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -70,7 +70,7 @@ static void Update(Scene* s, double seconds)
 
 static mtwnPlayerId PlayKept(Scene* s, double rate, mtwnComposite composite, bool keep)
 {
-    mtwnBinding binding = mtwnBind(0, s->target);
+    mtwnBinding binding = mtwnMakeBinding(0, s->target);
     binding.composite = composite;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = s->clip;
@@ -185,7 +185,7 @@ static void TestHalfWeight(void)
     // Half way from the base toward the track: half its velocity, so not
     // the track's own.
     Scene s = MakeScene();
-    mtwnBinding binding = mtwnBind(0, s.target);
+    mtwnBinding binding = mtwnMakeBinding(0, s.target);
     binding.weight = 0.5f;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = s.clip;
@@ -226,7 +226,7 @@ static void TestInteger(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track = mtwnDefaultTrackDef(mtwn_valueInteger);
     track.keyframes = keys;
@@ -235,7 +235,7 @@ static void TestInteger(void)
     mtwnNode node = 0;
     CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "an integer track");
     CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
-    mtwnBinding binding = mtwnBind(0, integer);
+    mtwnBinding binding = mtwnMakeBinding(0, integer);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
@@ -280,7 +280,7 @@ static void TestBackwardsAtEnd(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 10.0f;
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.keyframes = keys;
         track.keyframeCount = 2;
@@ -288,7 +288,7 @@ static void TestBackwardsAtEnd(void)
         mtwnNode node = 0;
         CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "a track");
         CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
-        mtwnBinding binding = mtwnBind(0, s.target);
+        mtwnBinding binding = mtwnMakeBinding(0, s.target);
         mtwnPlayerDef def = mtwnDefaultPlayerDef();
         def.clip = clip;
         def.bindings = &binding;

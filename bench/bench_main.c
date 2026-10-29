@@ -167,7 +167,7 @@ static void MakeValues(Values* v)
     {
         v->pathKeys[k].value = (mtwnVec4){points[k][0], points[k][1], 0.0f, 0.0f};
         v->pathKeys[k].offset = k == 7 ? 1.0 : k / 7.0;
-        v->pathKeys[k].easing = mtwnLinearEasing();
+        v->pathKeys[k].easing = mtwnMakeLinearEasing();
         v->pathKeys[k].kind = mtwn_segmentCatmullRom;
     }
     Check(mtwnMakePath(v->pathKeys, 8, 2, 0.5, v->pathLengths, &v->path), "a path");
@@ -188,7 +188,7 @@ static void MakeValues(Values* v)
     {
         v->monotoneKeys[k].value.x = rising[k];
         v->monotoneKeys[k].offset = at[k];
-        v->monotoneKeys[k].easing = mtwnLinearEasing();
+        v->monotoneKeys[k].easing = mtwnMakeLinearEasing();
         v->monotoneKeys[k].kind = mtwn_segmentMonotone;
     }
     Check(mtwnMakeTrack(&def, v->monotoneKeys, 5, NULL, NULL, &v->monotone), "a monotone track");
@@ -276,8 +276,8 @@ static bool s_tasks = false;
 // reads no events pays.
 static bool s_quiet = false;
 
-static void* RunAtOnce(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
-                       void* userContext)
+static void* RunAtOnce(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange,
+                       void* taskContext, void* userContext)
 {
     (void)minRange;
     (void)userContext;
@@ -309,7 +309,7 @@ static mtwnContext* MakeContext(uint32_t targets, uint32_t players, uint32_t cli
     {
         // Grown to hold its clips, as a host sizes its clip storage.
         def.clipStorageBytes = (uint64_t)clips * ClipBytes(context);
-        Check(mtwnGrowContext(&context, &def), "a context grown for its clips");
+        Check(mtwnContext_Grow(&context, &def), "a context grown for its clips");
     }
     return context;
 }
@@ -377,7 +377,7 @@ static double EaseNs(const mtwnEasing* easing)
     for (uint32_t i = 0; i < SAMPLES; ++i)
     {
         double eased = 0.0;
-        mtwnResult sampled = mtwnEase(easing, (double)i * (1.0 / SAMPLES), false, &eased);
+        mtwnResult sampled = mtwnSampleEasing(easing, (double)i * (1.0 / SAMPLES), false, &eased);
         sum += sampled == mtwn_success ? eased : (double)NAN;
     }
     double took = Seconds() - start;
@@ -527,7 +527,7 @@ static mtwnContext* MakePlayers(Layout layout)
         {
             mtwnTargetId target;
             Check(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target), "a target");
-            bindings[t] = mtwnBind(t, target);
+            bindings[t] = mtwnMakeBinding(t, target);
         }
         mtwnPlayerId id;
         Check(mtwnCreatePlayer(context, &def, &id), "a player");

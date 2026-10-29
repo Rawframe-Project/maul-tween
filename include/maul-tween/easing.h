@@ -3,7 +3,7 @@
 //
 // Easing: curves that map a timing's progress to eased progress.
 // An easing is a value made by a function that validates it and sampled
-// by mtwnEase: Penner's families, which land exactly on 0 and 1, and CSS
+// by mtwnSampleEasing: Penner's families, which land exactly on 0 and 1, and CSS
 // Easing Level 2 entire. Every kind has the same four modes.
 
 #ifndef MAUL_TWEEN_EASING_H
@@ -116,7 +116,7 @@ extern "C"
     typedef double (*mtwnEaseFunction)(void* context, double progress);
 
     // An easing: a curve and its mode. Make one with a mtwnMake...
-    // function or mtwnLinearEasing; its fields are the library's, set by
+    // function or mtwnMakeLinearEasing; its fields are the library's, set by
     // the maker, and a host reads none of them. Every call taking one
     // refuses an easing whose fields its kind reads are not as its maker
     // sets them, or for an elastic and a spring easing outside the ranges
@@ -185,12 +185,12 @@ extern "C"
         uint8_t flags;
     } mtwnRoughDef;
 
-    /// Returns the linear easing, whose eased progress is its progress.
+    /// Makes the linear easing, whose eased progress is its progress.
     ///
     /// @return The easing.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_API mtwnEasing mtwnLinearEasing(void);
+    MTWN_API mtwnEasing mtwnMakeLinearEasing(void);
 
     /// Makes the power easing p^k: quad for k = 2, cubic 3, quart 4, quint
     /// 5. GSAP's power(n) is k = n + 1. Integer exponents up to 8 are
@@ -424,13 +424,13 @@ extern "C"
     ///         easing no maker produced or a progress not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnEase(const mtwnEasing* easing, double progress,
-                                                bool before, double* easedOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleEasing(const mtwnEasing* easing, double progress,
+                                                        bool before, double* easedOut);
 
-    /// Samples a cubic bezier easing as mtwnEase does, to the bit, in each
+    /// Samples a cubic bezier easing as mtwnSampleEasing does, to the bit, in each
     /// mode, reaching none of the other curves. With link-time optimization,
     /// or with -ffunction-sections and --gc-sections, a program that
-    /// samples cubic beziers only through it links none of mtwnEase's
+    /// samples cubic beziers only through it links none of mtwnSampleEasing's
     /// dispatch, Penner's curves or the spring easing; without either, the
     /// makers and mtwnSetEaseMode bring them along.
     ///
@@ -439,7 +439,7 @@ extern "C"
     ///                  or the linear easing.
     /// @param progress  The progress, finite; outside 0 to 1 the curve
     ///                  follows CSS Easing Level 2.
-    /// @param easedOut  Receives what mtwnEase gives with before false: the
+    /// @param easedOut  Receives what mtwnSampleEasing gives with before false: the
     ///                  progress for the linear easing. Unchanged on
     ///                  failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, an
@@ -447,8 +447,9 @@ extern "C"
     ///         not finite.
     /// @par Thread safety
     /// Safe from any thread.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnEaseCubicBezier(const mtwnEasing* easing,
-                                                           double progress, double* easedOut);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnSampleCubicBezierEasing(const mtwnEasing* easing,
+                                                                   double progress,
+                                                                   double* easedOut);
 
 #ifdef __cplusplus
 }

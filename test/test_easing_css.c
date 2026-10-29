@@ -162,7 +162,7 @@ static void TestBezierMonotonicAndRefusals(void)
     CHECK(mtwnMakeCubicBezierEasing(0.3, 0.2, 0.7, -0.1, &easing) == mtwn_success &&
               !IsMonotonicEasing(&easing),
           "y2 below 0");
-    easing = mtwnLinearEasing();
+    easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakeCubicBezierEasing(-0.1, 0.0, 0.5, 1.0, &easing) == mtwn_errorInvalid,
           "x1 below 0");
     CHECK(mtwnMakeCubicBezierEasing(0.1, 0.0, 1.1, 1.0, &easing) == mtwn_errorInvalid,
@@ -250,7 +250,7 @@ static void TestSteps(void)
         }
         CHECK(value == c->expected, "steps as CSS defines them");
     }
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakeStepsEasing(0, mtwn_jumpEnd, &easing) == mtwn_errorInvalid, "no steps");
     CHECK(mtwnMakeStepsEasing(1, mtwn_jumpNone, &easing) == mtwn_errorInvalid,
           "one step, jump-none");
@@ -326,7 +326,7 @@ static void TestLinearCanonicalization(void)
 
 static void TestLinearRefusalsAndMonotonic(void)
 {
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     mtwnLinearPoint one[] = {{NONE, 0.0}};
     CHECK(mtwnMakeLinearPointsEasing(one, 1, &easing) == mtwn_errorInvalid, "one point");
     CHECK(mtwnMakeLinearPointsEasing(NULL, 2, &easing) == mtwn_errorInvalid, "no points");

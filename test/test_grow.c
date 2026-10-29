@@ -112,7 +112,7 @@ static void TestGrow(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 10.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -121,7 +121,7 @@ static void TestGrow(void)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track");
-    mtwnBinding binding = mtwnBind(0, a);
+    mtwnBinding binding = mtwnMakeBinding(0, a);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
@@ -132,7 +132,7 @@ static void TestGrow(void)
     mtwnTransitionDef move = mtwnDefaultTransitionDef();
     move.target = b;
     move.value = (mtwnVec4){4.0f, 0, 0, 0};
-    move.easing = mtwnLinearEasing();
+    move.easing = mtwnMakeLinearEasing();
     move.duration = 4.0;
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(context, &move, &transition) == mtwn_success, "a transition");
@@ -152,24 +152,24 @@ static void TestGrow(void)
     // Refusals change nothing.
     mtwnContextDef smaller = def;
     smaller.targetCapacity = 1;
-    CHECK(mtwnGrowContext(&context, &smaller) == mtwn_errorInvalid && context == old,
+    CHECK(mtwnContext_Grow(&context, &smaller) == mtwn_errorInvalid && context == old,
           "no capacity below its own");
     mtwnContextDef other = def;
     other.allocator = (mtwnAllocator){0};
-    CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old,
+    CHECK(mtwnContext_Grow(&context, &other) == mtwn_errorInvalid && context == old,
           "nor another allocator");
     Budget elsewhere = {0};
     other.allocator = (mtwnAllocator){Alloc, Free, &elsewhere};
-    CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old,
+    CHECK(mtwnContext_Grow(&context, &other) == mtwn_errorInvalid && context == old,
           "nor the same functions with another context");
     other = def;
     other.clipStorageBytes = def.clipStorageBytes / 2;
-    uint64_t misuse = mtwnGetContextMisuse(context);
-    CHECK(mtwnGrowContext(&context, &other) == mtwn_errorInvalid && context == old &&
-              mtwnGetContextMisuse(context) == misuse + 1,
+    uint64_t misuse = mtwnContext_GetMisuse(context);
+    CHECK(mtwnContext_Grow(&context, &other) == mtwn_errorInvalid && context == old &&
+              mtwnContext_GetMisuse(context) == misuse + 1,
           "nor less clip storage, the refusal counted");
-    CHECK(mtwnGrowContext(&context, NULL) == mtwn_errorInvalid &&
-              mtwnGrowContext(NULL, &def) == mtwn_errorInvalid,
+    CHECK(mtwnContext_Grow(&context, NULL) == mtwn_errorInvalid &&
+              mtwnContext_Grow(NULL, &def) == mtwn_errorInvalid,
           "nor null arguments");
     mtwnContextDef bigger = def;
     bigger.targetCapacity = 8;
@@ -178,11 +178,11 @@ static void TestGrow(void)
     bigger.eventCapacity = 16;
     bigger.bindingCapacity = 8;
     budget.fail = true;
-    CHECK(mtwnGrowContext(&context, &bigger) == mtwn_errorCapacity && context == old &&
+    CHECK(mtwnContext_Grow(&context, &bigger) == mtwn_errorCapacity && context == old &&
               ValueOf(context, a) == 1.0f,
           "an allocator's failure: the context as it was");
     budget.fail = false;
-    CHECK(mtwnGrowContext(&context, &bigger) == mtwn_success && budget.blocks == 2,
+    CHECK(mtwnContext_Grow(&context, &bigger) == mtwn_success && budget.blocks == 2,
           "grown: one context block and the clip's");
     CHECK(mtwnContext_GetMemoryBytes(context) > before, "holding more");
     // Every id carries over, and what plays plays on.
@@ -201,7 +201,7 @@ static void TestGrow(void)
     unshared.sharedNodeCapacity = 0;
     unshared.sharedRecordCapacity = 0;
     uint64_t shared = mtwnContext_GetMemoryBytes(context);
-    CHECK(mtwnGrowContext(&context, &unshared) == mtwn_success &&
+    CHECK(mtwnContext_Grow(&context, &unshared) == mtwn_success &&
               mtwnContext_GetMemoryBytes(context) ==
                   shared - (128u * 80u + 64u * (sizeof(mtwnEvent) + sizeof(double))),
           "grown with no sharing, holding less");
@@ -219,7 +219,7 @@ static void TestGrow(void)
     // The new room is there.
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &c) == mtwn_success,
           "a third target");
-    mtwnBinding more = mtwnBind(0, c);
+    mtwnBinding more = mtwnMakeBinding(0, c);
     playerDef.bindings = &more;
     playerDef.bindingCount = 1;
     mtwnPlayerId players[3];
@@ -253,7 +253,7 @@ static void TestGrowFreeSlots(void)
               mtwnDestroyTarget(context, a) == mtwn_success,
           "a freed");
     def.targetCapacity = 4;
-    CHECK(mtwnGrowContext(&context, &def) == mtwn_success, "grown");
+    CHECK(mtwnContext_Grow(&context, &def) == mtwn_success, "grown");
     mtwnTargetId c;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &c) == mtwn_success &&
               c.index1 == a.index1 && mtwnTarget_IsValid(context, b) &&
@@ -272,11 +272,11 @@ static void TestGrowSome(void)
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
     mtwnContextDef more = def;
     more.playerCapacity = 4;
-    CHECK(mtwnGrowContext(&context, &more) == mtwn_success,
+    CHECK(mtwnContext_Grow(&context, &more) == mtwn_success,
           "players grown, every other capacity kept");
     mtwnContextDef fewer = more;
     fewer.targetCapacity = 1;
-    CHECK(mtwnGrowContext(&context, &fewer) == mtwn_errorInvalid, "fewer targets refused");
+    CHECK(mtwnContext_Grow(&context, &fewer) == mtwn_errorInvalid, "fewer targets refused");
     mtwnDestroyContext(context);
     CHECK(budget.blocks == 0 && budget.held == 0, "all given back");
 }
@@ -298,7 +298,7 @@ static mtwnContext* Repeating(uint32_t events, mtwnTargetId* target, mtwnPlayerI
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 3.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -312,7 +312,7 @@ static mtwnContext* Repeating(uint32_t events, mtwnTargetId* target, mtwnPlayerI
               mtwnClip_AddMark(context, clip, MTWN_ROOT_NODE, at, 7, &mark) == mtwn_success &&
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a repeating track and a mark");
-    mtwnBinding binding = mtwnBind(0, *target);
+    mtwnBinding binding = mtwnMakeBinding(0, *target);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
@@ -357,7 +357,7 @@ static void TestNoRecords(void)
     // the mark at 1.1 and the repeat at 1.25, not the second before.
     mtwnContextDef def = mtwnDefaultContextDef();
     def.eventCapacity = 16;
-    CHECK(mtwnGrowContext(&quiet, &def) == mtwn_success, "grown to hold records");
+    CHECK(mtwnContext_Grow(&quiet, &def) == mtwn_success, "grown to hold records");
     Update(quiet, 1.3);
     Update(loud, 1.3);
     mtwnEvent heard[32];
@@ -417,9 +417,9 @@ static void TestGrowLinearPoints(void)
     wider.pointsPerTransition = def.pointsPerTransition + 32;
     mtwnContextDef narrower = def;
     narrower.pointsPerTransition = def.pointsPerTransition - 1;
-    CHECK(mtwnGrowContext(&twins[1], &narrower) == mtwn_errorInvalid,
+    CHECK(mtwnContext_Grow(&twins[1], &narrower) == mtwn_errorInvalid,
           "fewer points for each transition refused");
-    CHECK(mtwnGrowContext(&twins[1], &wider) == mtwn_success, "grown mid-transition");
+    CHECK(mtwnContext_Grow(&twins[1], &wider) == mtwn_success, "grown mid-transition");
     memset(points, 0xFF, sizeof points);
     int same = 0;
     for (int step = 4; step <= 11; ++step)

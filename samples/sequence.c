@@ -152,7 +152,7 @@ int main(void)
         Expect(mtwnCreateTarget(context, i == BACKDROP ? mtwn_valueScalar : mtwn_valueVec2,
                                 (mtwnVec4){0}, &parts[i]) == mtwn_success,
                "a part");
-        bindings[i] = mtwnBind(i, parts[i]);
+        bindings[i] = mtwnMakeBinding(i, parts[i]);
     }
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;

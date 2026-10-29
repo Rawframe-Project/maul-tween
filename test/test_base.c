@@ -37,7 +37,7 @@ static void TestResultNames(void)
     for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i)
     {
         CHECK(cases[i].result == cases[i].value &&
-                  strcmp(mtwnResultName(cases[i].result), cases[i].name) == 0,
+                  strcmp(mtwnGetResultName(cases[i].result), cases[i].name) == 0,
               cases[i].name);
     }
     // The family's shared errors maul-tween never returns, and past them.
@@ -45,7 +45,7 @@ static void TestResultNames(void)
     bool none = true;
     for (size_t i = 0; i < sizeof unknown / sizeof unknown[0]; ++i)
     {
-        none = none && strcmp(mtwnResultName(unknown[i]), "unknown result") == 0;
+        none = none && strcmp(mtwnGetResultName(unknown[i]), "unknown result") == 0;
     }
     CHECK(none, "the family's values it does not define, and others, unknown");
 }

@@ -40,7 +40,7 @@ extern "C"
     };
 
     // A slot of a clip bound to a target, with how it composes there.
-    // Start from mtwnBind.
+    // Start from mtwnMakeBinding.
     typedef struct mtwnBinding
     {
         // A slot of the clip, bound by one binding of the player at most.
@@ -60,7 +60,7 @@ extern "C"
     /// @return The binding.
     /// @par Thread safety
     /// Safe from any thread.
-    static inline mtwnBinding mtwnBind(uint32_t slot, mtwnTargetId target)
+    static inline mtwnBinding mtwnMakeBinding(uint32_t slot, mtwnTargetId target)
     {
 #ifdef __cplusplus
         mtwnBinding binding = {};

@@ -37,7 +37,7 @@ static mtwnClipTrackDef Incremental(mtwnValueKind kind, mtwnKeyframe* keys, doub
 {
     keys[0].offset = 0.0;
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = kind;
     track.keyframes = keys;
@@ -51,7 +51,7 @@ static mtwnClipTrackDef Incremental(mtwnValueKind kind, mtwnKeyframe* keys, doub
 
 static void Play(World* w)
 {
-    mtwnBinding binding = mtwnBind(0, w->target);
+    mtwnBinding binding = mtwnMakeBinding(0, w->target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;

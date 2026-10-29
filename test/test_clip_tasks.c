@@ -94,7 +94,7 @@ typedef struct Twin
 // Ranges run at the wait, for a host that returns a handle.
 typedef struct Pending
 {
-    mtwnTaskFn* task;
+    mtwnTaskFunction* task;
     void* taskContext;
     int32_t starts[16];
     int32_t ends[16];
@@ -113,7 +113,7 @@ static Thread s_threads[16];
 
 typedef struct Range
 {
-    mtwnTaskFn* task;
+    mtwnTaskFunction* task;
     void* taskContext;
     int32_t start;
     int32_t end;
@@ -179,7 +179,7 @@ static void RunPending(void)
 
 // Splits [0, itemCount) into random ranges of at least minRange, the last
 // maybe shorter, shuffles them, and runs them now or at the wait.
-static void* Enqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+static void* Enqueue(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange, void* taskContext,
                      void* userContext)
 {
     (void)userContext;
@@ -326,7 +326,7 @@ static void Build(Twin* twin, uint32_t c, uint32_t nodes)
             {
                 keys[i].value = KeyValue(s_kinds[slot]);
                 keys[i].offset = (double)i / (double)(count - 1);
-                keys[i].easing = mtwnLinearEasing();
+                keys[i].easing = mtwnMakeLinearEasing();
             }
             mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
             track.parent = parent;
@@ -412,7 +412,7 @@ static void MakePlayer(Twin* twin, uint32_t p)
         // Half of them on the player's own target when asked, its alone
         // unless a transition or a player made in its place shares it.
         uint32_t t = s_ownTargets && Next() % 2 == 0 ? s_targetsPerSlot + p : shared;
-        mtwnBinding binding = mtwnBind(s, twin->targets[s][t]);
+        mtwnBinding binding = mtwnMakeBinding(s, twin->targets[s][t]);
         binding.composite = Next() % 3 == 0 ? mtwn_compositeAdd : mtwn_compositeReplace;
         binding.weight = Next() % 3 == 0 ? 0.5f : 1.0f;
         if (twin->used[c][s])
@@ -463,7 +463,7 @@ static void Control(Twin* twin, uint32_t p, uint32_t what, double argument)
         (void)mtwnPlayer_Finish(context, player);
         break;
     case 7:
-        (void)mtwnContext_SetReducedMotion(context, argument > 1.0);
+        (void)mtwnContext_EnableReducedMotion(context, argument > 1.0);
         break;
     case 8:
         (void)mtwnDestroyPlayer(context, player);
@@ -641,7 +641,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
             // its records share the update's time, ordered along its sweep.
             if (f == s_frames / 2 || f == s_frames / 2 + 8)
             {
-                (void)mtwnContext_SetReducedMotion(twins[k].context, f == s_frames / 2);
+                (void)mtwnContext_EnableReducedMotion(twins[k].context, f == s_frames / 2);
             }
             if (k == 1 && !s_unsharedMode)
             {
@@ -855,8 +855,8 @@ static void TestOneTimeOrder(void)
         memset(keys, 0, sizeof keys);
         keys[1].offset = 1.0;
         keys[1].value.x = 1.0f;
-        keys[0].easing = mtwnLinearEasing();
-        keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = mtwnMakeLinearEasing();
+        keys[1].easing = mtwnMakeLinearEasing();
         // Later in time first: tracks at 0.5, 0.3 and 0.1.
         for (int n = 0; n < 3; ++n)
         {
@@ -869,7 +869,7 @@ static void TestOneTimeOrder(void)
             CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
         }
         CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "a sealed clip");
-        mtwnBinding binding = mtwnBind(0, target);
+        mtwnBinding binding = mtwnMakeBinding(0, target);
         mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = &binding;
@@ -880,7 +880,7 @@ static void TestOneTimeOrder(void)
             CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
         }
         CHECK(mtwnContext_Update(context, 10000000u, NULL, 0, NULL) == mtwn_success, "an update");
-        CHECK(mtwnContext_SetReducedMotion(context, true) == mtwn_success, "reduced motion");
+        CHECK(mtwnContext_EnableReducedMotion(context, true) == mtwn_success, "reduced motion");
         CHECK(mtwnContext_Update(context, 20000000u, NULL, 0, NULL) == mtwn_success, "an update");
         uint64_t dropped = 0;
         CHECK(mtwnContext_ReadEvents(context, records[k], 64, &counts[k], &dropped) == mtwn_success,
@@ -953,8 +953,8 @@ static void TestThreads(uint64_t first)
 }
 
 // A task system that runs every range at once.
-static void* RunAtOnce(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
-                       void* userContext)
+static void* RunAtOnce(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange,
+                       void* taskContext, void* userContext)
 {
     (void)minRange;
     (void)userContext;
@@ -978,7 +978,7 @@ static bool Alone(const mtwnContext* context, mtwnPlayerId player, uint32_t slot
 static mtwnPlayerId PlayTwo(mtwnContext* context, mtwnClipId clip, mtwnTargetId first,
                             mtwnTargetId second)
 {
-    mtwnBinding bindings[2] = {mtwnBind(0, first), mtwnBind(1, second)};
+    mtwnBinding bindings[2] = {mtwnMakeBinding(0, first), mtwnMakeBinding(1, second)};
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
     def.bindings = first.index1 != 0 ? bindings : bindings + 1;
@@ -998,7 +998,7 @@ static mtwnClipId TwoTracks(mtwnContext* context)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     for (uint32_t slot = 0; slot < 2; ++slot)
     {
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
@@ -1093,7 +1093,7 @@ static void TestWriters(void)
           "a transition on a target its only player left");
 
     def.playerCapacity *= 2;
-    CHECK(mtwnGrowContext(&context, &def) == mtwn_success, "grown");
+    CHECK(mtwnContext_Grow(&context, &def) == mtwn_success, "grown");
     Step(context, 0.35);
     CHECK(Alone(context, three, 0) && !Alone(context, one, 1) && !Alone(context, four, 0),
           "the same after growing");
@@ -1133,7 +1133,7 @@ static void TestExactFit(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -1147,7 +1147,7 @@ static void TestExactFit(void)
         mtwnTargetId target = {0, 0};
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
-        mtwnBinding binding = mtwnBind(0, target);
+        mtwnBinding binding = mtwnMakeBinding(0, target);
         mtwnPlayerDef player = mtwnDefaultPlayerDef();
         player.clip = clip;
         player.bindings = &binding;
@@ -1259,7 +1259,7 @@ static void TestOneChannel(void)
     keys[0].value = still;
     keys[1].value = (mtwnVec4){0, 0, 1.0f, 1.0f};
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = mtwn_valueVec4;
     track.keyframes = keys;
@@ -1288,8 +1288,8 @@ static void TestOneChannel(void)
 // A task system that counts the work it is handed and runs it at once.
 static uint32_t s_handed;
 
-static void* CountAndRun(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
-                         void* userContext)
+static void* CountAndRun(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange,
+                         void* taskContext, void* userContext)
 {
     ++s_handed;
     return RunAtOnce(task, itemCount, minRange, taskContext, userContext);
@@ -1333,7 +1333,7 @@ static void TestGroupsFromTwo(void)
         mtwnTargetId target;
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
-        mtwnBinding half = mtwnBind(0, target);
+        mtwnBinding half = mtwnMakeBinding(0, target);
         half.weight = 0.5f;
         mtwnPlayerDef play = mtwnDefaultPlayerDef();
         play.clip = TwoTracks(context);

@@ -40,7 +40,7 @@ static Fixture MakeFrom(const mtwnContextDef* def, bool endless)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -71,7 +71,7 @@ static Fixture Make(bool endless, uint32_t bindings)
 
 static mtwnPlayerId Player(Fixture* f, bool play, double rate)
 {
-    mtwnBinding binding = mtwnBind(0, f->target);
+    mtwnBinding binding = mtwnMakeBinding(0, f->target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f->clip;
     def.bindings = &binding;
@@ -362,7 +362,7 @@ static void TestOwnBindings(void)
     mtwnTargetId other;
     CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
-    mtwnBinding binding = mtwnBind(0, other);
+    mtwnBinding binding = mtwnMakeBinding(0, other);
     def = mtwnDefaultPlayerDef();
     def.clip = f.clip;
     def.bindings = &binding;
@@ -414,7 +414,7 @@ static void TestSlotPastFull(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     int added = 0;
     for (uint32_t slot = 0; slot < 16; ++slot)
     {
@@ -430,7 +430,7 @@ static void TestSlotPastFull(void)
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
@@ -442,7 +442,7 @@ static void TestSlotPastFull(void)
               mtwnPlayer_Seek(context, player, 0x1.0000000000001p-1) == mtwn_success &&
               mtwnContext_Update(context, 1000000u, NULL, 0, NULL) == mtwn_success,
           "sampled at a time ending in the byte 1");
-    binding = mtwnBind(16, target);
+    binding = mtwnMakeBinding(16, target);
     mtwnPlayerId past;
     CHECK(mtwnCreatePlayer(context, &def, &past) == mtwn_errorInvalid, "slot 16 refused");
     mtwnDestroyContext(context);
@@ -494,7 +494,7 @@ static void TestBindings(void)
     Fixture f = Make(false, 4);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f.clip;
-    mtwnBinding bindings[2] = {mtwnBind(0, f.target), mtwnBind(0, f.target)};
+    mtwnBinding bindings[2] = {mtwnMakeBinding(0, f.target), mtwnMakeBinding(0, f.target)};
     def.bindings = bindings;
     def.bindingCount = 2;
     mtwnPlayerId p;
@@ -543,12 +543,12 @@ static void TestGrowFromNoBindings(void)
     def.bindingCapacity = 0;
     Fixture f = MakeFrom(&def, false);
     def.bindingCapacity = 4;
-    CHECK(mtwnGrowContext(&f.context, &def) == mtwn_success, "grown to four bindings");
+    CHECK(mtwnContext_Grow(&f.context, &def) == mtwn_success, "grown to four bindings");
     for (int k = 0; k < 4; ++k)
     {
         (void)Player(&f, true, 1.0);
     }
-    mtwnBinding binding = mtwnBind(0, f.target);
+    mtwnBinding binding = mtwnMakeBinding(0, f.target);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = f.clip;
     playerDef.bindings = &binding;
@@ -568,7 +568,7 @@ static void TestFullPoolKeepsBindings(void)
     def.bindingCapacity = 2;
     Fixture f = MakeFrom(&def, false);
     mtwnPlayerId first = Player(&f, true, 1.0);
-    mtwnBinding binding = mtwnBind(0, f.target);
+    mtwnBinding binding = mtwnMakeBinding(0, f.target);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = f.clip;
     playerDef.bindings = &binding;
@@ -578,7 +578,7 @@ static void TestFullPoolKeepsBindings(void)
               refused.index1 == 0,
           "no player's slot left");
     def.playerCapacity = 2;
-    CHECK(mtwnGrowContext(&f.context, &def) == mtwn_success, "grown to two players");
+    CHECK(mtwnContext_Grow(&f.context, &def) == mtwn_success, "grown to two players");
     mtwnPlayerId second = {0, 0};
     CHECK(mtwnCreatePlayer(f.context, &playerDef, &second) == mtwn_success &&
               mtwnPlayer_IsValid(f.context, first),
@@ -669,7 +669,7 @@ static void TestAfterLastPlayer(void)
     def.target = x;
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
     def.duration = 1.0;
-    def.easing = mtwnLinearEasing();
+    def.easing = mtwnMakeLinearEasing();
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
     Update(&f, 1.5);
@@ -692,7 +692,7 @@ static void TestEdges(void)
 {
     // A binding to the slot past the last is refused.
     Fixture f = Make(false, 8);
-    mtwnBinding past = mtwnBind(1, f.target);
+    mtwnBinding past = mtwnMakeBinding(1, f.target);
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f.clip;
     def.bindings = &past;
@@ -779,7 +779,7 @@ static void TestRateLimit(void)
     Fixture f = Make(false, 8);
     mtwnPlayerId p = Player(&f, true, 1.0);
     CHECK(mtwnContext_Update(f.context, 0, NULL, 0, NULL) == mtwn_success, "started");
-    uint64_t misuse = mtwnGetContextMisuse(f.context);
+    uint64_t misuse = mtwnContext_GetMisuse(f.context);
     CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_RATE_LIMIT) == mtwn_success &&
               mtwnPlayer_SetRate(f.context, p, -MTWN_RATE_LIMIT) == mtwn_success,
           "the limit itself, either way");
@@ -794,7 +794,7 @@ static void TestRateLimit(void)
           "past the limit, NaN and infinity refused");
     mtwnPlayerState after;
     CHECK(mtwnPlayer_GetState(f.context, p, &after) == mtwn_success && after.rate == before.rate &&
-              after.pending == before.pending && mtwnGetContextMisuse(f.context) == misuse + 4,
+              after.pending == before.pending && mtwnContext_GetMisuse(f.context) == misuse + 4,
           "the player unchanged, each counted as misuse");
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = f.clip;
@@ -808,7 +808,7 @@ static void TestRateLimit(void)
     // time (MTWN_SEEK_LIMIT): 5e-324 took a player at 1 s to its end.
     CHECK(MTWN_MIN_RATE == 0x1p-20 && MTWN_MIN_RATE * MTWN_RATE_LIMIT == 1.0,
           "the floor is 2^-20, the limit's inverse");
-    misuse = mtwnGetContextMisuse(f.context);
+    misuse = mtwnContext_GetMisuse(f.context);
     CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success &&
               mtwnPlayer_SetRate(f.context, p, -MTWN_MIN_RATE) == mtwn_success &&
               mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success,
@@ -819,7 +819,7 @@ static void TestRateLimit(void)
           "below it refused");
     def.rate = 0x1p-1074;
     CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorLimit &&
-              mtwnGetContextMisuse(f.context) == misuse + 4,
+              mtwnContext_GetMisuse(f.context) == misuse + 4,
           "a def below it too, each counted as misuse");
     mtwnDestroyContext(f.context);
 }
@@ -833,7 +833,7 @@ static void TestSeekLimit(void)
     mtwnPlayerId p = Player(&f, true, 1.0);
     Update(&f, 1.0);
     Update(&f, 2.0);
-    uint64_t misuse = mtwnGetContextMisuse(f.context);
+    uint64_t misuse = mtwnContext_GetMisuse(f.context);
     CHECK(mtwnPlayer_SeekProgress(f.context, p, 1e308) == mtwn_errorLimit &&
               mtwnPlayer_SeekProgress(f.context, p, DBL_MAX) == mtwn_errorLimit &&
               mtwnPlayer_SeekProgress(f.context, p, -1e308) == mtwn_errorLimit &&
@@ -842,7 +842,7 @@ static void TestSeekLimit(void)
               mtwnPlayer_Seek(f.context, p, -1e308) == mtwn_errorLimit &&
               mtwnPlayer_Sweep(f.context, p, 1e308) == mtwn_errorLimit,
           "a progress of 1e308 or DBL_MAX, and times past the limit, refused");
-    CHECK(State(&f, p).currentTime == 1.0 && mtwnGetContextMisuse(f.context) == misuse + 6,
+    CHECK(State(&f, p).currentTime == 1.0 && mtwnContext_GetMisuse(f.context) == misuse + 6,
           "the player where it was, each counted as misuse");
     // At the smallest rate the limit's time and the start time stay finite.
     CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success, "slowed");

@@ -16,7 +16,7 @@ A player plays a sealed [clip](clips.md) with its slots bound to targets, by Web
 ```c
 mtwnTargetId slide;
 mtwnResult playing = mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &slide);
-mtwnBinding bindings[2] = {mtwnBind(0, opacity), mtwnBind(1, slide)};
+mtwnBinding bindings[2] = {mtwnMakeBinding(0, opacity), mtwnMakeBinding(1, slide)};
 mtwnPlayerDef play = mtwnDefaultPlayerDef();
 play.clip = clip;
 play.bindings = bindings;
@@ -100,7 +100,7 @@ Records are never callbacks: they wait in the context's queue until the host rea
 Players write their targets in the order they were made. A binding replaces what lies under it or adds to it, at a weight, so one clip can play over another: an idle loop with a hit added, or two clips cross-faded by their weights.
 
 ```c
-mtwnBinding layer = mtwnBind(0, opacity);
+mtwnBinding layer = mtwnMakeBinding(0, opacity);
 layer.composite = mtwn_compositeAdd; // added to what lies under it
 layer.weight = 0.5f;
 play.bindings = &layer;

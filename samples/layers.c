@@ -43,7 +43,7 @@ static mtwnClipId Clip(mtwnContext* context, mtwnValueKind kind, const mtwnVec4 
     {
         keys[i].value = values[i];
         keys[i].offset = 0.5 * i;
-        keys[i].easing = mtwnLinearEasing();
+        keys[i].easing = mtwnMakeLinearEasing();
     }
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.track.kind = kind;
@@ -61,7 +61,7 @@ static mtwnClipId Clip(mtwnContext* context, mtwnValueKind kind, const mtwnVec4 
 static mtwnPlayerId Play(mtwnContext* context, mtwnClipId clip, mtwnTargetId target,
                          mtwnComposite composite, bool keep)
 {
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     binding.composite = composite;
     mtwnPlayerDef def = mtwnDefaultPlayerDef();
     def.clip = clip;

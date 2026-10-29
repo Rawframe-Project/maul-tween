@@ -415,7 +415,7 @@ static void TestModesAreReflections(void)
     CHECK(wrong == 0, "out is 1 - in(1 - p)");
     CHECK(mtwnSetEaseMode(&out, 4) == mtwn_errorInvalid && out.mode == mtwn_easeOut,
           "an unknown mode is refused and changes nothing");
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     CHECK(EaseAt(&linear, 0.3, false) == 0.3 && EaseAt(&linear, -2.0, true) == -2.0,
           "linear is the identity, unclamped");
     CHECK(mtwnSetEaseMode(&linear, mtwn_easeInOut) == mtwn_success &&
@@ -458,7 +458,7 @@ static void TestHostEasing(void)
 
 static void TestRefusals(void)
 {
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 0.0, &easing) == mtwn_errorInvalid, "exponent 0");
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, -1.0, &easing) == mtwn_errorInvalid, "negative");
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, HUGE_VAL, &easing) == mtwn_errorInvalid, "infinite");
@@ -550,7 +550,7 @@ static bool SameBits(double a, double b)
     return x == y;
 }
 
-// mtwnEaseCubicBezier against mtwnEase, bit for bit: CSS's keywords and
+// mtwnSampleCubicBezierEasing against mtwnSampleEasing, bit for bit: CSS's keywords and
 // curves with control points at the corners, overshooting and flat, in
 // every mode, at progress through 0 to 1 and past both ends; the linear
 // easing as its progress, and every other kind refused.
@@ -592,16 +592,16 @@ static void TestCubicBezierSampler(void)
         }
     }
     CHECK(compared == 12u * 4u * (2u * 1401u + 16u) && same == compared,
-          "every cubic bezier in every mode, as mtwnEase gives it");
+          "every cubic bezier in every mode, as mtwnSampleEasing gives it");
     for (int k = mtwn_cssLinear; k <= mtwn_cssEaseInOut; ++k)
     {
         mtwnEasing keyword;
         CHECK(mtwnMakeCssEasing((mtwnCssKeyword)k, &keyword) == mtwn_success, "a keyword");
         CHECK(SameBits(EaseBezierAt(&keyword, 0.3), EaseAt(&keyword, 0.3, false)) &&
                   SameBits(EaseBezierAt(&keyword, -0.25), EaseAt(&keyword, -0.25, false)),
-              "CSS's keywords as mtwnEase gives them");
+              "CSS's keywords as mtwnSampleEasing gives them");
     }
-    mtwnEasing linear = mtwnLinearEasing();
+    mtwnEasing linear = mtwnMakeLinearEasing();
     CHECK(SameBits(EaseBezierAt(&linear, 0.3), 0.3) &&
               SameBits(EaseBezierAt(&linear, -2.5), EaseAt(&linear, -2.5, false)),
           "the linear easing, its progress");
@@ -614,7 +614,8 @@ static void TestCubicBezierSampler(void)
     for (int k = 0; k < 4; ++k)
     {
         double eased = 7.0;
-        CHECK(mtwnEaseCubicBezier(&others[k], 0.5, &eased) == mtwn_errorInvalid && eased == 7.0,
+        CHECK(mtwnSampleCubicBezierEasing(&others[k], 0.5, &eased) == mtwn_errorInvalid &&
+                  eased == 7.0,
               "another kind refused");
     }
     mtwnEasing bezier;
@@ -624,9 +625,9 @@ static void TestCubicBezierSampler(void)
     mtwnEasing outside = bezier;
     outside.parameters[2] = 1.5;
     double eased = 7.0;
-    CHECK(mtwnEaseCubicBezier(&mode, 0.5, &eased) == mtwn_errorInvalid &&
-              mtwnEaseCubicBezier(&outside, 0.5, &eased) == mtwn_errorInvalid &&
-              mtwnEaseCubicBezier(NULL, 0.5, &eased) == mtwn_errorInvalid && eased == 7.0,
+    CHECK(mtwnSampleCubicBezierEasing(&mode, 0.5, &eased) == mtwn_errorInvalid &&
+              mtwnSampleCubicBezierEasing(&outside, 0.5, &eased) == mtwn_errorInvalid &&
+              mtwnSampleCubicBezierEasing(NULL, 0.5, &eased) == mtwn_errorInvalid && eased == 7.0,
           "an unknown mode, a control point no maker takes, or none refused");
 }
 
@@ -648,7 +649,7 @@ static int Refusals(const mtwnEasing* easing)
     mtwnEasing moded;
     memcpy(&moded, easing, sizeof moded);
     int refused = 0;
-    refused += mtwnEase(easing, 0.5, false, &eased) == mtwn_errorInvalid;
+    refused += mtwnSampleEasing(easing, 0.5, false, &eased) == mtwn_errorInvalid;
     refused += mtwnIsEasingMonotonic(easing, &monotonic) == mtwn_errorInvalid;
     refused += mtwnSetEaseMode(&moded, mtwn_easeOut) == mtwn_errorInvalid;
     refused += mtwnSampleEasingTable(easing, 4, samples) == mtwn_errorInvalid;
@@ -677,7 +678,7 @@ static double ReturnHalf(void* context, double progress)
 
 static void TestForgedPenner(void)
 {
-    mtwnEasing power = mtwnLinearEasing();
+    mtwnEasing power = mtwnMakeLinearEasing();
     mtwnEasing sine = power;
     mtwnEasing expo = power;
     mtwnEasing circ = power;
@@ -730,7 +731,7 @@ static void TestForgedPenner(void)
 
 static void TestForgedOthers(void)
 {
-    mtwnEasing host = mtwnLinearEasing();
+    mtwnEasing host = mtwnMakeLinearEasing();
     mtwnEasing bezier = host;
     mtwnEasing steps = host;
     mtwnEasing linear = host;

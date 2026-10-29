@@ -10,7 +10,7 @@ mtwnVersion mtwnGetVersion(void)
     return (mtwnVersion){MTWN_VERSION_MAJOR, MTWN_VERSION_MINOR, MTWN_VERSION_PATCH};
 }
 
-const char* mtwnResultName(mtwnResult result)
+const char* mtwnGetResultName(mtwnResult result)
 {
     switch (result)
     {

@@ -263,8 +263,8 @@ static bool Finite(mtwnVec4 v)
     return isfinite(v.x) && isfinite(v.y) && isfinite(v.z) && isfinite(v.w);
 }
 
-static void* RunAtOnce(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
-                       void* userContext)
+static void* RunAtOnce(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange,
+                       void* taskContext, void* userContext)
 {
     (void)minRange;
     (void)userContext;
@@ -323,7 +323,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         {
             keys[k].value = (mtwnVec4){(float)Value(in, 4.0), 0.5f, 0.0f, 1.0f};
             keys[k].offset = k == 0 ? 0.0 : (k + 1 == count ? 1.0 : Progress(in, 1.0));
-            keys[k].easing = mtwnLinearEasing();
+            keys[k].easing = mtwnMakeLinearEasing();
             if (k == 1)
             {
                 (void)mtwnMakeHostEasing(mtwn_easeIn, Watched, NULL, &keys[k].easing);
@@ -393,7 +393,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         r = mtwnPlayer_SetWeight(context, player, (float)Wild(in, 1.0));
         break;
     case 8:
-        r = mtwnContext_SetReducedMotion(context, Below(in, 2) == 0);
+        r = mtwnContext_EnableReducedMotion(context, Below(in, 2) == 0);
         break;
     case 9:
         r = mtwnDestroyPlayer(context, player);
@@ -498,7 +498,7 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
                                          &def.spring);
         double distance = 0.0;
-        Status(run, mtwnMeasureTransition(context, &def, &distance));
+        Status(run, mtwnContext_MeasureTransition(context, &def, &distance));
         Mix(run, &distance, sizeof distance);
         uint32_t sought = Below(in, s_players);
         Status(run, mtwnPlayer_SeekProgress(context, players[sought], Progress(in, 1.5)));
@@ -579,7 +579,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         mtwnBinding bindings[4];
         for (uint32_t s = 0; s < 4; ++s)
         {
-            bindings[s] = mtwnBind(s, targets[Below(&in, s_targets)]);
+            bindings[s] = mtwnMakeBinding(s, targets[Below(&in, s_targets)]);
             bindings[s].composite = (mtwnComposite)Below(&in, 3);
             bindings[s].weight = Below(&in, 4) == 0 ? 0.5f : 1.0f;
         }

@@ -68,9 +68,9 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, NULL) == mtwn_errorBusy;
     r += mtwnClip_GetDuration(c, noClip, NULL) == mtwn_errorBusy;
     mtwnContext* grown = c;
-    r += mtwnGrowContext(&grown, NULL) == mtwn_errorBusy;
+    r += mtwnContext_Grow(&grown, NULL) == mtwn_errorBusy;
     // Reduced motion as it is: the one call that succeeds when not busy.
-    r += mtwnContext_SetReducedMotion(c, false) == mtwn_errorBusy;
+    r += mtwnContext_EnableReducedMotion(c, false) == mtwn_errorBusy;
     r += mtwnContext_Update(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
     r += mtwnContext_ReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -96,7 +96,7 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnContext_ReadTargets(c, NULL, 1, NULL) == mtwn_errorBusy;
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     r += mtwnStartTransition(c, &transition, NULL) == mtwn_errorBusy;
-    r += mtwnMeasureTransition(c, &transition, NULL) == mtwn_errorBusy;
+    r += mtwnContext_MeasureTransition(c, &transition, NULL) == mtwn_errorBusy;
     if (busy)
     {
         mtwnDestroyContext(c);
@@ -195,16 +195,16 @@ static void TestHostEasing(void)
           "a host easing");
     CHECK(mtwnStartTransition(context, &def2, &s_probe.player) == mtwn_success, "started");
     CHECK(CallEverything(context, false) == 0 &&
-              mtwnContext_SetReducedMotion(context, false) == mtwn_success,
+              mtwnContext_EnableReducedMotion(context, false) == mtwn_success,
           "not busy, none of the calls returns a state error, the last left too");
-    uint64_t before = mtwnGetContextMisuse(context);
+    uint64_t before = mtwnContext_GetMisuse(context);
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
     CHECK(s_probe.cleared == 11, "its outputs cleared, as a failure's are");
-    CHECK(mtwnGetContextMisuse(context) == before + 38 + 11,
+    CHECK(mtwnContext_GetMisuse(context) == before + 38 + 11,
           "each counted, the destroy and the outputs' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
@@ -248,7 +248,7 @@ static void CallingFree(void* memory, size_t size, size_t alignment, void* user)
     Calling* calling = user;
     if (calling->context != NULL)
     {
-        calling->inFree = mtwnContext_SetReducedMotion(calling->context, true);
+        calling->inFree = mtwnContext_EnableReducedMotion(calling->context, true);
         calling->frees += 1;
     }
     free(memory);
@@ -264,13 +264,13 @@ static void TestAllocator(void)
     calling.context = context;
     mtwnContextDef grown = def;
     grown.targetCapacity = def.targetCapacity * 2;
-    CHECK(mtwnGrowContext(&context, &grown) == mtwn_success, "grown");
+    CHECK(mtwnContext_Grow(&context, &grown) == mtwn_success, "grown");
     CHECK(calling.allocs == 1 && calling.inAlloc == mtwn_errorBusy,
           "an update from the allocation refused");
     CHECK(calling.frees == 1 && calling.inFree == mtwn_errorBusy,
           "a change from freeing the old block refused");
-    CHECK(mtwnGetContextMisuse(context) == 1, "the allocation's refusal counted, moved along");
-    CHECK(!mtwnContext_IsReducedMotion(context), "nothing changed");
+    CHECK(mtwnContext_GetMisuse(context) == 1, "the allocation's refusal counted, moved along");
+    CHECK(!mtwnContext_IsReducedMotionEnabled(context), "nothing changed");
     calling.context = context;
     calling.inFree = mtwn_success;
     mtwnDestroyContext(context);
@@ -284,7 +284,7 @@ static uint32_t s_enqueued;
 static uint32_t s_finished;
 static uint32_t s_taskRefused;
 
-static void* CallingEnqueue(mtwnTaskFn* task, int32_t itemCount, int32_t minRange,
+static void* CallingEnqueue(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange,
                             void* taskContext, void* userContext)
 {
     (void)minRange;
@@ -321,7 +321,7 @@ static void TestTasks(void)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -335,7 +335,7 @@ static void TestTasks(void)
         mtwnTargetId target;
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
-        mtwnBinding binding = mtwnBind(0, target);
+        mtwnBinding binding = mtwnMakeBinding(0, target);
         mtwnPlayerDef def2 = mtwnDefaultPlayerDef();
         def2.clip = clip;
         def2.bindings = &binding;
@@ -343,13 +343,13 @@ static void TestTasks(void)
         mtwnPlayerId player;
         CHECK(mtwnCreatePlayer(context, &def2, &player) == mtwn_success, "a player");
     }
-    uint64_t before = mtwnGetContextMisuse(context);
+    uint64_t before = mtwnContext_GetMisuse(context);
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_enqueued > 0 && s_finished > 0, "the clips' players ran on the tasks");
     CHECK(s_taskRefused == s_enqueued + s_finished, "every call back in refused");
-    CHECK(mtwnGetContextMisuse(context) == before + s_taskRefused, "each counted");
+    CHECK(mtwnContext_GetMisuse(context) == before + s_taskRefused, "each counted");
     mtwnDestroyContext(context);
 }
 

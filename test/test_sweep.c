@@ -98,7 +98,7 @@ static void AddTrack(mtwnContext* context, mtwnClipId clip, mtwnNode parent)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = parent;
     track.keyframes = keys;
@@ -129,7 +129,7 @@ static void OffGridClip(mtwnContext* context, mtwnClipId clip)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.parent = timeline;
     track.keyframes = keys;
@@ -185,7 +185,7 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
-    mtwnBinding binding = mtwnBind(0, target);
+    mtwnBinding binding = mtwnMakeBinding(0, target);
     mtwnPlayerDef player = mtwnDefaultPlayerDef();
     player.clip = clip;
     player.bindings = &binding;
@@ -376,7 +376,7 @@ static void TestStartPastTheDoubles(bool countEvery)
     memset(keys, 0, sizeof keys);
     keys[1].offset = 1.0;
     keys[1].value.x = 1.0f;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;

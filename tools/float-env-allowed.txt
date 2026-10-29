@@ -3,7 +3,7 @@
 # true of every name under it, that it computes no float.
 
 makes an easing from integers, pointers and constants, computing no float:
-    mtwnLinearEasing
+    mtwnMakeLinearEasing
     mtwnMakeHostEasing
     mtwnMakeStepsEasing
 
@@ -13,13 +13,13 @@ makes a default from constants, computing no float:
 
 reports a stored count, flag, identity, name or the version, computing no float:
     mtwnGetVersion
-    mtwnResultName
+    mtwnGetResultName
     mtwnContext_GetEventCount
     mtwnContext_GetDroppedEvents
-    mtwnGetContextMisuse
+    mtwnContext_GetMisuse
     mtwnContext_GetSerialAdvances
     mtwnContext_GetMemoryBytes
-    mtwnContext_IsReducedMotion
+    mtwnContext_IsReducedMotionEnabled
     mtwnContext_GetPlayingOnCount
     mtwnTarget_IsValid
     mtwnPlayer_IsValid

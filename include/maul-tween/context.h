@@ -40,7 +40,7 @@ extern "C"
 
     // A range of work items, [startIndex, endIndex), run by the host on any
     // thread. The library passes taskContext through unchanged.
-    typedef void mtwnTaskFn(int32_t startIndex, int32_t endIndex, void* taskContext);
+    typedef void mtwnTaskFunction(int32_t startIndex, int32_t endIndex, void* taskContext);
 
     // Hands the host itemCount items of work: the host splits [0, itemCount)
     // into ranges of at least minRange items (the last may be shorter),
@@ -50,11 +50,11 @@ extern "C"
     // Results never depend on the split or the order: each item writes only
     // its own memory. Neither it nor the task calls a function of the
     // context.
-    typedef void* mtwnEnqueueTaskFn(mtwnTaskFn* task, int32_t itemCount, int32_t minRange,
-                                    void* taskContext, void* userContext);
+    typedef void* mtwnEnqueueTaskFunction(mtwnTaskFunction* task, int32_t itemCount,
+                                          int32_t minRange, void* taskContext, void* userContext);
 
     // Waits until every range of the work behind userTask has run.
-    typedef void mtwnFinishTaskFn(void* userTask, void* userContext);
+    typedef void mtwnFinishTaskFunction(void* userTask, void* userContext);
 
     // What a context holds: its allocator, the host's task system and every
     // capacity. Start from mtwnDefaultContextDef and set what differs.
@@ -75,8 +75,8 @@ extern "C"
         // mtwnEvent and a double) up to 1,024 and 60 for each
         // of a sixteenth of twice the bindings (about 900 KB more for the
         // default def), and 36 bytes a player.
-        mtwnEnqueueTaskFn* enqueueTask;
-        mtwnFinishTaskFn* finishTask;
+        mtwnEnqueueTaskFunction* enqueueTask;
+        mtwnFinishTaskFunction* finishTask;
         // Passed to enqueueTask and finishTask as their userContext.
         void* userTaskContext;
         // Targets alive at once, up to MTWN_MAX_COUNT.
@@ -191,8 +191,8 @@ extern "C"
     ///         ABI version; mtwn_errorCapacity when the allocator fails.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnGrowContext(mtwnContext** contextInOut,
-                                                       const mtwnContextDef* def);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_Grow(mtwnContext** contextInOut,
+                                                        const mtwnContextDef* def);
 
     /// Returns how many calls against the context were refused for an
     /// invalid argument, a stale id or a call back in from the host's code
@@ -202,7 +202,7 @@ extern "C"
     /// @return The count.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_API uint64_t mtwnGetContextMisuse(const mtwnContext* context);
+    MTWN_API uint64_t mtwnContext_GetMisuse(const mtwnContext* context);
 
     /// Returns how many clip players' advances a context with a task system
     /// ran on the calling thread since it was made: a
@@ -226,29 +226,29 @@ extern "C"
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
 
-    /// Sets reduced motion, off when a context is made.
+    /// Turns reduced motion on or off; it is off when a context is made.
     /// While it is on, every transition and every running clip's player
     /// with a finite end finishes at the next update, its delay skipped and
     /// its events at that update's time, unless its def marks it
     /// essential; a player with an infinite end plays on, the host's to
     /// keep, seek or stop. Turning it off reaches what has not finished.
-    /// The host reads the platform's preference and sets it.
+    /// The host reads the platform's preference and turns it on or off.
     ///
     /// @param context  The context.
-    /// @param reduced  Whether motion is reduced.
+    /// @param enabled  Whether motion is reduced.
     /// @return mtwn_success; mtwn_errorInvalid for a null context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_SetReducedMotion(mtwnContext* context,
-                                                                    bool reduced);
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_EnableReducedMotion(mtwnContext* context,
+                                                                       bool enabled);
 
-    /// Returns whether motion is reduced.
+    /// Returns whether reduced motion is on.
     ///
     /// @param context  The context, or NULL.
     /// @return Whether it is; false for a null context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_API bool mtwnContext_IsReducedMotion(const mtwnContext* context);
+    MTWN_API bool mtwnContext_IsReducedMotionEnabled(const mtwnContext* context);
 
     /// Returns how many clips' players the last update left running under
     /// reduced motion though not essential: those that could not finish,

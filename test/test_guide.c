@@ -27,26 +27,26 @@ static void TestEasing(void)
     mtwnEasing ease;
     mtwnResult made = mtwnMakeCssEasing(mtwn_cssEaseInOut, &ease); // CSS's ease-in-out
     double eased = 0.0;
-    mtwnResult sampled = mtwnEase(&ease, 0.25, false, &eased); // a quarter of the way
+    mtwnResult sampled = mtwnSampleEasing(&ease, 0.25, false, &eased); // a quarter of the way
 
     mtwnEasing back;
     made = mtwnMakeBackEasing(mtwn_easeOut, 1.70158, &back); // GSAP's back.out
     CHECK(made == mtwn_success && sampled == mtwn_success && eased > 0.0 && eased < 0.25,
           "ease-in-out slow at first");
     double landed = 0.0;
-    CHECK(mtwnEase(&back, 1.0, false, &landed) == mtwn_success && landed == 1.0,
+    CHECK(mtwnSampleEasing(&back, 1.0, false, &landed) == mtwn_success && landed == 1.0,
           "back.out lands on 1");
 }
 
 static void TestRough(void)
 {
     mtwnLinearPoint points[22]; // kept while the easing is used
-    mtwnRoughDef def = {.shape = mtwnLinearEasing(), .strength = 0.1, .seed = 42};
+    mtwnRoughDef def = {.shape = mtwnMakeLinearEasing(), .strength = 0.1, .seed = 42};
     def.taper = mtwn_roughTaperOut; // calm by the end
     mtwnEasing rough;
     mtwnResult madeRough = mtwnMakeRoughEasing(&def, points, 22, &rough);
     double end = 0.0;
-    CHECK(madeRough == mtwn_success && mtwnEase(&rough, 1.0, false, &end) == mtwn_success &&
+    CHECK(madeRough == mtwn_success && mtwnSampleEasing(&rough, 1.0, false, &end) == mtwn_success &&
               end == 1.0,
           "a rough easing");
 }
@@ -192,7 +192,7 @@ static void TestStagger(void)
           "the center's cells first, the corners last");
 }
 
-static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+static void* RunNow(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange, void* taskContext,
                     void* userContext)
 {
     (void)minRange;
@@ -260,7 +260,7 @@ static void TestScroll(void)
     mtwnKeyframe keys[2] = {0};
     keys[1].offset = 1.0;
     keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -276,7 +276,7 @@ static void TestScroll(void)
               mtwnClip_AddMark(context, story, MTWN_ROOT_NODE, half, 1, &mark) == mtwn_success &&
               mtwnClip_Seal(context, story) == mtwn_success,
           "a clip of 2 s with a mark at 1 s");
-    mtwnBinding binding = mtwnBind(0, shown);
+    mtwnBinding binding = mtwnMakeBinding(0, shown);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = story;
     playerDef.bindings = &binding;
@@ -366,7 +366,8 @@ static void TestJump(void)
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success &&
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &y) == mtwn_success &&
               mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
-              Line(context, clip, 0, 300.0f, 1.2, mtwnLinearEasing(), &across) == mtwn_success &&
+              Line(context, clip, 0, 300.0f, 1.2, mtwnMakeLinearEasing(), &across) ==
+                  mtwn_success &&
               Line(context, clip, 1, 20.0f, 1.2, outQuad, &rise) == mtwn_success,
           "across to 300 and up to 20, as DOJump's line");
     // Three hops of 50 over 1.2 s: up and down each 0.4 s, eased out
@@ -387,7 +388,7 @@ static void TestJump(void)
     made = mtwnClip_AddTrack(context, clip, &jump, &hops);
 
     CHECK(made == mtwn_success && mtwnClip_Seal(context, clip) == mtwn_success, "the hops");
-    mtwnBinding bindings[3] = {mtwnBind(0, x), mtwnBind(1, y), mtwnBind(2, y)};
+    mtwnBinding bindings[3] = {mtwnMakeBinding(0, x), mtwnMakeBinding(1, y), mtwnMakeBinding(2, y)};
     bindings[2].composite = mtwn_compositeAdd;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
@@ -443,7 +444,7 @@ static void TestTwos(void)
     mtwnKeyframe keys[2] = {0};
     keys[1].offset = 1.0;
     keys[1].value = (mtwnVec4){240.0f, 0, 0, 0};
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef across = mtwnDefaultClipTrackDef();
     across.parent = held;
     across.keyframes = keys;
@@ -453,7 +454,7 @@ static void TestTwos(void)
     CHECK(mtwnClip_AddTrack(context, clip, &across, &node) == mtwn_success &&
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track in it");
-    mtwnBinding binding = mtwnBind(0, x);
+    mtwnBinding binding = mtwnMakeBinding(0, x);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
@@ -497,10 +498,11 @@ static double EasedRateStop(uint32_t fps, bool exact)
               mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0}, &speed) ==
                   mtwn_success &&
               mtwnCreateClip(context, &clipDef, &clip) == mtwn_success &&
-              Line(context, clip, 0, 1000.0f, 10.0, mtwnLinearEasing(), &node) == mtwn_success &&
+              Line(context, clip, 0, 1000.0f, 10.0, mtwnMakeLinearEasing(), &node) ==
+                  mtwn_success &&
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track at 100 a second");
-    mtwnBinding binding = mtwnBind(0, x);
+    mtwnBinding binding = mtwnMakeBinding(0, x);
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
@@ -662,16 +664,16 @@ static void TestHost(void)
     move.target = opacity;
     move.value = (mtwnVec4){0.25f, 0, 0, 0};
     double distance = 0.0;
-    mtwnResult measured = mtwnMeasureTransition(context, &move, &distance);
+    mtwnResult measured = mtwnContext_MeasureTransition(context, &move, &distance);
     move.duration = fmin(fmax(distance / 2.0, 0.15), 0.4); // 2 a second, 150 to 400 ms
     CHECK(measured == mtwn_success && move.duration >= 0.15 && move.duration <= 0.4,
           "a duration from the distance");
     bool reduce = true; // the platform's preference, as the host reads it
-    mtwnResult set = mtwnContext_SetReducedMotion(context, reduce);
+    mtwnResult enabled = mtwnContext_EnableReducedMotion(context, reduce);
     fade.essential = true; // an opacity change is not motion: it may play on
-    CHECK(set == mtwn_success && mtwnContext_IsReducedMotion(context) && fade.essential,
-          "reduced motion set");
-    CHECK(mtwnContext_SetReducedMotion(context, false) == mtwn_success, "and unset");
+    CHECK(enabled == mtwn_success && mtwnContext_IsReducedMotionEnabled(context) && fade.essential,
+          "reduced motion on");
+    CHECK(mtwnContext_EnableReducedMotion(context, false) == mtwn_success, "and off");
     nowNs = 200000000u;
     mtwnTargetId changed[64];
     uint32_t total = 0;
@@ -696,7 +698,7 @@ static void TestHost(void)
     mtwnKeyframe keys[2] = {0};
     keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
     keys[1].offset = 1.0;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef(); // on the root at 0, slot 0, a number
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -715,7 +717,7 @@ static void TestHost(void)
           "the second track after the first");
     mtwnTargetId slide;
     mtwnResult playing = mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &slide);
-    mtwnBinding bindings[2] = {mtwnBind(0, opacity), mtwnBind(1, slide)};
+    mtwnBinding bindings[2] = {mtwnMakeBinding(0, opacity), mtwnMakeBinding(1, slide)};
     mtwnPlayerDef play = mtwnDefaultPlayerDef();
     play.clip = clip;
     play.bindings = bindings;
@@ -745,7 +747,7 @@ static void TestHost(void)
         }
     }
     CHECK(read == mtwn_success && dropped == 0, "the events read");
-    mtwnBinding layer = mtwnBind(0, opacity);
+    mtwnBinding layer = mtwnMakeBinding(0, opacity);
     layer.composite = mtwn_compositeAdd; // added to what lies under it
     layer.weight = 0.5f;
     play.bindings = &layer;
@@ -757,7 +759,7 @@ static void TestHost(void)
     mtwnContextDef bigger = def;
     bigger.targetCapacity *= 2;
     bigger.playerCapacity *= 2;
-    mtwnResult grown = mtwnGrowContext(&context, &bigger); // it may move; ids stay valid
+    mtwnResult grown = mtwnContext_Grow(&context, &bigger); // it may move; ids stay valid
     CHECK(grown == mtwn_success && mtwnTarget_IsValid(context, opacity) &&
               mtwnPlayer_IsValid(context, intro),
           "grown, every id valid");

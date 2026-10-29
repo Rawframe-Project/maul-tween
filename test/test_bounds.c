@@ -95,7 +95,7 @@ static float At(World* w, double seconds)
 
 static mtwnEasing BackOut(void)
 {
-    mtwnEasing easing = mtwnLinearEasing();
+    mtwnEasing easing = mtwnMakeLinearEasing();
     if (Next() % 4u != 0)
     {
         CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0 * Unit(), &easing) == mtwn_success,
@@ -150,7 +150,7 @@ static void Play(World* w, const mtwnClipTrackDef* track, int players, mtwnCompo
           "a track");
     for (int i = 0; i < players; ++i)
     {
-        mtwnBinding binding = mtwnBind(0, w->target);
+        mtwnBinding binding = mtwnMakeBinding(0, w->target);
         binding.composite = composite;
         mtwnPlayerDef def = mtwnDefaultPlayerDef();
         def.clip = clip;
@@ -208,7 +208,7 @@ static void TestIncremental(void)
         keys[1].offset = 1.0;
         keys[0].value.x = End();
         keys[1].value.x = End();
-        keys[0].easing = keys[1].easing = mtwnLinearEasing();
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.keyframes = keys;
         track.keyframeCount = 2;
@@ -237,7 +237,7 @@ static mtwnClipTrackDef Constant(mtwnKeyframe keys[2], float v)
     memset(keys, 0, 2 * sizeof *keys);
     keys[1].offset = 1.0;
     keys[0].value.x = keys[1].value.x = v;
-    keys[0].easing = keys[1].easing = mtwnLinearEasing();
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
     mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
     track.keyframes = keys;
     track.keyframeCount = 2;
@@ -343,7 +343,7 @@ static void TestStill(void)
             memset(keys, 0, sizeof keys);
             keys[1].offset = 1.0;
             keys[1].value.x = 3e38f;
-            keys[1].easing = mtwnLinearEasing();
+            keys[1].easing = mtwnMakeLinearEasing();
             CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &keys[0].easing) == mtwn_success,
                   "a back out");
             mtwnClipTrackDef track = mtwnDefaultClipTrackDef();

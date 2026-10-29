@@ -7,7 +7,7 @@ The library starts no thread. A context and everything in it is used by one thre
 The host gives the context def two functions: one that hands out a range of work items, run on any thread and in any order, and one that waits for them. This is the same pair Maul VFX takes, so one task system serves both.
 
 ```c
-static void* RunNow(mtwnTaskFn* task, int32_t itemCount, int32_t minRange, void* taskContext,
+static void* RunNow(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange, void* taskContext,
                     void* userContext)
 {
     (void)minRange;
@@ -58,7 +58,7 @@ Capacities are set when the context is made. When the host outgrows them, it gro
 mtwnContextDef bigger = def;
 bigger.targetCapacity *= 2;
 bigger.playerCapacity *= 2;
-mtwnResult grown = mtwnGrowContext(&context, &bigger); // it may move; ids stay valid
+mtwnResult grown = mtwnContext_Grow(&context, &bigger); // it may move; ids stay valid
 ```
 
-Each capacity must be at least the context's own, the sharing's excepted, and the allocator the same. Every id stays valid and everything playing plays on. The context moves to one new block, so the call writes its new address back; clips' storage does not move. On a refusal or a failed allocation nothing changes. `mtwnGrowContext` can also give a context a task system it was made without.
+Each capacity must be at least the context's own, the sharing's excepted, and the allocator the same. Every id stays valid and everything playing plays on. The context moves to one new block, so the call writes its new address back; clips' storage does not move. On a refusal or a failed allocation nothing changes. `mtwnContext_Grow` can also give a context a task system it was made without.

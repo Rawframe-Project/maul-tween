@@ -19,7 +19,7 @@ static mtwnRoughDef Def(double strength, uint64_t seed, mtwnRoughTaper taper, ui
 {
     mtwnRoughDef def;
     memset(&def, 0, sizeof def);
-    def.shape = mtwnLinearEasing();
+    def.shape = mtwnMakeLinearEasing();
     def.strength = strength;
     def.seed = seed;
     def.taper = taper;

@@ -245,7 +245,7 @@ extern "C"
     } mtwnClipTrack;
 
     /// Gives the clip storage a clip of a def takes, so a host can grow its
-    /// context's clipStorageBytes (mtwnGrowContext) for the clips it makes.
+    /// context's clipStorageBytes (mtwnContext_Grow) for the clips it makes.
     /// It takes the context so that the def is read only by a library whose
     /// ABI the context's def has matched.
     ///
