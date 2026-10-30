@@ -158,7 +158,12 @@ static MTWN_NOINLINE mtwnResult mtwnContext_ReadEventsWork(mtwnContext* context,
                                                            mtwnEvent* eventsOut, uint32_t capacity,
                                                            uint32_t* countOut, uint64_t* droppedOut)
 {
-    // Cleared first, so a busy or missing context's failure clears them too.
+    if (!mtwnEnter(context))
+    {
+        return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears them too.
     if (countOut != NULL)
     {
         *countOut = 0;
@@ -166,10 +171,6 @@ static MTWN_NOINLINE mtwnResult mtwnContext_ReadEventsWork(mtwnContext* context,
     if (droppedOut != NULL)
     {
         *droppedOut = 0;
-    }
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorBusy;
     }
     mtwnResult result = RunReadEvents(context, eventsOut, capacity, countOut, droppedOut);
     mtwnLeave(context);

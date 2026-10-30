@@ -517,14 +517,15 @@ static MTWN_NOINLINE mtwnResult mtwnContext_UpdateWork(mtwnContext* context, uin
                                                        uint32_t changedCapacity,
                                                        uint32_t* changedTotalOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (changedTotalOut != NULL)
-    {
-        *changedTotalOut = 0;
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (changedTotalOut != NULL)
+    {
+        *changedTotalOut = 0;
     }
     mtwnResult result = RunUpdate(context, timeNs, changedOut, changedCapacity, changedTotalOut);
     mtwnLeave(context);

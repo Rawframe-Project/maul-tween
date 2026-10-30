@@ -95,9 +95,11 @@ extern "C"
     ///                    or a call back in from the context's own host code
     ///                    (mtwn_errorBusy), leaves it as it was.
     /// @param capacity    Its length.
-    /// @param countOut    Receives how many were taken; 0 on failure.
+    /// @param countOut    Receives how many were taken; 0 on failure but a call
+    ///                    back in (mtwn_errorBusy), which leaves it.
     /// @param droppedOut  Receives the records dropped since the last read (the
-    ///                    count then starts again); may be NULL; 0 on failure.
+    ///                    count then starts again); may be NULL; 0 on failure
+    ///                    but a call back in (mtwn_errorBusy), which leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null context or
     ///         countOut, or a null array with a capacity.
     /// @par Thread safety

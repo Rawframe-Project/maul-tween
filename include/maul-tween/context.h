@@ -285,7 +285,9 @@ extern "C"
     /// @param changedCapacity  Its length.
     /// @param changedTotalOut  Receives how many targets changed, which may
     ///                         exceed the capacity; those past it are left out
-    ///                         of the report only. May be NULL; 0 on failure.
+    ///                         of the report only. May be NULL; 0 on failure
+    ///                         but a call back in (mtwn_errorBusy), which
+    ///                         leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null context, a null
     ///         array with a capacity, or a time before the last update's,
     ///         nothing advanced.

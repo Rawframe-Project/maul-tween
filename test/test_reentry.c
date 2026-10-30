@@ -162,22 +162,23 @@ static uint32_t ClearedWhenBusy(mtwnContext* c)
     return cleared;
 }
 
-// The calls filling an array, made busy: each refused, its array left as
-// it was, since it may be the one the call in progress fills, and its
-// count cleared. Counts those: 3.
+// The calls filling an array, made busy: each refused, its array and its
+// counts left as they were, since the call in progress may be filling or
+// have written them. Counts those: 3.
 static uint32_t LeftWhenBusy(mtwnContext* c)
 {
     uint32_t left = 0;
     mtwnTargetId changed[2];
     memset(changed, 0xAB, sizeof changed);
     uint32_t total = 7;
-    left += mtwnContext_Update(c, 0, changed, 2, &total) == mtwn_errorBusy && total == 0 &&
+    left += mtwnContext_Update(c, 0, changed, 2, &total) == mtwn_errorBusy && total == 7 &&
             AllBytes(changed, sizeof changed, 0xAB);
     mtwnEvent events[2];
     memset(events, 0xAB, sizeof events);
     uint32_t count = 7;
-    left += mtwnContext_ReadEvents(c, events, 2, &count, NULL) == mtwn_errorBusy && count == 0 &&
-            AllBytes(events, sizeof events, 0xAB);
+    uint64_t dropped = 7;
+    left += mtwnContext_ReadEvents(c, events, 2, &count, &dropped) == mtwn_errorBusy &&
+            count == 7 && dropped == 7 && AllBytes(events, sizeof events, 0xAB);
     const mtwnTargetId ids[2] = {s_probe.target, s_probe.spare};
     mtwnVec4 values[2];
     memset(values, 0xAB, sizeof values);
@@ -230,7 +231,7 @@ static void TestHostEasing(void)
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
     CHECK(s_probe.cleared == 11, "its outputs cleared, as a failure's are");
-    CHECK(s_probe.left == 3, "its arrays left, as the call in progress may fill them");
+    CHECK(s_probe.left == 3, "its arrays and counts left, as the call in progress may hold them");
     CHECK(mtwnContext_GetMisuse(context) == before + 38 + 11 + 3,
           "each counted, the destroy and the outputs' and arrays' calls too");
     CHECK(s_probe.context == context, "not grown");
