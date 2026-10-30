@@ -10,7 +10,12 @@
 // allocator, the task system's functions and tasks) calls no function of
 // that context: while one runs, those taking the context non-const refuse
 // with mtwn_errorBusy and count one misuse, and the const ones read it in
-// the middle of a call.
+// the middle of a call. Two exceptions refuse as the others do:
+// mtwnTarget_GetState, whose velocity may run a host easing again; and,
+// while an update's clip players run in groups on the task system, the
+// readers of targets and players (mtwnTarget_GetValue,
+// mtwnContext_ReadTargets, mtwnClipPlayer_GetState and
+// mtwnContext_MeasureTransition), which a group may be writing.
 
 #ifndef MAUL_TWEEN_CONTEXT_H
 #define MAUL_TWEEN_CONTEXT_H
