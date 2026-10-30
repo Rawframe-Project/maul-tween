@@ -622,6 +622,69 @@ static void CallingFinish(void* userTask, void* userContext)
     s_taskRefused += mtwnContext_Update(s_tasksContext, 0, NULL, 0, NULL) == mtwn_errorBusy;
 }
 
+// A free that reads back the clip whose block it was given, as the clip
+// readers, not refused on a call back in, let it: by then the clip's id is
+// stale, for mtwnDestroyClip and for the clips mtwnDestroyContext frees.
+typedef struct Freeing
+{
+    mtwnContext* context;
+    mtwnClipId clip;
+    bool armed;
+    uint32_t reads;
+    mtwnResult read;
+} Freeing;
+
+static Freeing s_freeing;
+
+static void* PlainAlloc(size_t size, size_t alignment, void* user)
+{
+    (void)alignment;
+    (void)user;
+    return malloc(size);
+}
+
+static void ReadingFree(void* memory, size_t size, size_t alignment, void* user)
+{
+    (void)size;
+    (void)alignment;
+    (void)user;
+    free(memory);
+    // Not the context's own block, which is gone with this call.
+    if (s_freeing.armed && memory != (void*)s_freeing.context)
+    {
+        double seconds = 7.0;
+        s_freeing.read = mtwnClip_GetDuration(s_freeing.context, s_freeing.clip, &seconds);
+        s_freeing.reads += 1;
+    }
+}
+
+static void TestFreeReadsItsClip(void)
+{
+    memset(&s_freeing, 0, sizeof s_freeing);
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.allocator = (mtwnAllocator){PlainAlloc, ReadingFree, NULL};
+    CHECK(mtwnCreateContext(&def, &s_freeing.context) == mtwn_success, "a context");
+    mtwnContext* context = s_freeing.context;
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateClip(context, &clipDef, &s_freeing.clip) == mtwn_success &&
+              mtwnClip_Seal(context, s_freeing.clip) == mtwn_success,
+          "a sealed clip");
+    s_freeing.armed = true;
+    CHECK(mtwnDestroyClip(context, s_freeing.clip) == mtwn_success, "destroyed");
+    s_freeing.armed = false;
+    CHECK(s_freeing.reads == 1 && s_freeing.read == mtwn_errorStale,
+          "its block's free reads it back stale");
+    CHECK(mtwnCreateClip(context, &clipDef, &s_freeing.clip) == mtwn_success &&
+              mtwnClip_Seal(context, s_freeing.clip) == mtwn_success,
+          "another");
+    s_freeing.reads = 0;
+    s_freeing.armed = true;
+    mtwnDestroyContext(context);
+    s_freeing.armed = false;
+    CHECK(s_freeing.reads == 1 && s_freeing.read == mtwn_errorStale,
+          "the context's destruction frees it stale too");
+}
+
 static void TestTasks(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -678,6 +741,7 @@ int main(void)
     TestStateReadMarksBusy();
     TestReadsInGroups();
     TestAllocator();
+    TestFreeReadsItsClip();
     TestTasks();
     return s_failures == 0 ? 0 : 1;
 }

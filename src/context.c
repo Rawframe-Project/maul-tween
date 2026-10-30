@@ -430,7 +430,12 @@ void mtwnDestroyContext(mtwnContext* context)
         mtwnClipSlot* clip = mtwnClipAt(context, index1);
         if ((clip->header.flags & MTWN_SLOT_ALIVE) != 0)
         {
-            mtwnRelease(&allocator, clip->block, (size_t)clip->blockBytes, s_blockAlignment);
+            // Stale before the host's free runs on its block, as
+            // mtwnDestroyClip makes it.
+            void* block = clip->block;
+            uint64_t bytes = clip->blockBytes;
+            mtwnPoolRelease(&context->clips, index1);
+            mtwnRelease(&allocator, block, (size_t)bytes, s_blockAlignment);
         }
     }
     mtwnRelease(&allocator, context, (size_t)context->blockBytes, s_blockAlignment);

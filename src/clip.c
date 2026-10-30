@@ -232,9 +232,14 @@ static mtwnResult RunDestroyClip(mtwnContext* context, mtwnClipId clip)
     // destruction writes the bases, a finished player is at rest), so this
     // only keeps a later one from reading a freed clip.
     mtwnSettleClipVelocities(context, clip.index1);
-    mtwnRelease(&context->allocator, slot->block, (size_t)slot->blockBytes, s_blockAlignment);
-    context->clipStorageUsed -= slot->blockBytes;
+    // The id goes stale before the host's free runs on the clip's block:
+    // that code reading the clip back, as a reader may, finds it gone
+    // rather than freed memory.
+    void* block = slot->block;
+    uint64_t bytes = slot->blockBytes;
+    context->clipStorageUsed -= bytes;
     mtwnPoolRelease(&context->clips, clip.index1);
+    mtwnRelease(&context->allocator, block, (size_t)bytes, s_blockAlignment);
     return mtwn_success;
 }
 

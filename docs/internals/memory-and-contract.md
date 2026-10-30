@@ -54,4 +54,6 @@ The headers are the common subset of C17, C23 and C++17. Every public struct's l
 
 - A def built by hand, or zeroed, is refused; tests and samples always start from the default.
 - A new call that takes the context non-const must enter and leave the busy state, or a host easing could call back in through it.
+- An object's id goes stale before the host's code runs on its memory: `mtwnDestroyClip` and `mtwnDestroyContext` release a clip's slot before the host's free gets its block, since a reader called back in from that free would otherwise read freed memory. A new call that hands the host memory an id still names does the same.
+- A new reader that may run the host's code (an easing) enters the busy state, as `mtwnTarget_GetState` does, or that code could call it again, into itself.
 - A new output follows the rule above, and `test_outputs` covers it: each output filled with a pattern and each call made to fail.
