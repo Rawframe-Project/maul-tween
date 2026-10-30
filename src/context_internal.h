@@ -292,7 +292,7 @@ struct mtwnContext
     // on the host's worker while the update's thread waits.
     _Atomic uint64_t misuse;
     // Clip players' advances a task system's groups left to the serial
-    // pass (mtwnContext_GetSerialAdvances).
+    // pass (mtwnContext_GetSerialAdvanceCount).
     uint64_t serialAdvances;
     uint64_t lastTimeNs;
     // Set while one of the context's own functions runs (mtwnEnter), so the

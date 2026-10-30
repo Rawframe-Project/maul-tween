@@ -446,7 +446,7 @@ uint64_t mtwnContext_GetMisuse(const mtwnContext* context)
     return context != NULL ? atomic_load_explicit(&context->misuse, memory_order_relaxed) : 0;
 }
 
-uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context)
+uint64_t mtwnContext_GetSerialAdvanceCount(const mtwnContext* context)
 {
     return context != NULL ? context->serialAdvances : 0;
 }

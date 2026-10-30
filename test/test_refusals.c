@@ -47,8 +47,8 @@ static void TestMissingContext(void)
     // The switch returns nothing: without a context it changes nothing.
     mtwnContext_EnableReducedMotion(c, true);
     CHECK(!mtwnContext_IsReducedMotionEnabled(c), "nor switches it");
-    CHECK(mtwnContext_GetEventCount(NULL) == 0 && mtwnContext_GetDroppedEvents(NULL) == 0 &&
-              mtwnContext_GetMisuse(NULL) == 0 && mtwnContext_GetSerialAdvances(NULL) == 0 &&
+    CHECK(mtwnContext_GetEventCount(NULL) == 0 && mtwnContext_GetDroppedEventCount(NULL) == 0 &&
+              mtwnContext_GetMisuse(NULL) == 0 && mtwnContext_GetSerialAdvanceCount(NULL) == 0 &&
               mtwnContext_GetMemoryBytes(NULL) == 0,
           "and its counts read 0");
     CHECK(!mtwnTarget_IsValid(NULL, noTarget) && !mtwnPlayer_IsValid(NULL, noPlayer) &&

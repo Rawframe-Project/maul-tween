@@ -502,7 +502,7 @@ static bool SameRecord(const mtwnEvent* a, const mtwnEvent* b)
 
 // What the parallel twin's groups did, to see each way taken, and what
 // they must not have done; and the serial twin's
-// mtwnContext_GetSerialAdvances, and the hooked twin's.
+// mtwnContext_GetSerialAdvanceCount, and the hooked twin's.
 typedef struct Taken
 {
     mtwnTestTasks groups;
@@ -543,8 +543,8 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
     CHECK(mtwnContext_ReadEvents(b->context, recordsB, 4096, &nB, &droppedB) == mtwn_success,
           "read");
     differences += nA == nB && droppedA == droppedB &&
-                           mtwnContext_GetDroppedEvents(a->context) ==
-                               mtwnContext_GetDroppedEvents(b->context) &&
+                           mtwnContext_GetDroppedEventCount(a->context) ==
+                               mtwnContext_GetDroppedEventCount(b->context) &&
                            mtwnContext_GetPlayingOnCount(a->context) ==
                                mtwnContext_GetPlayingOnCount(b->context)
                        ? 0u
@@ -659,8 +659,8 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
         }
         differences += Compare(&twins[0], &twins[1], changed[0], changed[1], totals[0], totals[1]);
     }
-    taken->serialUnhooked += mtwnContext_GetSerialAdvances(twins[0].context);
-    taken->advances += mtwnContext_GetSerialAdvances(twins[1].context);
+    taken->serialUnhooked += mtwnContext_GetSerialAdvanceCount(twins[0].context);
+    taken->advances += mtwnContext_GetSerialAdvanceCount(twins[1].context);
     mtwnDestroyContext(twins[0].context);
     mtwnDestroyContext(twins[1].context);
     return differences;
@@ -1159,7 +1159,7 @@ static void TestExactFit(void)
     Step(context, 0.0);
     Step(context, 0.25);
     Step(context, 0.5);
-    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "both players run by their groups");
+    CHECK(mtwnContext_GetSerialAdvanceCount(context) == 0, "both players run by their groups");
     mtwnDestroyContext(context);
 }
 
@@ -1274,7 +1274,7 @@ static void TestOneChannel(void)
     (void)PlayTwo(context, clip, b, (mtwnTargetId){0, 0});
     Step(context, 0.0);
     Step(context, 0.5);
-    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "both players run by their groups");
+    CHECK(mtwnContext_GetSerialAdvanceCount(context) == 0, "both players run by their groups");
     mtwnVec4 value = {0};
     CHECK(mtwnTarget_GetValue(context, a, &value) == mtwn_success && value.x == 0.0f &&
               value.y == 0.0f && fabsf(value.z - 0.5f) <= 1e-6f && value.w == 1.0f,
@@ -1373,7 +1373,8 @@ static void TestLayeredFit(void)
     Step(context, 0.0);
     Step(context, 0.25);
     Step(context, 0.5);
-    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "both layered players run by their groups");
+    CHECK(mtwnContext_GetSerialAdvanceCount(context) == 0,
+          "both layered players run by their groups");
     mtwnDestroyContext(context);
 }
 
