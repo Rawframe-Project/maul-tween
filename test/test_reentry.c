@@ -543,6 +543,11 @@ static void TestReadsInGroups(void)
 typedef struct Calling
 {
     mtwnContext* context;
+    // A live target the free tries to change, the misuse its try counted,
+    // and the target's value the free read back after it.
+    mtwnTargetId target;
+    uint64_t counted;
+    float seen;
     mtwnResult inAlloc;
     mtwnResult inFree;
     uint32_t allocs;
@@ -568,7 +573,16 @@ static void CallingFree(void* memory, size_t size, size_t alignment, void* user)
     Calling* calling = user;
     if (calling->context != NULL)
     {
-        calling->inFree = mtwnTarget_SetBase(calling->context, (mtwnTargetId){0, 0}, (mtwnVec4){0});
+        // Read before the block is freed below: afterwards the count goes
+        // with it.
+        uint64_t before = mtwnContext_GetMisuse(calling->context);
+        calling->inFree =
+            mtwnTarget_SetBase(calling->context, calling->target, (mtwnVec4){5.0f, 0, 0, 0});
+        calling->counted = mtwnContext_GetMisuse(calling->context) - before;
+        mtwnVec4 value = {0};
+        calling->seen =
+            mtwnTarget_GetValue(calling->context, calling->target, &value) == mtwn_success ? value.x
+                                                                                           : -1.0f;
         calling->frees += 1;
     }
     free(memory);
@@ -580,22 +594,32 @@ static void TestAllocator(void)
     mtwnContextDef def = mtwnDefaultContextDef();
     def.allocator = (mtwnAllocator){CallingAlloc, CallingFree, &calling};
     mtwnContext* context = NULL;
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0},
+                               &calling.target) == mtwn_success,
+          "a context and a target at 1");
     calling.context = context;
     mtwnContextDef grown = def;
     grown.targetCapacity = def.targetCapacity * 2;
     CHECK(mtwnContext_Grow(&context, &grown) == mtwn_success, "grown");
     CHECK(calling.allocs == 1 && calling.inAlloc == mtwn_errorBusy,
           "an update from the allocation refused");
-    CHECK(calling.frees == 1 && calling.inFree == mtwn_errorBusy,
-          "a change from freeing the old block refused");
+    CHECK(calling.frees == 1 && calling.inFree == mtwn_errorBusy && calling.counted == 1 &&
+              calling.seen == 1.0f,
+          "a change from freeing the old block refused and counted, the target at 1 there");
     CHECK(mtwnContext_GetMisuse(context) == 1, "the allocation's refusal counted, moved along");
-    CHECK(!mtwnContext_IsReducedMotionEnabled(context), "nothing changed");
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(context, calling.target, &state) == mtwn_success &&
+              state.base.x == 1.0f && state.value.x == 1.0f,
+          "the target's base unchanged in the grown context");
     calling.context = context;
     calling.inFree = mtwn_success;
+    calling.counted = 0;
+    calling.seen = 0.0f;
     mtwnDestroyContext(context);
-    CHECK(calling.frees == 2 && calling.inFree == mtwn_errorBusy,
-          "a change from freeing the destroyed context refused");
+    CHECK(calling.frees == 2 && calling.inFree == mtwn_errorBusy && calling.counted == 1 &&
+              calling.seen == 1.0f,
+          "a change from freeing the destroyed context refused and counted, the target at 1");
 }
 
 // A task system calling back in, then running each range at once.
