@@ -362,8 +362,12 @@ extern "C"
     /// offset of at most the strength either side, by the taper.
     ///
     /// @param def        The rough easing.
-    /// @param points     Receives the points, which the easing references:
-    ///                   they must outlive it and not change.
+    /// @param pointsOut  Receives the points, which the easing references:
+    ///                   they must outlive it and not change. Unchanged on
+    ///                   failure: the shape is sampled at every inner point
+    ///                   before one is written, so only a host shape that
+    ///                   gives a value not finite when sampled again there
+    ///                   leaves them unspecified.
     /// @param count      The number of points, at least 2.
     /// @param easingOut  Receives the easing, in mode mtwn_easeIn; unchanged on
     ///                   failure.
@@ -374,8 +378,8 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread; the points are used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeRoughEasing(const mtwnRoughDef* def,
-                                                           mtwnLinearPoint* points, uint32_t count,
-                                                           mtwnEasing* easingOut);
+                                                           mtwnLinearPoint* pointsOut,
+                                                           uint32_t count, mtwnEasing* easingOut);
 
     /// Changes an easing's mode, keeping its curve.
     ///
