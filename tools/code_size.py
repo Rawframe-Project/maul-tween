@@ -50,11 +50,12 @@ PARTS = [
 # what redoing a settling time's underflowed bound costs, every part but
 # the values' by what keeping a decay within the doubles costs, and the
 # values', the clips' and the whole library's by what counting a start's
-# cycles past the doubles costs.
+# cycles past the doubles costs, and the transitions' by what reading a
+# null context's counts as 0 costs.
 BUDGETS = {
     "curves": 33900,
     "values": 69200,
-    "transitions": 69600,
+    "transitions": 69700,
     "clips": 162100,
     "everything": 182400,
 }
@@ -85,8 +86,8 @@ RAISED = {
     "start's cycles past the doubles, 0.6 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "a transition copies its linear() points, 0.6 kB, a spring's settling time redoes a "
-    "bound that underflowed, 1.2 kB, and a decay keeps its times and samples within the "
-    "doubles on the way, 1.3 kB",
+    "bound that underflowed, 1.2 kB, a decay keeps its times and samples within the "
+    "doubles on the way, 1.3 kB, and the context's counts read 0 for a null context, 0.1 kB",
     "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
     "timing's computation checks it, 0.1 kB, a spring's settling time redoes a bound that "
     "underflowed, 1.2 kB, a decay keeps its times and samples within the doubles on the "

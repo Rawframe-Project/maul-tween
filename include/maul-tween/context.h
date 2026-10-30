@@ -196,10 +196,10 @@ extern "C"
 
     /// Returns how many calls against the context were refused for an
     /// invalid argument, a stale id or a call back in from the host's code
-    ///  since it was made.
+    /// since it was made.
     ///
-    /// @param context  The context.
-    /// @return The count.
+    /// @param context  The context, or NULL.
+    /// @return The count; 0 for a null context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMisuse(const mtwnContext* context);
@@ -212,16 +212,16 @@ extern "C"
     /// and those after it in its group. A count that grows asks for larger
     /// binding or event capacities, or smaller clips.
     ///
-    /// @param context  The context.
-    /// @return The count; 0 without a task system.
+    /// @param context  The context, or NULL.
+    /// @return The count; 0 without a task system or a context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context);
 
     /// Returns the size of the block the context holds everything in.
     ///
-    /// @param context  The context.
-    /// @return Bytes.
+    /// @param context  The context, or NULL.
+    /// @return Bytes; 0 for a null context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_API uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context);
