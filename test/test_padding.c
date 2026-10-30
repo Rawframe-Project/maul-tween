@@ -264,19 +264,20 @@ static bool FreeCalls(Values* out)
     return ok;
 }
 
-// The garbage reaches a struct's padding: a timing built over it differs
-// from one built over zeroes only there, and it has padding on every
-// target.
+// The garbage reaches a struct's padding: a player def built over it
+// differs from one built over zeroes only there. It has padding on every
+// target, between its flags and its rate, which test_layout pins; a timing
+// has none on 32-bit x86, its kinds being 32-bit.
 static void TestGarbageThere(void)
 {
-    mtwnTiming base = mtwnDefaultTiming();
-    mtwnTiming clean;
-    mtwnTiming dirty;
+    mtwnClipPlayerDef base = mtwnDefaultClipPlayerDef();
+    mtwnClipPlayerDef clean;
+    mtwnClipPlayerDef dirty;
     s_fill = 0x00;
-    TimingOver(&base, &clean);
+    PlayerDefOver(&base, &clean);
     s_fill = 0xA5;
-    TimingOver(&base, &dirty);
-    CHECK(memcmp(&clean, &dirty, sizeof clean) != 0, "a timing's padding holds the garbage");
+    PlayerDefOver(&base, &dirty);
+    CHECK(memcmp(&clean, &dirty, sizeof clean) != 0, "a player def's padding holds the garbage");
 }
 
 static void TestFreeCalls(void)
