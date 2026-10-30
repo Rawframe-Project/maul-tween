@@ -386,7 +386,7 @@ mtwnResult mtwnMakeElasticEasing(mtwnEaseMode mode, double amplitude, double per
     return result;
 }
 
-mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction function, void* context,
+mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode, mtwnEaseFunction* function, void* context,
                               mtwnEasing* easingOut)
 {
     if (easingOut == NULL || function == NULL || !IsMode(mode))

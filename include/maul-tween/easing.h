@@ -112,8 +112,10 @@ extern "C"
         mtwn_easeOutIn = 3,
     };
 
-    // A host's easing curve: eased progress for a progress from 0 to 1.
-    typedef double (*mtwnEaseFunction)(void* context, double progress);
+    // A host's easing curve: eased progress for a progress from 0 to 1. A
+    // function type, as the task hooks' are: a pointer to one is a
+    // mtwnEaseFunction*.
+    typedef double mtwnEaseFunction(void* context, double progress);
 
     // An easing: a curve and its mode. Make one with a mtwnMake...
     // function or mtwnMakeLinearEasing; its fields are the library's, set by
@@ -129,7 +131,7 @@ extern "C"
         // The curve's numbers, precomputed by its maker.
         double parameters[5];
         // A host function and its context.
-        mtwnEaseFunction function;
+        mtwnEaseFunction* function;
         void* context;
         // The points of linear().
         const mtwnLinearPoint* points;
@@ -281,7 +283,7 @@ extern "C"
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnMakeHostEasing(mtwnEaseMode mode,
-                                                          mtwnEaseFunction function, void* context,
+                                                          mtwnEaseFunction* function, void* context,
                                                           mtwnEasing* easingOut);
 
     /// Makes CSS's cubic-bezier(x1, y1, x2, y2), solved by safeguarded
