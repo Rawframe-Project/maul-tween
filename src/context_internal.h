@@ -596,7 +596,9 @@ void mtwnSampleClipNear(mtwnContext* context, mtwnWork* work, const mtwnClipPlay
                         double current, double rate, bool backwards, bool commit);
 
 // The groups of clips' players the parallel phase hands the host, and the
-// node times each group keeps: a clip of more nodes plays serially.
+// node times each group keeps: a player of a clip of more nodes plays
+// serially when other players play the clip too; a clip of one player is
+// sampled in its own node times.
 #define MTWN_GROUPS      16u
 #define MTWN_GROUP_NODES 128u
 // The most event records a group stages.
