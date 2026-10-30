@@ -6,6 +6,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.13.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.12.0...v0.13.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **context:** a call back in from the context's own host code, refused with mtwn_errorBusy, no longer clears its output in mtwnContext_GetClipBytes, mtwnClip_GetTrack, mtwnClip_GetNode, mtwnClip_FindLabel, mtwnClip_GetDuration, mtwnTarget_GetValue, mtwnTarget_GetState and mtwnPlayer_GetState: the output is left as it was. The creations, the mtwnClip_Add calls included, still give the null id.
+* **context:** a refused mtwnContext_Update, mtwnContext_ReadEvents or mtwnContext_ReadTargets now clears its array, as far as a success could write it (the null id, zero records, zero values), where it left it as it was. A call back in, refused with mtwn_errorBusy, leaves it, and now also leaves the counts beside it (the update's total, the events' count and dropped count), which it set to 0. A null context leaves the update's report and the events.
+
+### Fixed
+
+* **context:** clear the arrays a refused call on a context fills ([#160](https://github.com/Rawframe-Project/maul-tween/issues/160)) ([5520b02](https://github.com/Rawframe-Project/maul-tween/commit/5520b0247d8cd86a3eb9e65ea1f8be12af0546ef)), closes [#156](https://github.com/Rawframe-Project/maul-tween/issues/156)
+* **context:** write no output on a call refused as busy ([#161](https://github.com/Rawframe-Project/maul-tween/issues/161)) ([a5928ce](https://github.com/Rawframe-Project/maul-tween/commit/a5928ce40ef47446cf9590c3f623b531e0daa635)), closes [#159](https://github.com/Rawframe-Project/maul-tween/issues/159)
+
 ## [0.12.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.11.0...v0.12.0) (2026-10-29)
 
 This release gives every public name the Maul family's shape ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)): a call on the context starts with `mtwnContext_`, every other function starts with its verb, a switch is an `Enable` and `Is...Enabled` pair, and a callback type ends in `Function`. Each rename keeps the function's parameters and behavior, so a caller only updates its calls. No value, velocity or event record changes.
