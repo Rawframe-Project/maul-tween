@@ -45,7 +45,9 @@ static void TestMissingContext(void)
     refused += mtwnDestroyTarget(c, noTarget) == mtwn_errorInvalid;
     refused += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorInvalid;
     CHECK(refused == 15, "every call refuses a missing context");
-    CHECK(mtwnContext_GetEventCount(NULL) == 0 && mtwnContext_GetDroppedEvents(NULL) == 0,
+    CHECK(mtwnContext_GetEventCount(NULL) == 0 && mtwnContext_GetDroppedEvents(NULL) == 0 &&
+              mtwnContext_GetMisuse(NULL) == 0 && mtwnContext_GetSerialAdvances(NULL) == 0 &&
+              mtwnContext_GetMemoryBytes(NULL) == 0,
           "and its counts read 0");
     CHECK(!mtwnTarget_IsValid(NULL, noTarget) && !mtwnPlayer_IsValid(NULL, noPlayer) &&
               !mtwnClip_IsValid(NULL, noClip),

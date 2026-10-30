@@ -438,17 +438,17 @@ void mtwnDestroyContext(mtwnContext* context)
 
 uint64_t mtwnContext_GetMisuse(const mtwnContext* context)
 {
-    return atomic_load_explicit(&context->misuse, memory_order_relaxed);
+    return context != NULL ? atomic_load_explicit(&context->misuse, memory_order_relaxed) : 0;
 }
 
 uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context)
 {
-    return context->serialAdvances;
+    return context != NULL ? context->serialAdvances : 0;
 }
 
 uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context)
 {
-    return context->blockBytes;
+    return context != NULL ? context->blockBytes : 0;
 }
 
 static mtwnResult RunContextEnableReducedMotion(mtwnContext* context, bool enabled)
