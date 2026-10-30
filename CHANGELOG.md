@@ -6,6 +6,34 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.14.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.13.0...v0.14.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **path:** mtwnMakeTrack takes the keyframes and their count first and the def third: mtwnMakeTrack(keyframes, count, def, lengthsOut, mixesOut, trackOut). The keyframes are rewritten in place for angles and for rotations on the shortest path, so they are the call's object. A call in the old order no longer compiles.
+* **player:** the calls that take only a clip's player are named for it. mtwnPlayer_Play, _Pause, _Reverse, _Finish, _Cancel, _Seek, _Sweep, _SeekProgress, _SeekLabel, _SetRate, _SetWeight and _GetState become mtwnClipPlayer_*. mtwnCreatePlayer, mtwnPlayerDef, mtwnDefaultPlayerDef, MTWN_PLAYER_DEF_COOKIE and mtwnPlayerState become mtwnCreateClipPlayer, mtwnClipPlayerDef, mtwnDefaultClipPlayerDef, MTWN_CLIP_PLAYER_DEF_COOKIE and mtwnClipPlayerState. mtwnPlayerId, mtwnDestroyPlayer and mtwnPlayer_IsValid are unchanged.
+* **context:** mtwnContext_GetDroppedEvents is renamed mtwnContext_GetDroppedEventCount, and mtwnContext_GetSerialAdvances is renamed mtwnContext_GetSerialAdvanceCount. Their parameters and behavior are unchanged.
+* **context:** mtwnContext_EnableReducedMotion returns void, no longer a status. A null context or a call back in changes nothing, the latter counted as misuse; read the state with mtwnContext_IsReducedMotionEnabled.
+* **easing:** mtwnEaseFunction is a function type, no longer a pointer typedef: mtwnMakeHostEasing takes, and mtwnEasing.function holds, a mtwnEaseFunction*. Passing a function's name is unchanged; a variable of the old type is now declared as mtwnEaseFunction*.
+* **context:** mtwnClip_GetTrack, mtwnClip_GetNode, mtwnClip_FindLabel, mtwnClip_GetDuration, mtwnTarget_GetValue, mtwnTarget_GetState, mtwnPlayer_GetState, mtwnContext_ReadTargets, mtwnContext_GetClipBytes and mtwnContext_MeasureTransition take a const mtwnContext*. Called back in from the host's code the context runs on the calling thread, all but mtwnTarget_GetState read the context instead of returning mtwn_errorBusy, and count no misuse for it. Inside the update's groups on a task system, the readers of targets and players are still refused with mtwn_errorBusy.
+
+### Fixed
+
+* **context:** read 0 from three getters given a null context ([#165](https://github.com/Rawframe-Project/maul-tween/issues/165)) ([f9323b9](https://github.com/Rawframe-Project/maul-tween/commit/f9323b960009c63b64d33c9f0f78ed1ac69b36c6)), closes [#164](https://github.com/Rawframe-Project/maul-tween/issues/164)
+* **easing:** leave a refused rough easing's points as they were ([#168](https://github.com/Rawframe-Project/maul-tween/issues/168)) ([0de52a1](https://github.com/Rawframe-Project/maul-tween/commit/0de52a1110f50a7bb7d23aece52bf08257a2520f)), closes [#167](https://github.com/Rawframe-Project/maul-tween/issues/167)
+* **easing:** say what a refused fit leaves in its points ([#182](https://github.com/Rawframe-Project/maul-tween/issues/182)) ([8149252](https://github.com/Rawframe-Project/maul-tween/commit/81492523264a0d6bd693d77cf01b3e4bdef79384)), closes [#181](https://github.com/Rawframe-Project/maul-tween/issues/181)
+
+
+### Changed
+
+* **context:** name the dropped and serial counts Get...Count ([#176](https://github.com/Rawframe-Project/maul-tween/issues/176)) ([39f3985](https://github.com/Rawframe-Project/maul-tween/commit/39f39858473735742d13783cf1c89bf39a551c3c)), closes [#175](https://github.com/Rawframe-Project/maul-tween/issues/175)
+* **context:** return nothing from the reduced motion switch ([#174](https://github.com/Rawframe-Project/maul-tween/issues/174)) ([b6a2397](https://github.com/Rawframe-Project/maul-tween/commit/b6a23975c682a2396d391abbb05248e8b7026445)), closes [#173](https://github.com/Rawframe-Project/maul-tween/issues/173)
+* **context:** take the context const in every reader ([#170](https://github.com/Rawframe-Project/maul-tween/issues/170)) ([39fe215](https://github.com/Rawframe-Project/maul-tween/commit/39fe215d341b85842eaa7d526ae0d0f06ed36cc0)), closes [#169](https://github.com/Rawframe-Project/maul-tween/issues/169)
+* **easing:** make the host easing's callback a function type ([#172](https://github.com/Rawframe-Project/maul-tween/issues/172)) ([a6472bc](https://github.com/Rawframe-Project/maul-tween/commit/a6472bc4401e5d7d528c3a4c8fb57ef79414833e)), closes [#171](https://github.com/Rawframe-Project/maul-tween/issues/171)
+* **path:** take a track's keyframes before its def ([#184](https://github.com/Rawframe-Project/maul-tween/issues/184)) ([6b73d70](https://github.com/Rawframe-Project/maul-tween/commit/6b73d70f81e32e57704fce00d2cef5d33231622b)), closes [#183](https://github.com/Rawframe-Project/maul-tween/issues/183)
+* **player:** name the calls on a clip's player for its kind ([#178](https://github.com/Rawframe-Project/maul-tween/issues/178)) ([9dde1d5](https://github.com/Rawframe-Project/maul-tween/commit/9dde1d5266af5a5d561d1b86e120b7390661748a)), closes [#177](https://github.com/Rawframe-Project/maul-tween/issues/177)
+
 ## [0.13.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.12.0...v0.13.0) (2026-10-30)
 
 This release settles what a refused call on a context leaves in its outputs, as the Maul family's conventions say. A refused update, event read or target read now clears its array as far as a success could write it, so a host that misses a status reads nothing stale ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160)). A call refused as busy, because host code the library runs called the context back in, now writes none of its outputs, since the call in progress may have written them ([#161](https://github.com/Rawframe-Project/maul-tween/pull/161)). Only refusals change: no value, velocity or event record does.
