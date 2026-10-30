@@ -40,7 +40,7 @@ The groups cost memory, about 900 KB more for the default def (`mtwnContextDef` 
 
 Transitions, and targets several players write, are composed on the calling thread. Some players are advanced there too:
 
-- a player whose clip has more than 128 nodes while other players run, since a group keeps times for 128 nodes;
+- a player whose clip has more than 128 nodes and is played by other players too, since a group keeps times for 128 nodes and only a clip of one player is sampled in times of its own;
 - a player whose records do not fit its group's staging (1,024 records, or the queue's capacity when that is smaller), with the players after it in its group;
 - a player with targets of its own whose results might not fit its group's staging, which a group cannot undo once written.
 

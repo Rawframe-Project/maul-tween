@@ -210,11 +210,10 @@ extern "C"
     MTWN_API uint64_t mtwnContext_GetMisuse(const mtwnContext* context);
 
     /// Returns how many clip players' advances a context with a task system
-    /// ran on the calling thread since it was made: a
-    /// player whose clip has more than 128 nodes and other players, one
-    /// whose targets of its
-    /// own might not fit its group's staging, one whose staging ran out,
-    /// and those after it in its group. A count that grows asks for larger
+    /// ran on the calling thread since it was made: a player whose clip
+    /// has more than 128 nodes and is played by other players too, one
+    /// whose targets of its own might not fit its group's staging, one
+    /// whose staging ran out, and those after it in its group. A count that grows asks for larger
     /// binding or event capacities, or smaller clips.
     ///
     /// @param context  The context, or NULL.

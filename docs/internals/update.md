@@ -24,7 +24,7 @@ Staging is fixed when the context is made, so the update never allocates:
 
 - records, up to the queue's capacity and at most 1,024 a group; past a capacity equal to the queue's, a record would be dropped in the serial order anyway, so it is counted as dropped;
 - track results, a sixteenth of twice the bindings;
-- node times, 128 a group, so a clip of more nodes plays in the serial pass while other players run.
+- node times, 128 a group, so a player of a clip of more nodes plays in the serial pass when other players play that clip too; a clip of one player is sampled in its own node times, however many.
 
 When a player's staging runs out, its state is put back as it was and it plays in the serial pass with the rest of its group; no player is advanced twice. A player with targets of its own, whose results a group would write in place, plays serially before it starts if they might not fit, since what is written in place cannot be undone. Each group runs in the library's floating-point environment on the thread the host gives it.
 
