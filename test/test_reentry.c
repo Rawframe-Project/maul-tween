@@ -45,8 +45,9 @@ static Probe s_probe;
 // argument it refuses as invalid or stale (a null id or output, a time
 // gone by), so none can change the context and none returns
 // mtwn_errorBusy of itself: that status is the busy refusal alone. Counts
-// those: 28, the functions returning a status. Busy, it ends with the
-// destroy, which returns nothing and must leave the context alive.
+// those: 27, the functions returning a status. The reduced motion switch
+// and, busy, the destroy return nothing; each is refused, counted, and must
+// leave the context as it was.
 static uint32_t CallEverything(mtwnContext* c, bool busy)
 {
     uint32_t r = 0;
@@ -67,8 +68,9 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnClip_Seal(c, noClip) == mtwn_errorBusy;
     mtwnContext* grown = c;
     r += mtwnContext_Grow(&grown, NULL) == mtwn_errorBusy;
-    // Reduced motion as it is: the one call that succeeds when not busy.
-    r += mtwnContext_EnableReducedMotion(c, false) == mtwn_errorBusy;
+    // Not busy, reduced motion as it is; busy, on, unless refused. It
+    // returns nothing, so the caller checks it is still off.
+    mtwnContext_EnableReducedMotion(c, busy);
     r += mtwnContext_Update(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
     r += mtwnContext_ReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -200,19 +202,19 @@ static void TestHostEasing(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, CallingIn, NULL, &def2.easing) == mtwn_success,
           "a host easing");
     CHECK(mtwnStartTransition(context, &def2, &s_probe.player) == mtwn_success, "started");
-    CHECK(CallEverything(context, false) == 0 &&
-              mtwnContext_EnableReducedMotion(context, false) == mtwn_success,
-          "not busy, none of the calls returns a state error, the last left too");
+    CHECK(CallEverything(context, false) == 0 && !mtwnContext_IsReducedMotionEnabled(context),
+          "not busy, none of the calls returns a state error, reduced motion left off");
     uint64_t before = mtwnContext_GetMisuse(context);
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
-    CHECK(s_probe.refused == 28, "every call back in refused");
+    CHECK(s_probe.refused == 27 && !mtwnContext_IsReducedMotionEnabled(context),
+          "every call back in refused, reduced motion left off");
     CHECK(s_probe.cleared == 8, "a creation's id the null id, as on any failure");
     CHECK(s_probe.left == 2, "its arrays and counts left, as the call in progress may hold them");
     CHECK(mtwnContext_GetMisuse(context) == before + 29 + 8 + 2,
-          "each counted, the destroy and the creations' and arrays' calls too");
+          "each counted, the switch, the destroy and the creations' and arrays' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, s_probe.target, &value) == mtwn_success && value.x == 0.5f,
@@ -541,6 +543,11 @@ static void TestReadsInGroups(void)
 typedef struct Calling
 {
     mtwnContext* context;
+    // A live target the free tries to change, the misuse its try counted,
+    // and the target's value the free read back after it.
+    mtwnTargetId target;
+    uint64_t counted;
+    float seen;
     mtwnResult inAlloc;
     mtwnResult inFree;
     uint32_t allocs;
@@ -566,7 +573,16 @@ static void CallingFree(void* memory, size_t size, size_t alignment, void* user)
     Calling* calling = user;
     if (calling->context != NULL)
     {
-        calling->inFree = mtwnContext_EnableReducedMotion(calling->context, true);
+        // Read before the block is freed below: afterwards the count goes
+        // with it.
+        uint64_t before = mtwnContext_GetMisuse(calling->context);
+        calling->inFree =
+            mtwnTarget_SetBase(calling->context, calling->target, (mtwnVec4){5.0f, 0, 0, 0});
+        calling->counted = mtwnContext_GetMisuse(calling->context) - before;
+        mtwnVec4 value = {0};
+        calling->seen =
+            mtwnTarget_GetValue(calling->context, calling->target, &value) == mtwn_success ? value.x
+                                                                                           : -1.0f;
         calling->frees += 1;
     }
     free(memory);
@@ -578,22 +594,32 @@ static void TestAllocator(void)
     mtwnContextDef def = mtwnDefaultContextDef();
     def.allocator = (mtwnAllocator){CallingAlloc, CallingFree, &calling};
     mtwnContext* context = NULL;
-    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0},
+                               &calling.target) == mtwn_success,
+          "a context and a target at 1");
     calling.context = context;
     mtwnContextDef grown = def;
     grown.targetCapacity = def.targetCapacity * 2;
     CHECK(mtwnContext_Grow(&context, &grown) == mtwn_success, "grown");
     CHECK(calling.allocs == 1 && calling.inAlloc == mtwn_errorBusy,
           "an update from the allocation refused");
-    CHECK(calling.frees == 1 && calling.inFree == mtwn_errorBusy,
-          "a change from freeing the old block refused");
+    CHECK(calling.frees == 1 && calling.inFree == mtwn_errorBusy && calling.counted == 1 &&
+              calling.seen == 1.0f,
+          "a change from freeing the old block refused and counted, the target at 1 there");
     CHECK(mtwnContext_GetMisuse(context) == 1, "the allocation's refusal counted, moved along");
-    CHECK(!mtwnContext_IsReducedMotionEnabled(context), "nothing changed");
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(context, calling.target, &state) == mtwn_success &&
+              state.base.x == 1.0f && state.value.x == 1.0f,
+          "the target's base unchanged in the grown context");
     calling.context = context;
     calling.inFree = mtwn_success;
+    calling.counted = 0;
+    calling.seen = 0.0f;
     mtwnDestroyContext(context);
-    CHECK(calling.frees == 2 && calling.inFree == mtwn_errorBusy,
-          "a change from freeing the destroyed context refused");
+    CHECK(calling.frees == 2 && calling.inFree == mtwn_errorBusy && calling.counted == 1 &&
+              calling.seen == 1.0f,
+          "a change from freeing the destroyed context refused and counted, the target at 1");
 }
 
 // A task system calling back in, then running each range at once.

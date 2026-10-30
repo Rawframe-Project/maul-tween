@@ -31,7 +31,6 @@ static void TestMissingContext(void)
     uint32_t refused = 0;
     refused += mtwnDestroyClip(c, noClip) == mtwn_errorInvalid;
     refused += mtwnClip_Seal(c, noClip) == mtwn_errorInvalid;
-    refused += mtwnContext_EnableReducedMotion(c, true) == mtwn_errorInvalid;
     refused += mtwnContext_Update(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
     refused += mtwnPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorInvalid;
@@ -44,7 +43,10 @@ static void TestMissingContext(void)
     refused += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnDestroyTarget(c, noTarget) == mtwn_errorInvalid;
     refused += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorInvalid;
-    CHECK(refused == 15, "every call refuses a missing context");
+    CHECK(refused == 14, "every call refuses a missing context");
+    // The switch returns nothing: without a context it changes nothing.
+    mtwnContext_EnableReducedMotion(c, true);
+    CHECK(!mtwnContext_IsReducedMotionEnabled(c), "nor switches it");
     CHECK(mtwnContext_GetEventCount(NULL) == 0 && mtwnContext_GetDroppedEvents(NULL) == 0 &&
               mtwnContext_GetMisuse(NULL) == 0 && mtwnContext_GetSerialAdvances(NULL) == 0 &&
               mtwnContext_GetMemoryBytes(NULL) == 0,

@@ -58,7 +58,7 @@ static void Enter(Grid* g, bool reduced)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
     Expect(mtwnCreateContext(&def, &g->context) == mtwn_success, "a context");
-    Expect(mtwnContext_EnableReducedMotion(g->context, reduced) == mtwn_success, "the preference");
+    mtwnContext_EnableReducedMotion(g->context, reduced);
     for (int i = 0; i < TILES; ++i)
     {
         Expect(mtwnCreateTarget(g->context, mtwn_valueScalar, (mtwnVec4){0}, &g->opacity[i]) ==

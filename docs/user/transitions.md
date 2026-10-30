@@ -109,7 +109,7 @@ Under reduced motion every transition, and every playing clip with an end, finis
 
 ```c
 bool reduce = true; // the platform's preference, as the host reads it
-mtwnResult enabled = mtwnContext_EnableReducedMotion(context, reduce);
+mtwnContext_EnableReducedMotion(context, reduce);
 fade.essential = true; // an opacity change is not motion: it may play on
 ```
 

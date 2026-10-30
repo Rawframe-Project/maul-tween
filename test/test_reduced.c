@@ -81,13 +81,12 @@ static void TestSetting(void)
 {
     World w = MakeWorld();
     CHECK(!mtwnContext_IsReducedMotionEnabled(w.context), "off when made");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success &&
-              mtwnContext_IsReducedMotionEnabled(w.context),
-          "on");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, false) == mtwn_success &&
-              !mtwnContext_IsReducedMotionEnabled(w.context),
-          "off");
-    CHECK(mtwnContext_EnableReducedMotion(NULL, true) == mtwn_errorInvalid, "a null context");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "on");
+    mtwnContext_EnableReducedMotion(w.context, false);
+    CHECK(!mtwnContext_IsReducedMotionEnabled(w.context), "off");
+    // A null context changes nothing, and nothing is counted.
+    mtwnContext_EnableReducedMotion(NULL, true);
     CHECK(!mtwnContext_IsReducedMotionEnabled(NULL), "a null context is not reduced");
     mtwnDestroyContext(w.context);
 }
@@ -95,7 +94,8 @@ static void TestSetting(void)
 static void TestEasedTransition(void)
 {
     World w = MakeWorld();
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced");
     Update(&w, 1.0);
     mtwnPlayerId id = Transition(&w, Eased(5.0f, 0.5, 2.0));
     Update(&w, 1.25);
@@ -127,7 +127,8 @@ static void TestSpringAndDecay(void)
     Transition(&w, spring);
     Update(&w, 0.1);
     CHECK(Read(&w).value.x != 3.0f, "a spring on its way");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "reduced on the way");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced on the way");
     Update(&w, 0.2);
     CHECK(Read(&w).value.x == 3.0f && Read(&w).base.x == 3.0f, "a running spring lands");
     // A decay lands where it would have come to rest.
@@ -146,7 +147,8 @@ static void TestSpringAndDecay(void)
     }
     float rest = Read(&u).base.x;
     CHECK(rest > 0.0f, "an unreduced decay coasts and rests");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "still reduced");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "still reduced");
     Transition(&w, fling);
     Update(&w, 0.3);
     CHECK(Read(&w).value.x == 3.0f + rest && Read(&w).base.x == 3.0f + rest,
@@ -171,7 +173,8 @@ static void TestEndless(void)
     CHECK(mtwnPlayer_IsValid(w.context, id), "running");
     mtwnEvent events[16];
     CHECK(Events(&w, events) == 1 && events[0].kind == mtwn_eventStart, "begun at 1.5");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced");
     Update(&w, 1.6);
     CHECK(!mtwnPlayer_IsValid(w.context, id), "ended");
     uint32_t count = Events(&w, events);
@@ -187,7 +190,8 @@ static void TestEndless(void)
     spring.delay = 1.0;
     id = Transition(&d, spring);
     Update(&d, 1.5);
-    CHECK(mtwnContext_EnableReducedMotion(d.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(d.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(d.context), "reduced");
     Update(&d, 1.6);
     count = Events(&d, events);
     CHECK(!mtwnPlayer_IsValid(d.context, id) && count == 2 && events[1].kind == mtwn_eventEnd &&
@@ -200,8 +204,10 @@ static void TestTurnedOff(void)
 {
     World w = MakeWorld();
     Update(&w, 0.0);
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "reduced");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, false) == mtwn_success, "and not");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced");
+    mtwnContext_EnableReducedMotion(w.context, false);
+    CHECK(!mtwnContext_IsReducedMotionEnabled(w.context), "and not");
     Transition(&w, Eased(4.0f, 0.0, 1.0));
     Update(&w, 0.0);
     Update(&w, 0.5);
@@ -255,7 +261,8 @@ static void TestPlayers(void)
 {
     World w = MakeWorld();
     mtwnClipId clip = MakeClip(&w, 1.0);
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced");
     Update(&w, 2.0);
     mtwnPlayerId p = Play(&w, clip, false);
     Update(&w, 2.25);
@@ -280,7 +287,8 @@ static void TestPlayers(void)
 
     // Essential: plays on.
     World e = MakeWorld();
-    CHECK(mtwnContext_EnableReducedMotion(e.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(e.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(e.context), "reduced");
     mtwnClipId fade = MakeClip(&e, 1.0);
     Update(&e, 0.0);
     Play(&e, fade, true);
@@ -294,7 +302,8 @@ static void TestPlayers(void)
     Update(&f, 0.0);
     mtwnPlayerId l = Play(&f, loop, false);
     Update(&f, 0.0);
-    CHECK(mtwnContext_EnableReducedMotion(f.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(f.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(f.context), "reduced");
     Update(&f, 1.5);
     CHECK(fabs((double)Read(&f).value.x - 0.5) < 1e-6 &&
               mtwnPlayer_GetState(f.context, l, &state) == mtwn_success &&
@@ -309,7 +318,8 @@ static void TestPlayers(void)
     Update(&g, 0.0);
     Update(&g, 0.4);
     CHECK(mtwnPlayer_Pause(g.context, h) == mtwn_success, "paused");
-    CHECK(mtwnContext_EnableReducedMotion(g.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(g.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(g.context), "reduced");
     Update(&g, 0.8);
     CHECK(mtwnPlayer_GetState(g.context, h, &state) == mtwn_success &&
               state.state == mtwn_playPaused && fabs(state.currentTime - 0.4) < 1e-9,
@@ -342,7 +352,8 @@ static void TestPlayingOn(void)
     mtwnPlayerId ends = Play(&w, once, false);
     Update(&w, 0.0);
     CHECK(mtwnContext_GetPlayingOnCount(w.context) == 0, "none while motion is full");
-    CHECK(mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success, "reduced");
+    mtwnContext_EnableReducedMotion(w.context, true);
+    CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced");
     Update(&w, 0.1);
     CHECK(mtwnContext_GetPlayingOnCount(w.context) == 1, "one plays on though not essential");
     mtwnPlayerState state;

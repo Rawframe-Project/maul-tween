@@ -558,7 +558,7 @@ static void TestPlaying(void)
                     r = mtwnPlayer_Finish(context, player);
                     break;
                 case 7:
-                    r = mtwnContext_EnableReducedMotion(context, Next() % 2 == 0);
+                    mtwnContext_EnableReducedMotion(context, Next() % 2 == 0);
                     break;
                 default:
                     break;
@@ -642,8 +642,9 @@ static void TestTransitions(void)
     {
         if (Next() % 50 == 0)
         {
-            CHECK(mtwnContext_EnableReducedMotion(
-                      context, !mtwnContext_IsReducedMotionEnabled(context)) == mtwn_success,
+            bool reduced = mtwnContext_IsReducedMotionEnabled(context);
+            mtwnContext_EnableReducedMotion(context, !reduced);
+            CHECK(mtwnContext_IsReducedMotionEnabled(context) != reduced,
                   "reduced motion switched");
         }
         uint32_t k = Next() % 10;

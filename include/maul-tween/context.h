@@ -233,14 +233,15 @@ extern "C"
     /// essential; a player with an infinite end plays on, the host's to
     /// keep, seek or stop. Turning it off reaches what has not finished.
     /// The host reads the platform's preference and turns it on or off.
+    /// Its only refusals are misuse, so it returns nothing: a null context
+    /// changes nothing, and a call back in from the host's code the context
+    /// runs changes nothing and counts one misuse.
     ///
-    /// @param context  The context.
+    /// @param context  The context, or NULL.
     /// @param enabled  Whether motion is reduced.
-    /// @return mtwn_success; mtwn_errorInvalid for a null context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_EnableReducedMotion(mtwnContext* context,
-                                                                       bool enabled);
+    MTWN_API void mtwnContext_EnableReducedMotion(mtwnContext* context, bool enabled);
 
     /// Returns whether reduced motion is on.
     ///

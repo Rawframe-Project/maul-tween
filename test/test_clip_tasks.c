@@ -463,7 +463,7 @@ static void Control(Twin* twin, uint32_t p, uint32_t what, double argument)
         (void)mtwnPlayer_Finish(context, player);
         break;
     case 7:
-        (void)mtwnContext_EnableReducedMotion(context, argument > 1.0);
+        mtwnContext_EnableReducedMotion(context, argument > 1.0);
         break;
     case 8:
         (void)mtwnDestroyPlayer(context, player);
@@ -641,7 +641,7 @@ static uint32_t Run(mtwnContextDef def, uint64_t seed, uint32_t firstNodes, Take
             // its records share the update's time, ordered along its sweep.
             if (f == s_frames / 2 || f == s_frames / 2 + 8)
             {
-                (void)mtwnContext_EnableReducedMotion(twins[k].context, f == s_frames / 2);
+                mtwnContext_EnableReducedMotion(twins[k].context, f == s_frames / 2);
             }
             if (k == 1 && !s_unsharedMode)
             {
@@ -880,7 +880,8 @@ static void TestOneTimeOrder(void)
             CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
         }
         CHECK(mtwnContext_Update(context, 10000000u, NULL, 0, NULL) == mtwn_success, "an update");
-        CHECK(mtwnContext_EnableReducedMotion(context, true) == mtwn_success, "reduced motion");
+        mtwnContext_EnableReducedMotion(context, true);
+        CHECK(mtwnContext_IsReducedMotionEnabled(context), "reduced motion");
         CHECK(mtwnContext_Update(context, 20000000u, NULL, 0, NULL) == mtwn_success, "an update");
         uint64_t dropped = 0;
         CHECK(mtwnContext_ReadEvents(context, records[k], 64, &counts[k], &dropped) == mtwn_success,
