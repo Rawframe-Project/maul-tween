@@ -249,7 +249,7 @@ jobs:
           cat out/fuzz-reports/*.txt 2>/dev/null || true
           exit "$status"
       - name: Minimize the corpus
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         # A merge reruns every input, and libFuzzer's exits 0 on a crash:
         # tools/fuzz_target.sh --merge keeps the log on the runner, fails
         # on a finding and prints only its report, so the step after saves
@@ -261,7 +261,7 @@ jobs:
           [ "$status" -eq 0 ] || exit "$status"
           rm -rf out/corpus && mv out/merged out/corpus
       - name: Save the corpus
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus
