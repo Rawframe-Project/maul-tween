@@ -346,7 +346,7 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
 
 // Whether the bindings name slots the clip's tracks use, each once, and
 // live targets of their kinds.
-static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
+static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def,
                         const mtwnClipSlot* clip)
 {
     if (def->bindingCount > 0 && def->bindings == NULL)
@@ -460,7 +460,7 @@ static void EndClips(mtwnContext* context)
 static const mtwnClipUpdate s_clipUpdate = {BeginClips, AdvanceClip, EndClips,
                                             mtwnClipTrackVelocity};
 
-static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
+static mtwnResult CreateWorker(mtwnContext* context, const mtwnClipPlayerDef* def,
                                mtwnPlayerId* playerOut)
 {
     mtwnClipSlot* clip =
@@ -533,7 +533,7 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnPlayerDef* def,
     return mtwn_success;
 }
 
-static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def,
+static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnClipPlayerDef* def,
                                   mtwnPlayerId* playerOut)
 {
     if (context == NULL)
@@ -544,7 +544,7 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     {
         *playerOut = (mtwnPlayerId){0, 0};
     }
-    if (def == NULL || playerOut == NULL || def->cookie != MTWN_PLAYER_DEF_COOKIE)
+    if (def == NULL || playerOut == NULL || def->cookie != MTWN_CLIP_PLAYER_DEF_COOKIE)
     {
         return Misuse(context, mtwn_errorInvalid);
     }
@@ -552,8 +552,9 @@ static mtwnResult RunCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnCreatePlayerWork(mtwnContext* context, const mtwnPlayerDef* def,
-                                                     mtwnPlayerId* playerOut)
+static MTWN_NOINLINE mtwnResult mtwnCreateClipPlayerWork(mtwnContext* context,
+                                                         const mtwnClipPlayerDef* def,
+                                                         mtwnPlayerId* playerOut)
 {
     // Cleared first, so a busy or missing context's failure clears it too.
     if (playerOut != NULL)
@@ -569,10 +570,11 @@ static MTWN_NOINLINE mtwnResult mtwnCreatePlayerWork(mtwnContext* context, const
     return result;
 }
 
-mtwnResult mtwnCreatePlayer(mtwnContext* context, const mtwnPlayerDef* def, mtwnPlayerId* playerOut)
+mtwnResult mtwnCreateClipPlayer(mtwnContext* context, const mtwnClipPlayerDef* def,
+                                mtwnPlayerId* playerOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnCreatePlayerWork(context, def, playerOut);
+    mtwnResult result = mtwnCreateClipPlayerWork(context, def, playerOut);
     mtwnFloatEnvLeave(env);
     return result;
 }
@@ -640,7 +642,7 @@ bool mtwnPlayer_IsValid(const mtwnContext* context, mtwnPlayerId player)
 }
 
 static mtwnResult RunPlayerGetState(const mtwnContext* context, mtwnPlayerId player,
-                                    mtwnPlayerState* stateOut)
+                                    mtwnClipPlayerState* stateOut)
 {
     if (context == NULL)
     {
@@ -664,18 +666,18 @@ static mtwnResult RunPlayerGetState(const mtwnContext* context, mtwnPlayerId pla
     double now = mtwnTimelineNow(context);
     double end = mtwnEffectEnd(context, play);
     mtwnPlayState state = StateOf(play, now, end);
-    *stateOut = (mtwnPlayerState){.currentTime = mtwnCurrentTime(play, now),
-                                  .rate = mtwnEffectiveRate(play),
-                                  .duration = end,
-                                  .state = state,
-                                  .pending = play->pending || !isnan(play->pendingRate),
-                                  .playsOnReduced = PlaysOn(context, play, state)};
+    *stateOut = (mtwnClipPlayerState){.currentTime = mtwnCurrentTime(play, now),
+                                      .rate = mtwnEffectiveRate(play),
+                                      .duration = end,
+                                      .state = state,
+                                      .pending = play->pending || !isnan(play->pendingRate),
+                                      .playsOnReduced = PlaysOn(context, play, state)};
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(const mtwnContext* context,
-                                                        mtwnPlayerId player,
-                                                        mtwnPlayerState* stateOut)
+static MTWN_NOINLINE mtwnResult mtwnClipPlayer_GetStateWork(const mtwnContext* context,
+                                                            mtwnPlayerId player,
+                                                            mtwnClipPlayerState* stateOut)
 {
     // Refused while the update's groups may be writing what it reads,
     // before anything is written.
@@ -692,11 +694,11 @@ static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(const mtwnContext* conte
     return RunPlayerGetState(context, player, stateOut);
 }
 
-mtwnResult mtwnPlayer_GetState(const mtwnContext* context, mtwnPlayerId player,
-                               mtwnPlayerState* stateOut)
+mtwnResult mtwnClipPlayer_GetState(const mtwnContext* context, mtwnPlayerId player,
+                                   mtwnClipPlayerState* stateOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnPlayer_GetStateWork(context, player, stateOut);
+    mtwnResult result = mtwnClipPlayer_GetStateWork(context, player, stateOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

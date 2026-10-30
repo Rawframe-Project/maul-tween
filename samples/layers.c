@@ -63,13 +63,13 @@ static mtwnPlayerId Play(mtwnContext* context, mtwnClipId clip, mtwnTargetId tar
 {
     mtwnBinding binding = mtwnMakeBinding(0, target);
     binding.composite = composite;
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = keep;
     mtwnPlayerId player = {0, 0};
-    Expect(mtwnCreatePlayer(context, &def, &player) == mtwn_success, "a player");
+    Expect(mtwnCreateClipPlayer(context, &def, &player) == mtwn_success, "a player");
     return player;
 }
 

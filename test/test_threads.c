@@ -222,12 +222,12 @@ static void TestThreads(void)
     for (int round = 0; round < 400; ++round)
     {
         mtwnBinding binding = mtwnMakeBinding(0, targets[round % 8]);
-        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
         player.clip = clip;
         player.bindings = &binding;
         player.bindingCount = 1;
         mtwnPlayerId id = {0, 0};
-        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success, "a player");
         now += 16000000u;
         CHECK(mtwnContext_Update(context, now, NULL, 0, NULL) == mtwn_success, "an update");
         if (round % 3 == 0)

@@ -51,7 +51,7 @@ When the results for a key are kept, the player takes them: each bound track's v
 
 ## Reduced motion
 
-While reduced motion is on, every transition finishes at its next update, eased, sprung or decayed to its rest, its delay skipped and its records at that update's time; every running clip's player with a finite end finishes as `mtwnPlayer_Finish` does, crossing what lies between once. Defs mark `essential` motion (a fade, a color, motion that carries meaning) to play on, since the library cannot tell motion from a fade. A player with an infinite end cannot finish: it plays on and is counted for the host to handle. Spring tightening and a duration scale were not added: the host chooses its springs and can scale its clock.
+While reduced motion is on, every transition finishes at its next update, eased, sprung or decayed to its rest, its delay skipped and its records at that update's time; every running clip's player with a finite end finishes as `mtwnClipPlayer_Finish` does, crossing what lies between once. Defs mark `essential` motion (a fade, a color, motion that carries meaning) to play on, since the library cannot tell motion from a fade. A player with an infinite end cannot finish: it plays on and is counted for the host to handle. Spring tightening and a duration scale were not added: the host chooses its springs and can scale its clock.
 
 ## Traps
 

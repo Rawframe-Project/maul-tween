@@ -420,13 +420,13 @@ static void MakePlayer(Twin* twin, uint32_t p)
             bindings[bound++] = binding;
         }
     }
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = twin->clips[c];
     def.bindings = bindings;
     def.bindingCount = bound;
     def.keep = Next() % 2 == 0;
     def.rate = Next() % 5 == 0 ? -1.0 : 1.0;
-    mtwnResult made = mtwnCreatePlayer(twin->context, &def, &twin->players[p]);
+    mtwnResult made = mtwnCreateClipPlayer(twin->context, &def, &twin->players[p]);
     s_made += made == mtwn_success ? 1u : 0u;
     s_refused += made == mtwn_success ? 0u : 1u;
     if (made != mtwn_success)
@@ -442,25 +442,25 @@ static void Control(Twin* twin, uint32_t p, uint32_t what, double argument)
     switch (what)
     {
     case 0:
-        (void)mtwnPlayer_Seek(context, player, argument);
+        (void)mtwnClipPlayer_Seek(context, player, argument);
         break;
     case 1:
-        (void)mtwnPlayer_Reverse(context, player);
+        (void)mtwnClipPlayer_Reverse(context, player);
         break;
     case 2:
-        (void)mtwnPlayer_SetRate(context, player, argument - 1.0);
+        (void)mtwnClipPlayer_SetRate(context, player, argument - 1.0);
         break;
     case 3:
-        (void)mtwnPlayer_Pause(context, player);
+        (void)mtwnClipPlayer_Pause(context, player);
         break;
     case 4:
-        (void)mtwnPlayer_Play(context, player);
+        (void)mtwnClipPlayer_Play(context, player);
         break;
     case 5:
-        (void)mtwnPlayer_Sweep(context, player, argument);
+        (void)mtwnClipPlayer_Sweep(context, player, argument);
         break;
     case 6:
-        (void)mtwnPlayer_Finish(context, player);
+        (void)mtwnClipPlayer_Finish(context, player);
         break;
     case 7:
         mtwnContext_EnableReducedMotion(context, argument > 1.0);
@@ -870,14 +870,14 @@ static void TestOneTimeOrder(void)
         }
         CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "a sealed clip");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = &binding;
         playerDef.bindingCount = 1;
         for (int p = 0; p < 2; ++p)
         {
             mtwnPlayerId player;
-            CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+            CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
         }
         CHECK(mtwnContext_Update(context, 10000000u, NULL, 0, NULL) == mtwn_success, "an update");
         mtwnContext_EnableReducedMotion(context, true);
@@ -980,13 +980,13 @@ static mtwnPlayerId PlayTwo(mtwnContext* context, mtwnClipId clip, mtwnTargetId 
                             mtwnTargetId second)
 {
     mtwnBinding bindings[2] = {mtwnMakeBinding(0, first), mtwnMakeBinding(1, second)};
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = first.index1 != 0 ? bindings : bindings + 1;
     def.bindingCount = (first.index1 != 0 ? 1u : 0u) + (second.index1 != 0 ? 1u : 0u);
     def.keep = true;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -1149,12 +1149,12 @@ static void TestExactFit(void)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
         player.clip = clip;
         player.bindings = &binding;
         player.bindingCount = 1;
         mtwnPlayerId id = {0, 0};
-        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success, "a player");
     }
     Step(context, 0.0);
     Step(context, 0.25);
@@ -1336,12 +1336,12 @@ static void TestGroupsFromTwo(void)
               "a target");
         mtwnBinding half = mtwnMakeBinding(0, target);
         half.weight = 0.5f;
-        mtwnPlayerDef play = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef play = mtwnDefaultClipPlayerDef();
         play.clip = TwoTracks(context);
         play.bindings = &half;
         play.bindingCount = 1;
         mtwnPlayerId player;
-        CHECK(mtwnCreatePlayer(context, &play, &player) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &play, &player) == mtwn_success, "a player");
         for (int step = 0; step < 4; ++step)
         {
             Step(context, 0.1 * step);

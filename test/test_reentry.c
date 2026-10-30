@@ -73,19 +73,19 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     mtwnContext_EnableReducedMotion(c, busy);
     r += mtwnContext_Update(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
     r += mtwnContext_ReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
-    r += mtwnCreatePlayer(c, &playerDef, NULL) == mtwn_errorBusy;
-    r += mtwnPlayer_Play(c, noPlayer) == mtwn_errorBusy;
-    r += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorBusy;
-    r += mtwnPlayer_Reverse(c, noPlayer) == mtwn_errorBusy;
-    r += mtwnPlayer_Finish(c, noPlayer) == mtwn_errorBusy;
-    r += mtwnPlayer_Cancel(c, noPlayer) == mtwn_errorBusy;
-    r += mtwnPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorBusy;
-    r += mtwnPlayer_Sweep(c, noPlayer, 0.25) == mtwn_errorBusy;
-    r += mtwnPlayer_SeekProgress(c, noPlayer, 0.5) == mtwn_errorBusy;
-    r += mtwnPlayer_SeekLabel(c, noPlayer, 1) == mtwn_errorBusy;
-    r += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorBusy;
-    r += mtwnPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorBusy;
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
+    r += mtwnCreateClipPlayer(c, &playerDef, NULL) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Play(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Pause(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Reverse(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Finish(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Cancel(c, noPlayer) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorBusy;
+    r += mtwnClipPlayer_Sweep(c, noPlayer, 0.25) == mtwn_errorBusy;
+    r += mtwnClipPlayer_SeekProgress(c, noPlayer, 0.5) == mtwn_errorBusy;
+    r += mtwnClipPlayer_SeekLabel(c, noPlayer, 1) == mtwn_errorBusy;
+    r += mtwnClipPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorBusy;
+    r += mtwnClipPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorBusy;
     r += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorBusy;
     r += mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, NULL) == mtwn_errorBusy;
     r += mtwnDestroyTarget(c, noTarget) == mtwn_errorBusy;
@@ -143,8 +143,8 @@ static uint32_t ClearedWhenBusy(mtwnContext* c)
     BUSY_CLEARS(node, mtwnClip_AddTimeline(c, noClip, &timelineDef, &node));
     BUSY_CLEARS(node, mtwnClip_AddLabel(c, noClip, MTWN_ROOT_NODE, at, 1, &node));
     BUSY_CLEARS(node, mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, &node));
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
-    BUSY_CLEARS(player, mtwnCreatePlayer(c, &playerDef, &player));
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
+    BUSY_CLEARS(player, mtwnCreateClipPlayer(c, &playerDef, &player));
     return cleared;
 }
 
@@ -272,8 +272,8 @@ static uint32_t ReadEverything(const mtwnContext* c)
     double seconds;
     r += mtwnClip_FindLabel(c, s_reading.clip, MTWN_ROOT_NODE, 1, &seconds) == mtwn_success;
     r += mtwnClip_GetDuration(c, s_reading.clip, &seconds) == mtwn_success;
-    mtwnPlayerState playerState;
-    r += mtwnPlayer_GetState(c, s_reading.player, &playerState) == mtwn_success;
+    mtwnClipPlayerState playerState;
+    r += mtwnClipPlayer_GetState(c, s_reading.player, &playerState) == mtwn_success;
     return r;
 }
 
@@ -321,9 +321,10 @@ static void TestReadsWhileBusy(void)
                   mtwn_success &&
               mtwnClip_Seal(context, s_reading.clip) == mtwn_success,
           "a sealed clip of a track and a label");
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = s_reading.clip;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &s_reading.player) == mtwn_success, "its player");
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &s_reading.player) == mtwn_success,
+          "its player");
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     transition.target = s_reading.target;
     transition.value = (mtwnVec4){1.0f, 0, 0, 0};
@@ -453,7 +454,7 @@ static double ReadingInGroups(void* unused, double progress)
     s_grouped.calls += 1;
     mtwnVec4 value;
     mtwnVec4 values[1];
-    mtwnPlayerState playerState;
+    mtwnClipPlayerState playerState;
     double distance;
     memset(&value, 0xAB, sizeof value);
     memset(values, 0xAB, sizeof values);
@@ -462,7 +463,7 @@ static double ReadingInGroups(void* unused, double progress)
     mtwnResult r[4] = {
         mtwnTarget_GetValue(c, s_grouped.target, &value),
         mtwnContext_ReadTargets(c, &s_grouped.target, 1, values),
-        mtwnPlayer_GetState(c, s_grouped.player, &playerState),
+        mtwnClipPlayer_GetState(c, s_grouped.player, &playerState),
         mtwnContext_MeasureTransition(c, &s_grouped.transition, &distance),
     };
     uint32_t busy = 0;
@@ -514,11 +515,12 @@ static void TestReadsInGroups(void)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = &binding;
         playerDef.bindingCount = 1;
-        CHECK(mtwnCreatePlayer(context, &playerDef, &s_grouped.player) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &playerDef, &s_grouped.player) == mtwn_success,
+              "a player");
         s_grouped.target = target;
     }
     s_grouped.transition = mtwnDefaultTransitionDef();
@@ -743,12 +745,12 @@ static void TestTasks(void)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef def2 = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef def2 = mtwnDefaultClipPlayerDef();
         def2.clip = clip;
         def2.bindings = &binding;
         def2.bindingCount = 1;
         mtwnPlayerId player;
-        CHECK(mtwnCreatePlayer(context, &def2, &player) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &def2, &player) == mtwn_success, "a player");
     }
     uint64_t before = mtwnContext_GetMisuse(context);
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&

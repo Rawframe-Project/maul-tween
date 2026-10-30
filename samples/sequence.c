@@ -154,14 +154,14 @@ int main(void)
                "a part");
         bindings[i] = mtwnMakeBinding(i, parts[i]);
     }
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = bindings;
     playerDef.bindingCount = 3;
     // Kept when finished, so it can play the card away again.
     playerDef.keep = true;
     mtwnPlayerId player;
-    Expect(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    Expect(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
 
     uint32_t chimes = 0;
     uint32_t bodyEnds = 0;
@@ -181,8 +181,8 @@ int main(void)
     Expect(chimes == 1 && bodyEnds == 1 && bodyStarts == 1, "the chime and the body's ends once");
 
     // Hiding: the same clip backwards, a little faster.
-    Expect(mtwnPlayer_SetRate(context, player, -1.5) == mtwn_success, "reversed");
-    Expect(mtwnPlayer_Play(context, player) == mtwn_success, "played back");
+    Expect(mtwnClipPlayer_SetRate(context, player, -1.5) == mtwn_success, "reversed");
+    Expect(mtwnClipPlayer_Play(context, player) == mtwn_success, "played back");
     printf("hiding:\n");
     for (; frame < 120; ++frame)
     {

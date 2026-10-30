@@ -263,14 +263,14 @@ static void MakePlayers(World* w)
             bindings[s].composite = p == 1 ? mtwn_compositeAdd : mtwn_compositeReplace;
             bindings[s].weight = p == 1 ? 0.5f : 1.0f;
         }
-        mtwnPlayerDef def = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
         def.clip = w->clip;
         def.bindings = bindings;
         def.bindingCount = 4;
         def.keep = true;
         def.rate = p == 2 ? 0.75 : 1.0;
         def.weight = p == 2 ? 0.6f : 1.0f;
-        CHECK(mtwnCreatePlayer(w->context, &def, &w->players[p]) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(w->context, &def, &w->players[p]) == mtwn_success, "a player");
     }
 }
 
@@ -313,25 +313,25 @@ static void Control(World* w, uint32_t frame)
     switch (frame)
     {
     case 90:
-        r = mtwnPlayer_Pause(c, w->players[0]);
+        r = mtwnClipPlayer_Pause(c, w->players[0]);
         break;
     case 120:
-        r = mtwnPlayer_Play(c, w->players[0]);
+        r = mtwnClipPlayer_Play(c, w->players[0]);
         break;
     case 150:
-        r = mtwnPlayer_Reverse(c, w->players[1]);
+        r = mtwnClipPlayer_Reverse(c, w->players[1]);
         break;
     case 200:
-        r = mtwnPlayer_Seek(c, w->players[2], 2.25);
+        r = mtwnClipPlayer_Seek(c, w->players[2], 2.25);
         break;
     case 260:
-        r = mtwnPlayer_SetRate(c, w->players[0], -1.5);
+        r = mtwnClipPlayer_SetRate(c, w->players[0], -1.5);
         break;
     case 330:
-        r = mtwnPlayer_SetWeight(c, w->players[1], 0.25f);
+        r = mtwnClipPlayer_SetWeight(c, w->players[1], 0.25f);
         break;
     case 400:
-        r = mtwnPlayer_Sweep(c, w->players[2], 0.5);
+        r = mtwnClipPlayer_Sweep(c, w->players[2], 0.5);
         break;
     case 450:
         mtwnContext_EnableReducedMotion(c, true);

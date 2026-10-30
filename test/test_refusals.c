@@ -32,14 +32,14 @@ static void TestMissingContext(void)
     refused += mtwnDestroyClip(c, noClip) == mtwn_errorInvalid;
     refused += mtwnClip_Seal(c, noClip) == mtwn_errorInvalid;
     refused += mtwnContext_Update(c, 0, NULL, 0, NULL) == mtwn_errorInvalid;
-    refused += mtwnPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
-    refused += mtwnPlayer_Pause(c, noPlayer) == mtwn_errorInvalid;
-    refused += mtwnPlayer_Reverse(c, noPlayer) == mtwn_errorInvalid;
-    refused += mtwnPlayer_Finish(c, noPlayer) == mtwn_errorInvalid;
-    refused += mtwnPlayer_Cancel(c, noPlayer) == mtwn_errorInvalid;
-    refused += mtwnPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorInvalid;
-    refused += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorInvalid;
-    refused += mtwnPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_Play(c, noPlayer) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_Pause(c, noPlayer) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_Reverse(c, noPlayer) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_Finish(c, noPlayer) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_Cancel(c, noPlayer) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_Seek(c, noPlayer, 0.25) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorInvalid;
+    refused += mtwnClipPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorInvalid;
     refused += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorInvalid;
     refused += mtwnDestroyTarget(c, noTarget) == mtwn_errorInvalid;
     refused += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorInvalid;
@@ -166,14 +166,14 @@ static void TestClipsAndPlayers(void)
     CHECK(mtwnClip_GetTrack(context, clip, node, &read) == mtwn_errorInvalid &&
               mtwnClip_GetTrack(context, clip, 99, &read) == mtwn_errorInvalid,
           "a timeline and a node past the clip are not tracks");
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindingCount = 1;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_errorInvalid,
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_errorInvalid,
           "a binding count with no bindings");
     playerDef.bindingCount = 0;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
     mtwnDestroyContext(context);
 }
 
@@ -216,26 +216,28 @@ static void TestBindings(void)
     mtwnTargetId never = scalar;
     never.index1 += 50;
     mtwnBinding bindings[2] = {mtwnMakeBinding(0, scalar), mtwnMakeBinding(0, scalar)};
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = bindings;
     def.bindingCount = 1;
     mtwnPlayerId player;
     bindings[0].target = dead;
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a destroyed target");
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_errorInvalid, "a destroyed target");
     bindings[0].target = never;
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a target never made");
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_errorInvalid, "a target never made");
     bindings[0].target = color;
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid,
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_errorInvalid,
           "a target of another kind");
     bindings[0] = mtwnMakeBinding(1, scalar);
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a slot the clip lacks");
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_errorInvalid,
+          "a slot the clip lacks");
     bindings[0] = mtwnMakeBinding(0, scalar);
     def.bindingCount = 2;
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_errorInvalid, "a slot bound twice");
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_errorInvalid, "a slot bound twice");
     def.bindingCount = 1;
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_success, "bound once, live, its kind");
-    CHECK(mtwnPlayer_GetState(context, player, NULL) == mtwn_errorInvalid,
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_success,
+          "bound once, live, its kind");
+    CHECK(mtwnClipPlayer_GetState(context, player, NULL) == mtwn_errorInvalid,
           "its state with nowhere to give it");
     mtwnDestroyContext(context);
 }
