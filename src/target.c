@@ -350,6 +350,12 @@ static mtwnResult RunReadTargets(mtwnContext* context, const mtwnTargetId* targe
 {
     if (context == NULL || (count != 0 && (targets == NULL || valuesOut == NULL)))
     {
+        // A success writes count values with or without live ids, so the
+        // count bounds the array even without a context.
+        for (uint32_t i = 0; valuesOut != NULL && i < count; ++i)
+        {
+            valuesOut[i] = (mtwnVec4){0};
+        }
         if (context != NULL)
         {
             mtwnCountMisuse(context);

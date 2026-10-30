@@ -276,12 +276,18 @@ extern "C"
     /// @param timeNs           The host's time in nanoseconds, never less
     ///                         than the last update's.
     /// @param changedOut       Receives the first changedCapacity changed
-    ///                         targets; NULL only with a capacity of 0; nothing
-    ///                         written on failure.
+    ///                         targets; NULL only with a capacity of 0. On
+    ///                         failure its first changedCapacity entries, up
+    ///                         to the context's target capacity, are the null
+    ///                         id; a null context, or a call back in from the
+    ///                         context's own host code (mtwn_errorBusy),
+    ///                         leaves it as it was.
     /// @param changedCapacity  Its length.
     /// @param changedTotalOut  Receives how many targets changed, which may
     ///                         exceed the capacity; those past it are left out
-    ///                         of the report only. May be NULL; 0 on failure.
+    ///                         of the report only. May be NULL; 0 on failure
+    ///                         but a call back in (mtwn_errorBusy), which
+    ///                         leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null context, a null
     ///         array with a capacity, or a time before the last update's,
     ///         nothing advanced.
