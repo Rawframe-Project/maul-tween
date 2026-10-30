@@ -456,34 +456,23 @@ uint64_t mtwnContext_GetMemoryBytes(const mtwnContext* context)
     return context != NULL ? context->blockBytes : 0;
 }
 
-static mtwnResult RunContextEnableReducedMotion(mtwnContext* context, bool enabled)
+static MTWN_NOINLINE void mtwnContext_EnableReducedMotionWork(mtwnContext* context, bool enabled)
 {
-    if (context == NULL)
+    // A null context, and a call back in (its misuse counted by
+    // mtwnEnter), change nothing.
+    if (context == NULL || !mtwnEnter(context))
     {
-        return mtwn_errorInvalid;
+        return;
     }
     context->reducedMotion = enabled;
-    return mtwn_success;
-}
-
-static MTWN_NOINLINE mtwnResult mtwnContext_EnableReducedMotionWork(mtwnContext* context,
-                                                                    bool enabled)
-{
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorBusy;
-    }
-    mtwnResult result = RunContextEnableReducedMotion(context, enabled);
     mtwnLeave(context);
-    return result;
 }
 
-mtwnResult mtwnContext_EnableReducedMotion(mtwnContext* context, bool enabled)
+void mtwnContext_EnableReducedMotion(mtwnContext* context, bool enabled)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnContext_EnableReducedMotionWork(context, enabled);
+    mtwnContext_EnableReducedMotionWork(context, enabled);
     mtwnFloatEnvLeave(env);
-    return result;
 }
 
 bool mtwnContext_IsReducedMotionEnabled(const mtwnContext* context)

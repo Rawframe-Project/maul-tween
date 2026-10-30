@@ -396,8 +396,9 @@ static void Context(Out* out)
     def.targetCapacity = 32;
     r = mtwnContext_Grow(&context, &def);
     PUT(out, r);
-    r = mtwnContext_EnableReducedMotion(context, false);
-    PUT(out, r);
+    mtwnContext_EnableReducedMotion(context, false);
+    bool reduced = mtwnContext_IsReducedMotionEnabled(context);
+    PUT(out, reduced);
     mtwnTargetId t[5];
     mtwnResult made[5] = {
         mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0x1p-130f, 0, 0, 0}, &t[0]),

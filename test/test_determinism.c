@@ -334,10 +334,10 @@ static void Control(World* w, uint32_t frame)
         r = mtwnPlayer_Sweep(c, w->players[2], 0.5);
         break;
     case 450:
-        r = mtwnContext_EnableReducedMotion(c, true);
+        mtwnContext_EnableReducedMotion(c, true);
         break;
     case 500:
-        r = mtwnContext_EnableReducedMotion(c, false);
+        mtwnContext_EnableReducedMotion(c, false);
         break;
     default:
         break;

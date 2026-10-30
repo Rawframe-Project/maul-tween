@@ -1119,12 +1119,14 @@ static void TestReverseAfterReducedFinish(void)
     mtwnEvent e[16];
     Update(&w, 0.0);
     Update(&w, 0.1);
+    mtwnContext_EnableReducedMotion(w.context, true);
     CHECK(mtwnPlayer_SetRate(w.context, p, 1.5) == mtwn_success &&
-              mtwnContext_EnableReducedMotion(w.context, true) == mtwn_success,
+              mtwnContext_IsReducedMotionEnabled(w.context),
           "a rate pending, reduced motion");
     Update(&w, 0.25);
     (void)Read(&w, e, 16);
-    CHECK(mtwnContext_EnableReducedMotion(w.context, false) == mtwn_success &&
+    mtwnContext_EnableReducedMotion(w.context, false);
+    CHECK(!mtwnContext_IsReducedMotionEnabled(w.context) &&
               mtwnPlayer_Reverse(w.context, p) == mtwn_success,
           "reversed");
     Update(&w, 0.5);

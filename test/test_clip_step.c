@@ -336,7 +336,8 @@ static Seen Crowd(double spread, bool mixed, bool tasks, uint32_t eventCapacity)
             }
             if (f == 120u || f == 128u)
             {
-                CHECK(mtwnContext_EnableReducedMotion(twins[k].context, f == 120u) == mtwn_success,
+                mtwnContext_EnableReducedMotion(twins[k].context, f == 120u);
+                CHECK(mtwnContext_IsReducedMotionEnabled(twins[k].context) == (f == 120u),
                       "reduced motion");
             }
         }

@@ -45,8 +45,9 @@ static Probe s_probe;
 // argument it refuses as invalid or stale (a null id or output, a time
 // gone by), so none can change the context and none returns
 // mtwn_errorBusy of itself: that status is the busy refusal alone. Counts
-// those: 28, the functions returning a status. Busy, it ends with the
-// destroy, which returns nothing and must leave the context alive.
+// those: 27, the functions returning a status. The reduced motion switch
+// and, busy, the destroy return nothing; each is refused, counted, and must
+// leave the context as it was.
 static uint32_t CallEverything(mtwnContext* c, bool busy)
 {
     uint32_t r = 0;
@@ -67,8 +68,9 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnClip_Seal(c, noClip) == mtwn_errorBusy;
     mtwnContext* grown = c;
     r += mtwnContext_Grow(&grown, NULL) == mtwn_errorBusy;
-    // Reduced motion as it is: the one call that succeeds when not busy.
-    r += mtwnContext_EnableReducedMotion(c, false) == mtwn_errorBusy;
+    // Not busy, reduced motion as it is; busy, on, unless refused. It
+    // returns nothing, so the caller checks it is still off.
+    mtwnContext_EnableReducedMotion(c, busy);
     r += mtwnContext_Update(c, 0, NULL, 1, NULL) == mtwn_errorBusy;
     r += mtwnContext_ReadEvents(c, NULL, 1, NULL, NULL) == mtwn_errorBusy;
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
@@ -200,19 +202,19 @@ static void TestHostEasing(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, CallingIn, NULL, &def2.easing) == mtwn_success,
           "a host easing");
     CHECK(mtwnStartTransition(context, &def2, &s_probe.player) == mtwn_success, "started");
-    CHECK(CallEverything(context, false) == 0 &&
-              mtwnContext_EnableReducedMotion(context, false) == mtwn_success,
-          "not busy, none of the calls returns a state error, the last left too");
+    CHECK(CallEverything(context, false) == 0 && !mtwnContext_IsReducedMotionEnabled(context),
+          "not busy, none of the calls returns a state error, reduced motion left off");
     uint64_t before = mtwnContext_GetMisuse(context);
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
-    CHECK(s_probe.refused == 28, "every call back in refused");
+    CHECK(s_probe.refused == 27 && !mtwnContext_IsReducedMotionEnabled(context),
+          "every call back in refused, reduced motion left off");
     CHECK(s_probe.cleared == 8, "a creation's id the null id, as on any failure");
     CHECK(s_probe.left == 2, "its arrays and counts left, as the call in progress may hold them");
     CHECK(mtwnContext_GetMisuse(context) == before + 29 + 8 + 2,
-          "each counted, the destroy and the creations' and arrays' calls too");
+          "each counted, the switch, the destroy and the creations' and arrays' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, s_probe.target, &value) == mtwn_success && value.x == 0.5f,
@@ -566,7 +568,7 @@ static void CallingFree(void* memory, size_t size, size_t alignment, void* user)
     Calling* calling = user;
     if (calling->context != NULL)
     {
-        calling->inFree = mtwnContext_EnableReducedMotion(calling->context, true);
+        calling->inFree = mtwnTarget_SetBase(calling->context, (mtwnTargetId){0, 0}, (mtwnVec4){0});
         calling->frees += 1;
     }
     free(memory);

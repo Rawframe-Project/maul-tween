@@ -669,11 +669,11 @@ static void TestHost(void)
     CHECK(measured == mtwn_success && move.duration >= 0.15 && move.duration <= 0.4,
           "a duration from the distance");
     bool reduce = true; // the platform's preference, as the host reads it
-    mtwnResult enabled = mtwnContext_EnableReducedMotion(context, reduce);
+    mtwnContext_EnableReducedMotion(context, reduce);
     fade.essential = true; // an opacity change is not motion: it may play on
-    CHECK(enabled == mtwn_success && mtwnContext_IsReducedMotionEnabled(context) && fade.essential,
-          "reduced motion on");
-    CHECK(mtwnContext_EnableReducedMotion(context, false) == mtwn_success, "and off");
+    CHECK(mtwnContext_IsReducedMotionEnabled(context) && fade.essential, "reduced motion on");
+    mtwnContext_EnableReducedMotion(context, false);
+    CHECK(!mtwnContext_IsReducedMotionEnabled(context), "and off");
     nowNs = 200000000u;
     mtwnTargetId changed[64];
     uint32_t total = 0;
