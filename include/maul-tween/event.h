@@ -89,12 +89,17 @@ extern "C"
     /// how many were dropped at a full queue since the last read.
     ///
     /// @param context     The context.
-    /// @param eventsOut   Receives the records; NULL only with a capacity of 0;
-    ///                    nothing written on failure.
+    /// @param eventsOut   Receives the records; NULL only with a capacity of 0.
+    ///                    On failure its first capacity records, up to the
+    ///                    context's event capacity, are zero; a null context,
+    ///                    or a call back in from the context's own host code
+    ///                    (mtwn_errorBusy), leaves it as it was.
     /// @param capacity    Its length.
-    /// @param countOut    Receives how many were taken; 0 on failure.
+    /// @param countOut    Receives how many were taken; 0 on failure but a call
+    ///                    back in (mtwn_errorBusy), which leaves it.
     /// @param droppedOut  Receives the records dropped since the last read (the
-    ///                    count then starts again); may be NULL; 0 on failure.
+    ///                    count then starts again); may be NULL; 0 on failure
+    ///                    but a call back in (mtwn_errorBusy), which leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null context or
     ///         countOut, or a null array with a capacity.
     /// @par Thread safety
