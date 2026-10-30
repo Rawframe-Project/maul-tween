@@ -343,8 +343,9 @@ extern "C"
 //   mtwnContext_Update takes in nanoseconds as a uint64_t, below 2^35 s: below
 //   2^1000 + 2^55 in size;
 // - a rate other than 0 is at least MTWN_MIN_RATE (2^-20) in size;
-// - so t / rate is below 2^1021 in size, and now - t / rate is finite,
-//   16 times short of the largest double.
+// - so t / rate is below (2^1000 + 2^55) 2^20 = 2^1020 + 2^75 in size,
+//   and now - t / rate below 2^1020 + 2^76: finite, just under 16 times
+//   short of the largest double (2^1024 - 2^971).
 #define MTWN_SEEK_LIMIT 0x1p1000
 
     /// Adds a timeline: a group of children taking its transformed time.
