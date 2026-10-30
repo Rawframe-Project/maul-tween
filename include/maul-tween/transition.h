@@ -176,8 +176,10 @@ extern "C"
     ///         a delay, duration, given velocity or rest tolerance outside
     ///         the above, a spring or decay not made by this library, an
     ///         unknown kind, velocity source, color space, hue method,
-    ///         angle method or rotation path, a color with alpha outside 0
-    ///         to 1, the longest way between equal rotations, a spring or
+    ///         angle method or rotation path (each whatever the target's
+    ///         kind, one that does not read it too), a color with alpha
+    ///         outside 0 to 1, the longest way between equal rotations, a
+    ///         spring or
     ///         decay for a discrete value, a decay for a color or rotation, a scale's decay
     ///         stopping where a float is 0 or infinite, a decay both bounded
     ///         and landing, a lower bound above the upper or NaN, a scale's
@@ -214,7 +216,8 @@ extern "C"
     ///                     mtwn_errorBusy, which leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie, an end value the target's kind refuses,
-    ///         an unknown angle method or rotation path, the longest way
+    ///         an unknown angle method or rotation path (whatever the
+    ///         target's kind), the longest way
     ///         between equal rotations, or a discrete value, which has no
     ///         distance; mtwn_errorStale for a target that is not alive;
     ///         mtwn_errorBusy when called from the host's code

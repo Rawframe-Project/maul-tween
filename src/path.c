@@ -608,9 +608,13 @@ static bool IsZero4(mtwnVec4 v)
 static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, uint32_t count,
                        bool lengths, const mtwnSegmentMix* mixes)
 {
+    // Every choice known, whatever the kind reads: no correct program
+    // passes an unknown one, which would change meaning the day a kind
+    // reads its field.
     if (def == NULL || (uint32_t)def->kind > mtwn_valueScale ||
+        (uint32_t)def->colorSpace > mtwn_colorSrgb ||
+        (uint32_t)def->hueMethod > mtwn_hueDecreasing || !mtwnIsAngleMethod(def->angleMethod) ||
         (uint32_t)def->rotationPath > mtwn_rotationLongest ||
-        (def->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
         !IsValid(keyframes, count, s_kindChannels[def->kind], def->alpha, lengths) ||
         (lengths && !IsNumberKind(def->kind) && def->kind != mtwn_valueScale) ||
         !TakesSegments(def->kind, keyframes, count))
