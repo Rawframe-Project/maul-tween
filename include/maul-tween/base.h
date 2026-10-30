@@ -90,8 +90,8 @@ extern "C"
         // sized, a caller's buffer, or the allocator. More room would
         // succeed.
         mtwn_errorCapacity = -2,
-        // An id names an object that has been destroyed since it was
-        // handed out.
+        // An id names no live object: one destroyed since it was handed
+        // out, one never handed out, or the null id.
         mtwn_errorStale = -3,
         // The call is not allowed in the object's current state, which only
         // another call changes: a clip not sealed or already sealed, a
