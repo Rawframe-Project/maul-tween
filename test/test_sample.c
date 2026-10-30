@@ -14,6 +14,7 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <string.h>
 
 enum
 {
@@ -168,6 +169,14 @@ static void TestFitCounts(void)
         wrong += exact[i].input != s_points[i].input || exact[i].output != s_points[i].output;
     }
     CHECK(wrong == 0, "the same points whatever the capacity");
+    // Refused for room, the buffer holds the fit's first points, as a
+    // larger buffer starts.
+    wrong = 0;
+    for (uint32_t i = 0; i + 1 < needed; ++i)
+    {
+        wrong += guarded[i].input != exact[i].input || guarded[i].output != exact[i].output;
+    }
+    CHECK(wrong == 0, "one short holds the fit's first points");
     // Fewer points for a looser tolerance.
     uint32_t loose = 0;
     uint32_t tight = 0;
@@ -183,6 +192,31 @@ static void TestFitCounts(void)
           "an unmeetable tolerance stops at the limit");
     CHECK(mtwnFitLinearEasing(&ease, 1e-300, s_points, s_capacity, &count) == mtwn_errorLimit,
           "whatever the capacity");
+}
+
+// A fit refused after it found points, at its limit, leaves the fit's
+// first points, at most the capacity, as a larger buffer starts, and the
+// rest as they were.
+static void TestFitRefusedLate(void)
+{
+    mtwnEasing ease;
+    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &ease) == mtwn_success, "ease");
+    uint32_t count = 7;
+    CHECK(mtwnFitLinearEasing(&ease, 1e-300, s_points, s_capacity, &count) == mtwn_errorLimit &&
+              count == 0,
+          "an unmeetable tolerance stops at the limit, points found");
+    mtwnLinearPoint few[8];
+    memset(few, 0xAB, sizeof few);
+    CHECK(mtwnFitLinearEasing(&ease, 1e-300, few, 4, &count) == mtwn_errorLimit,
+          "with a small buffer too");
+    CHECK(memcmp(few, s_points, 4 * sizeof few[0]) == 0, "its first points the larger buffer's");
+    const unsigned char* rest = (const unsigned char*)&few[4];
+    int touched = 0;
+    for (size_t i = 0; i < 4 * sizeof few[0]; ++i)
+    {
+        touched += rest[i] != 0xAB;
+    }
+    CHECK(touched == 0, "and nothing past its capacity");
 }
 
 static void TestToleranceMetExactly(void)
@@ -358,6 +392,7 @@ int main(void)
     TestFitsWithinTolerance();
     TestFitLastProbe();
     TestFitCounts();
+    TestFitRefusedLate();
     TestToleranceMetExactly();
     TestJumpsEnd();
     TestFitAsDeepAsItGoes();
