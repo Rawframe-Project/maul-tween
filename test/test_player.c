@@ -72,7 +72,7 @@ static Fixture Make(bool endless, uint32_t bindings)
 static mtwnPlayerId Player(Fixture* f, bool play, double rate)
 {
     mtwnBinding binding = mtwnMakeBinding(0, f->target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = f->clip;
     def.bindings = &binding;
     def.bindingCount = 1;
@@ -80,7 +80,7 @@ static mtwnPlayerId Player(Fixture* f, bool play, double rate)
     def.rate = rate;
     def.keep = true;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(f->context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(f->context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -91,10 +91,10 @@ static void Update(Fixture* f, double seconds)
           "updated");
 }
 
-static mtwnPlayerState State(Fixture* f, mtwnPlayerId player)
+static mtwnClipPlayerState State(Fixture* f, mtwnPlayerId player)
 {
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(f->context, player, &state) == mtwn_success, "read");
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(f->context, player, &state) == mtwn_success, "read");
     return state;
 }
 
@@ -107,19 +107,19 @@ static void TestPlayPause(void)
 {
     Fixture f = Make(false, 64);
     mtwnPlayerId p = Player(&f, true, 1.0);
-    mtwnPlayerState s = State(&f, p);
+    mtwnClipPlayerState s = State(&f, p);
     CHECK(s.pending && s.currentTime == 0.0 && s.state == mtwn_playRunning && s.duration == 2.0,
           "playing waits for the next update, at 0");
     Update(&f, 10.0);
     CHECK(!State(&f, p).pending && State(&f, p).currentTime == 0.0, "which is its start");
     Update(&f, 11.0);
     CHECK(Near(State(&f, p).currentTime, 1.0), "a second later, 1");
-    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(f.context, p) == mtwn_success, "paused");
     Update(&f, 12.0);
     s = State(&f, p);
     CHECK(Near(s.currentTime, 1.0) && s.state == mtwn_playPaused, "held at the last update's");
-    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success, "pausing again changes nothing");
-    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success && State(&f, p).pending, "resumed");
+    CHECK(mtwnClipPlayer_Pause(f.context, p) == mtwn_success, "pausing again changes nothing");
+    CHECK(mtwnClipPlayer_Play(f.context, p) == mtwn_success && State(&f, p).pending, "resumed");
     Update(&f, 15.0);
     Update(&f, 15.5);
     CHECK(Near(State(&f, p).currentTime, 1.5), "from where it was held");
@@ -130,7 +130,7 @@ static void TestPlayPause(void)
     Update(&f, 30.0);
     CHECK(State(&f, p).currentTime == 2.0, "and stays there");
     // Playing a finished player rewinds.
-    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success && State(&f, p).currentTime == 0.0,
+    CHECK(mtwnClipPlayer_Play(f.context, p) == mtwn_success && State(&f, p).currentTime == 0.0,
           "auto-rewind to 0");
     Update(&f, 31.0);
     Update(&f, 31.25);
@@ -148,31 +148,31 @@ static void TestPauseAtRate(void)
     Update(&f, 0.0);
     Update(&f, 0.25);
     CHECK(Near(State(&f, p).currentTime, 0.5), "a quarter second at 2");
-    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(f.context, p) == mtwn_success, "paused");
     Update(&f, 1.0);
     CHECK(Near(State(&f, p).currentTime, 0.5), "held");
-    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success, "played");
+    CHECK(mtwnClipPlayer_Play(f.context, p) == mtwn_success, "played");
     Update(&f, 5.0);
     CHECK(Near(State(&f, p).currentTime, 0.5), "from the time held, after a long pause");
     Update(&f, 5.25);
     CHECK(Near(State(&f, p).currentTime, 1.0), "at 2 again");
     // A rate set and a pause before the next update: the rate is taken at
     // the pause, and runs from the time held.
-    CHECK(mtwnPlayer_SetRate(f.context, p, 3.0) == mtwn_success &&
-              mtwnPlayer_Pause(f.context, p) == mtwn_success && State(&f, p).rate == 3.0,
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 3.0) == mtwn_success &&
+              mtwnClipPlayer_Pause(f.context, p) == mtwn_success && State(&f, p).rate == 3.0,
           "a rate pending at a pause, taken");
     Update(&f, 5.5);
-    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success, "played");
+    CHECK(mtwnClipPlayer_Play(f.context, p) == mtwn_success, "played");
     Update(&f, 6.0);
     Update(&f, 6.1);
     CHECK(Near(State(&f, p).currentTime, 1.3), "from 1 at 3");
     // Backwards: the same.
-    CHECK(mtwnPlayer_SetRate(f.context, p, -2.0) == mtwn_success, "-2");
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, -2.0) == mtwn_success, "-2");
     Update(&f, 6.2);
     CHECK(Near(State(&f, p).currentTime, 1.6), "the old rate to the update");
-    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(f.context, p) == mtwn_success, "paused");
     Update(&f, 7.0);
-    CHECK(mtwnPlayer_Play(f.context, p) == mtwn_success, "played");
+    CHECK(mtwnClipPlayer_Play(f.context, p) == mtwn_success, "played");
     Update(&f, 8.0);
     Update(&f, 8.1);
     CHECK(Near(State(&f, p).currentTime, 1.4) && State(&f, p).rate == -2.0,
@@ -186,30 +186,32 @@ static void TestSeeks(void)
     mtwnPlayerId p = Player(&f, true, 1.0);
     Update(&f, 1.0);
     Update(&f, 1.5);
-    CHECK(mtwnPlayer_Seek(f.context, p, 3.0) == mtwn_success && State(&f, p).currentTime == 3.0,
+    CHECK(mtwnClipPlayer_Seek(f.context, p, 3.0) == mtwn_success && State(&f, p).currentTime == 3.0,
           "a running player sought past its end is there");
     Update(&f, 2.0);
     CHECK(State(&f, p).currentTime == 3.0 && State(&f, p).state == mtwn_playFinished,
           "and stays, its previous time past the end");
-    CHECK(mtwnPlayer_Seek(f.context, p, 0.5) == mtwn_success, "back into range");
+    CHECK(mtwnClipPlayer_Seek(f.context, p, 0.5) == mtwn_success, "back into range");
     Update(&f, 2.25);
-    mtwnPlayerState s = State(&f, p);
+    mtwnClipPlayerState s = State(&f, p);
     CHECK(Near(s.currentTime, 0.75) && s.state == mtwn_playRunning,
           "a finished player sought into range runs from there");
-    CHECK(mtwnPlayer_SetRate(f.context, p, -1.0) == mtwn_success, "backwards");
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, -1.0) == mtwn_success, "backwards");
     Update(&f, 2.5);
-    CHECK(mtwnPlayer_Seek(f.context, p, -1.0) == mtwn_success && State(&f, p).currentTime == -1.0,
+    CHECK(mtwnClipPlayer_Seek(f.context, p, -1.0) == mtwn_success &&
+              State(&f, p).currentTime == -1.0,
           "sought before 0");
     Update(&f, 3.0);
     CHECK(State(&f, p).currentTime == -1.0, "and stays there backwards");
-    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success &&
-              mtwnPlayer_Seek(f.context, p, 1.0) == mtwn_success,
+    CHECK(mtwnClipPlayer_Pause(f.context, p) == mtwn_success &&
+              mtwnClipPlayer_Seek(f.context, p, 1.0) == mtwn_success,
           "paused, then sought");
     Update(&f, 4.0);
     s = State(&f, p);
     CHECK(s.state == mtwn_playPaused && s.currentTime == 1.0, "a paused player stays paused");
     mtwnPlayerId back = Player(&f, false, -1.0);
-    CHECK(mtwnPlayer_Pause(f.context, back) == mtwn_success && State(&f, back).currentTime == 2.0,
+    CHECK(mtwnClipPlayer_Pause(f.context, back) == mtwn_success &&
+              State(&f, back).currentTime == 2.0,
           "an idle player paused backwards holds its end");
     mtwnDestroyContext(f.context);
 }
@@ -220,10 +222,10 @@ static void TestFinishReverse(void)
     mtwnPlayerId p = Player(&f, true, 1.0);
     Update(&f, 1.0);
     Update(&f, 1.5);
-    CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_success, "finished by hand");
-    mtwnPlayerState s = State(&f, p);
+    CHECK(mtwnClipPlayer_Finish(f.context, p) == mtwn_success, "finished by hand");
+    mtwnClipPlayerState s = State(&f, p);
     CHECK(s.state == mtwn_playFinished && s.currentTime == 2.0, "at the end");
-    CHECK(mtwnPlayer_Reverse(f.context, p) == mtwn_success, "reversed");
+    CHECK(mtwnClipPlayer_Reverse(f.context, p) == mtwn_success, "reversed");
     s = State(&f, p);
     CHECK(s.rate == -1.0 && s.currentTime == 2.0 && s.state == mtwn_playRunning,
           "backwards from the end, the end kept");
@@ -233,15 +235,15 @@ static void TestFinishReverse(void)
     Update(&f, 5.0);
     s = State(&f, p);
     CHECK(s.state == mtwn_playFinished && s.currentTime == 0.0, "finished at 0 backwards");
-    CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_success && State(&f, p).currentTime == 0.0,
+    CHECK(mtwnClipPlayer_Finish(f.context, p) == mtwn_success && State(&f, p).currentTime == 0.0,
           "finish backwards is 0");
     // A rate change keeps the current time.
-    CHECK(mtwnPlayer_SetRate(f.context, p, 1.0) == mtwn_success &&
-              mtwnPlayer_Seek(f.context, p, 0.5) == mtwn_success,
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 1.0) == mtwn_success &&
+              mtwnClipPlayer_Seek(f.context, p, 0.5) == mtwn_success,
           "forwards at 0.5");
     Update(&f, 6.0);
     CHECK(Near(State(&f, p).currentTime, 1.5), "running from the seek");
-    CHECK(mtwnPlayer_SetRate(f.context, p, 4.0) == mtwn_success &&
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 4.0) == mtwn_success &&
               Near(State(&f, p).currentTime, 1.5) && State(&f, p).rate == 4.0 &&
               State(&f, p).pending,
           "a rate of 4 pending, the time kept");
@@ -255,10 +257,10 @@ static void TestFinishReverse(void)
     f = Make(true, 64);
     p = Player(&f, false, 1.0);
     CHECK(State(&f, p).state == mtwn_playIdle && isnan(State(&f, p).currentTime), "idle");
-    CHECK(mtwnPlayer_Reverse(f.context, p) == mtwn_errorState, "refused");
+    CHECK(mtwnClipPlayer_Reverse(f.context, p) == mtwn_errorState, "refused");
     CHECK(State(&f, p).rate == 1.0 && State(&f, p).state == mtwn_playIdle, "and nothing changed");
-    CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_errorState, "no end to finish at");
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.5) == mtwn_errorInvalid, "no progress of it");
+    CHECK(mtwnClipPlayer_Finish(f.context, p) == mtwn_errorState, "no end to finish at");
+    CHECK(mtwnClipPlayer_SeekProgress(f.context, p, 0.5) == mtwn_errorInvalid, "no progress of it");
     mtwnDestroyContext(f.context);
 }
 
@@ -271,22 +273,22 @@ static void TestPastTheEnd(void)
     Fixture f = Make(false, 64);
     mtwnPlayerId p = Player(&f, true, 1.0);
     Update(&f, 1.0);
-    CHECK(mtwnPlayer_Seek(f.context, p, 5.0) == mtwn_success, "sought past the end");
+    CHECK(mtwnClipPlayer_Seek(f.context, p, 5.0) == mtwn_success, "sought past the end");
     Update(&f, 1.5);
-    CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_success && State(&f, p).currentTime == 2.0,
+    CHECK(mtwnClipPlayer_Finish(f.context, p) == mtwn_success && State(&f, p).currentTime == 2.0,
           "finished at the end, 2");
     mtwnPlayerId held = Player(&f, true, 1.0);
     Update(&f, 2.0);
-    CHECK(mtwnPlayer_SetRate(f.context, held, 0.0) == mtwn_success &&
-              mtwnPlayer_Seek(f.context, held, 5.0) == mtwn_success,
+    CHECK(mtwnClipPlayer_SetRate(f.context, held, 0.0) == mtwn_success &&
+              mtwnClipPlayer_Seek(f.context, held, 5.0) == mtwn_success,
           "at rate 0, past the end");
     Update(&f, 2.5);
-    mtwnPlayerState s = State(&f, held);
+    mtwnClipPlayerState s = State(&f, held);
     CHECK(s.currentTime == 5.0 && s.state != mtwn_playFinished, "held there, not finished");
     // At rate 0 a play at 0 rewinds nowhere: 0 is inside, not before it.
     mtwnPlayerId still = Player(&f, false, 0.0);
-    CHECK(mtwnPlayer_Seek(f.context, still, 0.0) == mtwn_success &&
-              mtwnPlayer_Play(f.context, still) == mtwn_success &&
+    CHECK(mtwnClipPlayer_Seek(f.context, still, 0.0) == mtwn_success &&
+              mtwnClipPlayer_Play(f.context, still) == mtwn_success &&
               State(&f, still).currentTime == 0.0,
           "played at 0 at rate 0: still 0");
     // A seek holds an idle player, and one playing at rate 0, at its time
@@ -294,8 +296,8 @@ static void TestPastTheEnd(void)
     mtwnPlayerId idle = Player(&f, false, 1.0);
     mtwnPlayerId zero = Player(&f, true, 0.0);
     Update(&f, 3.0);
-    CHECK(mtwnPlayer_Seek(f.context, idle, 1.0) == mtwn_success &&
-              mtwnPlayer_Seek(f.context, zero, 1.0) == mtwn_success,
+    CHECK(mtwnClipPlayer_Seek(f.context, idle, 1.0) == mtwn_success &&
+              mtwnClipPlayer_Seek(f.context, zero, 1.0) == mtwn_success,
           "both sought to 1");
     Update(&f, 3.5);
     CHECK(State(&f, idle).currentTime == 1.0 && State(&f, zero).currentTime == 1.0,
@@ -304,10 +306,10 @@ static void TestPastTheEnd(void)
     mtwnPlayerId slowed = Player(&f, true, 1.0);
     Update(&f, 4.0);
     Update(&f, 4.5);
-    CHECK(mtwnPlayer_SetRate(f.context, slowed, 0.0) == mtwn_success, "stopped at the update");
+    CHECK(mtwnClipPlayer_SetRate(f.context, slowed, 0.0) == mtwn_success, "stopped at the update");
     Update(&f, 5.0);
     double at = State(&f, slowed).currentTime;
-    CHECK(mtwnPlayer_Pause(f.context, slowed) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(f.context, slowed) == mtwn_success, "paused");
     Update(&f, 5.5);
     CHECK(at == 1.0 && State(&f, slowed).currentTime == at, "paused where it stopped, at 1");
     mtwnDestroyContext(f.context);
@@ -316,20 +318,20 @@ static void TestPastTheEnd(void)
     // second from 3.
     f = Make(false, 64);
     mtwnPlayerId sought = Player(&f, true, 1.0);
-    CHECK(mtwnPlayer_Seek(f.context, sought, 3.0) == mtwn_success, "sought past the end first");
+    CHECK(mtwnClipPlayer_Seek(f.context, sought, 3.0) == mtwn_success, "sought past the end first");
     Update(&f, 0.125);
-    CHECK(mtwnPlayer_SetRate(f.context, sought, -0.5) == mtwn_success, "backwards at half");
+    CHECK(mtwnClipPlayer_SetRate(f.context, sought, -0.5) == mtwn_success, "backwards at half");
     Update(&f, 0.1875);
     CHECK(Near(State(&f, sought).currentTime, 2.96875), "from the time it held");
     // A paused player finished stays at its end through the next update.
     mtwnPlayerId paused = Player(&f, true, 1.5);
     Update(&f, 0.25);
     Update(&f, 0.75);
-    CHECK(mtwnPlayer_Pause(f.context, paused) == mtwn_success &&
-              mtwnPlayer_Finish(f.context, paused) == mtwn_success,
+    CHECK(mtwnClipPlayer_Pause(f.context, paused) == mtwn_success &&
+              mtwnClipPlayer_Finish(f.context, paused) == mtwn_success,
           "paused, then finished");
     Update(&f, 1.0);
-    mtwnPlayerState finished = State(&f, paused);
+    mtwnClipPlayerState finished = State(&f, paused);
     CHECK(finished.currentTime == 2.0 && finished.state == mtwn_playFinished,
           "at its end, finished");
     mtwnDestroyContext(f.context);
@@ -350,10 +352,10 @@ static void TestOwnBindings(void)
     CHECK(mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
               mtwnClip_Seal(f.context, marks) == mtwn_success,
           "a clip of a mark alone");
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = marks;
     mtwnPlayerId alone;
-    CHECK(mtwnCreatePlayer(f.context, &def, &alone) == mtwn_success,
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &alone) == mtwn_success,
           "its player made, the one binding taken");
     (void)first;
     mtwnDestroyContext(f.context);
@@ -363,13 +365,13 @@ static void TestOwnBindings(void)
     CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
     mtwnBinding binding = mtwnMakeBinding(0, other);
-    def = mtwnDefaultPlayerDef();
+    def = mtwnDefaultClipPlayerDef();
     def.clip = f.clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = true;
     mtwnPlayerId second;
-    CHECK(mtwnCreatePlayer(f.context, &def, &second) == mtwn_success, "a second player");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &second) == mtwn_success, "a second player");
     Update(&f, 1.0);
     Update(&f, 2.0);
     CHECK(mtwnDestroyPlayer(f.context, first) == mtwn_success, "the first destroyed");
@@ -388,9 +390,9 @@ static void TestOwnBindings(void)
               mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
               mtwnClip_Seal(f.context, marks) == mtwn_success,
           "a clip of a mark alone");
-    def = mtwnDefaultPlayerDef();
+    def = mtwnDefaultClipPlayerDef();
     def.clip = marks;
-    CHECK(mtwnCreatePlayer(f.context, &def, &alone) == mtwn_errorCapacity, "the pool full");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &alone) == mtwn_errorCapacity, "the pool full");
     Update(&f, 1.0);
     Update(&f, 2.0);
     CHECK(mtwnTarget_GetValue(f.context, f.target, &value) == mtwn_success && value.x == 0.5f,
@@ -431,20 +433,20 @@ static void TestSlotPastFull(void)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
     mtwnBinding binding = mtwnMakeBinding(0, target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = true;
     def.play = false;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &def, &player) == mtwn_success &&
-              mtwnPlayer_Seek(context, player, 0x1.0000000000001p-1) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(context, &def, &player) == mtwn_success &&
+              mtwnClipPlayer_Seek(context, player, 0x1.0000000000001p-1) == mtwn_success &&
               mtwnContext_Update(context, 1000000u, NULL, 0, NULL) == mtwn_success,
           "sampled at a time ending in the byte 1");
     binding = mtwnMakeBinding(16, target);
     mtwnPlayerId past;
-    CHECK(mtwnCreatePlayer(context, &def, &past) == mtwn_errorInvalid, "slot 16 refused");
+    CHECK(mtwnCreateClipPlayer(context, &def, &past) == mtwn_errorInvalid, "slot 16 refused");
     mtwnDestroyContext(context);
 }
 
@@ -452,74 +454,75 @@ static void TestSeekCancel(void)
 {
     Fixture f = Make(false, 64);
     mtwnPlayerId p = Player(&f, false, 1.0);
-    CHECK(mtwnPlayer_Pause(f.context, p) == mtwn_success && State(&f, p).state == mtwn_playPaused &&
-              State(&f, p).currentTime == 0.0,
+    CHECK(mtwnClipPlayer_Pause(f.context, p) == mtwn_success &&
+              State(&f, p).state == mtwn_playPaused && State(&f, p).currentTime == 0.0,
           "pausing an idle player holds it at 0");
-    CHECK(mtwnPlayer_Seek(f.context, p, 0.5) == mtwn_success && State(&f, p).currentTime == 0.5,
+    CHECK(mtwnClipPlayer_Seek(f.context, p, 0.5) == mtwn_success && State(&f, p).currentTime == 0.5,
           "seek by time");
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.75) == mtwn_success &&
+    CHECK(mtwnClipPlayer_SeekProgress(f.context, p, 0.75) == mtwn_success &&
               State(&f, p).currentTime == 1.5,
           "by progress");
-    CHECK(mtwnPlayer_SeekLabel(f.context, p, 3) == mtwn_success && State(&f, p).currentTime == 1.25,
+    CHECK(mtwnClipPlayer_SeekLabel(f.context, p, 3) == mtwn_success &&
+              State(&f, p).currentTime == 1.25,
           "at a label");
-    CHECK(mtwnPlayer_SeekLabel(f.context, p, 4) == mtwn_errorInvalid, "no such label");
-    CHECK(mtwnPlayer_Seek(f.context, p, (double)NAN) == mtwn_errorInvalid, "a NaN time");
-    CHECK(mtwnPlayer_Seek(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
-              mtwnPlayer_Seek(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
+    CHECK(mtwnClipPlayer_SeekLabel(f.context, p, 4) == mtwn_errorInvalid, "no such label");
+    CHECK(mtwnClipPlayer_Seek(f.context, p, (double)NAN) == mtwn_errorInvalid, "a NaN time");
+    CHECK(mtwnClipPlayer_Seek(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
+              mtwnClipPlayer_Seek(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
           "an infinite time either way past MTWN_SEEK_LIMIT");
-    CHECK(mtwnPlayer_Sweep(f.context, p, (double)NAN) == mtwn_errorInvalid &&
-              mtwnPlayer_Sweep(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
-              mtwnPlayer_Sweep(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
+    CHECK(mtwnClipPlayer_Sweep(f.context, p, (double)NAN) == mtwn_errorInvalid &&
+              mtwnClipPlayer_Sweep(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
+              mtwnClipPlayer_Sweep(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
           "a sweep to NaN invalid, to infinity either way past the limit");
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, (double)NAN) == mtwn_errorInvalid &&
-              mtwnPlayer_SeekProgress(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
-              mtwnPlayer_SeekProgress(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
+    CHECK(mtwnClipPlayer_SeekProgress(f.context, p, (double)NAN) == mtwn_errorInvalid &&
+              mtwnClipPlayer_SeekProgress(f.context, p, HUGE_VAL) == mtwn_errorLimit &&
+              mtwnClipPlayer_SeekProgress(f.context, p, -HUGE_VAL) == mtwn_errorLimit,
           "a progress of NaN invalid, of infinity either way past the limit");
-    CHECK(mtwnPlayer_Cancel(f.context, p) == mtwn_success && State(&f, p).state == mtwn_playIdle &&
-              isnan(State(&f, p).currentTime),
+    CHECK(mtwnClipPlayer_Cancel(f.context, p) == mtwn_success &&
+              State(&f, p).state == mtwn_playIdle && isnan(State(&f, p).currentTime),
           "canceled: idle");
     CHECK(mtwnPlayer_IsValid(f.context, p), "and kept");
-    CHECK(mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success &&
-              mtwnPlayer_Play(f.context, p) == mtwn_success,
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 0.0) == mtwn_success &&
+              mtwnClipPlayer_Play(f.context, p) == mtwn_success,
           "played at rate 0");
     Update(&f, 3.0);
     Update(&f, 4.0);
     CHECK(State(&f, p).currentTime == 0.0, "which holds");
-    CHECK(mtwnPlayer_Finish(f.context, p) == mtwn_errorState, "no end at rate 0");
+    CHECK(mtwnClipPlayer_Finish(f.context, p) == mtwn_errorState, "no end at rate 0");
     mtwnDestroyContext(f.context);
 }
 
 static void TestBindings(void)
 {
     Fixture f = Make(false, 4);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = f.clip;
     mtwnBinding bindings[2] = {mtwnMakeBinding(0, f.target), mtwnMakeBinding(0, f.target)};
     def.bindings = bindings;
     def.bindingCount = 2;
     mtwnPlayerId p;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorInvalid && p.index1 == 0,
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorInvalid && p.index1 == 0,
           "a slot bound twice");
     bindings[1].slot = 1;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorInvalid, "a slot the clip lacks");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorInvalid, "a slot the clip lacks");
     def.bindingCount = 0;
     def.rate = HUGE_VAL;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorLimit, "an infinite rate");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorLimit, "an infinite rate");
     def.rate = 1.0;
     mtwnPlayerId players[4];
     for (int i = 0; i < 4; ++i)
     {
-        CHECK(mtwnCreatePlayer(f.context, &def, &players[i]) == mtwn_success,
+        CHECK(mtwnCreateClipPlayer(f.context, &def, &players[i]) == mtwn_success,
               "unbound slots: one binding each");
     }
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorCapacity, "the bindings full");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorCapacity, "the bindings full");
     mtwnClipId busy = f.clip;
     CHECK(mtwnDestroyClip(f.context, busy) == mtwn_errorBusy, "the clip busy");
     for (int i = 0; i < 4; ++i)
     {
         CHECK(mtwnDestroyPlayer(f.context, players[i]) == mtwn_success, "freed");
     }
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_success, "the bindings back");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_success, "the bindings back");
     CHECK(mtwnDestroyPlayer(f.context, p) == mtwn_success, "freed");
     CHECK(mtwnDestroyClip(f.context, busy) == mtwn_success, "the clip free");
     // A clip not sealed, or gone.
@@ -527,11 +530,11 @@ static void TestBindings(void)
     mtwnClipId open;
     CHECK(mtwnCreateClip(f.context, &clipDef, &open) == mtwn_success, "an open clip");
     def.clip = open;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorState, "not finished");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorState, "not finished");
     def.clip = busy;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorStale, "a destroyed clip");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorStale, "a destroyed clip");
     def.cookie = 0;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_errorInvalid, "no cookie");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_errorInvalid, "no cookie");
     mtwnDestroyContext(f.context);
 }
 
@@ -549,12 +552,12 @@ static void TestGrowFromNoBindings(void)
         (void)Player(&f, true, 1.0);
     }
     mtwnBinding binding = mtwnMakeBinding(0, f.target);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = f.clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId refused = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity,
+    CHECK(mtwnCreateClipPlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity,
           "a fifth refused");
     mtwnDestroyContext(f.context);
 }
@@ -569,18 +572,18 @@ static void TestFullPoolKeepsBindings(void)
     Fixture f = MakeFrom(&def, false);
     mtwnPlayerId first = Player(&f, true, 1.0);
     mtwnBinding binding = mtwnMakeBinding(0, f.target);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = f.clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId refused = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity &&
+    CHECK(mtwnCreateClipPlayer(f.context, &playerDef, &refused) == mtwn_errorCapacity &&
               refused.index1 == 0,
           "no player's slot left");
     def.playerCapacity = 2;
     CHECK(mtwnContext_Grow(&f.context, &def) == mtwn_success, "grown to two players");
     mtwnPlayerId second = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &playerDef, &second) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(f.context, &playerDef, &second) == mtwn_success &&
               mtwnPlayer_IsValid(f.context, first),
           "the bindings the refused player took are there again");
     mtwnDestroyContext(f.context);
@@ -598,8 +601,8 @@ static void TestOrder(void)
     mtwnPlayerId later = Player(&f, true, 0.0);
     CHECK(later.index1 == first.index1 && later.index1 < earlier.index1,
           "the later made in the earlier slot");
-    CHECK(mtwnPlayer_Seek(f.context, earlier, 0.5) == mtwn_success &&
-              mtwnPlayer_Seek(f.context, later, 1.5) == mtwn_success,
+    CHECK(mtwnClipPlayer_Seek(f.context, earlier, 0.5) == mtwn_success &&
+              mtwnClipPlayer_Seek(f.context, later, 1.5) == mtwn_success,
           "held at a quarter and three quarters of the track");
     Update(&f, 1.0);
     mtwnTargetState target;
@@ -619,12 +622,13 @@ static void TestOrder(void)
     def.value = (mtwnVec4){1.0f, 0, 0, 0};
     mtwnPlayerId transition;
     CHECK(mtwnStartTransition(f.context, &def, &transition) == mtwn_success, "a transition");
-    CHECK(mtwnPlayer_Pause(f.context, transition) == mtwn_errorInvalid,
+    CHECK(mtwnClipPlayer_Pause(f.context, transition) == mtwn_errorInvalid,
           "transitions take no controls");
-    mtwnPlayerState s;
-    CHECK(mtwnPlayer_GetState(f.context, transition, &s) == mtwn_errorInvalid,
+    mtwnClipPlayerState s;
+    CHECK(mtwnClipPlayer_GetState(f.context, transition, &s) == mtwn_errorInvalid,
           "nor report a state");
-    CHECK(mtwnPlayer_Play(f.context, (mtwnPlayerId){9, 9}) == mtwn_errorStale, "a stale player");
+    CHECK(mtwnClipPlayer_Play(f.context, (mtwnPlayerId){9, 9}) == mtwn_errorStale,
+          "a stale player");
     mtwnDestroyContext(f.context);
 }
 
@@ -659,8 +663,8 @@ static void TestAfterLastPlayer(void)
     mtwnPlayerId p = Player(&f, true, 1.0);
     Update(&f, 0.0);
     Update(&f, 1.0);
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success, "played");
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(f.context, p, &state) == mtwn_success, "played");
     CHECK(mtwnDestroyPlayer(f.context, p) == mtwn_success, "the last player gone");
     mtwnTargetId x;
     CHECK(mtwnCreateTarget(f.context, mtwn_valueScalar, (mtwnVec4){0}, &x) == mtwn_success,
@@ -693,49 +697,50 @@ static void TestEdges(void)
     // A binding to the slot past the last is refused.
     Fixture f = Make(false, 8);
     mtwnBinding past = mtwnMakeBinding(1, f.target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = f.clip;
     def.bindings = &past;
     def.bindingCount = 1;
     mtwnPlayerId refused;
-    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorInvalid,
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &refused) == mtwn_errorInvalid,
           "a binding past the clip's slots refused");
     // At a rate of 0 a player is never finished, at 0 or anywhere.
     mtwnPlayerId still = Player(&f, true, 0.0);
     Update(&f, 0.0);
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(f.context, still, &state) == mtwn_success &&
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(f.context, still, &state) == mtwn_success &&
               state.state == mtwn_playRunning && state.currentTime == 0.0,
           "running at 0, held");
     // Paused at 0.5, its rate set to 0 and played: the time stays.
     mtwnPlayerId held = Player(&f, true, 1.0);
     Update(&f, 0.5);
     Update(&f, 1.0);
-    CHECK(mtwnPlayer_Pause(f.context, held) == mtwn_success &&
-              mtwnPlayer_SetRate(f.context, held, 0.0) == mtwn_success &&
-              mtwnPlayer_Play(f.context, held) == mtwn_success,
+    CHECK(mtwnClipPlayer_Pause(f.context, held) == mtwn_success &&
+              mtwnClipPlayer_SetRate(f.context, held, 0.0) == mtwn_success &&
+              mtwnClipPlayer_Play(f.context, held) == mtwn_success,
           "paused, rate 0, played");
     Update(&f, 1.5);
     Update(&f, 2.5);
-    CHECK(mtwnPlayer_GetState(f.context, held, &state) == mtwn_success && state.currentTime == 0.5,
+    CHECK(mtwnClipPlayer_GetState(f.context, held, &state) == mtwn_success &&
+              state.currentTime == 0.5,
           "a play at rate 0 keeps the time held");
     // Backwards and finished at 0, a play rewinds to the end.
     mtwnPlayerId back = Player(&f, true, -1.0);
     Update(&f, 3.0);
     Update(&f, 6.0);
-    CHECK(mtwnPlayer_GetState(f.context, back, &state) == mtwn_success &&
+    CHECK(mtwnClipPlayer_GetState(f.context, back, &state) == mtwn_success &&
               state.currentTime == 0.0 && state.state == mtwn_playFinished,
           "finished backwards at 0");
-    CHECK(mtwnPlayer_Play(f.context, back) == mtwn_success &&
-              mtwnPlayer_GetState(f.context, back, &state) == mtwn_success &&
+    CHECK(mtwnClipPlayer_Play(f.context, back) == mtwn_success &&
+              mtwnClipPlayer_GetState(f.context, back, &state) == mtwn_success &&
               state.currentTime == state.duration,
           "played again from the end");
     mtwnDestroyContext(f.context);
     // Idle at a rate of 0 on an endless clip, a pause seeks to 0.
     f = Make(true, 8);
     mtwnPlayerId idle = Player(&f, false, 0.0);
-    CHECK(mtwnPlayer_Pause(f.context, idle) == mtwn_success &&
-              mtwnPlayer_GetState(f.context, idle, &state) == mtwn_success &&
+    CHECK(mtwnClipPlayer_Pause(f.context, idle) == mtwn_success &&
+              mtwnClipPlayer_GetState(f.context, idle, &state) == mtwn_success &&
               state.state == mtwn_playPaused && state.currentTime == 0.0,
           "an idle endless player at rate 0 paused at 0");
     mtwnDestroyContext(f.context);
@@ -749,24 +754,24 @@ static void TestPendingRates(void)
     mtwnPlayerId p = Player(&f, true, 1.0);
     Update(&f, 0.0);
     Update(&f, 0.5);
-    CHECK(mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success, "a rate of 0, pending");
-    mtwnPlayerState state;
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 0.0) == mtwn_success, "a rate of 0, pending");
+    mtwnClipPlayerState state;
     Update(&f, 0.75);
-    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.rate == 0.0 &&
+    CHECK(mtwnClipPlayer_GetState(f.context, p, &state) == mtwn_success && state.rate == 0.0 &&
               state.currentTime == 0.75,
           "the old rate ran to the update, the time held there");
     Update(&f, 1.5);
-    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.currentTime == 0.75 &&
-              state.state == mtwn_playRunning,
+    CHECK(mtwnClipPlayer_GetState(f.context, p, &state) == mtwn_success &&
+              state.currentTime == 0.75 && state.state == mtwn_playRunning,
           "held, running");
-    CHECK(mtwnPlayer_SetRate(f.context, p, 2.0) == mtwn_success, "a rate of 2, pending");
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 2.0) == mtwn_success, "a rate of 2, pending");
     Update(&f, 2.0);
-    CHECK(mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.currentTime == 0.75 &&
-              state.rate == 2.0,
+    CHECK(mtwnClipPlayer_GetState(f.context, p, &state) == mtwn_success &&
+              state.currentTime == 0.75 && state.rate == 2.0,
           "moving again from the time held");
-    CHECK(mtwnPlayer_SetRate(f.context, p, 4.0) == mtwn_success &&
-              mtwnPlayer_Finish(f.context, p) == mtwn_success &&
-              mtwnPlayer_GetState(f.context, p, &state) == mtwn_success && state.rate == 4.0 &&
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 4.0) == mtwn_success &&
+              mtwnClipPlayer_Finish(f.context, p) == mtwn_success &&
+              mtwnClipPlayer_GetState(f.context, p, &state) == mtwn_success && state.rate == 4.0 &&
               state.currentTime == state.duration && state.state == mtwn_playFinished,
           "a finish applies the pending rate at once, at the end");
     mtwnDestroyContext(f.context);
@@ -780,45 +785,46 @@ static void TestRateLimit(void)
     mtwnPlayerId p = Player(&f, true, 1.0);
     CHECK(mtwnContext_Update(f.context, 0, NULL, 0, NULL) == mtwn_success, "started");
     uint64_t misuse = mtwnContext_GetMisuse(f.context);
-    CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_RATE_LIMIT) == mtwn_success &&
-              mtwnPlayer_SetRate(f.context, p, -MTWN_RATE_LIMIT) == mtwn_success,
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, MTWN_RATE_LIMIT) == mtwn_success &&
+              mtwnClipPlayer_SetRate(f.context, p, -MTWN_RATE_LIMIT) == mtwn_success,
           "the limit itself, either way");
-    CHECK(mtwnPlayer_SetRate(f.context, p, 2.0) == mtwn_success, "back to 2");
-    mtwnPlayerState before;
-    CHECK(mtwnPlayer_GetState(f.context, p, &before) == mtwn_success, "read");
-    CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(MTWN_RATE_LIMIT, HUGE_VAL)) ==
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, 2.0) == mtwn_success, "back to 2");
+    mtwnClipPlayerState before;
+    CHECK(mtwnClipPlayer_GetState(f.context, p, &before) == mtwn_success, "read");
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, nextafter(MTWN_RATE_LIMIT, HUGE_VAL)) ==
                   mtwn_errorLimit &&
-              mtwnPlayer_SetRate(f.context, p, -1e300) == mtwn_errorLimit &&
-              mtwnPlayer_SetRate(f.context, p, (double)NAN) == mtwn_errorInvalid &&
-              mtwnPlayer_SetRate(f.context, p, HUGE_VAL) == mtwn_errorLimit,
+              mtwnClipPlayer_SetRate(f.context, p, -1e300) == mtwn_errorLimit &&
+              mtwnClipPlayer_SetRate(f.context, p, (double)NAN) == mtwn_errorInvalid &&
+              mtwnClipPlayer_SetRate(f.context, p, HUGE_VAL) == mtwn_errorLimit,
           "past the limit, NaN and infinity refused");
-    mtwnPlayerState after;
-    CHECK(mtwnPlayer_GetState(f.context, p, &after) == mtwn_success && after.rate == before.rate &&
-              after.pending == before.pending && mtwnContext_GetMisuse(f.context) == misuse + 4,
+    mtwnClipPlayerState after;
+    CHECK(mtwnClipPlayer_GetState(f.context, p, &after) == mtwn_success &&
+              after.rate == before.rate && after.pending == before.pending &&
+              mtwnContext_GetMisuse(f.context) == misuse + 4,
           "the player unchanged, each counted as misuse");
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = f.clip;
     def.rate = 1e300;
     mtwnPlayerId refused;
-    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorLimit && refused.index1 == 0,
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &refused) == mtwn_errorLimit && refused.index1 == 0,
           "a def past the limit refused");
     def.rate = -MTWN_RATE_LIMIT;
-    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_success, "a def at the limit");
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &refused) == mtwn_success, "a def at the limit");
     // A rate other than 0 below MTWN_MIN_RATE would overflow the start
     // time (MTWN_SEEK_LIMIT): 5e-324 took a player at 1 s to its end.
     CHECK(MTWN_MIN_RATE == 0x1p-20 && MTWN_MIN_RATE * MTWN_RATE_LIMIT == 1.0,
           "the floor is 2^-20, the limit's inverse");
     misuse = mtwnContext_GetMisuse(f.context);
-    CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success &&
-              mtwnPlayer_SetRate(f.context, p, -MTWN_MIN_RATE) == mtwn_success &&
-              mtwnPlayer_SetRate(f.context, p, 0.0) == mtwn_success,
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success &&
+              mtwnClipPlayer_SetRate(f.context, p, -MTWN_MIN_RATE) == mtwn_success &&
+              mtwnClipPlayer_SetRate(f.context, p, 0.0) == mtwn_success,
           "the smallest rate, either way, and 0");
-    CHECK(mtwnPlayer_SetRate(f.context, p, nextafter(MTWN_MIN_RATE, 0.0)) == mtwn_errorLimit &&
-              mtwnPlayer_SetRate(f.context, p, -0x1p-1074) == mtwn_errorLimit &&
-              mtwnPlayer_SetRate(f.context, p, 1e-300) == mtwn_errorLimit,
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, nextafter(MTWN_MIN_RATE, 0.0)) == mtwn_errorLimit &&
+              mtwnClipPlayer_SetRate(f.context, p, -0x1p-1074) == mtwn_errorLimit &&
+              mtwnClipPlayer_SetRate(f.context, p, 1e-300) == mtwn_errorLimit,
           "below it refused");
     def.rate = 0x1p-1074;
-    CHECK(mtwnCreatePlayer(f.context, &def, &refused) == mtwn_errorLimit &&
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &refused) == mtwn_errorLimit &&
               mtwnContext_GetMisuse(f.context) == misuse + 4,
           "a def below it too, each counted as misuse");
     mtwnDestroyContext(f.context);
@@ -834,27 +840,27 @@ static void TestSeekLimit(void)
     Update(&f, 1.0);
     Update(&f, 2.0);
     uint64_t misuse = mtwnContext_GetMisuse(f.context);
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, 1e308) == mtwn_errorLimit &&
-              mtwnPlayer_SeekProgress(f.context, p, DBL_MAX) == mtwn_errorLimit &&
-              mtwnPlayer_SeekProgress(f.context, p, -1e308) == mtwn_errorLimit &&
-              mtwnPlayer_Seek(f.context, p, nextafter(MTWN_SEEK_LIMIT, HUGE_VAL)) ==
+    CHECK(mtwnClipPlayer_SeekProgress(f.context, p, 1e308) == mtwn_errorLimit &&
+              mtwnClipPlayer_SeekProgress(f.context, p, DBL_MAX) == mtwn_errorLimit &&
+              mtwnClipPlayer_SeekProgress(f.context, p, -1e308) == mtwn_errorLimit &&
+              mtwnClipPlayer_Seek(f.context, p, nextafter(MTWN_SEEK_LIMIT, HUGE_VAL)) ==
                   mtwn_errorLimit &&
-              mtwnPlayer_Seek(f.context, p, -1e308) == mtwn_errorLimit &&
-              mtwnPlayer_Sweep(f.context, p, 1e308) == mtwn_errorLimit,
+              mtwnClipPlayer_Seek(f.context, p, -1e308) == mtwn_errorLimit &&
+              mtwnClipPlayer_Sweep(f.context, p, 1e308) == mtwn_errorLimit,
           "a progress of 1e308 or DBL_MAX, and times past the limit, refused");
     CHECK(State(&f, p).currentTime == 1.0 && mtwnContext_GetMisuse(f.context) == misuse + 6,
           "the player where it was, each counted as misuse");
     // At the smallest rate the limit's time and the start time stay finite.
-    CHECK(mtwnPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success, "slowed");
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, MTWN_MIN_RATE) == mtwn_success, "slowed");
     Update(&f, 2.5);
-    CHECK(mtwnPlayer_Seek(f.context, p, -MTWN_SEEK_LIMIT) == mtwn_success &&
+    CHECK(mtwnClipPlayer_Seek(f.context, p, -MTWN_SEEK_LIMIT) == mtwn_success &&
               State(&f, p).currentTime == -MTWN_SEEK_LIMIT,
           "a seek to the limit's negative, at the smallest rate");
     Update(&f, 3.5);
-    mtwnPlayerState state = State(&f, p);
+    mtwnClipPlayerState state = State(&f, p);
     CHECK(state.currentTime == -MTWN_SEEK_LIMIT && state.state == mtwn_playRunning,
           "still there, running, after an update");
-    CHECK(mtwnPlayer_SeekProgress(f.context, p, 0.5) == mtwn_success, "back to 1 s");
+    CHECK(mtwnClipPlayer_SeekProgress(f.context, p, 0.5) == mtwn_success, "back to 1 s");
     Update(&f, 4.5);
     CHECK(Near(State(&f, p).currentTime, 1.0 + MTWN_MIN_RATE),
           "a second on at the smallest rate, not to the end");
@@ -870,13 +876,13 @@ static void TestSeekLimit(void)
     CHECK(mtwnClip_AddLabel(f.context, far, MTWN_ROOT_NODE, at, 2, &node) == mtwn_success &&
               mtwnClip_Seal(f.context, far) == mtwn_success,
           "and one at the limit");
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = far;
     def.play = false;
     mtwnPlayerId q;
-    CHECK(mtwnCreatePlayer(f.context, &def, &q) == mtwn_success &&
-              mtwnPlayer_SeekLabel(f.context, q, 1) == mtwn_errorLimit &&
-              mtwnPlayer_SeekLabel(f.context, q, 2) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &q) == mtwn_success &&
+              mtwnClipPlayer_SeekLabel(f.context, q, 1) == mtwn_errorLimit &&
+              mtwnClipPlayer_SeekLabel(f.context, q, 2) == mtwn_success &&
               State(&f, q).currentTime == MTWN_SEEK_LIMIT,
           "a seek to the far label refused, to the one at the limit taken");
     mtwnDestroyContext(f.context);
@@ -902,13 +908,13 @@ static void TestSeekLabelOfRoot(void)
     CHECK(mtwnClip_AddLabel(f.context, clip, MTWN_ROOT_NODE, at, 6, &node) == mtwn_success &&
               mtwnClip_Seal(f.context, clip) == mtwn_success,
           "and one keyed 6 in the root");
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.play = false;
     mtwnPlayerId p;
-    CHECK(mtwnCreatePlayer(f.context, &def, &p) == mtwn_success &&
-              mtwnPlayer_SeekLabel(f.context, p, 5) == mtwn_errorInvalid &&
-              mtwnPlayer_SeekLabel(f.context, p, 6) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &p) == mtwn_success &&
+              mtwnClipPlayer_SeekLabel(f.context, p, 5) == mtwn_errorInvalid &&
+              mtwnClipPlayer_SeekLabel(f.context, p, 6) == mtwn_success &&
               State(&f, p).currentTime == 0.25,
           "the timeline's label refused, the root's taken");
     mtwnDestroyContext(f.context);
@@ -928,10 +934,10 @@ static void TestNoBindingsDestroyed(void)
               mtwnClip_AddMark(f.context, marks, MTWN_ROOT_NODE, at, 1, &node) == mtwn_success &&
               mtwnClip_Seal(f.context, marks) == mtwn_success,
           "a clip of a mark only");
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = marks;
     mtwnPlayerId bare = {0, 0};
-    CHECK(mtwnCreatePlayer(f.context, &def, &bare) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(f.context, &def, &bare) == mtwn_success &&
               mtwnDestroyPlayer(f.context, bare) == mtwn_success,
           "a player of no bindings made and destroyed");
     Update(&f, 0.0);

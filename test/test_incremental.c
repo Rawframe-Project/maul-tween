@@ -52,13 +52,13 @@ static mtwnClipTrackDef Incremental(mtwnValueKind kind, mtwnKeyframe* keys, doub
 static void Play(World* w)
 {
     mtwnBinding binding = mtwnMakeBinding(0, w->target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = true;
     mtwnPlayerId p;
-    CHECK(mtwnCreatePlayer(w->context, &def, &p) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w->context, &def, &p) == mtwn_success, "a player");
     CHECK(mtwnContext_Update(w->context, 0, NULL, 0, NULL) == mtwn_success, "started");
 }
 

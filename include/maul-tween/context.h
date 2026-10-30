@@ -254,7 +254,7 @@ extern "C"
     /// Returns how many clips' players the last update left running under
     /// reduced motion though not essential: those that could not finish,
     /// their end infinite or their rate 0. When it is not 0, the host finds
-    /// them by mtwnPlayer_GetState's playsOnReduced and keeps, seeks or
+    /// them by mtwnClipPlayer_GetState's playsOnReduced and keeps, seeks or
     /// stops each.
     ///
     /// @param context  The context, or NULL.

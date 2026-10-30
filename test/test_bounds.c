@@ -152,12 +152,12 @@ static void Play(World* w, const mtwnClipTrackDef* track, int players, mtwnCompo
     {
         mtwnBinding binding = mtwnMakeBinding(0, w->target);
         binding.composite = composite;
-        mtwnPlayerDef def = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
         def.clip = clip;
         def.bindings = &binding;
         def.bindingCount = 1;
         mtwnPlayerId id;
-        CHECK(mtwnCreatePlayer(w->context, &def, &id) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(w->context, &def, &id) == mtwn_success, "a player");
     }
     At(w, 1.0);
 }

@@ -520,14 +520,14 @@ static void TestPlaying(void)
                   "a target");
             bindings[s] = mtwnMakeBinding(used, targets[s]);
         }
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = bindings;
         playerDef.bindingCount = slots;
         playerDef.keep = Next() % 2 == 0;
         playerDef.essential = Next() % 4 == 0;
         mtwnPlayerId player;
-        CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
         uint64_t now = 0;
         for (uint32_t f = 0; f < 200; ++f)
         {
@@ -537,25 +537,25 @@ static void TestPlaying(void)
                 switch (Next() % 30)
                 {
                 case 0:
-                    r = mtwnPlayer_Seek(context, player, Wild(5.0));
+                    r = mtwnClipPlayer_Seek(context, player, Wild(5.0));
                     break;
                 case 1:
-                    r = mtwnPlayer_Reverse(context, player);
+                    r = mtwnClipPlayer_Reverse(context, player);
                     break;
                 case 2:
-                    r = mtwnPlayer_SetRate(context, player, Wild(3.0) - 1.0);
+                    r = mtwnClipPlayer_SetRate(context, player, Wild(3.0) - 1.0);
                     break;
                 case 3:
-                    r = mtwnPlayer_Pause(context, player);
+                    r = mtwnClipPlayer_Pause(context, player);
                     break;
                 case 4:
-                    r = mtwnPlayer_Play(context, player);
+                    r = mtwnClipPlayer_Play(context, player);
                     break;
                 case 5:
-                    r = mtwnPlayer_Sweep(context, player, Wild(5.0));
+                    r = mtwnClipPlayer_Sweep(context, player, Wild(5.0));
                     break;
                 case 6:
-                    r = mtwnPlayer_Finish(context, player);
+                    r = mtwnClipPlayer_Finish(context, player);
                     break;
                 case 7:
                     mtwnContext_EnableReducedMotion(context, Next() % 2 == 0);
@@ -571,9 +571,9 @@ static void TestPlaying(void)
             // Under reduced motion a player still running is essential,
             // or one that cannot finish: an infinite end ahead, or a rate
             // of 0.
-            mtwnPlayerState played;
+            mtwnClipPlayerState played;
             if (mtwnContext_IsReducedMotionEnabled(context) && !playerDef.essential &&
-                mtwnPlayer_GetState(context, player, &played) == mtwn_success &&
+                mtwnClipPlayer_GetState(context, player, &played) == mtwn_success &&
                 played.state == mtwn_playRunning)
             {
                 bool cannot = played.rate == 0.0 || (played.rate > 0.0 && isinf(played.duration));

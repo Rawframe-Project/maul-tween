@@ -66,14 +66,14 @@ static mtwnNode AddTrack(World* w, double start, double seconds, double iteratio
 static mtwnPlayerId Play(World* w, bool keep, double rate)
 {
     mtwnBinding binding = mtwnMakeBinding(0, w->target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = keep;
     def.rate = rate;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(w->context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w->context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -210,7 +210,7 @@ static void TestBackwards(void)
     CHECK(n == 1 && Is(&e[0], mtwn_eventEnd, MTWN_ROOT_NODE, 2.0, true) &&
               mtwnPlayer_IsValid(w.context, p),
           "and the clip at 0, kept");
-    CHECK(mtwnPlayer_Seek(w.context, p, 1.0) == mtwn_success && Read(&w, e, 16) == 1 &&
+    CHECK(mtwnClipPlayer_Seek(w.context, p, 1.0) == mtwn_success && Read(&w, e, 16) == 1 &&
               e[0].kind == mtwn_eventSeek && e[0].backwards,
           "a backward player's seek, backwards");
     mtwnDestroyContext(w.context);
@@ -272,28 +272,28 @@ static void TestSeeks(void)
     Update(&w, 0.5);
     mtwnEvent e[16];
     Read(&w, e, 16);
-    CHECK(mtwnPlayer_Seek(w.context, p, 2.5) == mtwn_success, "a seek");
+    CHECK(mtwnClipPlayer_Seek(w.context, p, 2.5) == mtwn_success, "a seek");
     uint32_t n = Read(&w, e, 16);
     CHECK(n == 1 && Is(&e[0], mtwn_eventSeek, MTWN_ROOT_NODE, 0.5, false) && e[0].clipTime == 2.5,
           "a seek record at once");
     Update(&w, 0.75);
     CHECK(Read(&w, e, 16) == 0, "the track it jumped over gave nothing");
-    CHECK(mtwnPlayer_Sweep(w.context, p, 0.0) == mtwn_success, "a sweep back to 0");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 0.0) == mtwn_success, "a sweep back to 0");
     n = Read(&w, e, 16);
     CHECK(n == 4 && e[0].kind == mtwn_eventStart && e[0].node == MTWN_ROOT_NODE && e[0].backwards &&
               e[1].kind == mtwn_eventStart && e[1].node == track && e[1].backwards &&
               e[2].kind == mtwn_eventEnd && e[2].node == track && e[3].kind == mtwn_eventEnd &&
               e[3].node == MTWN_ROOT_NODE && e[3].clipTime == 0.0,
           "back from past the end: the clip's end, the track back, the clip's start");
-    CHECK(mtwnPlayer_Finish(w.context, p) == mtwn_success, "finished by hand");
+    CHECK(mtwnClipPlayer_Finish(w.context, p) == mtwn_success, "finished by hand");
     n = Read(&w, e, 16);
     CHECK(n == 4 && e[0].node == MTWN_ROOT_NODE && e[0].kind == mtwn_eventStart &&
               e[3].kind == mtwn_eventEnd && e[3].node == track,
           "finishing crosses what lies before the end");
-    CHECK(mtwnPlayer_Cancel(w.context, p) == mtwn_success, "canceled");
+    CHECK(mtwnClipPlayer_Cancel(w.context, p) == mtwn_success, "canceled");
     n = Read(&w, e, 16);
     CHECK(n == 1 && e[0].kind == mtwn_eventCancel, "a cancel record");
-    CHECK(mtwnPlayer_Cancel(w.context, p) == mtwn_success && Read(&w, e, 16) == 0,
+    CHECK(mtwnClipPlayer_Cancel(w.context, p) == mtwn_success && Read(&w, e, 16) == 0,
           "an idle player's cancel makes none");
     mtwnDestroyContext(w.context);
 }
@@ -311,14 +311,14 @@ static void TestRewindAndRates(void)
     Update(&w, 0.0);
     Read(&w, e, 16);
     // The rate set now waits for the next update; the old one ran till then.
-    CHECK(mtwnPlayer_SetRate(w.context, p, 1.0) == mtwn_success, "slower, pending");
+    CHECK(mtwnClipPlayer_SetRate(w.context, p, 1.0) == mtwn_success, "slower, pending");
     Update(&w, 1.0);
     uint32_t n = Read(&w, e, 16);
     CHECK(n == 1 && e[0].kind == mtwn_eventMark && fabs(e[0].hostTime - 0.5) <= 1e-12,
           "the mark crossed at 0.5, at the rate that ran");
     Update(&w, 10.0);
     Read(&w, e, 16);
-    CHECK(mtwnPlayer_Play(w.context, p) == mtwn_success, "played again from its end");
+    CHECK(mtwnClipPlayer_Play(w.context, p) == mtwn_success, "played again from its end");
     Update(&w, 11.0);
     n = Read(&w, e, 16);
     CHECK(n == 2 && e[0].kind == mtwn_eventStart && !e[0].backwards &&
@@ -340,7 +340,7 @@ static void TestRateZeroFirst(void)
     Update(&w, 0.0);
     CHECK(Read(&w, e, 16) == 2 && e[0].kind == mtwn_eventStart && !e[0].backwards,
           "held at 0, the clip and its track start");
-    CHECK(mtwnPlayer_SetRate(w.context, p, 1.0) == mtwn_success, "rate 1, pending");
+    CHECK(mtwnClipPlayer_SetRate(w.context, p, 1.0) == mtwn_success, "rate 1, pending");
     Update(&w, 1.0);
     Update(&w, 2.0);
     uint32_t n = Read(&w, e, 16);
@@ -361,20 +361,20 @@ static void TestCountAtTheTop(void)
     mtwnNode track = AddTrack(&w, 0.0, 0x1p-60, 0x1p67);
     CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, true, 1.0);
-    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
     mtwnEvent e[16];
     Update(&w, 0.0);
     Read(&w, e, 16);
-    CHECK(mtwnPlayer_Sweep(w.context, p, 16.0 - 0x1p-49) == mtwn_success, "swept");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 16.0 - 0x1p-49) == mtwn_success, "swept");
     uint32_t n = Read(&w, e, 16);
     CHECK(n == 1 && e[0].kind == mtwn_eventIteration && e[0].node == track &&
               e[0].count == 18446744073709549568u,
           "2^64 - 2048 iterations, exactly");
-    CHECK(mtwnPlayer_Sweep(w.context, p, 48.0) == mtwn_success, "swept on");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 48.0) == mtwn_success, "swept on");
     n = Read(&w, e, 16);
     CHECK(n == 1 && e[0].kind == mtwn_eventIteration && e[0].count == UINT64_MAX,
           "2^65 more, as many as a record holds");
-    CHECK(mtwnPlayer_Sweep(w.context, p, 64.0) == mtwn_success, "swept to 64");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 64.0) == mtwn_success, "swept to 64");
     n = Read(&w, e, 16);
     CHECK(n == 1 && e[0].count == UINT64_MAX, "2^64 exactly, one too many");
     mtwnDestroyContext(w.context);
@@ -754,7 +754,7 @@ static void TestHoldEdges(void)
     w = MakeWorld(16);
     (void)HeldEdges(&w, 0.0, 3.0);
     mtwnPlayerId player = Play(&w, true, -1.0);
-    CHECK(mtwnPlayer_Seek(w.context, player, 2.5) == mtwn_success, "sought");
+    CHECK(mtwnClipPlayer_Seek(w.context, player, 2.5) == mtwn_success, "sought");
     // The timeline is node 2; its end crossed backwards records a start.
     CHECK(CountOverFrames(&w, 2, mtwn_eventStart, true, 80) == 1,
           "the timeline's end crossed backwards where it was held");
@@ -815,17 +815,17 @@ static void TestSettledBoundary(void)
     mtwnNode track = AddTrack(&w, 0.0, 1.0, 3.0);
     CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, true, 1.0);
-    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
     Update(&w, 0.5);
     mtwnEvent e[8];
     (void)Read(&w, e, 8);
-    CHECK(mtwnPlayer_Sweep(w.context, p, 1.5) == mtwn_success, "a sweep to 1.5");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 1.5) == mtwn_success, "a sweep to 1.5");
     (void)Read(&w, e, 8);
-    CHECK(mtwnPlayer_Sweep(w.context, p, 1.0) == mtwn_success, "back to 1");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 1.0) == mtwn_success, "back to 1");
     CHECK(Read(&w, e, 8) == 1 && e[0].kind == mtwn_eventIteration && e[0].node == track &&
               e[0].backwards && e[0].clipTime == 1.0 && e[0].firstIteration == 1.0,
           "the iteration's start reached backwards");
-    CHECK(mtwnPlayer_Sweep(w.context, p, 1.25) == mtwn_success, "turned to 1.25");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 1.25) == mtwn_success, "turned to 1.25");
     CHECK(Read(&w, e, 8) == 1 && e[0].kind == mtwn_eventIteration && e[0].node == track &&
               !e[0].backwards && e[0].clipTime == 1.0,
           "turning there takes the start again");
@@ -871,32 +871,32 @@ static void TestSettledReversedParent(void)
     CHECK(mtwnClip_AddTrack(w.context, w.clip, &def, &track) == mtwn_success, "a track");
     CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId p = Play(&w, true, 1.0);
-    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
     Update(&w, 0.5);
     mtwnEvent e[8];
-    CHECK(mtwnPlayer_Seek(w.context, p, 0.5) == mtwn_success, "at 0.5");
+    CHECK(mtwnClipPlayer_Seek(w.context, p, 0.5) == mtwn_success, "at 0.5");
     (void)Read(&w, e, 8);
     // Child time 2.5 to 2.1: inside the third iteration.
-    CHECK(mtwnPlayer_Sweep(w.context, p, 0.9) == mtwn_success, "a sweep to 0.9");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 0.9) == mtwn_success, "a sweep to 0.9");
     uint32_t n = Read(&w, e, 8);
     CHECK(CountKind(e, n, mtwn_eventIteration, track) == 0, "settled inside an iteration");
     // Child time 2.1 to 2.0: the third iteration's start, reached.
-    CHECK(mtwnPlayer_Sweep(w.context, p, 1.0) == mtwn_success, "a sweep to 1");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 1.0) == mtwn_success, "a sweep to 1");
     n = Read(&w, e, 8);
     CHECK(CountKind(e, n, mtwn_eventIteration, track) == 1, "the iteration's start reached");
     // On from it the same way: not reached again.
-    CHECK(mtwnPlayer_Sweep(w.context, p, 1.25) == mtwn_success, "a sweep to 1.25");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 1.25) == mtwn_success, "a sweep to 1.25");
     n = Read(&w, e, 8);
     CHECK(CountKind(e, n, mtwn_eventIteration, track) == 0, "not again from it");
     // A seek landing exactly on a boundary (child time 1), then a sweep
     // on: the boundary is where it starts, not crossed; turning back to it
     // reaches it.
-    CHECK(mtwnPlayer_Seek(w.context, p, 2.0) == mtwn_success, "at 2");
+    CHECK(mtwnClipPlayer_Seek(w.context, p, 2.0) == mtwn_success, "at 2");
     (void)Read(&w, e, 8);
-    CHECK(mtwnPlayer_Sweep(w.context, p, 2.4) == mtwn_success, "a sweep to 2.4");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 2.4) == mtwn_success, "a sweep to 2.4");
     n = Read(&w, e, 8);
     CHECK(CountKind(e, n, mtwn_eventIteration, track) == 0, "a seek's boundary not crossed");
-    CHECK(mtwnPlayer_Sweep(w.context, p, 2.0) == mtwn_success, "back to 2");
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, 2.0) == mtwn_success, "back to 2");
     n = Read(&w, e, 8);
     CHECK(CountKind(e, n, mtwn_eventIteration, track) == 1, "turning back to it, reached");
     mtwnDestroyContext(w.context);
@@ -940,7 +940,7 @@ static void TestBoundaryPlay(void)
     // resolves its start time there, and its first time lands one ulp
     // short of the clip's end.
     mtwnBinding binding = mtwnMakeBinding(0, w.target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w.clip;
     def.bindings = &binding;
     def.bindingCount = 1;
@@ -948,9 +948,9 @@ static void TestBoundaryPlay(void)
     def.play = false;
     def.rate = -1.6416786193847657;
     mtwnPlayerId p = {0, 0};
-    CHECK(mtwnCreatePlayer(w.context, &def, &p) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &p) == mtwn_success, "a player");
     Update(&w, 10.179);
-    CHECK(mtwnPlayer_Play(w.context, p) == mtwn_success, "played from its start, so its end");
+    CHECK(mtwnClipPlayer_Play(w.context, p) == mtwn_success, "played from its start, so its end");
     Update(&w, 10.192);
     mtwnEvent e[8];
     uint32_t n = Read(&w, e, 8);
@@ -1025,11 +1025,11 @@ static void TestPaths(void)
         {
             // Scrubbed by uneven sweeps.
             Update(&w, 0.0);
-            CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+            CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
             const double to[4] = {0.37, 0.999999999999, 1.3, 2.0};
             for (int k = 0; k < 4; ++k)
             {
-                CHECK(mtwnPlayer_Sweep(w.context, p, to[k]) == mtwn_success, "a sweep");
+                CHECK(mtwnClipPlayer_Sweep(w.context, p, to[k]) == mtwn_success, "a sweep");
                 n += Read(&w, all + n, 64 - n);
             }
         }
@@ -1121,14 +1121,14 @@ static void TestReverseAfterReducedFinish(void)
     Update(&w, 0.0);
     Update(&w, 0.1);
     mtwnContext_EnableReducedMotion(w.context, true);
-    CHECK(mtwnPlayer_SetRate(w.context, p, 1.5) == mtwn_success &&
+    CHECK(mtwnClipPlayer_SetRate(w.context, p, 1.5) == mtwn_success &&
               mtwnContext_IsReducedMotionEnabled(w.context),
           "a rate pending, reduced motion");
     Update(&w, 0.25);
     (void)Read(&w, e, 16);
     mtwnContext_EnableReducedMotion(w.context, false);
     CHECK(!mtwnContext_IsReducedMotionEnabled(w.context) &&
-              mtwnPlayer_Reverse(w.context, p) == mtwn_success,
+              mtwnClipPlayer_Reverse(w.context, p) == mtwn_success,
           "reversed");
     Update(&w, 0.5);
     CHECK(Read(&w, e, 16) == 2 && Is(&e[0], mtwn_eventStart, MTWN_ROOT_NODE, 0.5, true),
@@ -1549,22 +1549,22 @@ static void TestPointPassedBack(void)
     CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId player = Play(&w, true, 1.0);
     Update(&w, 0.125);
-    CHECK(mtwnPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
+    CHECK(mtwnClipPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
     Update(&w, 0.1875);
-    CHECK(mtwnPlayer_SetRate(w.context, player, 1.0) == mtwn_success, "forwards");
+    CHECK(mtwnClipPlayer_SetRate(w.context, player, 1.0) == mtwn_success, "forwards");
     Update(&w, 0.5);
-    CHECK(mtwnPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
+    CHECK(mtwnClipPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
     Update(&w, 0.875);
-    CHECK(mtwnPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
+    CHECK(mtwnClipPlayer_Reverse(w.context, player) == mtwn_success, "reversed");
     Update(&w, 1.125);
-    CHECK(mtwnPlayer_SetRate(w.context, player, -0.5) == mtwn_success, "going back");
+    CHECK(mtwnClipPlayer_SetRate(w.context, player, -0.5) == mtwn_success, "going back");
     Update(&w, 1.375);
-    CHECK(mtwnPlayer_Seek(w.context, player, 0.125) == mtwn_success, "past the point");
+    CHECK(mtwnClipPlayer_Seek(w.context, player, 0.125) == mtwn_success, "past the point");
     Update(&w, 1.4375);
     mtwnEvent e[32];
     (void)Read(&w, e, 32);
     // Going back from past the point, over it, inside one update.
-    CHECK(mtwnPlayer_SetRate(w.context, player, 0.0) == mtwn_success, "held");
+    CHECK(mtwnClipPlayer_SetRate(w.context, player, 0.0) == mtwn_success, "held");
     Update(&w, 1.6875);
     uint32_t n = Read(&w, e, 32);
     uint32_t crossed = 0;
@@ -1597,11 +1597,11 @@ static void TestHeldAfterSeek(void)
     mtwnPlayerId player = Play(&w, true, 1.0);
     Update(&w, 0.125);
     Update(&w, 0.1875);
-    CHECK(mtwnPlayer_Seek(w.context, player, 1.125) == mtwn_success, "past the end");
+    CHECK(mtwnClipPlayer_Seek(w.context, player, 1.125) == mtwn_success, "past the end");
     Update(&w, 0.25);
     mtwnEvent e[16];
     (void)Read(&w, e, 16);
-    CHECK(mtwnPlayer_SetRate(w.context, player, 0.5) == mtwn_success, "half the rate");
+    CHECK(mtwnClipPlayer_SetRate(w.context, player, 0.5) == mtwn_success, "half the rate");
     Update(&w, 0.5);
     uint32_t n = Read(&w, e, 16);
     uint32_t atUpdate = 0;
@@ -1622,9 +1622,9 @@ static void TestPlayAtStart(void)
     CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
     mtwnPlayerId player = Play(&w, true, 1.0);
     Update(&w, 0.0);
-    CHECK(mtwnPlayer_Pause(w.context, player) == mtwn_success, "paused at 0");
+    CHECK(mtwnClipPlayer_Pause(w.context, player) == mtwn_success, "paused at 0");
     Update(&w, 0.25);
-    CHECK(mtwnPlayer_Play(w.context, player) == mtwn_success, "played at 0");
+    CHECK(mtwnClipPlayer_Play(w.context, player) == mtwn_success, "played at 0");
     Update(&w, 0.5);
     mtwnEvent e[16];
     uint32_t n = Read(&w, e, 16);

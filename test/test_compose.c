@@ -154,13 +154,13 @@ static mtwnPlayerId Layer(World* w, mtwnClipId clip, mtwnComposite composite, fl
     mtwnBinding binding = mtwnMakeBinding(0, w->target);
     binding.composite = composite;
     binding.weight = weight;
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = keep;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(w->context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w->context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -199,11 +199,11 @@ static void TestLayers(void)
     Update(&w, 7.0);
     Update(&w, 9.0);
     CHECK(Near((double)Value(&w), 2.0 + 0.1), "the replace under a half-weight add layer");
-    CHECK(mtwnPlayer_SetWeight(w.context, again, 0.0f) == mtwn_success, "faded out");
+    CHECK(mtwnClipPlayer_SetWeight(w.context, again, 0.0f) == mtwn_success, "faded out");
     Update(&w, 9.0);
     CHECK(Near((double)Value(&w), 2.0), "the add layer has no effect at weight 0");
-    CHECK(mtwnPlayer_SetWeight(w.context, again, 1.5f) == mtwn_errorInvalid &&
-              mtwnPlayer_SetWeight(w.context, again, NAN) == mtwn_errorInvalid,
+    CHECK(mtwnClipPlayer_SetWeight(w.context, again, 1.5f) == mtwn_errorInvalid &&
+              mtwnClipPlayer_SetWeight(w.context, again, NAN) == mtwn_errorInvalid,
           "weights outside [0, 1] refused");
     CHECK(mtwnDestroyPlayer(w.context, wave) == mtwn_success, "the first layer gone");
     (void)move;
@@ -223,21 +223,23 @@ static void TestCommitAndRefusals(void)
           "an add layer that ends commits the base plus its end");
     mtwnClipId clip = Clip(&w, 0.0f, 1.0f, mtwn_fillNone);
     mtwnBinding binding = mtwnMakeBinding(0, w.target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     mtwnPlayerId q;
     binding.weight = 1.5f;
-    CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "a binding weight past 1");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &q) == mtwn_errorInvalid,
+          "a binding weight past 1");
     binding.weight = 1.0f;
     binding.composite = 2;
-    CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "an unknown composite");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &q) == mtwn_errorInvalid, "an unknown composite");
     binding.composite = mtwn_compositeAdd;
     def.weight = -0.5f;
-    CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "a negative player weight");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &q) == mtwn_errorInvalid,
+          "a negative player weight");
     def.weight = 0.25f;
-    CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_success, "a quarter-weight player");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &q) == mtwn_success, "a quarter-weight player");
     Update(&w, 20.0);
     Update(&w, 28.0);
     CHECK(Near((double)Value(&w), 5.0 + 0.25 * 0.8), "its weight scales its bindings'");
@@ -246,7 +248,7 @@ static void TestCommitAndRefusals(void)
     move.value = (mtwnVec4){1.0f, 0, 0, 0};
     mtwnPlayerId t;
     CHECK(mtwnStartTransition(w.context, &move, &t) == mtwn_success &&
-              mtwnPlayer_SetWeight(w.context, t, 0.5f) == mtwn_errorInvalid,
+              mtwnClipPlayer_SetWeight(w.context, t, 0.5f) == mtwn_errorInvalid,
           "a transition has no weight");
     mtwnDestroyContext(w.context);
 }

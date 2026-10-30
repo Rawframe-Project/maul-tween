@@ -153,20 +153,20 @@ static void MakePlayer(Twin* twin, uint32_t p, bool mixed, double seek)
         binding.composite = mixed && p % 5 == 2 ? mtwn_compositeAdd : mtwn_compositeReplace;
         bindings[bound++] = binding;
     }
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = twin->clip;
     def.bindings = bindings;
     def.bindingCount = bound;
     def.keep = true;
     def.weight = mixed && p % 4 == 0 ? 0.75f : 1.0f;
     def.rate = !mixed ? 1.0 : (p % 11 == 5 ? -1.0 : (p % 13 == 6 ? 2.0 : 1.0));
-    CHECK(mtwnCreatePlayer(twin->context, &def, &twin->players[p]) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(twin->context, &def, &twin->players[p]) == mtwn_success, "a player");
     // One playing backwards starts within the endless clip, which has no
     // end to play back from.
     seek = def.rate < 0.0 && seek == 0.0 ? 0.5 : seek;
     if (seek != 0.0)
     {
-        CHECK(mtwnPlayer_Seek(twin->context, twin->players[p], seek) == mtwn_success, "a seek");
+        CHECK(mtwnClipPlayer_Seek(twin->context, twin->players[p], seek) == mtwn_success, "a seek");
     }
 }
 
@@ -280,19 +280,19 @@ static void Control(Twin* twin, uint32_t frame)
         switch (frame / 30u % 5u)
         {
         case 0:
-            result = mtwnPlayer_Seek(context, player, 0.375);
+            result = mtwnClipPlayer_Seek(context, player, 0.375);
             break;
         case 1:
-            result = mtwnPlayer_Pause(context, player);
+            result = mtwnClipPlayer_Pause(context, player);
             break;
         case 2:
-            result = mtwnPlayer_Reverse(context, player);
+            result = mtwnClipPlayer_Reverse(context, player);
             break;
         case 3:
-            result = mtwnPlayer_SetRate(context, player, 0.5);
+            result = mtwnClipPlayer_SetRate(context, player, 0.5);
             break;
         default:
-            result = mtwnPlayer_Play(context, player);
+            result = mtwnClipPlayer_Play(context, player);
             break;
         }
         s_applied += result == mtwn_success ? 1u : 0u;
@@ -409,7 +409,7 @@ static void TestReusedSlot(void)
         for (uint32_t p = 0; p < 20; ++p)
         {
             MakePlayer(&twins[k], p, false, 0.375);
-            CHECK(mtwnPlayer_Pause(twins[k].context, twins[k].players[p]) == mtwn_success,
+            CHECK(mtwnClipPlayer_Pause(twins[k].context, twins[k].players[p]) == mtwn_success,
                   "a pause");
         }
         oldIndex = twins[k].clip.index1;
@@ -433,7 +433,7 @@ static void TestReusedSlot(void)
         for (uint32_t p = 0; p < 20; ++p)
         {
             MakePlayer(&twins[k], p, false, 0.375);
-            CHECK(mtwnPlayer_Pause(twins[k].context, twins[k].players[p]) == mtwn_success,
+            CHECK(mtwnClipPlayer_Pause(twins[k].context, twins[k].players[p]) == mtwn_success,
                   "a pause");
         }
     }
@@ -618,9 +618,10 @@ static void TestManyRecords(void)
         CHECK(mtwnClip_Seal(twins[k].context, twins[k].clip) == mtwn_success, "sealed");
         for (uint32_t p = 0; p < 3; ++p)
         {
-            mtwnPlayerDef player = mtwnDefaultPlayerDef();
+            mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
             player.clip = twins[k].clip;
-            CHECK(mtwnCreatePlayer(twins[k].context, &player, &twins[k].players[p]) == mtwn_success,
+            CHECK(mtwnCreateClipPlayer(twins[k].context, &player, &twins[k].players[p]) ==
+                      mtwn_success,
                   "a player");
         }
     }
@@ -668,17 +669,18 @@ static void TestDirectionAtStart(void)
         for (uint32_t p = 0; p < 8; ++p)
         {
             mtwnBinding binding = mtwnMakeBinding(0, twins[k].targets[p][0]);
-            mtwnPlayerDef player = mtwnDefaultPlayerDef();
+            mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
             player.clip = twins[k].clip;
             player.bindings = &binding;
             player.bindingCount = 1;
             player.keep = true;
             player.rate = p / 2u % 2u == 0u ? 1.0 : -1.0;
-            CHECK(mtwnCreatePlayer(twins[k].context, &player, &twins[k].players[p]) == mtwn_success,
+            CHECK(mtwnCreateClipPlayer(twins[k].context, &player, &twins[k].players[p]) ==
+                      mtwn_success,
                   "a player");
-            CHECK(mtwnPlayer_Seek(twins[k].context, twins[k].players[p], 0.25) == mtwn_success,
+            CHECK(mtwnClipPlayer_Seek(twins[k].context, twins[k].players[p], 0.25) == mtwn_success,
                   "a seek");
-            CHECK(mtwnPlayer_Pause(twins[k].context, twins[k].players[p]) == mtwn_success,
+            CHECK(mtwnClipPlayer_Pause(twins[k].context, twins[k].players[p]) == mtwn_success,
                   "a pause");
         }
     }

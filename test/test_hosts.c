@@ -490,13 +490,13 @@ static void Context(Out* out)
     PUT(out, seconds);
     // Its player, and every control.
     mtwnBinding binding = mtwnMakeBinding(0, t[4]);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     playerDef.keep = true;
     mtwnPlayerId player;
-    r = mtwnCreatePlayer(context, &playerDef, &player);
+    r = mtwnCreateClipPlayer(context, &playerDef, &player);
     PUT(out, r);
     static const uint64_t s_times[] = {0u, 16666667u, 1000000001u, 1250000000u, 1900000000u};
     mtwnResult controls[11] = {0};
@@ -523,29 +523,29 @@ static void Context(Out* out)
             PUT(out, state);
             PUT(out, value);
         }
-        mtwnPlayerState state;
-        r = mtwnPlayer_GetState(context, player, &state);
+        mtwnClipPlayerState state;
+        r = mtwnClipPlayer_GetState(context, player, &state);
         PUT(out, r);
         PUT(out, state);
         if (u == 1)
         {
-            controls[0] = mtwnPlayer_Pause(context, player);
-            controls[1] = mtwnPlayer_Seek(context, player, 0.35);
-            controls[2] = mtwnPlayer_Play(context, player);
-            controls[3] = mtwnPlayer_SetRate(context, player, -1.5);
-            controls[4] = mtwnPlayer_SetWeight(context, player, 0.6f);
+            controls[0] = mtwnClipPlayer_Pause(context, player);
+            controls[1] = mtwnClipPlayer_Seek(context, player, 0.35);
+            controls[2] = mtwnClipPlayer_Play(context, player);
+            controls[3] = mtwnClipPlayer_SetRate(context, player, -1.5);
+            controls[4] = mtwnClipPlayer_SetWeight(context, player, 0.6f);
         }
         if (u == 2)
         {
-            controls[5] = mtwnPlayer_Reverse(context, player);
-            controls[6] = mtwnPlayer_Sweep(context, player, 0.9);
-            controls[7] = mtwnPlayer_SeekProgress(context, player, 0x1p-1030);
-            controls[8] = mtwnPlayer_SeekLabel(context, player, 4);
+            controls[5] = mtwnClipPlayer_Reverse(context, player);
+            controls[6] = mtwnClipPlayer_Sweep(context, player, 0.9);
+            controls[7] = mtwnClipPlayer_SeekProgress(context, player, 0x1p-1030);
+            controls[8] = mtwnClipPlayer_SeekLabel(context, player, 4);
         }
         if (u == 3)
         {
-            controls[9] = mtwnPlayer_Finish(context, player);
-            controls[10] = mtwnPlayer_Cancel(context, player);
+            controls[9] = mtwnClipPlayer_Finish(context, player);
+            controls[10] = mtwnClipPlayer_Cancel(context, player);
         }
     }
     PUT(out, controls);

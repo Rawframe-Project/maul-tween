@@ -17,20 +17,20 @@ A player plays a sealed [clip](clips.md) with its slots bound to targets, by Web
 mtwnTargetId slide;
 mtwnResult playing = mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &slide);
 mtwnBinding bindings[2] = {mtwnMakeBinding(0, opacity), mtwnMakeBinding(1, slide)};
-mtwnPlayerDef play = mtwnDefaultPlayerDef();
+mtwnClipPlayerDef play = mtwnDefaultClipPlayerDef();
 play.clip = clip;
 play.bindings = bindings;
 play.bindingCount = 2;
 play.keep = true; // kept when finished, to play again
 mtwnPlayerId intro;
-playing = mtwnCreatePlayer(context, &play, &intro); // plays from the next update
-playing = mtwnPlayer_Pause(context, intro);
-playing = mtwnPlayer_Seek(context, intro, 0.2);
-playing = mtwnPlayer_SetRate(context, intro, -1.0); // backwards
-playing = mtwnPlayer_Play(context, intro);
+playing = mtwnCreateClipPlayer(context, &play, &intro); // plays from the next update
+playing = mtwnClipPlayer_Pause(context, intro);
+playing = mtwnClipPlayer_Seek(context, intro, 0.2);
+playing = mtwnClipPlayer_SetRate(context, intro, -1.0); // backwards
+playing = mtwnClipPlayer_Play(context, intro);
 ```
 
-A player plays, pauses, reverses, finishes, cancels and seeks by time, by progress (`mtwnPlayer_SeekProgress`) or to a label of the clip's root (`mtwnPlayer_SeekLabel`). A play that needs a start time takes the next update's, as Web Animations' pending play waits for the ready time; pause, seek, finish and cancel take effect at once. `mtwnPlayer_GetState` reads its time, rate, duration and play state (idle, running, paused, finished).
+A player plays, pauses, reverses, finishes, cancels and seeks by time, by progress (`mtwnClipPlayer_SeekProgress`) or to a label of the clip's root (`mtwnClipPlayer_SeekLabel`). A play that needs a start time takes the next update's, as Web Animations' pending play waits for the ready time; pause, seek, finish and cancel take effect at once. `mtwnClipPlayer_GetState` reads its time, rate, duration and play state (idle, running, paused, finished).
 
 A player not kept commits what it fills forward as its targets' bases when it finishes, and frees itself, its id stale. A kept player stays, finished, to be played again. A slot the bindings leave out plays on nothing.
 
@@ -42,7 +42,7 @@ A rate set each frame eases a player, as GSAP tweens a timeline's `timeScale` to
 // After each update: the rate the speed transition has reached.
 mtwnVec4 rate;
 made = mtwnTarget_GetValue(context, speed, &rate);
-made = mtwnPlayer_SetRate(context, player, (double)rate.x);
+made = mtwnClipPlayer_SetRate(context, player, (double)rate.x);
 ```
 
 Where it stops then depends on the frame rate: a falling rate overshoots by about a frame and a half at its start speed (2.5 of 133.3 at 60 frames a second, 1.0 at 144). A program that replays or keeps hosts in step uses the exact form instead: the player paused where the ramp starts and swept each frame to the time the eased speed has travelled, `t0 + r0 t + (r1 - r0) d E(t / d)` for a rate eased from `r0` to `r1` over `d` by an easing whose integral is `E`. For 1 to 0 over a second by a quadratic out, `E(u)` is `(1 - (1 - u)^3) / 3`:
@@ -51,12 +51,13 @@ Where it stops then depends on the frame rate: a falling rate overshoots by abou
 // Exact at any frame rate: paused where the ramp starts, swept
 // each frame to the time the eased speed has travelled.
 double u = fmin(seconds - rampStart, 1.0);
-made = mtwnPlayer_Sweep(context, player, rampTime + (1.0 - pow(1.0 - u, 3.0)) / 3.0);
+double swept = rampTime + (1.0 - pow(1.0 - u, 3.0)) / 3.0;
+made = mtwnClipPlayer_Sweep(context, player, swept);
 ```
 
 ## Scroll-driven playback
 
-A paused player swept to the scroll's progress before each update plays as CSS's scroll timelines do. `mtwnPlayer_Sweep` crosses everything between, so marks and starts give their records as they are scrolled past, either way. To smooth it, as GSAP's `scrub: 0.5` does, the playhead chases the scroll on a spring the host retargets at each scroll event, from where it is with the velocity it has, so a new event never jolts it:
+A paused player swept to the scroll's progress before each update plays as CSS's scroll timelines do. `mtwnClipPlayer_Sweep` crosses everything between, so marks and starts give their records as they are scrolled past, either way. To smooth it, as GSAP's `scrub: 0.5` does, the playhead chases the scroll on a spring the host retargets at each scroll event, from where it is with the velocity it has, so a new event never jolts it:
 
 ```c
 // At a scroll event: the chase from where it is, toward the new progress.
@@ -72,7 +73,7 @@ since = now;
 ```c
 // Each frame, before the update: the paused player swept to the chase.
 chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
-mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
+mtwnResult swept = mtwnClipPlayer_Sweep(context, reader, (goal + offset) * length);
 ```
 
 ## Events
@@ -106,15 +107,15 @@ layer.weight = 0.5f;
 play.bindings = &layer;
 play.bindingCount = 1;
 mtwnPlayerId pulse;
-mtwnResult layered = mtwnCreatePlayer(context, &play, &pulse);
-layered = mtwnPlayer_SetWeight(context, pulse, 0.25f); // the whole player's weight
+mtwnResult layered = mtwnCreateClipPlayer(context, &play, &pulse);
+layered = mtwnClipPlayer_SetWeight(context, pulse, 0.25f); // the whole player's weight
 ```
 
 What lies under a player is what earlier players wrote in this update, or the target's base, so an added layer never compounds on its own last frame. A target bound to a clip's player that no player writes in an update shows its base.
 
 ## Not obvious
 
-- A seek jumps: what lies between is not crossed, and a seek record says so. `mtwnPlayer_Sweep` and `mtwnPlayer_Finish` cross it, their records at once.
+- A seek jumps: what lies between is not crossed, and a seek record says so. `mtwnClipPlayer_Sweep` and `mtwnClipPlayer_Finish` cross it, their records at once.
 - An iteration record is made where an iteration's start is reached and names the iteration current there: the one entered going forwards, the one left going backwards (the one before it follows just after).
 - The queue holds the context def's `eventCapacity` records. A record arriving at a full queue is dropped and counted, never silently: `dropped` gives those since the last read, `mtwnContext_GetDroppedEventCount` all of them. A host that reads no events sets `eventCapacity` to 0: no records are made, and clips' players skip the work of finding their crossings, which is most of a frame where clips repeat.
 - A rate is 0 or from `MTWN_MIN_RATE` to `MTWN_RATE_LIMIT` (2^-20 to 2^20) in size; another is refused with `mtwn_errorLimit`, NaN with `mtwn_errorInvalid`. A rate change keeps the current time as Web Animations does, through the start time, so at that limit and 10^7 seconds of host time the time is kept to 2 ms.

@@ -369,28 +369,28 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
     switch (Below(in, 14))
     {
     case 0:
-        r = mtwnPlayer_Seek(context, player, Progress(in, 4.0));
+        r = mtwnClipPlayer_Seek(context, player, Progress(in, 4.0));
         break;
     case 1:
-        r = mtwnPlayer_Reverse(context, player);
+        r = mtwnClipPlayer_Reverse(context, player);
         break;
     case 2:
-        r = mtwnPlayer_SetRate(context, player, Rate(in));
+        r = mtwnClipPlayer_SetRate(context, player, Rate(in));
         break;
     case 3:
-        r = mtwnPlayer_Pause(context, player);
+        r = mtwnClipPlayer_Pause(context, player);
         break;
     case 4:
-        r = mtwnPlayer_Play(context, player);
+        r = mtwnClipPlayer_Play(context, player);
         break;
     case 5:
-        r = mtwnPlayer_Sweep(context, player, Progress(in, 4.0));
+        r = mtwnClipPlayer_Sweep(context, player, Progress(in, 4.0));
         break;
     case 6:
-        r = mtwnPlayer_Finish(context, player);
+        r = mtwnClipPlayer_Finish(context, player);
         break;
     case 7:
-        r = mtwnPlayer_SetWeight(context, player, (float)Wild(in, 1.0));
+        r = mtwnClipPlayer_SetWeight(context, player, (float)Wild(in, 1.0));
         break;
     case 8:
         mtwnContext_EnableReducedMotion(context, Below(in, 2) == 0);
@@ -501,17 +501,17 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         Status(run, mtwnContext_MeasureTransition(context, &def, &distance));
         Mix(run, &distance, sizeof distance);
         uint32_t sought = Below(in, s_players);
-        Status(run, mtwnPlayer_SeekProgress(context, players[sought], Progress(in, 1.5)));
+        Status(run, mtwnClipPlayer_SeekProgress(context, players[sought], Progress(in, 1.5)));
         uint32_t labelled = Below(in, s_players);
-        Status(run, mtwnPlayer_SeekLabel(context, players[labelled], Below(in, 6)));
+        Status(run, mtwnClipPlayer_SeekLabel(context, players[labelled], Below(in, 6)));
         if (Below(in, 2) == 0)
         {
-            Status(run, mtwnPlayer_Cancel(context, players[Below(in, s_players)]));
+            Status(run, mtwnClipPlayer_Cancel(context, players[Below(in, s_players)]));
         }
         for (uint32_t p = 0; p < s_players; ++p)
         {
-            mtwnPlayerState state;
-            Status(run, mtwnPlayer_GetState(context, players[p], &state));
+            mtwnClipPlayerState state;
+            Status(run, mtwnClipPlayer_GetState(context, players[p], &state));
         }
         if (Below(in, 4) == 0)
         {
@@ -583,14 +583,14 @@ static Run Script(const uint8_t* data, size_t size, int mode)
             bindings[s].composite = (mtwnComposite)Below(&in, 3);
             bindings[s].weight = Below(&in, 4) == 0 ? 0.5f : 1.0f;
         }
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = bindings;
         playerDef.bindingCount = Below(&in, 5);
         playerDef.keep = Below(&in, 2) == 0;
         playerDef.essential = Below(&in, 4) == 0;
         playerDef.rate = Below(&in, 4) == 0 ? -1.0 : 1.0;
-        Status(&run, mtwnCreatePlayer(context, &playerDef, &players[p]));
+        Status(&run, mtwnCreateClipPlayer(context, &playerDef, &players[p]));
     }
     uint64_t now = 0;
     for (uint32_t step = 0; step < s_steps && in.at < in.size; ++step)

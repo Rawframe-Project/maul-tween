@@ -130,12 +130,12 @@ static void TestStorage(void)
           "the allocator fails");
     counter.fail = false;
     CHECK(mtwnCreateClip(context, &def, &a) == mtwn_success, "the only slot still free");
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = a;
     playerDef.keep = true;
     mtwnPlayerId player = {0, 0};
     CHECK(mtwnClip_Seal(context, a) == mtwn_success &&
-              mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success,
+              mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success,
           "a player of it");
     CHECK(mtwnDestroyClip(context, a) == mtwn_errorBusy && mtwnClip_IsValid(context, a),
           "a clip a player uses is busy");
@@ -1195,14 +1195,14 @@ static float LastEasedBy(const mtwnEasing* easings, uint32_t count)
               "a track");
         bindings[i] = mtwnMakeBinding(i, target);
     }
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = bindings;
     playerDef.bindingCount = count;
     mtwnPlayerId player;
     mtwnVec4 value = {0};
     CHECK(mtwnClip_Seal(context, clip) == mtwn_success &&
-              mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+              mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success &&
               mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, 300000000u, NULL, 0, NULL) == mtwn_success &&
               mtwnTarget_GetValue(context, target, &value) == mtwn_success,
