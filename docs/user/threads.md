@@ -44,7 +44,7 @@ Transitions, and targets several players write, are composed on the calling thre
 - a player whose records do not fit its group's staging (1,024 records, or the queue's capacity when that is smaller), with the players after it in its group;
 - a player with targets of its own whose results might not fit its group's staging, which a group cannot undo once written.
 
-`mtwnContext_GetSerialAdvances` counts these advances since the context was made. When it grows, larger binding or event capacities, or smaller clips, keep the players in their groups.
+`mtwnContext_GetSerialAdvanceCount` counts these advances since the context was made. When it grows, larger binding or event capacities, or smaller clips, keep the players in their groups.
 
 ## Players in step
 

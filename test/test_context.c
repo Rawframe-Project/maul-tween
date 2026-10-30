@@ -190,7 +190,7 @@ static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records)
     mtwnContext* context = NULL;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "made");
     uint64_t bytes = mtwnContext_GetMemoryBytes(context);
-    CHECK(mtwnContext_GetSerialAdvances(context) == 0, "no advance left serial yet");
+    CHECK(mtwnContext_GetSerialAdvanceCount(context) == 0, "no advance left serial yet");
     mtwnDestroyContext(context);
     return bytes;
 }

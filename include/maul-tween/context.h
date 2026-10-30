@@ -216,7 +216,7 @@ extern "C"
     /// @return The count; 0 without a task system or a context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_API uint64_t mtwnContext_GetSerialAdvances(const mtwnContext* context);
+    MTWN_API uint64_t mtwnContext_GetSerialAdvanceCount(const mtwnContext* context);
 
     /// Returns the size of the block the context holds everything in.
     ///
