@@ -6,6 +6,43 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.14.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.13.0...v0.14.0) (2026-10-30)
+
+This release finishes the API review for 1.0. The readers take the context const and read it when host code calls back in ([#170](https://github.com/Rawframe-Project/maul-tween/pull/170)). The calls on a clip's player are named for it ([#178](https://github.com/Rawframe-Project/maul-tween/pull/178)) and the two counters that were not are named `Get...Count` ([#176](https://github.com/Rawframe-Project/maul-tween/pull/176)). The reduced motion switch returns nothing ([#174](https://github.com/Rawframe-Project/maul-tween/pull/174)), the host easing's callback is a function type ([#172](https://github.com/Rawframe-Project/maul-tween/pull/172)), and `mtwnMakeTrack` takes the keyframes it rewrites first ([#184](https://github.com/Rawframe-Project/maul-tween/pull/184)). Three getters no longer crash on a null context, and a refused rough easing leaves its points. The getting started guide says what 1.0 will keep. No value, velocity or event record changes.
+
+### Changed
+
+- **Breaking:** ten readers take a `const mtwnContext*` ([#170](https://github.com/Rawframe-Project/maul-tween/pull/170)): `mtwnClip_GetTrack`, `mtwnClip_GetNode`, `mtwnClip_FindLabel`, `mtwnClip_GetDuration`, `mtwnTarget_GetValue`, `mtwnTarget_GetState`, `mtwnPlayer_GetState` (now `mtwnClipPlayer_GetState`), `mtwnContext_ReadTargets`, `mtwnContext_GetClipBytes` and `mtwnContext_MeasureTransition`. C callers compile as before; a C++ pointer to one of them has a new type.
+  - Called back in from the host's code the context runs (a host easing, the allocator, the task system's functions), all but `mtwnTarget_GetState` now read the context as the call in progress has left it, where they returned `mtwn_errorBusy`, and count no misuse.
+  - `mtwnTarget_GetState` is still refused when called back in: a target's velocity may be computed when read, by sampling a host easing, which could otherwise call it again without end.
+  - While an update's clip players run in groups on the host's task system, `mtwnTarget_GetValue`, `mtwnContext_ReadTargets`, `mtwnClipPlayer_GetState` and `mtwnContext_MeasureTransition` called from the host's code are refused with `mtwn_errorBusy`, one misuse counted, their outputs left as they were, since a group may be writing what they read.
+  - `mtwnDestroyClip` and `mtwnDestroyContext` release a clip's id before the host's free gets its block, so a free that reads back the clip finds the id stale.
+- **Breaking:** the calls that take only a clip's player are named for it ([#178](https://github.com/Rawframe-Project/maul-tween/pull/178)):
+
+  | Before | Now |
+  |---|---|
+  | `mtwnPlayer_Play`, `_Pause`, `_Reverse`, `_Finish`, `_Cancel` | `mtwnClipPlayer_Play`, `_Pause`, `_Reverse`, `_Finish`, `_Cancel` |
+  | `mtwnPlayer_Seek`, `_Sweep`, `_SeekProgress`, `_SeekLabel` | `mtwnClipPlayer_Seek`, `_Sweep`, `_SeekProgress`, `_SeekLabel` |
+  | `mtwnPlayer_SetRate`, `_SetWeight`, `_GetState` | `mtwnClipPlayer_SetRate`, `_SetWeight`, `_GetState` |
+  | `mtwnCreatePlayer` | `mtwnCreateClipPlayer` |
+  | `mtwnPlayerDef` | `mtwnClipPlayerDef` |
+  | `mtwnDefaultPlayerDef` | `mtwnDefaultClipPlayerDef` |
+  | `MTWN_PLAYER_DEF_COOKIE` | `MTWN_CLIP_PLAYER_DEF_COOKIE` |
+  | `mtwnPlayerState` | `mtwnClipPlayerState` |
+
+  `mtwnPlayerId`, `mtwnDestroyPlayer` and `mtwnPlayer_IsValid`, which take a transition's player too, and `mtwnPlayState` keep their names. Parameters, values and the cookie's value are unchanged.
+- **Breaking:** `mtwnContext_GetDroppedEvents` is `mtwnContext_GetDroppedEventCount` and `mtwnContext_GetSerialAdvances` is `mtwnContext_GetSerialAdvanceCount`, as the family names its counters. Their parameters and behavior are unchanged ([#176](https://github.com/Rawframe-Project/maul-tween/pull/176)).
+- **Breaking:** `mtwnContext_EnableReducedMotion` returns `void`. A null context changes nothing, and a call back in changes nothing and counts one misuse, as their refusals did; read the state with `mtwnContext_IsReducedMotionEnabled` ([#174](https://github.com/Rawframe-Project/maul-tween/pull/174)).
+- **Breaking:** `mtwnEaseFunction` is a function type, `double (void* context, double progress)`, as the task hooks' are: `mtwnMakeHostEasing` takes, and `mtwnEasing.function` holds, a `mtwnEaseFunction*`. Passing a function's name compiles as before; a variable of the old type is declared `mtwnEaseFunction*` ([#172](https://github.com/Rawframe-Project/maul-tween/pull/172)).
+- **Breaking:** `mtwnMakeTrack` takes the keyframes and their count first and the def third: `mtwnMakeTrack(keyframes, count, def, lengthsOut, mixesOut, trackOut)`. It rewrites the keyframes in place for angles and for rotations on the shortest path, so they are the call's object, as the family's conventions order it. A call in the old order no longer compiles ([#184](https://github.com/Rawframe-Project/maul-tween/pull/184)).
+- `docs/user/getting-started.md` has a Compatibility section, linked from the README: what 1.0.0 will keep across 1.y (every function, type, enum value, macro and struct field in the headers, things only added), what it leaves out (the fields of the made value structs a host never reads), the binary interface within a minor version, and results the same bits on every platform, any change of a bit stated here. The transitions guide says to ask `mtwnPlayer_IsValid` before stopping a transition that may have ended ([#180](https://github.com/Rawframe-Project/maul-tween/pull/180)).
+
+### Fixed
+
+- `mtwnContext_GetMisuse`, `mtwnContext_GetSerialAdvanceCount` and `mtwnContext_GetMemoryBytes` read 0 from a null context, where they crashed, as the other getters do ([#165](https://github.com/Rawframe-Project/maul-tween/pull/165)).
+- A refused `mtwnMakeRoughEasing` leaves the caller's points as they were. A host shape giving a value that is not finite past the first inner points left part of a new set there; the shape is now sampled at every inner point before one is written ([#168](https://github.com/Rawframe-Project/maul-tween/pull/168)).
+- `mtwnFitLinearEasing` says what a refused fit leaves in its points, which its header called unspecified: the fit's first points, at most the capacity, exactly as a larger buffer would start, and the rest as they were ([#182](https://github.com/Rawframe-Project/maul-tween/pull/182)).
+
 ## [0.13.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.12.0...v0.13.0) (2026-10-30)
 
 This release settles what a refused call on a context leaves in its outputs, as the Maul family's conventions say. A refused update, event read or target read now clears its array as far as a success could write it, so a host that misses a status reads nothing stale ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160)). A call refused as busy, because host code the library runs called the context back in, now writes none of its outputs, since the call in progress may have written them ([#161](https://github.com/Rawframe-Project/maul-tween/pull/161)). Only refusals change: no value, velocity or event record does.
