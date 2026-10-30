@@ -31,12 +31,11 @@ typedef struct Probe
     mtwnClipId clip;
     mtwnPlayerId player;
     // Calls made back in, those refused with mtwn_errorBusy, the creations
-    // whose ids the refusal cleared, the calls whose outputs it left, and
-    // those whose arrays and counts it left.
+    // whose ids the refusal cleared, and the calls whose arrays and counts
+    // it left.
     uint32_t calls;
     uint32_t refused;
     uint32_t cleared;
-    uint32_t unwritten;
     uint32_t left;
 } Probe;
 
@@ -46,7 +45,7 @@ static Probe s_probe;
 // argument it refuses as invalid or stale (a null id or output, a time
 // gone by), so none can change the context and none returns
 // mtwn_errorBusy of itself: that status is the busy refusal alone. Counts
-// those: 37, the functions returning a status. Busy, it ends with the
+// those: 28, the functions returning a status. Busy, it ends with the
 // destroy, which returns nothing and must leave the context alive.
 static uint32_t CallEverything(mtwnContext* c, bool busy)
 {
@@ -66,10 +65,6 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnClip_AddLabel(c, noClip, MTWN_ROOT_NODE, at, 1, NULL) == mtwn_errorBusy;
     r += mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, NULL) == mtwn_errorBusy;
     r += mtwnClip_Seal(c, noClip) == mtwn_errorBusy;
-    r += mtwnClip_GetTrack(c, noClip, 1, NULL) == mtwn_errorBusy;
-    r += mtwnClip_GetNode(c, noClip, MTWN_ROOT_NODE, NULL) == mtwn_errorBusy;
-    r += mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, NULL) == mtwn_errorBusy;
-    r += mtwnClip_GetDuration(c, noClip, NULL) == mtwn_errorBusy;
     mtwnContext* grown = c;
     r += mtwnContext_Grow(&grown, NULL) == mtwn_errorBusy;
     // Reduced motion as it is: the one call that succeeds when not busy.
@@ -89,17 +84,12 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     r += mtwnPlayer_SeekLabel(c, noPlayer, 1) == mtwn_errorBusy;
     r += mtwnPlayer_SetRate(c, noPlayer, 2.0) == mtwn_errorBusy;
     r += mtwnPlayer_SetWeight(c, noPlayer, 0.5f) == mtwn_errorBusy;
-    r += mtwnPlayer_GetState(c, noPlayer, NULL) == mtwn_errorBusy;
     r += mtwnDestroyPlayer(c, noPlayer) == mtwn_errorBusy;
     r += mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, NULL) == mtwn_errorBusy;
     r += mtwnDestroyTarget(c, noTarget) == mtwn_errorBusy;
     r += mtwnTarget_SetBase(c, noTarget, (mtwnVec4){0}) == mtwn_errorBusy;
-    r += mtwnTarget_GetValue(c, noTarget, NULL) == mtwn_errorBusy;
-    r += mtwnTarget_GetState(c, noTarget, NULL) == mtwn_errorBusy;
-    r += mtwnContext_ReadTargets(c, NULL, 1, NULL) == mtwn_errorBusy;
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     r += mtwnStartTransition(c, &transition, NULL) == mtwn_errorBusy;
-    r += mtwnContext_MeasureTransition(c, &transition, NULL) == mtwn_errorBusy;
     if (busy)
     {
         mtwnDestroyContext(c);
@@ -156,45 +146,9 @@ static uint32_t ClearedWhenBusy(mtwnContext* c)
     return cleared;
 }
 
-// Bytes of 0xAB, then whether a busy call left them as its header says.
-#define BUSY_LEAVES(out, call)                                                                     \
-    do                                                                                             \
-    {                                                                                              \
-        memset(&(out), 0xAB, sizeof(out));                                                         \
-        unwritten += (call) == mtwn_errorBusy && AllBytes(&(out), sizeof(out), 0xAB);              \
-    } while (0)
-
-// The calls giving one value that a failure clears, made busy: each
-// refused and its output left as it was, since the call in progress may
-// have written it. Counts those: 8.
-static uint32_t UnwrittenWhenBusy(mtwnContext* c)
-{
-    uint32_t unwritten = 0;
-    const mtwnTargetId noTarget = {0, 0};
-    const mtwnPlayerId noPlayer = {0, 0};
-    const mtwnClipId noClip = {0, 0};
-    mtwnVec4 value;
-    BUSY_LEAVES(value, mtwnTarget_GetValue(c, noTarget, &value));
-    mtwnTargetState targetState;
-    BUSY_LEAVES(targetState, mtwnTarget_GetState(c, noTarget, &targetState));
-    mtwnClipDef clipDef = mtwnDefaultClipDef();
-    uint64_t bytes;
-    BUSY_LEAVES(bytes, mtwnContext_GetClipBytes(c, &clipDef, &bytes));
-    mtwnClipTrack track;
-    BUSY_LEAVES(track, mtwnClip_GetTrack(c, noClip, 1, &track));
-    mtwnClipNodeInfo info;
-    BUSY_LEAVES(info, mtwnClip_GetNode(c, noClip, MTWN_ROOT_NODE, &info));
-    double seconds;
-    BUSY_LEAVES(seconds, mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, &seconds));
-    BUSY_LEAVES(seconds, mtwnClip_GetDuration(c, noClip, &seconds));
-    mtwnPlayerState playerState;
-    BUSY_LEAVES(playerState, mtwnPlayer_GetState(c, noPlayer, &playerState));
-    return unwritten;
-}
-
 // The calls filling an array, made busy: each refused, its array and its
 // counts left as they were, since the call in progress may be filling or
-// have written them. Counts those: 3.
+// have written them. Counts those: 2.
 static uint32_t LeftWhenBusy(mtwnContext* c)
 {
     uint32_t left = 0;
@@ -209,11 +163,6 @@ static uint32_t LeftWhenBusy(mtwnContext* c)
     uint64_t dropped = 7;
     left += mtwnContext_ReadEvents(c, events, 2, &count, &dropped) == mtwn_errorBusy &&
             count == 7 && dropped == 7 && AllBytes(events, sizeof events, 0xAB);
-    const mtwnTargetId ids[2] = {s_probe.target, s_probe.spare};
-    mtwnVec4 values[2];
-    memset(values, 0xAB, sizeof values);
-    left += mtwnContext_ReadTargets(c, ids, 2, values) == mtwn_errorBusy &&
-            AllBytes(values, sizeof values, 0xAB);
     return left;
 }
 
@@ -224,7 +173,6 @@ static double CallingIn(void* unused, double progress)
     if (s_probe.calls == 0)
     {
         s_probe.cleared = ClearedWhenBusy(s_probe.context);
-        s_probe.unwritten = UnwrittenWhenBusy(s_probe.context);
         s_probe.left = LeftWhenBusy(s_probe.context);
         s_probe.refused = CallEverything(s_probe.context, true);
         s_probe.calls = 1;
@@ -260,12 +208,11 @@ static void TestHostEasing(void)
               mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
-    CHECK(s_probe.refused == 37, "every call back in refused");
+    CHECK(s_probe.refused == 28, "every call back in refused");
     CHECK(s_probe.cleared == 8, "a creation's id the null id, as on any failure");
-    CHECK(s_probe.unwritten == 8, "every other output left, as the call in progress may hold it");
-    CHECK(s_probe.left == 3, "its arrays and counts left, as the call in progress may hold them");
-    CHECK(mtwnContext_GetMisuse(context) == before + 38 + 8 + 8 + 3,
-          "each counted, the destroy and the outputs' and arrays' calls too");
+    CHECK(s_probe.left == 2, "its arrays and counts left, as the call in progress may hold them");
+    CHECK(mtwnContext_GetMisuse(context) == before + 29 + 8 + 2,
+          "each counted, the destroy and the creations' and arrays' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, s_probe.target, &value) == mtwn_success && value.x == 0.5f,
@@ -276,6 +223,317 @@ static void TestHostEasing(void)
           "nothing destroyed");
     CHECK(mtwnTarget_SetBase(context, s_probe.spare, (mtwnVec4){2.0f, 0, 0, 0}) == mtwn_success,
           "callable again after");
+    mtwnDestroyContext(context);
+}
+
+// What the readers gave a host easing that called them in the middle of an
+// update.
+typedef struct Reading
+{
+    mtwnContext* context;
+    mtwnTargetId target;
+    mtwnClipId clip;
+    mtwnNode track;
+    mtwnPlayerId player;
+    mtwnTransitionDef transition;
+    uint32_t calls;
+    uint32_t read;
+    bool stateRefused;
+    uint64_t misuse;
+} Reading;
+
+static Reading s_reading;
+
+// Calls every function that reads the context, each taking it const, on
+// live objects. Counts those that read: 9, all but mtwnTarget_GetState,
+// whose velocity may run the host's code again and is refused.
+static uint32_t ReadEverything(const mtwnContext* c)
+{
+    uint32_t r = 0;
+    mtwnVec4 value;
+    r += mtwnTarget_GetValue(c, s_reading.target, &value) == mtwn_success;
+    mtwnTargetState state;
+    memset(&state, 0xAB, sizeof state);
+    s_reading.stateRefused = mtwnTarget_GetState(c, s_reading.target, &state) == mtwn_errorBusy &&
+                             AllBytes(&state, sizeof state, 0xAB);
+    r += mtwnContext_ReadTargets(c, &s_reading.target, 1, &value) == mtwn_success;
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    uint64_t bytes = 0;
+    r += mtwnContext_GetClipBytes(c, &clipDef, &bytes) == mtwn_success && bytes > 0;
+    double distance = 0.0;
+    r += mtwnContext_MeasureTransition(c, &s_reading.transition, &distance) == mtwn_success &&
+         distance > 0.0;
+    mtwnClipTrack track;
+    r += mtwnClip_GetTrack(c, s_reading.clip, s_reading.track, &track) == mtwn_success;
+    mtwnClipNodeInfo info;
+    r += mtwnClip_GetNode(c, s_reading.clip, MTWN_ROOT_NODE, &info) == mtwn_success;
+    double seconds;
+    r += mtwnClip_FindLabel(c, s_reading.clip, MTWN_ROOT_NODE, 1, &seconds) == mtwn_success;
+    r += mtwnClip_GetDuration(c, s_reading.clip, &seconds) == mtwn_success;
+    mtwnPlayerState playerState;
+    r += mtwnPlayer_GetState(c, s_reading.player, &playerState) == mtwn_success;
+    return r;
+}
+
+// A host easing, the identity, reading the context on its first call.
+static double ReadingIn(void* unused, double progress)
+{
+    (void)unused;
+    if (s_reading.calls == 0)
+    {
+        // Counted first, so a read that ran this easing again would not
+        // read again.
+        s_reading.calls = 1;
+        uint64_t before = mtwnContext_GetMisuse(s_reading.context);
+        s_reading.read = ReadEverything(s_reading.context);
+        s_reading.misuse = mtwnContext_GetMisuse(s_reading.context) - before;
+    }
+    return progress;
+}
+
+// The readers take the context const, so a call back in is not refused:
+// it reads the context as the call in progress has left it so far.
+static void TestReadsWhileBusy(void)
+{
+    memset(&s_reading, 0, sizeof s_reading);
+    mtwnContextDef def = mtwnDefaultContextDef();
+    CHECK(mtwnCreateContext(&def, &s_reading.context) == mtwn_success, "a context");
+    mtwnContext* context = s_reading.context;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &s_reading.target) ==
+              mtwn_success,
+          "a target");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateClip(context, &clipDef, &s_reading.clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {0};
+    keys[1].value = (mtwnVec4){1.0f, 0, 0, 0};
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    mtwnClipTrackDef trackDef = mtwnDefaultClipTrackDef();
+    trackDef.keyframes = keys;
+    trackDef.keyframeCount = 2;
+    mtwnPosition at;
+    memset(&at, 0, sizeof at);
+    mtwnNode label;
+    CHECK(mtwnClip_AddTrack(context, s_reading.clip, &trackDef, &s_reading.track) == mtwn_success &&
+              mtwnClip_AddLabel(context, s_reading.clip, MTWN_ROOT_NODE, at, 1, &label) ==
+                  mtwn_success &&
+              mtwnClip_Seal(context, s_reading.clip) == mtwn_success,
+          "a sealed clip of a track and a label");
+    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    playerDef.clip = s_reading.clip;
+    CHECK(mtwnCreatePlayer(context, &playerDef, &s_reading.player) == mtwn_success, "its player");
+    mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+    transition.target = s_reading.target;
+    transition.value = (mtwnVec4){1.0f, 0, 0, 0};
+    transition.duration = 1.0;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, ReadingIn, NULL, &transition.easing) == mtwn_success,
+          "a host easing");
+    s_reading.transition = transition;
+    mtwnPlayerId moving;
+    CHECK(mtwnStartTransition(context, &transition, &moving) == mtwn_success, "started");
+    uint64_t before = mtwnContext_GetMisuse(context);
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
+          "updated");
+    CHECK(s_reading.calls == 1, "the easing read the context");
+    CHECK(s_reading.read == 9, "every other reader read it in the middle of the update");
+    CHECK(s_reading.stateRefused, "a target's state refused, its output left");
+    CHECK(s_reading.misuse == 1 && mtwnContext_GetMisuse(context) == before + 1,
+          "that refusal alone counted as misuse");
+    mtwnDestroyContext(context);
+}
+
+// A target read whose velocity samples a host easing: that easing,
+// calling back in to change the context, is refused, as during an update.
+typedef struct Changing
+{
+    mtwnContext* context;
+    mtwnTargetId spare;
+    bool armed;
+    uint32_t calls;
+    mtwnResult changed;
+} Changing;
+
+static Changing s_changing;
+
+static double ChangingIn(void* unused, double progress)
+{
+    (void)unused;
+    if (s_changing.armed)
+    {
+        s_changing.changed =
+            mtwnTarget_SetBase(s_changing.context, s_changing.spare, (mtwnVec4){1.0f, 0, 0, 0});
+        s_changing.calls += 1;
+    }
+    return progress;
+}
+
+static void TestStateReadMarksBusy(void)
+{
+    memset(&s_changing, 0, sizeof s_changing);
+    mtwnContextDef def = mtwnDefaultContextDef();
+    CHECK(mtwnCreateContext(&def, &s_changing.context) == mtwn_success, "a context");
+    mtwnContext* context = s_changing.context;
+    mtwnTargetId target;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &s_changing.spare) ==
+                  mtwn_success,
+          "targets");
+    mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+    transition.target = target;
+    transition.value = (mtwnVec4){1.0f, 0, 0, 0};
+    transition.duration = 1.0;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, ChangingIn, NULL, &transition.easing) == mtwn_success,
+          "a host easing");
+    mtwnPlayerId moving;
+    CHECK(mtwnStartTransition(context, &transition, &moving) == mtwn_success &&
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 2, NULL, 0, NULL) == mtwn_success,
+          "eased half way");
+    uint64_t before = mtwnContext_GetMisuse(context);
+    s_changing.armed = true;
+    mtwnTargetState state;
+    CHECK(mtwnTarget_GetState(context, target, &state) == mtwn_success && state.velocity.x > 0.0f,
+          "its state read, a velocity on the way");
+    s_changing.armed = false;
+    CHECK(s_changing.calls > 0 && s_changing.changed == mtwn_errorBusy,
+          "the easing the velocity sampled refused a change");
+    CHECK(mtwnContext_GetMisuse(context) == before + s_changing.calls, "each refusal counted");
+    CHECK(mtwnTarget_SetBase(context, s_changing.spare, (mtwnVec4){2.0f, 0, 0, 0}) == mtwn_success,
+          "not busy after the read");
+    mtwnDestroyContext(context);
+}
+
+// The readers of targets and players called from a clip's host easing:
+// refused while the update's groups run on the task system, which may be
+// writing what they read, and reading on the calling thread otherwise. The
+// task system runs every group inline, within enqueueTask on the calling
+// thread, which must find the context grouping as a worker would.
+typedef struct Grouped
+{
+    mtwnContext* context;
+    mtwnTargetId target;
+    mtwnPlayerId player;
+    mtwnTransitionDef transition;
+    uint32_t calls;
+    uint32_t refused;
+    uint32_t read;
+    bool split;
+} Grouped;
+
+static Grouped s_grouped;
+
+static void* RunGroupsAtOnce(mtwnTaskFunction* task, int32_t itemCount, int32_t minRange,
+                             void* taskContext, void* userContext)
+{
+    (void)minRange;
+    (void)userContext;
+    task(0, itemCount, taskContext);
+    return NULL;
+}
+
+static void WaitForNone(void* userTask, void* userContext)
+{
+    (void)userTask;
+    (void)userContext;
+}
+
+// The four readers that read while the context is busy, outputs of 0xAB: how many were refused as
+// busy with their outputs left, and how many read.
+static double ReadingInGroups(void* unused, double progress)
+{
+    (void)unused;
+    const mtwnContext* c = s_grouped.context;
+    if (c == NULL)
+    {
+        return progress;
+    }
+    s_grouped.calls += 1;
+    mtwnVec4 value;
+    mtwnVec4 values[1];
+    mtwnPlayerState playerState;
+    double distance;
+    memset(&value, 0xAB, sizeof value);
+    memset(values, 0xAB, sizeof values);
+    memset(&playerState, 0xAB, sizeof playerState);
+    memset(&distance, 0xAB, sizeof distance);
+    mtwnResult r[4] = {
+        mtwnTarget_GetValue(c, s_grouped.target, &value),
+        mtwnContext_ReadTargets(c, &s_grouped.target, 1, values),
+        mtwnPlayer_GetState(c, s_grouped.player, &playerState),
+        mtwnContext_MeasureTransition(c, &s_grouped.transition, &distance),
+    };
+    uint32_t busy = 0;
+    uint32_t read = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        busy += r[i] == mtwn_errorBusy;
+        read += r[i] == mtwn_success;
+    }
+    bool left = AllBytes(&value, sizeof value, 0xAB) && AllBytes(values, sizeof values, 0xAB) &&
+                AllBytes(&playerState, sizeof playerState, 0xAB) &&
+                AllBytes(&distance, sizeof distance, 0xAB);
+    s_grouped.refused += busy == 4 && left ? 4 : 0;
+    s_grouped.read += read == 4 ? 4 : 0;
+    // All four refused or all four read, never a mix.
+    s_grouped.split = s_grouped.split || (busy != 4 && read != 4);
+    return progress;
+}
+
+static void TestReadsInGroups(void)
+{
+    memset(&s_grouped, 0, sizeof s_grouped);
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.enqueueTask = RunGroupsAtOnce;
+    def.finishTask = WaitForNone;
+    def.playerCapacity = 64;
+    def.targetCapacity = 64;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context with a task system");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2] = {0};
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, ReadingInGroups, NULL, &keys[0].easing) == mtwn_success,
+          "a host easing");
+    keys[1].easing = keys[0].easing;
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    mtwnNode node;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Seal(context, clip) == mtwn_success,
+          "a track");
+    for (int p = 0; p < 32; ++p)
+    {
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnBinding binding = mtwnMakeBinding(0, target);
+        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        playerDef.clip = clip;
+        playerDef.bindings = &binding;
+        playerDef.bindingCount = 1;
+        CHECK(mtwnCreatePlayer(context, &playerDef, &s_grouped.player) == mtwn_success, "a player");
+        s_grouped.target = target;
+    }
+    s_grouped.transition = mtwnDefaultTransitionDef();
+    s_grouped.transition.target = s_grouped.target;
+    s_grouped.transition.value = (mtwnVec4){1.0f, 0, 0, 0};
+    uint64_t before = mtwnContext_GetMisuse(context);
+    s_grouped.context = context;
+    CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(context, s_second / 4, NULL, 0, NULL) == mtwn_success,
+          "updated");
+    s_grouped.context = NULL;
+    CHECK(s_grouped.calls > 0 && !s_grouped.split,
+          "every reader of a call refused, or every one read");
+    CHECK(s_grouped.refused > 0, "refused in the groups, outputs left");
+    CHECK(s_grouped.read > 0, "read on the calling thread");
+    CHECK(s_grouped.refused + s_grouped.read == 4 * s_grouped.calls, "nothing else");
+    CHECK(mtwnContext_GetMisuse(context) == before + s_grouped.refused, "each refusal counted");
     mtwnDestroyContext(context);
 }
 
@@ -364,6 +622,69 @@ static void CallingFinish(void* userTask, void* userContext)
     s_taskRefused += mtwnContext_Update(s_tasksContext, 0, NULL, 0, NULL) == mtwn_errorBusy;
 }
 
+// A free that reads back the clip whose block it was given, as the clip
+// readers, not refused on a call back in, let it: by then the clip's id is
+// stale, for mtwnDestroyClip and for the clips mtwnDestroyContext frees.
+typedef struct Freeing
+{
+    mtwnContext* context;
+    mtwnClipId clip;
+    bool armed;
+    uint32_t reads;
+    mtwnResult read;
+} Freeing;
+
+static Freeing s_freeing;
+
+static void* PlainAlloc(size_t size, size_t alignment, void* user)
+{
+    (void)alignment;
+    (void)user;
+    return malloc(size);
+}
+
+static void ReadingFree(void* memory, size_t size, size_t alignment, void* user)
+{
+    (void)size;
+    (void)alignment;
+    (void)user;
+    free(memory);
+    // Not the context's own block, which is gone with this call.
+    if (s_freeing.armed && memory != (void*)s_freeing.context)
+    {
+        double seconds = 7.0;
+        s_freeing.read = mtwnClip_GetDuration(s_freeing.context, s_freeing.clip, &seconds);
+        s_freeing.reads += 1;
+    }
+}
+
+static void TestFreeReadsItsClip(void)
+{
+    memset(&s_freeing, 0, sizeof s_freeing);
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.allocator = (mtwnAllocator){PlainAlloc, ReadingFree, NULL};
+    CHECK(mtwnCreateContext(&def, &s_freeing.context) == mtwn_success, "a context");
+    mtwnContext* context = s_freeing.context;
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    CHECK(mtwnCreateClip(context, &clipDef, &s_freeing.clip) == mtwn_success &&
+              mtwnClip_Seal(context, s_freeing.clip) == mtwn_success,
+          "a sealed clip");
+    s_freeing.armed = true;
+    CHECK(mtwnDestroyClip(context, s_freeing.clip) == mtwn_success, "destroyed");
+    s_freeing.armed = false;
+    CHECK(s_freeing.reads == 1 && s_freeing.read == mtwn_errorStale,
+          "its block's free reads it back stale");
+    CHECK(mtwnCreateClip(context, &clipDef, &s_freeing.clip) == mtwn_success &&
+              mtwnClip_Seal(context, s_freeing.clip) == mtwn_success,
+          "another");
+    s_freeing.reads = 0;
+    s_freeing.armed = true;
+    mtwnDestroyContext(context);
+    s_freeing.armed = false;
+    CHECK(s_freeing.reads == 1 && s_freeing.read == mtwn_errorStale,
+          "the context's destruction frees it stale too");
+}
+
 static void TestTasks(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -416,7 +737,11 @@ static void TestTasks(void)
 int main(void)
 {
     TestHostEasing();
+    TestReadsWhileBusy();
+    TestStateReadMarksBusy();
+    TestReadsInGroups();
     TestAllocator();
+    TestFreeReadsItsClip();
     TestTasks();
     return s_failures == 0 ? 0 : 1;
 }

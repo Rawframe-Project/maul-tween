@@ -210,15 +210,19 @@ extern "C"
     /// @param context      The context.
     /// @param def          The def: its target, value, angle method and
     ///                     rotation path are read.
-    /// @param distanceOut  Receives the distance, 0 on failure.
+    /// @param distanceOut  Receives the distance, 0 on failure but
+    ///                     mtwn_errorBusy, which leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument, a def
     ///         without its cookie, an end value the target's kind refuses,
     ///         an unknown angle method or rotation path, the longest way
     ///         between equal rotations, or a discrete value, which has no
-    ///         distance; mtwn_errorStale for a target that is not alive.
+    ///         distance; mtwn_errorStale for a target that is not alive;
+    ///         mtwn_errorBusy when called from the host's code
+    ///         while the update's clip players run on its task system, which
+    ///         may be writing what the call reads.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_MeasureTransition(mtwnContext* context,
+    MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_MeasureTransition(const mtwnContext* context,
                                                                      const mtwnTransitionDef* def,
                                                                      double* distanceOut);
 

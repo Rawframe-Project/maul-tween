@@ -69,7 +69,7 @@ static bool IsCount(uint32_t count)
 }
 
 // Counts a refusal against a live context as misuse.
-static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
+static mtwnResult Misuse(const mtwnContext* context, mtwnResult result)
 {
     mtwnCountMisuse(context);
     return result;
@@ -87,7 +87,8 @@ static mtwnResult CheckClipDef(const mtwnClipDef* def)
     return counts ? mtwn_success : mtwn_errorLimit;
 }
 
-static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, uint64_t* bytesOut)
+static mtwnResult RunGetClipBytes(const mtwnContext* context, const mtwnClipDef* def,
+                                  uint64_t* bytesOut)
 {
     if (context == NULL)
     {
@@ -106,26 +107,20 @@ static mtwnResult RunGetClipBytes(mtwnContext* context, const mtwnClipDef* def, 
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnContext_GetClipBytesWork(mtwnContext* context,
+static MTWN_NOINLINE mtwnResult mtwnContext_GetClipBytesWork(const mtwnContext* context,
                                                              const mtwnClipDef* def,
                                                              uint64_t* bytesOut)
 {
-    if (!mtwnEnter(context))
-    {
-        return mtwn_errorBusy;
-    }
-    // Cleared after the busy check, as a call back in writes nothing, and
-    // before any other, so a missing context's failure clears it too.
+    // Cleared before any check, so a missing context's failure clears it
+    // too.
     if (bytesOut != NULL)
     {
         *bytesOut = 0;
     }
-    mtwnResult result = RunGetClipBytes(context, def, bytesOut);
-    mtwnLeave(context);
-    return result;
+    return RunGetClipBytes(context, def, bytesOut);
 }
 
-mtwnResult mtwnContext_GetClipBytes(mtwnContext* context, const mtwnClipDef* def,
+mtwnResult mtwnContext_GetClipBytes(const mtwnContext* context, const mtwnClipDef* def,
                                     uint64_t* bytesOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
@@ -237,9 +232,14 @@ static mtwnResult RunDestroyClip(mtwnContext* context, mtwnClipId clip)
     // destruction writes the bases, a finished player is at rest), so this
     // only keeps a later one from reading a freed clip.
     mtwnSettleClipVelocities(context, clip.index1);
-    mtwnRelease(&context->allocator, slot->block, (size_t)slot->blockBytes, s_blockAlignment);
-    context->clipStorageUsed -= slot->blockBytes;
+    // The id goes stale before the host's free runs on the clip's block:
+    // that code reading the clip back, as a reader may, finds it gone
+    // rather than freed memory.
+    void* block = slot->block;
+    uint64_t bytes = slot->blockBytes;
+    context->clipStorageUsed -= bytes;
     mtwnPoolRelease(&context->clips, clip.index1);
+    mtwnRelease(&context->allocator, block, (size_t)bytes, s_blockAlignment);
     return mtwn_success;
 }
 

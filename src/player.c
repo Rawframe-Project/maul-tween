@@ -375,7 +375,7 @@ static bool AreBindings(const mtwnContext* context, const mtwnPlayerDef* def,
     return true;
 }
 
-static mtwnResult Misuse(mtwnContext* context, mtwnResult result)
+static mtwnResult Misuse(const mtwnContext* context, mtwnResult result)
 {
     mtwnCountMisuse(context);
     return result;
@@ -639,7 +639,7 @@ bool mtwnPlayer_IsValid(const mtwnContext* context, mtwnPlayerId player)
     return context != NULL && mtwnFindPlayer(context, player) != NULL;
 }
 
-static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
+static mtwnResult RunPlayerGetState(const mtwnContext* context, mtwnPlayerId player,
                                     mtwnPlayerState* stateOut)
 {
     if (context == NULL)
@@ -673,25 +673,27 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
     return mtwn_success;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mtwnPlayerId player,
+static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(const mtwnContext* context,
+                                                        mtwnPlayerId player,
                                                         mtwnPlayerState* stateOut)
 {
-    if (!mtwnEnter(context))
+    // Refused while the update's groups may be writing what it reads,
+    // before anything is written.
+    if (mtwnRefuseInGroups(context))
     {
         return mtwn_errorBusy;
     }
-    // Cleared after the busy check, as a call back in writes nothing, and
-    // before any other, so a missing context's failure clears it too.
+    // Cleared before any check, so a missing context's failure clears it
+    // too.
     if (stateOut != NULL)
     {
         memset(stateOut, 0, sizeof *stateOut);
     }
-    mtwnResult result = RunPlayerGetState(context, player, stateOut);
-    mtwnLeave(context);
-    return result;
+    return RunPlayerGetState(context, player, stateOut);
 }
 
-mtwnResult mtwnPlayer_GetState(mtwnContext* context, mtwnPlayerId player, mtwnPlayerState* stateOut)
+mtwnResult mtwnPlayer_GetState(const mtwnContext* context, mtwnPlayerId player,
+                               mtwnPlayerState* stateOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
     mtwnResult result = mtwnPlayer_GetStateWork(context, player, stateOut);

@@ -554,8 +554,8 @@ static mtwnResult Distance(const mtwnTransitionDef* def, mtwnValueKind kind, mtw
     return mtwn_success;
 }
 
-static mtwnResult RunContextMeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
-                                              double* distanceOut)
+static mtwnResult RunContextMeasureTransition(const mtwnContext* context,
+                                              const mtwnTransitionDef* def, double* distanceOut)
 {
     if (distanceOut != NULL)
     {
@@ -594,20 +594,20 @@ static mtwnResult RunContextMeasureTransition(mtwnContext* context, const mtwnTr
     return result;
 }
 
-static MTWN_NOINLINE mtwnResult mtwnContext_MeasureTransitionWork(mtwnContext* context,
+static MTWN_NOINLINE mtwnResult mtwnContext_MeasureTransitionWork(const mtwnContext* context,
                                                                   const mtwnTransitionDef* def,
                                                                   double* distanceOut)
 {
-    if (!mtwnEnter(context))
+    // Refused while the update's groups may be writing what it reads,
+    // before anything is written.
+    if (mtwnRefuseInGroups(context))
     {
         return mtwn_errorBusy;
     }
-    mtwnResult result = RunContextMeasureTransition(context, def, distanceOut);
-    mtwnLeave(context);
-    return result;
+    return RunContextMeasureTransition(context, def, distanceOut);
 }
 
-mtwnResult mtwnContext_MeasureTransition(mtwnContext* context, const mtwnTransitionDef* def,
+mtwnResult mtwnContext_MeasureTransition(const mtwnContext* context, const mtwnTransitionDef* def,
                                          double* distanceOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
