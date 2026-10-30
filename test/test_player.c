@@ -988,6 +988,25 @@ static void TestMisuseByKind(void)
     CHECK(mtwnDestroyPlayer(context, moving) == mtwn_errorStale &&
               mtwnContext_GetMisuse(context) == misuse,
           "an ended transition stopped, not misuse");
+    mtwnPlayerId kept = Player(&f, false, 1.0);
+    CHECK(mtwnDestroyPlayer(context, kept) == mtwn_success &&
+              mtwnDestroyPlayer(context, kept) == mtwn_errorStale &&
+              mtwnContext_GetMisuse(context) == misuse,
+          "a kept player's stale id, not misuse");
+    // Ids never handed out are the program's: the null id, an index past
+    // the highest slot used, generation 0 and a generation not reached.
+    mtwnPlayerId never[4] = {{0, 0}, {99, 1}, {kept.index1, 0}, {kept.index1, kept.generation + 1}};
+    uint32_t counted = 0;
+    for (int k = 0; k < 4; ++k)
+    {
+        uint64_t before = mtwnContext_GetMisuse(context);
+        counted += mtwnDestroyPlayer(context, never[k]) == mtwn_errorStale &&
+                   mtwnClipPlayer_Pause(context, never[k]) == mtwn_errorStale &&
+                   mtwnClipPlayer_GetState(context, never[k], &state) == mtwn_errorStale &&
+                   mtwnContext_GetMisuse(context) == before + 3;
+    }
+    CHECK(counted == 4, "player ids never handed out, misuse each time");
+    misuse += 12;
     mtwnNode node = 0;
     mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
     CHECK(mtwnClip_AddLabel(context, f.clip, MTWN_ROOT_NODE, at, 9, &node) == mtwn_errorState &&
