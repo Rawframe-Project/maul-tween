@@ -68,7 +68,7 @@ A call on a context clears its outputs when it fails (a null id, a zero value, a
 
 ## Calls back in
 
-The host's code that the library runs (a host easing, the allocator, the task system's functions) must not call the context it serves. Such a call is refused with `mtwn_errorBusy` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying.
+The host's code that the library runs (a host easing, the allocator, the task system's functions) must not change the context it serves. A call that would is refused with `mtwn_errorBusy` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying. A call that only reads, taking the context `const` (a target's value, a player's state, a clip's nodes), is not refused: it reads the context as the call in progress has left it so far. `mtwnTarget_GetState` is the exception, refused like a change, since a target's velocity may sample its easing and so run the host's code again. One exception: while an update runs clip players on the host's task system, a read of targets or players from the host's code is refused with `mtwn_errorBusy`, since another thread may be writing them. A context is used by one thread at a time, its reads too.
 
 ## Where to go next
 

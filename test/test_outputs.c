@@ -123,6 +123,29 @@ static void TestOnContext(void)
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
+    // A transition measured and refused for its def: each distance 0.
+    mtwnTransitionDef measured = mtwnDefaultTransitionDef();
+    measured.target = target;
+    double distance;
+    mtwnTransitionDef refused = measured;
+    refused.cookie = 0;
+    CLEARED(distance, mtwnContext_MeasureTransition(context, &refused, &distance),
+            "a distance without the def's cookie: 0");
+    refused = measured;
+    refused.target = noTarget;
+    CLEARED(distance, mtwnContext_MeasureTransition(context, &refused, &distance),
+            "a distance to a target not alive: 0");
+    refused = measured;
+    refused.value.x = (float)NAN;
+    CLEARED(distance, mtwnContext_MeasureTransition(context, &refused, &distance),
+            "a distance to a value its kind refuses: 0");
+    mtwnTargetId step;
+    CHECK(mtwnCreateTarget(context, mtwn_valueDiscrete, (mtwnVec4){0}, &step) == mtwn_success,
+          "a discrete target");
+    refused = measured;
+    refused.target = step;
+    CLEARED(distance, mtwnContext_MeasureTransition(context, &refused, &distance),
+            "a distance for a discrete value, which has none: 0");
     mtwnVec4 values[2];
     memset(values, 0xAB, sizeof values);
     CHECK(mtwnContext_ReadTargets(context, NULL, 2, values) == mtwn_errorInvalid &&

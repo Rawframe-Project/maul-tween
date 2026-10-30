@@ -299,6 +299,10 @@ struct mtwnContext
     // host's code it runs (a host easing, the allocator, the task system)
     // calling back in is refused.
     bool busy;
+    // Set while the update's groups run on the host's task system
+    // (mtwnRefuseInGroups), from before the first is handed out to after
+    // the last is waited on.
+    bool grouping;
     mtwnPool targets;
     mtwnPool players;
     mtwnPool clips;
@@ -375,10 +379,13 @@ static inline bool mtwnSameBits(double a, double b)
     return x == y;
 }
 
-// Counts one misuse; relaxed, its only reader the count's getter.
-static inline void mtwnCountMisuse(mtwnContext* context)
+// Counts one misuse; relaxed, its only reader the count's getter. The
+// count is the one part of a context every call may write, a reader's
+// refusal too, so it takes the context const: a context is always
+// allocated, never an object defined const.
+static inline void mtwnCountMisuse(const mtwnContext* context)
 {
-    atomic_fetch_add_explicit(&context->misuse, 1, memory_order_relaxed);
+    atomic_fetch_add_explicit(&((mtwnContext*)context)->misuse, 1, memory_order_relaxed);
 }
 
 // Marks a context busy for one of its functions: false, with one misuse
@@ -406,6 +413,43 @@ static inline void mtwnLeave(mtwnContext* context)
     {
         context->busy = false;
     }
+}
+
+// mtwnEnter for a read that may run the host's code (a target's lazy
+// velocity samples the easing writing it, a host's perhaps): that code
+// calling back in is refused, and so is the read itself called back in,
+// which could run the same code again, into itself. It takes the context
+// const, as the misuse count does: the flag too is a part every call may
+// write, and a context is never an object defined const.
+static inline bool mtwnEnterReading(const mtwnContext* context)
+{
+    return mtwnEnter((mtwnContext*)context);
+}
+
+// Refuses, as busy, a read of targets or players made from the host's
+// code while the update's groups run on its task system: a group writes
+// its players and the targets it alone writes on the thread the host
+// gives it, so such a read could race with it. The flag is set before
+// enqueueTask and cleared after finishTask returns: the host's task system
+// orders the write before every group's reads, as it orders the groups'
+// own inputs written before the hand-off, and the waiting orders their
+// reads before the clear. A group the host runs inline on the calling
+// thread, within enqueueTask, finds it set too. True when refused, with
+// one misuse counted.
+static inline bool mtwnRefuseInGroups(const mtwnContext* context)
+{
+    if (context == NULL || !context->grouping)
+    {
+        return false;
+    }
+    mtwnCountMisuse(context);
+    return true;
+}
+
+// Ends what mtwnEnterReading began.
+static inline void mtwnLeaveReading(const mtwnContext* context)
+{
+    mtwnLeave((mtwnContext*)context);
 }
 
 static inline mtwnTargetSlot* mtwnTargetAt(const mtwnContext* context, uint32_t index1)
