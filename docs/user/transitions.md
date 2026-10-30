@@ -68,7 +68,7 @@ mtwnPlayerId flinging;
 mtwnResult flung = mtwnStartTransition(context, &fling, &flinging);
 ```
 
-At its end (the duration, a spring's settling time, a decay's stop) a transition commits its end value as the target's base with velocity 0 and frees itself; its id goes stale. `mtwnDestroyPlayer` stops one without committing, and the target shows its base again.
+At its end (the duration, a spring's settling time, a decay's stop) a transition commits its end value as the target's base with velocity 0 and frees itself; its id goes stale. `mtwnDestroyPlayer` stops one without committing, and the target shows its base again. A transition that has ended is gone like any destroyed object, and a stale id given to `mtwnDestroyPlayer` is refused and counted as misuse. So a host that may stop a transition after its end asks `mtwnPlayer_IsValid` first. Starting a new transition on the target replaces the running one, ended or not, without that question.
 
 ## Duration by distance
 

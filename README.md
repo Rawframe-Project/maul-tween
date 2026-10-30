@@ -65,7 +65,7 @@ Linux with GCC 14 or Clang 19 and newer on x86-64, 32-bit x86 (with SSE2 arithme
 - [The documentation site](https://rawframe-project.github.io/maul-tween/), with the API reference generated from the headers.
 - [User documentation](docs/README.md): one page per part of the library.
 - [How it works](docs/internals/overview.md) and [how to develop it](docs/operations/development.md).
-- [Changelog](CHANGELOG.md).
+- [Changelog](CHANGELOG.md), and [what a release keeps](docs/user/getting-started.md#compatibility): from 1.0.0 the headers' names and meanings hold across every 1.y.
 
 Maul Tween belongs to the Maul family of standalone C libraries, which share one set of conventions.
 

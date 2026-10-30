@@ -70,6 +70,16 @@ A call on a context clears its outputs when it fails (a null id, a zero value, a
 
 The host's code that the library runs (a host easing, the allocator, the task system's functions) must not change the context it serves. A call that would is refused with `mtwn_errorBusy` and counted as misuse, and `mtwnDestroyContext` called that way returns without destroying. A call that only reads, taking the context `const` (a target's value, a player's state, a clip's nodes), is not refused: it reads the context as the call in progress has left it so far. `mtwnTarget_GetState` is the exception, refused like a change, since a target's velocity may sample its easing and so run the host's code again. One exception: while an update runs clip players on the host's task system, a read of targets or players from the host's code is refused with `mtwn_errorBusy`, since another thread may be writing them. A context is used by one thread at a time, its reads too.
 
+## Compatibility
+
+Before 1.0.0 any release may change the API and the ABI, and the changelog says how. From 1.0.0 Maul Tween ships minor and patch releases of 1 only, and keeps this promise:
+
+- **What it covers.** Every function, type, enum value, macro and struct field declared in the headers under `include/maul-tween/`, by name, signature and meaning. A program that builds against 1.y builds against any later 1.z and means the same. Functions, types, values and fields are only added, a field only at the end of its struct.
+- **What it leaves out.** The fields of the structs a maker fills, which their headers call the library's: `mtwnEasing`, `mtwnSpring`, `mtwnColorMix`, `mtwnRotationMix`, `mtwnScaleMix`, `mtwnZoomMix`, `mtwnPath` and `mtwnTrack`. A host makes, copies and passes them but reads none of their fields, so a minor release may change them. The reasons `mtwnContext_GetSerialAdvanceCount`'s header gives for an advance left serial may change too; what the count counts does not.
+- **The binary interface** holds within a minor version. `MTWN_ABI_VERSION` is the major and minor version, and so is a shared library's SOVERSION. A context def stamped by another version's headers is refused with `mtwn_errorVersion`, so a program is rebuilt for a new minor release.
+- **Results** are the same bits on every platform within a release. A release that changes any bit of a value, velocity or event record says so in its changelog, with who sees it.
+- **Stored data:** Maul Tween reads and writes no bytes of its own, so it has no format to keep.
+
 ## Where to go next
 
 - [Easing](easing.md): curves from progress to eased progress, CSS's and Penner's, sampling and fitting `linear()`.
