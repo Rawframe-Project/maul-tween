@@ -8,7 +8,7 @@ What verifies a change, locally and in CI, and the time each may take.
 
 | Tier | Runs | Budget |
 |---|---|---|
-| `changed` | The source, module, length, API documentation, snippet and test hygiene rules (with the hygiene check's self-test), the organization's documentation check, `clang-format` on the changed C files, and the `linux-clang-20-asan` preset (assertions on) with the CTest labels the changed files reach. | under 2 minutes |
+| `changed` | The source, module, length, API documentation, snippet and test hygiene rules (with the hygiene check's self-test), the organization's documentation check, `clang-format` on the changed C files, clang-tidy twice (below) on the changed files of the `pr` tier's set (`src/*.c`, none when no source changed), and the `linux-clang-20-asan` preset (assertions on) with the CTest labels the changed files reach. | under 2 minutes |
 | `pr` | Every rule on every file, the generators and oracles with `--check`, clang-tidy twice (below), the `linux-gcc-14` preset, the code size budgets, the `linux-clang-20-asan` preset, and 10 seconds of fuzzing per target. | under 10 minutes |
 | `full` | Also 60 seconds per fuzz target and every other Linux preset: ThreadSanitizer, the shared library with the package test, 32-bit x86, Clang Release, and `linux-clang-20-nightly`, which runs the nightly scenes too. | under 20 minutes |
 
@@ -32,7 +32,7 @@ Every preset a tier runs has its configured tests checked for a label (`check_te
 
 `pr-title.yml` checks that the pull request title is a conventional commit with a scope from `AGENTS.md`, and `pr-gate.yml` closes a pull request from outside the organization unless it closes an issue labeled `accepted`. `codeql.yml` runs CodeQL on every pull request and on `main`, building with GCC 14 (an advanced setup, since the default one builds with the runner's GCC 13). `pages.yml` publishes the documentation site from `main`. `scorecard.yml` grades the repository's security practices weekly for the README badge, and Dependabot proposes updates of the pinned actions once a week in one pull request.
 
-clang-tidy runs twice in `checks` and in the `pr` tier, both times on the `linux-clang-20` preset. The first run is in Release, where `NDEBUG` compiles every `MTWN_ASSERT` to a `sizeof`; the second is in Debug, with the assertions live. Each run hides findings the other shows:
+clang-tidy runs twice in `checks` and in the `pr` tier, and on the changed sources in the `changed` tier, each time on the `linux-clang-20` preset. The first run is in Release, where `NDEBUG` compiles every `MTWN_ASSERT` to a `sizeof`; the second is in Debug, with the assertions live. Each run hides findings the other shows:
 
 - A value read only by an assertion is a dead store once the assertion compiles out. Branch on the value instead.
 - A live assertion's condition counts toward its function's cognitive complexity. Move a compound condition into a predicate.
