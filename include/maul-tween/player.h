@@ -346,7 +346,8 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param player    A clip's player.
-    /// @param stateOut  Receives the state, zero on failure.
+    /// @param stateOut  Receives the state, zero on failure but a call back in
+    ///                  (mtwn_errorBusy), which leaves it.
     /// @return As mtwnPlayer_Play; mtwn_errorInvalid also for a null
     ///         stateOut.
     /// @par Thread safety

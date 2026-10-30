@@ -274,14 +274,15 @@ static mtwnResult RunTargetGetValue(mtwnContext* context, mtwnTargetId target, m
 static MTWN_NOINLINE mtwnResult mtwnTarget_GetValueWork(mtwnContext* context, mtwnTargetId target,
                                                         mtwnVec4* valueOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (valueOut != NULL)
-    {
-        *valueOut = (mtwnVec4){0};
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (valueOut != NULL)
+    {
+        *valueOut = (mtwnVec4){0};
     }
     mtwnResult result = RunTargetGetValue(context, target, valueOut);
     mtwnLeave(context);
@@ -323,14 +324,15 @@ static mtwnResult RunTargetGetState(mtwnContext* context, mtwnTargetId target,
 static MTWN_NOINLINE mtwnResult mtwnTarget_GetStateWork(mtwnContext* context, mtwnTargetId target,
                                                         mtwnTargetState* stateOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (stateOut != NULL)
-    {
-        memset(stateOut, 0, sizeof *stateOut);
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (stateOut != NULL)
+    {
+        memset(stateOut, 0, sizeof *stateOut);
     }
     mtwnResult result = RunTargetGetState(context, target, stateOut);
     mtwnLeave(context);

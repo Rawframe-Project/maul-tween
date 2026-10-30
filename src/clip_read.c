@@ -79,14 +79,15 @@ static mtwnResult RunClipGetTrack(mtwnContext* context, mtwnClipId clip, mtwnNod
 static MTWN_NOINLINE mtwnResult mtwnClip_GetTrackWork(mtwnContext* context, mtwnClipId clip,
                                                       mtwnNode node, mtwnClipTrack* trackOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (trackOut != NULL)
-    {
-        memset(trackOut, 0, sizeof *trackOut);
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (trackOut != NULL)
+    {
+        memset(trackOut, 0, sizeof *trackOut);
     }
     mtwnResult result = RunClipGetTrack(context, clip, node, trackOut);
     mtwnLeave(context);
@@ -143,14 +144,15 @@ static mtwnResult RunClipGetNode(mtwnContext* context, mtwnClipId clip, mtwnNode
 static MTWN_NOINLINE mtwnResult mtwnClip_GetNodeWork(mtwnContext* context, mtwnClipId clip,
                                                      mtwnNode node, mtwnClipNodeInfo* infoOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (infoOut != NULL)
-    {
-        memset(infoOut, 0, sizeof *infoOut);
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (infoOut != NULL)
+    {
+        memset(infoOut, 0, sizeof *infoOut);
     }
     mtwnResult result = RunClipGetNode(context, clip, node, infoOut);
     mtwnLeave(context);
@@ -199,14 +201,15 @@ static MTWN_NOINLINE mtwnResult mtwnClip_FindLabelWork(mtwnContext* context, mtw
                                                        mtwnNode parent, uint32_t key,
                                                        double* secondsOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (secondsOut != NULL)
-    {
-        *secondsOut = 0.0;
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (secondsOut != NULL)
+    {
+        *secondsOut = 0.0;
     }
     mtwnResult result = RunClipFindLabel(context, clip, parent, key, secondsOut);
     mtwnLeave(context);
@@ -247,14 +250,15 @@ static mtwnResult RunClipGetDuration(mtwnContext* context, mtwnClipId clip, doub
 static MTWN_NOINLINE mtwnResult mtwnClip_GetDurationWork(mtwnContext* context, mtwnClipId clip,
                                                          double* secondsOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (secondsOut != NULL)
-    {
-        *secondsOut = 0.0;
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (secondsOut != NULL)
+    {
+        *secondsOut = 0.0;
     }
     mtwnResult result = RunClipGetDuration(context, clip, secondsOut);
     mtwnLeave(context);

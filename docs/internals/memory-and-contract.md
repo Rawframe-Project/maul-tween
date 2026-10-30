@@ -36,7 +36,8 @@ Caller input is never checked by an assertion: it is validated and refused with 
 
 Every out-parameter's header says what a failure leaves in it, by one rule:
 
-- A call on a context clears its outputs on any failure, first, before it checks the context: an id is null, a node 0, a value or state zero, a count 0. A host that ignores a status reads nothing stale.
+- A call on a context clears its outputs on any failure, before any check but the busy one: an id is null, a node 0, a value or state zero, a count 0. A host that ignores a status reads nothing stale.
+- A call back in, refused with `mtwn_errorBusy`, writes none of its outputs, since the call in progress may have written or be filling them. Only a creation, whose output is the id of what it makes, still gives the null id: `mtwnCreateTarget`, `mtwnCreateClip`, `mtwnCreatePlayer`, `mtwnStartTransition` and the `mtwnClip_Add...` calls' node.
 - A call without a context (the makers, sampling, timing, a clip's bytes) leaves its outputs as they were, so a failed remake keeps the caller's last good value and no failure writes through a pointer the call refused.
 - An array a call fills is never cleared: on failure an update's report and the events and targets read are unwritten, the count beside them 0. Keyframes, mixes and `linear()` points rewritten in place are as they were.
 - A header may name what a failure gives instead: a fit too large for its capacity reports the count it needs, as `snprintf` does, its points then unspecified.

@@ -110,14 +110,15 @@ static MTWN_NOINLINE mtwnResult mtwnContext_GetClipBytesWork(mtwnContext* contex
                                                              const mtwnClipDef* def,
                                                              uint64_t* bytesOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (bytesOut != NULL)
-    {
-        *bytesOut = 0;
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (bytesOut != NULL)
+    {
+        *bytesOut = 0;
     }
     mtwnResult result = RunGetClipBytes(context, def, bytesOut);
     mtwnLeave(context);
