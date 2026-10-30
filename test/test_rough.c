@@ -12,6 +12,8 @@
 #include "maul-tween/easing.h"
 
 #include <math.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -212,11 +214,49 @@ static void TestRefusals(void)
                          "an infinity refused");
 }
 
+// NaN past the middle only, so the inner points before it are finite.
+static double NaNPastHalf(void* context, double progress)
+{
+    (void)context;
+    return progress > 0.5 ? (double)NAN : progress;
+}
+
+static bool AllBytes(const void* bytes, size_t size, unsigned char value)
+{
+    const unsigned char* b = bytes;
+    for (size_t i = 0; i < size; ++i)
+    {
+        if (b[i] != value)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A shape refused at its last inner points leaves every point as it was,
+// the first inner ones included.
+static void TestRefusalWritesNothing(void)
+{
+    mtwnRoughDef def = Def(0.2, 1, mtwn_roughTaperNone, 0);
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, NaNPastHalf, NULL, &def.shape) == mtwn_success,
+          "a host shape");
+    mtwnLinearPoint points[8];
+    memset(points, 0xAB, sizeof points);
+    mtwnEasing easing;
+    memset(&easing, 0xAB, sizeof easing);
+    CHECK(mtwnMakeRoughEasing(&def, points, 8, &easing) == mtwn_errorInvalid,
+          "a shape giving NaN past the middle refused");
+    CHECK(AllBytes(points, sizeof points, 0xAB) && AllBytes(&easing, sizeof easing, 0xAB),
+          "the points and the easing left as they were");
+}
+
 int main(void)
 {
     TestSeedBits();
     TestBounds();
     TestZigZag();
     TestRefusals();
+    TestRefusalWritesNothing();
     return s_failures == 0 ? 0 : 1;
 }
