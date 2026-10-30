@@ -586,9 +586,11 @@ static mtwnResult RunDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
         return mtwn_errorInvalid;
     }
     mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
+    // A player may free itself at an end the update decides, so its id
+    // outlives it by design: a stale one is refused but not misuse.
     if (slot == NULL)
     {
-        return Misuse(context, mtwn_errorStale);
+        return mtwn_errorStale;
     }
     if (slot->type == MTWN_PLAYER_CLIP)
     {
@@ -649,9 +651,11 @@ static mtwnResult RunPlayerGetState(const mtwnContext* context, mtwnPlayerId pla
         return mtwn_errorInvalid;
     }
     mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
+    // A player may free itself at an end the update decides, so its id
+    // outlives it by design: a stale one is refused but not misuse.
     if (slot == NULL)
     {
-        return Misuse(context, mtwn_errorStale);
+        return mtwn_errorStale;
     }
     if (stateOut == NULL)
     {

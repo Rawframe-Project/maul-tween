@@ -16,7 +16,7 @@ Bindings live in the context's `bindingCapacity` as runs taken first fit and coa
 
 ## Ids
 
-Targets, players and clips are named by a 1-based index and a generation from 1 ([`src/pool.c`](../../src/pool.c)). A slot whose generation would wrap is retired, so an old id can never come back to life. Free slots are reused last in, first out, so the ids a sequence of calls hands out are the same on every run. A stale id is refused with `mtwn_errorStale` and counted as misuse, except by the `_IsValid` functions, which ask.
+Targets, players and clips are named by a 1-based index and a generation from 1 ([`src/pool.c`](../../src/pool.c)). A slot whose generation would wrap is retired, so an old id can never come back to life. Free slots are reused last in, first out, so the ids a sequence of calls hands out are the same on every run. A stale id is refused with `mtwn_errorStale`. It counts as misuse for a target or a clip, which only the program destroys, and not for a player, which may free itself at an end the update decides ([overview.md](overview.md)); the `_IsValid` functions, which ask, count none.
 
 ## Defs and versions
 
@@ -28,7 +28,7 @@ Public structs have no reserved fields and no fields that only spell out padding
 
 ## Refusals and misuse
 
-A refused call changes nothing. A call on a live context refused for an invalid argument, an argument past a named bound (`mtwn_errorLimit`), a stale id or a call back in counts one misuse, and one refused for room (`mtwn_errorCapacity`) does not (`mtwnContext_GetMisuse`); the count is atomic, incremented relaxed, since a refusal may come from the task system's code on a worker while the update's thread waits. A host asserts the count stays 0, and a fuzz target asserts it moves exactly when a call is refused.
+A refused call changes nothing. A call on a live context refused for an invalid argument, an argument past a named bound (`mtwn_errorLimit`), a stale target or clip id, a call the object's state does not allow (`mtwn_errorState`: a clip sealed or not yet sealed, a player control its rate or time does not allow) or a call back in counts one misuse (`mtwnContext_GetMisuse`). A refusal that depends on state the library changes does not: one for room (`mtwn_errorCapacity`), a stale player id, and `mtwnDestroyClip` refused while a player holds the clip (`mtwn_errorBusy`), since a player not kept frees itself at an end the update decides. The count is atomic, incremented relaxed, since a refusal may come from the task system's code on a worker while the update's thread waits. A host asserts the count stays 0, and the suites check what each refusal counts.
 
 Caller input is never checked by an assertion: it is validated and refused with a status in every build. `MTWN_ASSERT` ([`src/invariant.h`](../../src/invariant.h)) checks only states that cannot happen unless the library itself is wrong. It traps in builds without `NDEBUG` (Debug, the sanitizer builds, the fuzz builds) and compiles out of Release builds, whose update loop must not pay for it.
 

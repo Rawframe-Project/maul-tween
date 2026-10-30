@@ -224,9 +224,11 @@ static mtwnResult RunDestroyClip(mtwnContext* context, mtwnClipId clip)
     {
         return Misuse(context, mtwn_errorStale);
     }
+    // Held by a player, which may free itself at an end the update
+    // decides: refused until then, but not misuse.
     if (slot->users != 0)
     {
-        return Misuse(context, mtwn_errorBusy);
+        return mtwn_errorBusy;
     }
     // No path leaves a target lazy on a clip without players today (their
     // destruction writes the bases, a finished player is at rest), so this

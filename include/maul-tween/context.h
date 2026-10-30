@@ -200,8 +200,11 @@ extern "C"
                                                         const mtwnContextDef* def);
 
     /// Returns how many calls against the context were refused for an
-    /// invalid argument, a stale id or a call back in from the host's code
-    /// since it was made.
+    /// invalid argument, a stale target or clip id, a call the object's
+    /// state does not allow (mtwn_errorState) or a call back in from the
+    /// host's code since it was made. A full capacity, a stale player id
+    /// and a clip a player still holds count none: each depends on state
+    /// the library changes.
     ///
     /// @param context  The context, or NULL.
     /// @return The count; 0 for a null context.

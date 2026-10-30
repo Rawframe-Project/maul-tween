@@ -284,7 +284,9 @@ extern "C"
     /// @param clip     The clip.
     /// @return mtwn_success; mtwn_errorInvalid for a null context;
     ///         mtwn_errorStale for an id that names no live clip;
-    ///         mtwn_errorBusy while a player plays it.
+    ///         mtwn_errorBusy while a player plays it, not counted as
+    ///         misuse: a player not kept frees itself at an end the update
+    ///         decides.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyClip(mtwnContext* context, mtwnClipId clip);

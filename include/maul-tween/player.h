@@ -371,7 +371,8 @@ extern "C"
     /// @param player   The player.
     /// @return mtwn_success; mtwn_errorInvalid for a null context;
     ///         mtwn_errorStale for an id that names no live player, as one
-    ///         that ended does.
+    ///         that ended does, not counted as misuse: a player may free
+    ///         itself at an end the update decides.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnDestroyPlayer(mtwnContext* context, mtwnPlayerId player);
