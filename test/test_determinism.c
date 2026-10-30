@@ -509,7 +509,7 @@ static void HashPaths(void)
     double lengths[3];
     mtwnTrack track;
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScale);
-    CHECK(mtwnMakeTrack(&def, keys, 3, lengths, NULL, &track) == mtwn_success, "a scale track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, lengths, NULL, &track) == mtwn_success, "a scale track");
     HashPath(&track.path);
     for (uint32_t k = 0; k < SAMPLES; ++k)
     {

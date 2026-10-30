@@ -264,7 +264,7 @@ static void TestTracks(void)
     CHECK(mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success, "read");
     mtwnTrack direct;
     double lengths[3];
-    CHECK(mtwnMakeTrack(&def.track, given, 3, lengths, NULL, &direct) == mtwn_success, "direct");
+    CHECK(mtwnMakeTrack(given, 3, &def.track, lengths, NULL, &direct) == mtwn_success, "direct");
     int same = 1;
     for (int k = 0; k <= 50; ++k)
     {
@@ -1108,7 +1108,7 @@ static void TestLinearPointsCopied(void)
     mtwnTrack direct;
     CHECK(mtwnClip_Seal(context, clip) == mtwn_success &&
               mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success &&
-              mtwnMakeTrack(&def.track, given, 2, NULL, NULL, &direct) == mtwn_success,
+              mtwnMakeTrack(given, 2, &def.track, NULL, NULL, &direct) == mtwn_success,
           "read, and the same track made from the copies");
     int same = 0;
     for (int k = 0; k <= 20; ++k)

@@ -334,7 +334,7 @@ static void Paths(Out* out)
     memcpy(trackKeys, keys, sizeof trackKeys);
     mtwnSegmentMix mixes[4];
     mtwnTrack track;
-    r = mtwnMakeTrack(&def, trackKeys, 4, lengths, mixes, &track);
+    r = mtwnMakeTrack(trackKeys, 4, &def, lengths, mixes, &track);
     PUT(out, r);
     for (int i = 0; i < s_progressCount; ++i)
     {
