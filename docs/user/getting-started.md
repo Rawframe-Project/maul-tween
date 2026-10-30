@@ -50,7 +50,7 @@ Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negati
 |---|---|---|
 | `mtwn_errorInvalid` | -1 | An argument a correct program never passes: a null pointer, a value outside its documented range, a def not made by its default function. |
 | `mtwn_errorCapacity` | -2 | Storage is too small: a capacity the host set is full (targets, players, clips, bindings, a clip's nodes, keyframes or `linear()` points, a transition's points), a caller's buffer, or the allocator. More room would succeed. |
-| `mtwn_errorStale` | -3 | An id names an object destroyed since it was handed out. |
+| `mtwn_errorStale` | -3 | An id names no live object: one destroyed since it was handed out, one never handed out, or the null id. |
 | `mtwn_errorState` | -6 | The call is not allowed in the object's state, which another call changes: a clip not sealed or already sealed, a player control its rate or time does not allow. |
 | `mtwn_errorVersion` | -7 | A context def was built against headers of another ABI version. |
 | `mtwn_errorLimit` | -9 | An argument passes a bound published as a named constant: `MTWN_MAX_COUNT`, `MTWN_MAX_CLIP_STORAGE`, `MTWN_MAX_CLIP_DEPTH`, `MTWN_MAX_FIT_POINTS`, `MTWN_MIN_RATE`, `MTWN_RATE_LIMIT`, `MTWN_SEEK_LIMIT`. More room would not help. |
@@ -62,7 +62,7 @@ A refused call changes nothing. A context counts the calls refused for an invali
 
 Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
 
-Targets, players and clips are named by ids of an index and a generation. An id of something destroyed is stale: a call given it returns `mtwn_errorStale` and never touches whatever took its slot. The zero id is null.
+Targets, players and clips are named by ids of an index and a generation. An id of something destroyed is stale: a call given it returns `mtwn_errorStale` and never touches whatever took its slot. The zero id is null; it and an id never handed out get `mtwn_errorStale` too.
 
 A call on a context clears its outputs when it fails (a null id, a zero value, a count of 0), so a program that ignores a status reads nothing stale. A call without a context, such as an easing maker, leaves its outputs as they were.
 
