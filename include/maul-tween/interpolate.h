@@ -36,7 +36,7 @@ extern "C"
     } mtwnColor;
 
     // A space colors interpolate in, and its coordinates.
-    typedef uint8_t mtwnColorSpace;
+    typedef int32_t mtwnColorSpace;
     enum
     {
         // Oklab: lightness, a, b. CSS's default.
@@ -50,7 +50,7 @@ extern "C"
     };
 
     // How OkLCh hues interpolate, CSS Color 4's four methods.
-    typedef uint8_t mtwnHueMethod;
+    typedef int32_t mtwnHueMethod;
     enum
     {
         // The shorter arc. CSS's default.
@@ -148,7 +148,7 @@ extern "C"
 
     // How an angle interpolates: raw, or by CSS's hue methods with a
     // period of a full turn.
-    typedef uint8_t mtwnAngleMethod;
+    typedef int32_t mtwnAngleMethod;
     enum
     {
         // As given, turns kept: 0 to 4 pi turns twice.
@@ -191,7 +191,7 @@ extern "C"
     } mtwnQuat;
 
     // Which way a rotation turns between its ends.
-    typedef uint8_t mtwnRotationPath;
+    typedef int32_t mtwnRotationPath;
     enum
     {
         // The shorter way, at most half a turn.

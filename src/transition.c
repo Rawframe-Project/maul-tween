@@ -294,7 +294,8 @@ static mtwnResult Prepare(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
     if (!mtwnAcceptValue(target->kind, end, &out->to) || !IsTime(def->delay) ||
         !IsTime(def->duration) || !SuitsKind(def, target->kind) ||
         (target->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
-        def->velocitySource > mtwn_velocityGiven || !StartVelocity(def, target, inherited, out))
+        (uint32_t)def->velocitySource > mtwn_velocityGiven ||
+        !StartVelocity(def, target, inherited, out))
     {
         return mtwn_errorInvalid;
     }

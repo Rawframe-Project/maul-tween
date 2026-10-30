@@ -21,7 +21,7 @@ extern "C"
 #endif
 
     // How a segment goes from its keyframe to the next.
-    typedef uint8_t mtwnSegmentKind;
+    typedef int32_t mtwnSegmentKind;
     enum
     {
         // A straight line.

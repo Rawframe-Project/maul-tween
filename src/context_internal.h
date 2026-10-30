@@ -30,7 +30,8 @@
 typedef struct mtwnTargetSlot
 {
     mtwnSlotHeader header;
-    mtwnValueKind kind;
+    // An mtwnValueKind, in a byte so a slot stays 64 bytes.
+    uint8_t kind;
     // The clips' players' bindings naming it, kept as they are made and
     // freed; at 65,535 it stays.
     uint16_t clipWriters;

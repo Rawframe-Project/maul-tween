@@ -349,7 +349,7 @@ static void TestNoRecords(void)
     }
     CHECK(differ == 0, "no records, the same values");
     CHECK(mtwnContext_ReadEvents(quiet, events, 32, &count, &dropped) == mtwn_success &&
-              count == 0 && dropped == 0 && mtwnContext_GetDroppedEventCount(quiet) == 0,
+              count == 0 && dropped == 0 && mtwnContext_GetEventsDropped(quiet) == 0,
           "none made, none dropped");
     CHECK(mtwnContext_ReadEvents(loud, events, 32, &count, &dropped) == mtwn_success && count > 4,
           "where the other made its starts and repeats");

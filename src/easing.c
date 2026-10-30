@@ -55,7 +55,7 @@ static const double s_largestAngular = 4.0 * MTWN_PIO2_HI * 0x1.0p10;
 
 static bool IsMode(mtwnEaseMode mode)
 {
-    return mode <= mtwn_easeOutIn;
+    return (uint32_t)mode <= mtwn_easeOutIn;
 }
 
 static double IntegerPower(double x, uint32_t n)
@@ -256,7 +256,7 @@ MTWN_NOINLINE bool mtwnValidEasing(const mtwnEasing* easing)
     case mtwn_easingSpring:
         return mtwnValidSpringEasing(easing);
     default:
-        return easing->kind <= mtwn_easingBounce && ValidPenner(easing);
+        return (uint32_t)easing->kind <= mtwn_easingBounce && ValidPenner(easing);
     }
 }
 
@@ -447,7 +447,7 @@ static MTWN_NOINLINE mtwnResult mtwnMakeCssEasingWork(mtwnCssKeyword keyword, mt
         {0.0, 0.0, 0.58, 1.0},
         {0.42, 0.0, 0.58, 1.0},
     };
-    if (easingOut == NULL || keyword > mtwn_cssStepEnd)
+    if (easingOut == NULL || (uint32_t)keyword > mtwn_cssStepEnd)
     {
         return mtwn_errorInvalid;
     }

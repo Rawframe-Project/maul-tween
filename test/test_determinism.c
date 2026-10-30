@@ -385,7 +385,9 @@ static void HashFrame(World* w)
         Hash(&event->player.index1, sizeof event->player.index1);
         Hash(&event->node, sizeof event->node);
         Hash(&event->key, sizeof event->key);
-        Hash(&event->kind, sizeof event->kind);
+        // One byte, the width the kind had: the hash pins values, not widths.
+        uint8_t kind = (uint8_t)event->kind;
+        Hash(&kind, sizeof kind);
         Hash(&event->backwards, sizeof event->backwards);
     }
 }

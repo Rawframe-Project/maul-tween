@@ -13,7 +13,7 @@
 
 static bool IsKind(mtwnValueKind kind)
 {
-    return kind <= mtwn_valueScale;
+    return (uint32_t)kind <= mtwn_valueScale;
 }
 
 static uint32_t Bits(float value)
@@ -93,7 +93,7 @@ static mtwnResult RunCreateTarget(mtwnContext* context, mtwnValueKind kind, mtwn
     mtwnTargetSlot* slot = mtwnTargetAt(context, index1);
     slot->base = accepted;
     slot->value = accepted;
-    slot->kind = kind;
+    slot->kind = (uint8_t)kind;
     *targetOut = (mtwnTargetId){index1, slot->header.generation};
     return mtwn_success;
 }

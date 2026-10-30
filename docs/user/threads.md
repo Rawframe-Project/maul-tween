@@ -34,7 +34,7 @@ mtwnResult madeThreaded = mtwnCreateContext(&threaded, &parallel);
 
 Each update then hands the host up to 16 groups of the clips' players, in the order they were made. A group advances its players in scratch of its own; the update then composes what they made into the targets in creation order, between the transitions. Records, values, velocities and the changed list are the same bits as without the task system, whatever the split and the order.
 
-The groups cost memory, about 900 KB more for the default def (`mtwnContextDef` gives the sizes), so a host with a few players leaves the functions unset.
+The groups cost memory, about 940 KB more for the default def (`mtwnContextDef` gives the sizes), so a host with a few players leaves the functions unset.
 
 ## Players that stay on the calling thread
 

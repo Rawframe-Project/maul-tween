@@ -438,8 +438,7 @@ static void TestQueue(void)
     Play(&w, true, 1.0);
     Update(&w, 0.0);
     Update(&w, 5.0);
-    CHECK(mtwnContext_GetEventCount(w.context) == 2 &&
-              mtwnContext_GetDroppedEventCount(w.context) == 2,
+    CHECK(mtwnContext_GetEventCount(w.context) == 2 && mtwnContext_GetEventsDropped(w.context) == 2,
           "four records into two places: two dropped");
     mtwnEvent e[2];
     CHECK(Read(&w, e, 1) == 1 && e[0].node == MTWN_ROOT_NODE &&
@@ -504,7 +503,7 @@ static void TestOverflow(void)
     Update(&w, 3600.0);
     CHECK(mtwnContext_GetEventCount(w.context) == 4, "the queue full");
     CHECK(mtwnContext_ReadEvents(w.context, e, 8, &n, &dropped) == mtwn_success && n == 4 &&
-              dropped == 3 && mtwnContext_GetDroppedEventCount(w.context) == 3,
+              dropped == 3 && mtwnContext_GetEventsDropped(w.context) == 3,
           "three past its capacity: dropped, and reported at the read");
     bool sorted = true;
     for (uint32_t i = 1; i < n; ++i)

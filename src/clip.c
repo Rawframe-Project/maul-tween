@@ -295,7 +295,7 @@ static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition po
 // timeline is endless too) there is none.
 static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
 {
-    return position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
+    return (uint32_t)position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
            (position.kind != mtwn_positionAtLabel ||
             mtwnClipLabelIn(clip, parent, position.label) != 0) &&
            isfinite(StartOf(clip, parent, position));
@@ -469,7 +469,7 @@ static mtwnResult CopyPoints(mtwnClipSlot* clip, mtwnEasing* timing, mtwnKeyfram
 // What the def asks of the clip, before anything in the clip changes.
 static mtwnResult CheckTrack(const mtwnClipSlot* clip, const mtwnClipTrackDef* def)
 {
-    bool slot = def->slot < clip->def.slotCapacity && def->track.kind <= mtwn_valueScale;
+    bool slot = def->slot < clip->def.slotCapacity && (uint32_t)def->track.kind <= mtwn_valueScale;
     if (slot)
     {
         uint8_t kind = clip->slotKinds[def->slot];

@@ -36,7 +36,7 @@ extern "C"
 #define MTWN_ROOT_NODE 1u
 
     // What a node is.
-    typedef uint8_t mtwnNodeKind;
+    typedef int32_t mtwnNodeKind;
     enum
     {
         // Keyframes on a slot.
@@ -50,7 +50,7 @@ extern "C"
     };
 
     // Where a child starts in its parent.
-    typedef uint8_t mtwnPositionKind;
+    typedef int32_t mtwnPositionKind;
     enum
     {
         // At offset seconds.
@@ -98,7 +98,7 @@ extern "C"
 #define MTWN_CLIP_DEF_COOKIE 0x50494C43u
 
     /// Makes a clip def for a small clip: 16 nodes, 32 keyframes, 8 slots,
-    /// 64 points of linear(), about 14 KB of clip storage (mtwnContext_GetClipBytes
+    /// 64 points of linear(), about 15 KB of clip storage (mtwnContext_GetClipBytes
     /// says how much).
     ///
     /// @return The def.

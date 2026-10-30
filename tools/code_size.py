@@ -57,8 +57,8 @@ BUDGETS = {
     "curves": 34100,
     "values": 69200,
     "transitions": 69700,
-    "clips": 162100,
-    "everything": 182400,
+    "clips": 162900,
+    "everything": 183600,
 }
 
 
@@ -93,7 +93,9 @@ RAISED = {
     "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
     "timing's computation checks it, 0.1 kB, a spring's settling time redoes a bound that "
     "underflowed, 1.2 kB, a decay keeps its times and samples within the doubles on the "
-    "way, 1.3 kB, and a timing counts a start's cycles past the doubles, 0.6 kB",
+    "way, 1.3 kB, a timing counts a start's cycles past the doubles, 0.6 kB, and the "
+    "enumerations are int32_t, read in wider fields of the structs a clip's player walks, "
+    "1.4 kB",
     "everything": "the raises of the parts above",
 }
 

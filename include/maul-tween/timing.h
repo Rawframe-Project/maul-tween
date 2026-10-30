@@ -22,7 +22,7 @@ extern "C"
 #endif
 
     // Where a node's local time falls.
-    typedef uint8_t mtwnPhase;
+    typedef int32_t mtwnPhase;
     enum
     {
         mtwn_phaseBefore = 0,
@@ -31,7 +31,7 @@ extern "C"
     };
 
     // Whether a node holds its value outside its active interval.
-    typedef uint8_t mtwnFill;
+    typedef int32_t mtwnFill;
     enum
     {
         mtwn_fillNone = 0,
@@ -41,7 +41,7 @@ extern "C"
     };
 
     // The direction of each iteration.
-    typedef uint8_t mtwnDirection;
+    typedef int32_t mtwnDirection;
     enum
     {
         mtwn_directionNormal = 0,
@@ -51,7 +51,7 @@ extern "C"
     };
 
     // How a reverse iteration eases.
-    typedef uint8_t mtwnAlternateEasing;
+    typedef int32_t mtwnAlternateEasing;
     enum
     {
         // Time runs back: ease(1 - p), so an ease-in looks like an ease-out
@@ -167,7 +167,7 @@ extern "C"
                                                          mtwnTimingResult* resultOut);
 
     // Where a stagger begins: the items nearest it get the first offsets.
-    typedef uint8_t mtwnStaggerOrigin;
+    typedef int32_t mtwnStaggerOrigin;
     enum
     {
         // The first item.
@@ -189,7 +189,7 @@ extern "C"
     };
 
     // Which distance a stagger measures.
-    typedef uint8_t mtwnStaggerAxis;
+    typedef int32_t mtwnStaggerAxis;
     enum
     {
         // Straight across the grid.
@@ -201,7 +201,7 @@ extern "C"
     };
 
     // How a stagger's spacing spreads its offsets.
-    typedef uint8_t mtwnStaggerSpacing;
+    typedef int32_t mtwnStaggerSpacing;
     enum
     {
         // The spacing lies between items one cell apart.

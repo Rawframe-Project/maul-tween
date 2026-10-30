@@ -73,7 +73,7 @@ static MTWN_NOINLINE mtwnResult mtwnMakeRoughEasingWork(const mtwnRoughDef* def,
 {
     if (def == NULL || !mtwnValidEasing(&def->shape) || pointsOut == NULL || easingOut == NULL ||
         count < 2 || !(def->strength >= 0.0 && isfinite(def->strength)) ||
-        def->taper > mtwn_roughTaperBoth || (def->flags & ~s_roughFlags) != 0 ||
+        (uint32_t)def->taper > mtwn_roughTaperBoth || (def->flags & ~s_roughFlags) != 0 ||
         !InnerPointsFinite(def, count))
     {
         return mtwn_errorInvalid;

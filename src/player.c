@@ -359,7 +359,8 @@ static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def
         const mtwnTargetSlot* target = (const mtwnTargetSlot*)mtwnPoolFind(
             &context->targets, binding->target.index1, binding->target.generation);
         if (binding->slot >= clip->slotCount || target == NULL ||
-            binding->composite > mtwn_compositeAdd || !mtwnIsWeight((double)binding->weight) ||
+            (uint32_t)binding->composite > mtwn_compositeAdd ||
+            !mtwnIsWeight((double)binding->weight) ||
             clip->slotKinds[binding->slot] != target->kind + 1)
         {
             return false;

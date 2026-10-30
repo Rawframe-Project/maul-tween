@@ -326,7 +326,7 @@ static bool IsValid(const mtwnKeyframe* keyframes, uint32_t count, uint8_t chann
         const mtwnKeyframe* k = &keyframes[i];
         bool segment = i + 1 < count;
         if (!isfinite(k->offset) || (segment && keyframes[i + 1].offset < k->offset) ||
-            k->kind > mtwn_segmentMonotone || !IsFinite4(k->value, channels) ||
+            (uint32_t)k->kind > mtwn_segmentMonotone || !IsFinite4(k->value, channels) ||
             !IsFinite4(k->in, channels) || !IsFinite4(k->out, channels) ||
             (constantSpeed && segment && k->kind == mtwn_segmentStep) ||
             !mtwnValidEasing(&k->easing))
@@ -493,9 +493,9 @@ static bool Reads(const mtwnPath* path, uint32_t i)
     const mtwnKeyframe* k = &path->keyframes[i];
     if (path->lengths != NULL)
     {
-        return k->kind <= mtwn_segmentMonotone && k->kind != mtwn_segmentStep;
+        return (uint32_t)k->kind <= mtwn_segmentMonotone && k->kind != mtwn_segmentStep;
     }
-    return k->kind <= mtwn_segmentMonotone && mtwnValidEasing(&k->easing);
+    return (uint32_t)k->kind <= mtwn_segmentMonotone && mtwnValidEasing(&k->easing);
 }
 
 bool mtwnPathReadsValid(const mtwnPath* path, double progress)
@@ -608,7 +608,8 @@ static bool IsZero4(mtwnVec4 v)
 static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, uint32_t count,
                        bool lengths, const mtwnSegmentMix* mixes)
 {
-    if (def == NULL || def->kind > mtwn_valueScale || def->rotationPath > mtwn_rotationLongest ||
+    if (def == NULL || (uint32_t)def->kind > mtwn_valueScale ||
+        (uint32_t)def->rotationPath > mtwn_rotationLongest ||
         (def->kind == mtwn_valueAngle && !mtwnIsAngleMethod(def->angleMethod)) ||
         !IsValid(keyframes, count, s_kindChannels[def->kind], def->alpha, lengths) ||
         (lengths && !IsNumberKind(def->kind) && def->kind != mtwn_valueScale) ||
@@ -905,7 +906,7 @@ MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progre
 
 MTWN_NOINLINE bool mtwnValidTrack(const mtwnTrack* track)
 {
-    if (track == NULL || track->kind > mtwn_valueScale || !mtwnValidPath(&track->path))
+    if (track == NULL || (uint32_t)track->kind > mtwn_valueScale || !mtwnValidPath(&track->path))
     {
         return false;
     }

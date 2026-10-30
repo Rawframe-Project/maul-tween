@@ -77,8 +77,8 @@ extern "C"
         // runs every player on the calling thread. One without the other is
         // invalid. With them the context holds each group's scratch, on a
         // 64-bit target: about 16 KB, 72 bytes for each event record (an
-        // mtwnEvent and a double) up to 1,024 and 60 for each
-        // of a sixteenth of twice the bindings (about 900 KB more for the
+        // mtwnEvent and a double) up to 1,024 and 68 for each
+        // of a sixteenth of twice the bindings (about 940 KB more for the
         // default def), and 36 bytes a player.
         mtwnEnqueueTaskFunction* enqueueTask;
         mtwnFinishTaskFunction* finishTask;
@@ -123,7 +123,7 @@ extern "C"
     /// Makes a context def for a medium host: 1024 targets, 256 players
     /// with 64 points of linear() for each transition, 16 clips, 256
     /// events, 1024 bindings, sharing for clips of up to 128 nodes and 64
-    /// records, and 224 KiB of clip storage, which holds 16
+    /// records, and 240 KiB of clip storage, which holds 16
     /// clips of the default clip def, the C library's allocator and no task
     /// system.
     /// Built in the program, so it carries the version of the headers the
@@ -149,7 +149,7 @@ extern "C"
         def.sharedNodeCapacity = 128;
         def.sharedRecordCapacity = 64;
         def.pointsPerTransition = 64;
-        def.clipStorageBytes = 16u * 14336u;
+        def.clipStorageBytes = 16u * 15360u;
         return def;
     }
 

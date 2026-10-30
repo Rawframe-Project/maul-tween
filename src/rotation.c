@@ -135,7 +135,7 @@ MTWN_NOINLINE mtwnResult mtwnMakeRotationMixWork(mtwnQuat from, mtwnQuat to, mtw
                                                  mtwnRotationMix* mixOut)
 {
     mtwnRotationMix mix;
-    if (mixOut == NULL || path > mtwn_rotationLongest || !Normalize(from, mix.from) ||
+    if (mixOut == NULL || (uint32_t)path > mtwn_rotationLongest || !Normalize(from, mix.from) ||
         !Normalize(to, mix.to))
     {
         return mtwn_errorInvalid;
