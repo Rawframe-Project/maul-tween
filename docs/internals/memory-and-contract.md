@@ -38,7 +38,7 @@ Every out-parameter's header says what a failure leaves in it, by one rule:
 
 - A call on a context clears its outputs on any failure, first, before it checks the context: an id is null, a node 0, a value or state zero, a count 0. A host that ignores a status reads nothing stale.
 - A call without a context (the makers, sampling, timing, a clip's bytes) leaves its outputs as they were, so a failed remake keeps the caller's last good value and no failure writes through a pointer the call refused.
-- An array a call fills is never cleared: on failure an update's report and the events and targets read are unwritten, the count beside them 0. Keyframes, mixes and `linear()` points rewritten in place are as they were.
+- An array a call on a context fills is cleared too, as far as a success could write it: an update's report to the null id up to the context's target capacity, the events read to zero records up to its event capacity, the targets read to `count` zero values. Two refusals leave it as it was. A call back in (`mtwn_errorBusy`) leaves it, since it may be the array the call in progress fills. A null context leaves an update's report and the events, whose reach only the context knows. The targets read are cleared without a context too, since a success writes `count` values. Keyframes, mixes and `linear()` points rewritten in place are as they were.
 - A header may name what a failure gives instead: a fit too large for its capacity reports the count it needs, as `snprintf` does, its points then unspecified.
 
 ## Calls back in

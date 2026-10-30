@@ -118,12 +118,20 @@ void mtwnPlayerEvent(mtwnContext* context, uint32_t player, mtwnEventKind kind, 
 static mtwnResult RunReadEvents(mtwnContext* context, mtwnEvent* eventsOut, uint32_t capacity,
                                 uint32_t* countOut, uint64_t* droppedOut)
 {
+    // Without a context no bound is known, so the array is left as it was.
     if (context == NULL)
     {
         return mtwn_errorInvalid;
     }
     if (countOut == NULL || (eventsOut == NULL && capacity != 0))
     {
+        // Zeroed as far as a success could write: the queue's capacity.
+        uint32_t cleared =
+            capacity < context->def.eventCapacity ? capacity : context->def.eventCapacity;
+        for (uint32_t i = 0; eventsOut != NULL && i < cleared; ++i)
+        {
+            eventsOut[i] = (mtwnEvent){0};
+        }
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }

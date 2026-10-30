@@ -107,22 +107,70 @@ static void TestOnContext(void)
         CLEARED(dropped, mtwnContext_ReadEvents(c, NULL, 1, &count, &dropped), "events dropped: 0");
     }
     // An update back in time changes nothing; its total is 0, its report
-    // unwritten.
+    // the null id.
     CHECK(mtwnContext_Update(context, 1000, NULL, 0, NULL) == mtwn_success, "updated");
     mtwnTargetId changed[2];
     memset(changed, 0xAB, sizeof changed);
     uint32_t total = 7;
     CHECK(mtwnContext_Update(context, 10, changed, 2, &total) == mtwn_errorInvalid && total == 0 &&
-              AllBytes(changed, sizeof changed, 0xAB),
-          "an update back in time: 0 changed, nothing written");
+              AllBytes(changed, sizeof changed, 0),
+          "an update back in time: 0 changed, the null id");
+    mtwnEvent events[2];
+    memset(events, 0xAB, sizeof events);
+    CHECK(mtwnContext_ReadEvents(context, events, 2, NULL, NULL) == mtwn_errorInvalid &&
+              AllBytes(events, sizeof events, 0),
+          "events read with no count: zero records");
     mtwnTargetId target;
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
     mtwnVec4 values[2];
     memset(values, 0xAB, sizeof values);
     CHECK(mtwnContext_ReadTargets(context, NULL, 2, values) == mtwn_errorInvalid &&
-              AllBytes(values, sizeof values, 0xAB),
-          "targets read with no ids: nothing written");
+              AllBytes(values, sizeof values, 0),
+          "targets read with no ids: zero values");
+    const mtwnTargetId ids[2] = {target, target};
+    memset(values, 0xAB, sizeof values);
+    CHECK(mtwnContext_ReadTargets(NULL, ids, 2, values) == mtwn_errorInvalid &&
+              AllBytes(values, sizeof values, 0),
+          "and with no context: count zero values, as a success writes count");
+    // Without a context, how far a success could write the update's and the
+    // events' arrays is not known: they are left as they were.
+    memset(changed, 0xAB, sizeof changed);
+    total = 7;
+    CHECK(mtwnContext_Update(NULL, 10, changed, 2, &total) == mtwn_errorInvalid && total == 0 &&
+              AllBytes(changed, sizeof changed, 0xAB),
+          "an update with no context: 0 changed, its report as it was");
+    memset(events, 0xAB, sizeof events);
+    uint32_t count = 7;
+    CHECK(mtwnContext_ReadEvents(NULL, events, 2, &count, NULL) == mtwn_errorInvalid &&
+              count == 0 && AllBytes(events, sizeof events, 0xAB),
+          "events read with no context: 0 taken, the records as they were");
+    mtwnDestroyContext(context);
+}
+
+// A refused call clears an array only as far as a success could write it:
+// one id per target, one record per place in the queue.
+static void TestClearsWithinCapacity(void)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.targetCapacity = 1;
+    def.eventCapacity = 1;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success &&
+              mtwnContext_Update(context, 1000, NULL, 0, NULL) == mtwn_success,
+          "a context of one target and one record, updated");
+    mtwnTargetId changed[3];
+    memset(changed, 0xAB, sizeof changed);
+    CHECK(mtwnContext_Update(context, 10, changed, 3, NULL) == mtwn_errorInvalid &&
+              AllBytes(&changed[0], sizeof changed[0], 0) &&
+              AllBytes(&changed[1], 2 * sizeof changed[0], 0xAB),
+          "an update back in time: one null id, the rest as it was");
+    mtwnEvent events[3];
+    memset(events, 0xAB, sizeof events);
+    CHECK(mtwnContext_ReadEvents(context, events, 3, NULL, NULL) == mtwn_errorInvalid &&
+              AllBytes(&events[0], sizeof events[0], 0) &&
+              AllBytes(&events[1], 2 * sizeof events[0], 0xAB),
+          "events read with no count: one zero record, the rest as it was");
     mtwnDestroyContext(context);
 }
 
@@ -283,6 +331,7 @@ static void TestSamplers(void)
 int main(void)
 {
     TestOnContext();
+    TestClearsWithinCapacity();
     TestMakers();
     TestPathsAndTracks();
     TestSamplers();

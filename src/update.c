@@ -458,9 +458,23 @@ static MTWN_NOINLINE void UpdateWorker(mtwnContext* context, uint64_t beforeNs, 
     }
 }
 
+// A refused update's changed ids: the null id, as far as a success could
+// write, one id per target.
+static void ClearChanged(const mtwnContext* context, mtwnTargetId* changedOut,
+                         uint32_t changedCapacity)
+{
+    uint32_t n = changedCapacity < context->def.targetCapacity ? changedCapacity
+                                                               : context->def.targetCapacity;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        changedOut[i] = (mtwnTargetId){0};
+    }
+}
+
 static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId* changedOut,
                             uint32_t changedCapacity, uint32_t* changedTotalOut)
 {
+    // Without a context no bound is known, so the array is left as it was.
     if (context == NULL)
     {
         return mtwn_errorInvalid;
@@ -468,6 +482,10 @@ static mtwnResult RunUpdate(mtwnContext* context, uint64_t timeNs, mtwnTargetId*
     // The first update may come at any time: none is below 0.
     if ((changedOut == NULL && changedCapacity != 0) || timeNs < context->lastTimeNs)
     {
+        if (changedOut != NULL)
+        {
+            ClearChanged(context, changedOut, changedCapacity);
+        }
         mtwnCountMisuse(context);
         return mtwn_errorInvalid;
     }

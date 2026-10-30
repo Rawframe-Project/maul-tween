@@ -30,11 +30,12 @@ typedef struct Probe
     mtwnTargetId spare;
     mtwnClipId clip;
     mtwnPlayerId player;
-    // Calls made back in, those refused with mtwn_errorBusy, and those
-    // whose outputs the refusal cleared.
+    // Calls made back in, those refused with mtwn_errorBusy, those whose
+    // outputs the refusal cleared, and those whose arrays it left.
     uint32_t calls;
     uint32_t refused;
     uint32_t cleared;
+    uint32_t left;
 } Probe;
 
 static Probe s_probe;
@@ -109,15 +110,15 @@ static uint32_t CallEverything(mtwnContext* c, bool busy)
     do                                                                                             \
     {                                                                                              \
         memset(&(out), 0xAB, sizeof(out));                                                         \
-        cleared += (call) == mtwn_errorBusy && Zeroed(&(out), sizeof(out));                        \
+        cleared += (call) == mtwn_errorBusy && AllBytes(&(out), sizeof(out), 0);                   \
     } while (0)
 
-static bool Zeroed(const void* bytes, size_t size)
+static bool AllBytes(const void* bytes, size_t size, unsigned char value)
 {
     const unsigned char* b = bytes;
     for (size_t i = 0; i < size; ++i)
     {
-        if (b[i] != 0)
+        if (b[i] != value)
         {
             return false;
         }
@@ -161,6 +162,30 @@ static uint32_t ClearedWhenBusy(mtwnContext* c)
     return cleared;
 }
 
+// The calls filling an array, made busy: each refused, its array left as
+// it was, since it may be the one the call in progress fills, and its
+// count cleared. Counts those: 3.
+static uint32_t LeftWhenBusy(mtwnContext* c)
+{
+    uint32_t left = 0;
+    mtwnTargetId changed[2];
+    memset(changed, 0xAB, sizeof changed);
+    uint32_t total = 7;
+    left += mtwnContext_Update(c, 0, changed, 2, &total) == mtwn_errorBusy && total == 0 &&
+            AllBytes(changed, sizeof changed, 0xAB);
+    mtwnEvent events[2];
+    memset(events, 0xAB, sizeof events);
+    uint32_t count = 7;
+    left += mtwnContext_ReadEvents(c, events, 2, &count, NULL) == mtwn_errorBusy && count == 0 &&
+            AllBytes(events, sizeof events, 0xAB);
+    const mtwnTargetId ids[2] = {s_probe.target, s_probe.spare};
+    mtwnVec4 values[2];
+    memset(values, 0xAB, sizeof values);
+    left += mtwnContext_ReadTargets(c, ids, 2, values) == mtwn_errorBusy &&
+            AllBytes(values, sizeof values, 0xAB);
+    return left;
+}
+
 // A host easing, the identity, calling back in on its first call.
 static double CallingIn(void* unused, double progress)
 {
@@ -168,6 +193,7 @@ static double CallingIn(void* unused, double progress)
     if (s_probe.calls == 0)
     {
         s_probe.cleared = ClearedWhenBusy(s_probe.context);
+        s_probe.left = LeftWhenBusy(s_probe.context);
         s_probe.refused = CallEverything(s_probe.context, true);
         s_probe.calls = 1;
     }
@@ -204,8 +230,9 @@ static void TestHostEasing(void)
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
     CHECK(s_probe.cleared == 11, "its outputs cleared, as a failure's are");
-    CHECK(mtwnContext_GetMisuse(context) == before + 38 + 11,
-          "each counted, the destroy and the outputs' calls too");
+    CHECK(s_probe.left == 3, "its arrays left, as the call in progress may fill them");
+    CHECK(mtwnContext_GetMisuse(context) == before + 38 + 11 + 3,
+          "each counted, the destroy and the outputs' and arrays' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
     CHECK(mtwnTarget_GetValue(context, s_probe.target, &value) == mtwn_success && value.x == 0.5f,
