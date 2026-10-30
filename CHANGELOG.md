@@ -6,6 +6,24 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.13.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.12.0...v0.13.0) (2026-10-30)
+
+This release settles what a refused call on a context leaves in its outputs, as the Maul family's conventions say. A refused update, event read or target read now clears its array as far as a success could write it, so a host that misses a status reads nothing stale ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160)). A call refused as busy, because host code the library runs called the context back in, now writes none of its outputs, since the call in progress may have written them ([#161](https://github.com/Rawframe-Project/maul-tween/pull/161)). Only refusals change: no value, velocity or event record does.
+
+### Changed
+
+- **Breaking:** a refused `mtwnContext_Update`, `mtwnContext_ReadEvents` or `mtwnContext_ReadTargets` now clears its array as far as a success could write it, where it left it as it was ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160)):
+  - the update's report gets the null id in its first `changedCapacity` entries, up to the context's target capacity;
+  - the events read get zero records in their first `capacity` entries, up to the context's event capacity;
+  - the targets read get `count` zero values, without a context too.
+
+  A null context leaves the update's report and the events, since how far a success could write them depends on the context. A host that reused an array across a refused call now finds the null id or zeros there, not the last call's entries, so it checks the status before it reads the array.
+- **Breaking:** a call back in from the context's own host code (a host easing, the allocator, the task system's functions or tasks), refused with `mtwn_errorBusy`, now writes none of its outputs ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160), [#161](https://github.com/Rawframe-Project/maul-tween/pull/161)):
+  - `mtwnContext_Update` leaves its total, and `mtwnContext_ReadEvents` its count and dropped count, beside the arrays they already left, where it set them to 0;
+  - `mtwnContext_GetClipBytes`, `mtwnClip_GetTrack`, `mtwnClip_GetNode`, `mtwnClip_FindLabel`, `mtwnClip_GetDuration`, `mtwnTarget_GetValue`, `mtwnTarget_GetState` and `mtwnPlayer_GetState` leave their output as it was, where they cleared it.
+
+  The creations still give the null id: `mtwnCreateTarget`, `mtwnCreateClip`, `mtwnCreatePlayer`, `mtwnStartTransition` and the `mtwnClip_Add...` calls' node. Host code that calls the context back in now finds these outputs as it left them, not 0.
+
 ## [0.12.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.11.0...v0.12.0) (2026-10-29)
 
 This release gives every public name the Maul family's shape ([#148](https://github.com/Rawframe-Project/maul-tween/pull/148)): a call on the context starts with `mtwnContext_`, every other function starts with its verb, a switch is an `Enable` and `Is...Enabled` pair, and a callback type ends in `Function`. Each rename keeps the function's parameters and behavior, so a caller only updates its calls. No value, velocity or event record changes.
