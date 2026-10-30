@@ -32,7 +32,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       pull-requests: read
 
@@ -47,10 +47,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       contents: read
 
@@ -153,7 +153,7 @@ jobs:
           - { preset: linux-arm64-gcc-14, runner: ubuntu-24.04-arm }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       contents: read
     with:
@@ -167,7 +167,7 @@ jobs:
   nightly:
     needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       contents: read
     with:
@@ -195,11 +195,12 @@ jobs:
   # Each fuzz target looks for crashes, broken assertions, values that are
   # not finite and implementations that disagree: briefly on a pull
   # request, longer on main and at night. The corpus carries from run to
-  # run in an Actions cache per target, the committed seeds its floor; main
-  # and the nightly run restore it, minimize it with the fuzzer's merge and
-  # save it when they found nothing. A pull request starts from the
-  # committed seeds alone: the cache is not secret, since a fork's pull
-  # request can run its own workflow and restore it. tools/fuzz_target.sh
+  # run in an Actions cache per target, the committed seeds its floor.
+  # Every run restores it, a pull request's too, so a change that breaks a
+  # harness's promise fails on its own pull request and not later on main;
+  # main and the nightly run minimize it with the fuzzer's merge and save
+  # it when they found nothing, and a pull request only reads it. The cache
+  # is not secret: a fork's pull request can restore it. tools/fuzz_target.sh
   # runs the target and reports a finding without its input; nothing a run
   # finds, logs or keeps is uploaded.
   fuzz:
@@ -228,7 +229,6 @@ jobs:
             -D${PREFIX}_WERROR=ON
           cmake --build out/fuzz --target "fuzz_$TARGET"
       - name: Restore the corpus
-        if: github.event_name != 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus
@@ -249,7 +249,7 @@ jobs:
           cat out/fuzz-reports/*.txt 2>/dev/null || true
           exit "$status"
       - name: Minimize the corpus
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         # A merge reruns every input, and libFuzzer's exits 0 on a crash:
         # tools/fuzz_target.sh --merge keeps the log on the runner, fails
         # on a finding and prints only its report, so the step after saves
@@ -261,7 +261,7 @@ jobs:
           [ "$status" -eq 0 ] || exit "$status"
           rm -rf out/corpus && mv out/merged out/corpus
       - name: Save the corpus
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus
