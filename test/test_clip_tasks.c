@@ -1354,6 +1354,79 @@ static void TestGroupsFromTwo(void)
           "a lone player's half weight from the base, the serial bits");
 }
 
+// A clip of a track and 140 labels: more nodes than a group keeps times
+// for (128).
+static mtwnClipId ManyNodes(mtwnContext* context)
+{
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = 160;
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
+    uint32_t labels = 0;
+    for (uint32_t key = 1; key <= 140; ++key)
+    {
+        labels += mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, (mtwnPosition){0}, key, &node) ==
+                  mtwn_success;
+    }
+    CHECK(labels == 140, "its labels");
+    CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
+    return clip;
+}
+
+// A player of a clip of more nodes than a group keeps times for stays in
+// its group while it is the clip's only player, however many others run,
+// and plays on the calling thread once a second player plays the clip.
+// Every player writes one target, so none has targets of its own, whose
+// staging would keep it on the calling thread too.
+static void TestManyNodesInGroups(void)
+{
+    for (int players = 1; players <= 2; ++players)
+    {
+        mtwnContextDef def = mtwnDefaultContextDef();
+        def.enqueueTask = CountAndRun;
+        def.finishTask = WaitForNothing;
+        def.clipStorageBytes = 1u << 22;
+        mtwnContext* context = NULL;
+        CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnClipId many = ManyNodes(context);
+        mtwnClipId few = TwoTracks(context);
+        mtwnPlayerId first = PlayTwo(context, many, target, (mtwnTargetId){0, 0});
+        for (int k = 1; k < players; ++k)
+        {
+            (void)PlayTwo(context, many, target, (mtwnTargetId){0, 0});
+        }
+        for (int k = 0; k < 8; ++k)
+        {
+            (void)PlayTwo(context, few, target, (mtwnTargetId){0, 0});
+        }
+        s_handed = 0;
+        for (int step = 0; step < 4; ++step)
+        {
+            Step(context, 0.1 * step);
+        }
+        CHECK(!Alone(context, first, 0), "no player's target its own");
+        CHECK(s_handed > 0, "the groups handed to the task system");
+        uint64_t serial = mtwnContext_GetSerialAdvanceCount(context);
+        CHECK(players == 1 ? serial == 0 : serial > 0,
+              players == 1 ? "the clip's one player stays in its group"
+                           : "with a second, its players play on the calling thread");
+        mtwnDestroyContext(context);
+    }
+}
+
 static void TestLayeredFit(void)
 {
     mtwnContextDef def = mtwnDefaultContextDef();
@@ -1405,6 +1478,7 @@ int main(int argc, char** argv)
     TestWriters();
     TestLayeredFit();
     TestGroupsFromTwo();
+    TestManyNodesInGroups();
     TestOneChannel();
     TestStaleAlone();
     TestStaleAloneAfterWriter();
