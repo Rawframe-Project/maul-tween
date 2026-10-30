@@ -87,7 +87,8 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param target    The target.
-    /// @param valueOut  Receives the value, zero on failure.
+    /// @param valueOut  Receives the value, zero on failure but a call back in
+    ///                  (mtwn_errorBusy), which leaves it.
     /// @return mtwn_success; mtwn_errorInvalid for a null argument;
     ///         mtwn_errorStale for an id that names no live target.
     /// @par Thread safety
@@ -99,7 +100,8 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param target    The target.
-    /// @param stateOut  Receives the state, zero on failure.
+    /// @param stateOut  Receives the state, zero on failure but a call back in
+    ///                  (mtwn_errorBusy), which leaves it.
     /// @return As mtwnTarget_GetValue.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.

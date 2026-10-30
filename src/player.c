@@ -676,14 +676,15 @@ static mtwnResult RunPlayerGetState(mtwnContext* context, mtwnPlayerId player,
 static MTWN_NOINLINE mtwnResult mtwnPlayer_GetStateWork(mtwnContext* context, mtwnPlayerId player,
                                                         mtwnPlayerState* stateOut)
 {
-    // Cleared first, so a busy or missing context's failure clears it too.
-    if (stateOut != NULL)
-    {
-        memset(stateOut, 0, sizeof *stateOut);
-    }
     if (!mtwnEnter(context))
     {
         return mtwn_errorBusy;
+    }
+    // Cleared after the busy check, as a call back in writes nothing, and
+    // before any other, so a missing context's failure clears it too.
+    if (stateOut != NULL)
+    {
+        memset(stateOut, 0, sizeof *stateOut);
     }
     mtwnResult result = RunPlayerGetState(context, player, stateOut);
     mtwnLeave(context);

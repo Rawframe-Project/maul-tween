@@ -30,11 +30,13 @@ typedef struct Probe
     mtwnTargetId spare;
     mtwnClipId clip;
     mtwnPlayerId player;
-    // Calls made back in, those refused with mtwn_errorBusy, those whose
-    // outputs the refusal cleared, and those whose arrays it left.
+    // Calls made back in, those refused with mtwn_errorBusy, the creations
+    // whose ids the refusal cleared, the calls whose outputs it left, and
+    // those whose arrays and counts it left.
     uint32_t calls;
     uint32_t refused;
     uint32_t cleared;
+    uint32_t unwritten;
     uint32_t left;
 } Probe;
 
@@ -126,22 +128,16 @@ static bool AllBytes(const void* bytes, size_t size, unsigned char value)
     return true;
 }
 
-// The calls whose outputs a failure clears, made busy: each refused and
-// its output cleared, as a missing context's is. Counts those: 11.
+// The creations, made busy: each refused and the id of what it would make
+// the null id, as on any failure. Counts those: 8.
 static uint32_t ClearedWhenBusy(mtwnContext* c)
 {
     uint32_t cleared = 0;
-    const mtwnTargetId noTarget = {0, 0};
-    const mtwnPlayerId noPlayer = {0, 0};
     const mtwnClipId noClip = {0, 0};
     mtwnPosition at;
     memset(&at, 0, sizeof at);
     mtwnTargetId target;
     BUSY_CLEARS(target, mtwnCreateTarget(c, mtwn_valueScalar, (mtwnVec4){0}, &target));
-    mtwnVec4 value;
-    BUSY_CLEARS(value, mtwnTarget_GetValue(c, noTarget, &value));
-    mtwnTargetState targetState;
-    BUSY_CLEARS(targetState, mtwnTarget_GetState(c, noTarget, &targetState));
     mtwnTransitionDef transition = mtwnDefaultTransitionDef();
     mtwnPlayerId player;
     BUSY_CLEARS(player, mtwnStartTransition(c, &transition, &player));
@@ -157,9 +153,43 @@ static uint32_t ClearedWhenBusy(mtwnContext* c)
     BUSY_CLEARS(node, mtwnClip_AddMark(c, noClip, MTWN_ROOT_NODE, at, 2, &node));
     mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
     BUSY_CLEARS(player, mtwnCreatePlayer(c, &playerDef, &player));
-    mtwnPlayerState playerState;
-    BUSY_CLEARS(playerState, mtwnPlayer_GetState(c, noPlayer, &playerState));
     return cleared;
+}
+
+// Bytes of 0xAB, then whether a busy call left them as its header says.
+#define BUSY_LEAVES(out, call)                                                                     \
+    do                                                                                             \
+    {                                                                                              \
+        memset(&(out), 0xAB, sizeof(out));                                                         \
+        unwritten += (call) == mtwn_errorBusy && AllBytes(&(out), sizeof(out), 0xAB);              \
+    } while (0)
+
+// The calls giving one value that a failure clears, made busy: each
+// refused and its output left as it was, since the call in progress may
+// have written it. Counts those: 8.
+static uint32_t UnwrittenWhenBusy(mtwnContext* c)
+{
+    uint32_t unwritten = 0;
+    const mtwnTargetId noTarget = {0, 0};
+    const mtwnPlayerId noPlayer = {0, 0};
+    const mtwnClipId noClip = {0, 0};
+    mtwnVec4 value;
+    BUSY_LEAVES(value, mtwnTarget_GetValue(c, noTarget, &value));
+    mtwnTargetState targetState;
+    BUSY_LEAVES(targetState, mtwnTarget_GetState(c, noTarget, &targetState));
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    uint64_t bytes;
+    BUSY_LEAVES(bytes, mtwnContext_GetClipBytes(c, &clipDef, &bytes));
+    mtwnClipTrack track;
+    BUSY_LEAVES(track, mtwnClip_GetTrack(c, noClip, 1, &track));
+    mtwnClipNodeInfo info;
+    BUSY_LEAVES(info, mtwnClip_GetNode(c, noClip, MTWN_ROOT_NODE, &info));
+    double seconds;
+    BUSY_LEAVES(seconds, mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, &seconds));
+    BUSY_LEAVES(seconds, mtwnClip_GetDuration(c, noClip, &seconds));
+    mtwnPlayerState playerState;
+    BUSY_LEAVES(playerState, mtwnPlayer_GetState(c, noPlayer, &playerState));
+    return unwritten;
 }
 
 // The calls filling an array, made busy: each refused, its array and its
@@ -194,6 +224,7 @@ static double CallingIn(void* unused, double progress)
     if (s_probe.calls == 0)
     {
         s_probe.cleared = ClearedWhenBusy(s_probe.context);
+        s_probe.unwritten = UnwrittenWhenBusy(s_probe.context);
         s_probe.left = LeftWhenBusy(s_probe.context);
         s_probe.refused = CallEverything(s_probe.context, true);
         s_probe.calls = 1;
@@ -230,9 +261,10 @@ static void TestHostEasing(void)
           "updated");
     CHECK(s_probe.calls == 1, "the easing called back in");
     CHECK(s_probe.refused == 37, "every call back in refused");
-    CHECK(s_probe.cleared == 11, "its outputs cleared, as a failure's are");
+    CHECK(s_probe.cleared == 8, "a creation's id the null id, as on any failure");
+    CHECK(s_probe.unwritten == 8, "every other output left, as the call in progress may hold it");
     CHECK(s_probe.left == 3, "its arrays and counts left, as the call in progress may hold them");
-    CHECK(mtwnContext_GetMisuse(context) == before + 38 + 11 + 3,
+    CHECK(mtwnContext_GetMisuse(context) == before + 38 + 8 + 8 + 3,
           "each counted, the destroy and the outputs' and arrays' calls too");
     CHECK(s_probe.context == context, "not grown");
     mtwnVec4 value;
