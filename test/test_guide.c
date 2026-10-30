@@ -277,15 +277,15 @@ static void TestScroll(void)
               mtwnClip_Seal(context, story) == mtwn_success,
           "a clip of 2 s with a mark at 1 s");
     mtwnBinding binding = mtwnMakeBinding(0, shown);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = story;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     playerDef.keep = true;
     mtwnPlayerId reader = {0, 0};
     double length = 0.0;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &reader) == mtwn_success &&
-              mtwnPlayer_Pause(context, reader) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &reader) == mtwn_success &&
+              mtwnClipPlayer_Pause(context, reader) == mtwn_success &&
               mtwnClip_GetDuration(context, story, &length) == mtwn_success && length == 2.0,
           "a paused player");
     mtwnSpring chase;
@@ -311,7 +311,7 @@ static void TestScroll(void)
         now = frame / 60.0;
         // Each frame, before the update: the paused player swept to the chase.
         chased = mtwnSampleSpring(&chase, away, pace, now - since, &offset, NULL);
-        mtwnResult swept = mtwnPlayer_Sweep(context, reader, (goal + offset) * length);
+        mtwnResult swept = mtwnClipPlayer_Sweep(context, reader, (goal + offset) * length);
         CHECK(chased == mtwn_success && swept == mtwn_success, "swept");
         CHECK(mtwnContext_Update(context, (uint64_t)llround(now * 1e9), NULL, 0, NULL) ==
                   mtwn_success,
@@ -390,13 +390,13 @@ static void TestJump(void)
     CHECK(made == mtwn_success && mtwnClip_Seal(context, clip) == mtwn_success, "the hops");
     mtwnBinding bindings[3] = {mtwnMakeBinding(0, x), mtwnMakeBinding(1, y), mtwnMakeBinding(2, y)};
     bindings[2].composite = mtwn_compositeAdd;
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = bindings;
     playerDef.bindingCount = 3;
     playerDef.keep = true;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success &&
               mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
           "a jump");
     int off = 0;
@@ -455,12 +455,12 @@ static void TestTwos(void)
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track in it");
     mtwnBinding binding = mtwnMakeBinding(0, x);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success &&
               mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
           "played");
     // At t it shows the pose of the last twelfth of a second: 10 floor(12 t).
@@ -503,12 +503,12 @@ static double EasedRateStop(uint32_t fps, bool exact)
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track at 100 a second");
     mtwnBinding binding = mtwnMakeBinding(0, x);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success &&
               mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
           "playing");
     mtwnTransitionDef slow = mtwnDefaultTransitionDef();
@@ -535,7 +535,8 @@ static double EasedRateStop(uint32_t fps, bool exact)
             // Exact at any frame rate: paused where the ramp starts, swept
             // each frame to the time the eased speed has travelled.
             double u = fmin(seconds - rampStart, 1.0);
-            made = mtwnPlayer_Sweep(context, player, rampTime + (1.0 - pow(1.0 - u, 3.0)) / 3.0);
+            double swept = rampTime + (1.0 - pow(1.0 - u, 3.0)) / 3.0;
+            made = mtwnClipPlayer_Sweep(context, player, swept);
 
             CHECK(made == mtwn_success, "swept");
         }
@@ -544,9 +545,9 @@ static double EasedRateStop(uint32_t fps, bool exact)
               "a frame");
         if (frame == fps && exact)
         {
-            mtwnPlayerState state;
-            CHECK(mtwnPlayer_GetState(context, player, &state) == mtwn_success &&
-                      mtwnPlayer_Pause(context, player) == mtwn_success,
+            mtwnClipPlayerState state;
+            CHECK(mtwnClipPlayer_GetState(context, player, &state) == mtwn_success &&
+                      mtwnClipPlayer_Pause(context, player) == mtwn_success,
                   "paused at the ramp");
             rampTime = state.currentTime;
         }
@@ -562,7 +563,7 @@ static double EasedRateStop(uint32_t fps, bool exact)
             // After each update: the rate the speed transition has reached.
             mtwnVec4 rate;
             made = mtwnTarget_GetValue(context, speed, &rate);
-            made = mtwnPlayer_SetRate(context, player, (double)rate.x);
+            made = mtwnClipPlayer_SetRate(context, player, (double)rate.x);
 
             CHECK(made == mtwn_success, "the rate set");
             lastRate = (double)rate.x;
@@ -718,21 +719,21 @@ static void TestHost(void)
     mtwnTargetId slide;
     mtwnResult playing = mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &slide);
     mtwnBinding bindings[2] = {mtwnMakeBinding(0, opacity), mtwnMakeBinding(1, slide)};
-    mtwnPlayerDef play = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef play = mtwnDefaultClipPlayerDef();
     play.clip = clip;
     play.bindings = bindings;
     play.bindingCount = 2;
     play.keep = true; // kept when finished, to play again
     mtwnPlayerId intro;
-    playing = mtwnCreatePlayer(context, &play, &intro); // plays from the next update
-    playing = mtwnPlayer_Pause(context, intro);
-    playing = mtwnPlayer_Seek(context, intro, 0.2);
-    playing = mtwnPlayer_SetRate(context, intro, -1.0); // backwards
-    playing = mtwnPlayer_Play(context, intro);
+    playing = mtwnCreateClipPlayer(context, &play, &intro); // plays from the next update
+    playing = mtwnClipPlayer_Pause(context, intro);
+    playing = mtwnClipPlayer_Seek(context, intro, 0.2);
+    playing = mtwnClipPlayer_SetRate(context, intro, -1.0); // backwards
+    playing = mtwnClipPlayer_Play(context, intro);
     CHECK(playing == mtwn_success, "a player paused, seeked, reversed and played");
     CHECK(mtwnContext_Update(context, 300000000u, NULL, 0, NULL) == mtwn_success, "updated");
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(context, intro, &state) == mtwn_success && state.rate == -1.0 &&
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(context, intro, &state) == mtwn_success && state.rate == -1.0 &&
               state.currentTime == 0.2,
           "at 0.2 s, running backwards from the next update");
     mtwnEvent events[32];
@@ -753,8 +754,8 @@ static void TestHost(void)
     play.bindings = &layer;
     play.bindingCount = 1;
     mtwnPlayerId pulse;
-    mtwnResult layered = mtwnCreatePlayer(context, &play, &pulse);
-    layered = mtwnPlayer_SetWeight(context, pulse, 0.25f); // the whole player's weight
+    mtwnResult layered = mtwnCreateClipPlayer(context, &play, &pulse);
+    layered = mtwnClipPlayer_SetWeight(context, pulse, 0.25f); // the whole player's weight
     CHECK(layered == mtwn_success, "a layer added at a weight");
     mtwnContextDef bigger = def;
     bigger.targetCapacity *= 2;

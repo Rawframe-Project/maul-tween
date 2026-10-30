@@ -513,7 +513,7 @@ static mtwnContext* MakePlayers(Layout layout)
     uint32_t players = layout == LAYOUT_CHURN ? PLAYERS + CHURN : PLAYERS;
     mtwnContext* context = MakeContext(PLAYERS * TRACKS, players, clips, players * TRACKS);
     mtwnBinding bindings[TRACKS];
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = MakeClip(context);
     def.bindings = bindings;
     def.bindingCount = TRACKS;
@@ -530,14 +530,14 @@ static mtwnContext* MakePlayers(Layout layout)
             bindings[t] = mtwnMakeBinding(t, target);
         }
         mtwnPlayerId id;
-        Check(mtwnCreatePlayer(context, &def, &id), "a player");
+        Check(mtwnCreateClipPlayer(context, &def, &id), "a player");
         s_players[p] = id;
         s_clips[p] = def.clip;
         memcpy(s_bindings[p], bindings, sizeof bindings);
         if (layout == LAYOUT_SPREAD || layout == LAYOUT_REPEAT)
         {
             double at = layout == LAYOUT_SPREAD ? (double)p * 0.001 : 0.99;
-            Check(mtwnPlayer_Seek(context, id, at), "a seek");
+            Check(mtwnClipPlayer_Seek(context, id, at), "a seek");
         }
     }
     Check(mtwnContext_Update(context, 0, NULL, 0, NULL), "the first update");
@@ -562,12 +562,12 @@ static void RunClips(double* best)
 // A player made again on its clip and targets, and the old one freed.
 static void Churn(mtwnContext* context, uint32_t p)
 {
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = s_clips[p];
     def.bindings = s_bindings[p];
     def.bindingCount = TRACKS;
     mtwnPlayerId id;
-    Check(mtwnCreatePlayer(context, &def, &id), "a player made again");
+    Check(mtwnCreateClipPlayer(context, &def, &id), "a player made again");
     Check(mtwnDestroyPlayer(context, s_players[p]), "a player freed");
     s_players[p] = id;
 }

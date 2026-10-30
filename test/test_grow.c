@@ -122,13 +122,13 @@ static void TestGrow(void)
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a track");
     mtwnBinding binding = mtwnMakeBinding(0, a);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     playerDef.keep = true;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
     mtwnTransitionDef move = mtwnDefaultTransitionDef();
     move.target = b;
     move.value = (mtwnVec4){4.0f, 0, 0, 0};
@@ -226,7 +226,7 @@ static void TestGrow(void)
     bool made = true;
     for (int i = 0; i < 3; ++i)
     {
-        made = made && mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success;
+        made = made && mtwnCreateClipPlayer(context, &playerDef, &players[i]) == mtwn_success;
     }
     CHECK(made, "three more clip players: the bindings' new room used");
     // Freed slots are reused first, as before growing.
@@ -313,11 +313,11 @@ static mtwnContext* Repeating(uint32_t events, mtwnTargetId* target, mtwnPlayerI
               mtwnClip_Seal(context, clip) == mtwn_success,
           "a repeating track and a mark");
     mtwnBinding binding = mtwnMakeBinding(0, *target);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
-    CHECK(mtwnCreatePlayer(context, &playerDef, player) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, player) == mtwn_success, "a player");
     return context;
 }
 
@@ -342,8 +342,8 @@ static void TestNoRecords(void)
         {
             // A seek's record, which no sweep makes, is not made either;
             // the frames after it still keep the time they reached.
-            CHECK(mtwnPlayer_Seek(quiet, quietPlayer, 0.5) == mtwn_success &&
-                      mtwnPlayer_Seek(loud, loudPlayer, 0.5) == mtwn_success,
+            CHECK(mtwnClipPlayer_Seek(quiet, quietPlayer, 0.5) == mtwn_success &&
+                      mtwnClipPlayer_Seek(loud, loudPlayer, 0.5) == mtwn_success,
                   "both sought where they are");
         }
     }

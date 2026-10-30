@@ -145,7 +145,7 @@ static void BindingOver(const mtwnBinding* b, mtwnBinding* out)
     out->weight = b->weight;
 }
 
-static void PlayerDefOver(const mtwnPlayerDef* d, mtwnPlayerDef* out)
+static void PlayerDefOver(const mtwnClipPlayerDef* d, mtwnClipPlayerDef* out)
 {
     Fill(out, sizeof *out);
     out->cookie = d->cookie;
@@ -355,14 +355,14 @@ static bool Scene(mtwnVec4 values[6])
     mtwnBinding binding = mtwnMakeBinding(0, played);
     mtwnBinding bindingOver;
     BindingOver(&binding, &bindingOver);
-    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
     player.clip = clip;
     player.bindings = &bindingOver;
     player.bindingCount = 1;
-    mtwnPlayerDef playerOver;
+    mtwnClipPlayerDef playerOver;
     PlayerDefOver(&player, &playerOver);
     mtwnPlayerId playing;
-    ok = ok && mtwnCreatePlayer(context, &playerOver, &playing) == mtwn_success;
+    ok = ok && mtwnCreateClipPlayer(context, &playerOver, &playing) == mtwn_success;
     const uint64_t times[3] = {1000000u, 400000000u, 900000000u};
     for (int i = 0; ok && i < 3; ++i)
     {

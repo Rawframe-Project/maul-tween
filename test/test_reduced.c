@@ -246,14 +246,14 @@ static mtwnClipId MakeClip(World* w, double iterations)
 static mtwnPlayerId Play(World* w, mtwnClipId clip, bool essential)
 {
     mtwnBinding binding = mtwnMakeBinding(0, w->target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = true;
     def.essential = essential;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(w->context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w->context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -266,8 +266,8 @@ static void TestPlayers(void)
     Update(&w, 2.0);
     mtwnPlayerId p = Play(&w, clip, false);
     Update(&w, 2.25);
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(w.context, p, &state) == mtwn_success &&
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(w.context, p, &state) == mtwn_success &&
               state.state == mtwn_playFinished && state.currentTime == 1.0,
           "finished at its first update");
     CHECK(Read(&w).value.x == 1.0f, "at its end");
@@ -306,7 +306,7 @@ static void TestPlayers(void)
     CHECK(mtwnContext_IsReducedMotionEnabled(f.context), "reduced");
     Update(&f, 1.5);
     CHECK(fabs((double)Read(&f).value.x - 0.5) < 1e-6 &&
-              mtwnPlayer_GetState(f.context, l, &state) == mtwn_success &&
+              mtwnClipPlayer_GetState(f.context, l, &state) == mtwn_success &&
               state.state == mtwn_playRunning,
           "a loop plays on");
 
@@ -317,22 +317,22 @@ static void TestPlayers(void)
     mtwnPlayerId h = Play(&g, held, false);
     Update(&g, 0.0);
     Update(&g, 0.4);
-    CHECK(mtwnPlayer_Pause(g.context, h) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(g.context, h) == mtwn_success, "paused");
     mtwnContext_EnableReducedMotion(g.context, true);
     CHECK(mtwnContext_IsReducedMotionEnabled(g.context), "reduced");
     Update(&g, 0.8);
-    CHECK(mtwnPlayer_GetState(g.context, h, &state) == mtwn_success &&
+    CHECK(mtwnClipPlayer_GetState(g.context, h, &state) == mtwn_success &&
               state.state == mtwn_playPaused && fabs(state.currentTime - 0.4) < 1e-9,
           "a paused player left where it is");
-    CHECK(mtwnPlayer_Play(g.context, h) == mtwn_success, "played");
+    CHECK(mtwnClipPlayer_Play(g.context, h) == mtwn_success, "played");
     Update(&g, 0.9);
-    CHECK(mtwnPlayer_GetState(g.context, h, &state) == mtwn_success &&
+    CHECK(mtwnClipPlayer_GetState(g.context, h, &state) == mtwn_success &&
               state.state == mtwn_playFinished && Read(&g).value.x == 1.0f,
           "played, it finishes");
     // Backwards: to 0.
-    CHECK(mtwnPlayer_Reverse(g.context, h) == mtwn_success, "reversed");
+    CHECK(mtwnClipPlayer_Reverse(g.context, h) == mtwn_success, "reversed");
     Update(&g, 1.0);
-    CHECK(mtwnPlayer_GetState(g.context, h, &state) == mtwn_success && state.currentTime == 0.0,
+    CHECK(mtwnClipPlayer_GetState(g.context, h, &state) == mtwn_success && state.currentTime == 0.0,
           "played backwards, it finishes at 0");
     mtwnDestroyContext(g.context);
     mtwnDestroyContext(f.context);
@@ -356,20 +356,21 @@ static void TestPlayingOn(void)
     CHECK(mtwnContext_IsReducedMotionEnabled(w.context), "reduced");
     Update(&w, 0.1);
     CHECK(mtwnContext_GetPlayingOnCount(w.context) == 1, "one plays on though not essential");
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(w.context, loop, &state) == mtwn_success && state.playsOnReduced &&
-              state.state == mtwn_playRunning,
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(w.context, loop, &state) == mtwn_success &&
+              state.playsOnReduced && state.state == mtwn_playRunning,
           "the endless one flagged");
-    CHECK(mtwnPlayer_GetState(w.context, kept, &state) == mtwn_success && !state.playsOnReduced,
+    CHECK(mtwnClipPlayer_GetState(w.context, kept, &state) == mtwn_success && !state.playsOnReduced,
           "an essential one not flagged");
-    CHECK(mtwnPlayer_GetState(w.context, ends, &state) == mtwn_success && !state.playsOnReduced &&
-              state.state == mtwn_playFinished,
+    CHECK(mtwnClipPlayer_GetState(w.context, ends, &state) == mtwn_success &&
+              !state.playsOnReduced && state.state == mtwn_playFinished,
           "one with an end finished, not flagged");
     // The host stops it: none left.
-    CHECK(mtwnPlayer_Pause(w.context, loop) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(w.context, loop) == mtwn_success, "paused");
     Update(&w, 0.2);
     CHECK(mtwnContext_GetPlayingOnCount(w.context) == 0 &&
-              mtwnPlayer_GetState(w.context, loop, &state) == mtwn_success && !state.playsOnReduced,
+              mtwnClipPlayer_GetState(w.context, loop, &state) == mtwn_success &&
+              !state.playsOnReduced,
           "a paused one no longer plays on");
     CHECK(mtwnContext_GetPlayingOnCount(NULL) == 0, "0 for no context");
     mtwnDestroyContext(w.context);

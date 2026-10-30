@@ -186,16 +186,16 @@ static mtwnContext* MakeClip(uint64_t seed, double rate, bool countEvery, mtwnPl
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
     mtwnBinding binding = mtwnMakeBinding(0, target);
-    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
     player.clip = clip;
     player.bindings = &binding;
     player.bindingCount = 1;
     player.keep = true;
     player.rate = rate;
-    CHECK(mtwnCreatePlayer(context, &player, idOut) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &player, idOut) == mtwn_success, "a player");
     if (rate < 0.0)
     {
-        CHECK(mtwnPlayer_Seek(context, *idOut, 2.5) == mtwn_success, "sought");
+        CHECK(mtwnClipPlayer_Seek(context, *idOut, 2.5) == mtwn_success, "sought");
     }
     return context;
 }
@@ -251,12 +251,12 @@ static uint64_t Play(uint64_t seed, double rate, bool aligned, bool countEvery, 
     {
         if (now >= 1000000000u && turn != 0.0)
         {
-            CHECK(mtwnPlayer_SetRate(context, id, turn) == mtwn_success, "turned");
+            CHECK(mtwnClipPlayer_SetRate(context, id, turn) == mtwn_success, "turned");
             turn = 0.0;
         }
         if (now >= 2000000000u && slow != 0.0)
         {
-            CHECK(mtwnPlayer_SetRate(context, id, slow) == mtwn_success, "slowed");
+            CHECK(mtwnClipPlayer_SetRate(context, id, slow) == mtwn_success, "slowed");
             slow = 0.0;
         }
         uint64_t frame = s_wide && seed % 2 != 0 ? 100000000u : 15625000u;
@@ -390,19 +390,19 @@ static void TestStartPastTheDoubles(bool countEvery)
     CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
               mtwnClip_Seal(context, clip) == mtwn_success,
           "an endless track from 2.5 iterations of 1e308 s");
-    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
     player.clip = clip;
     player.keep = true;
     mtwnPlayerId id;
     mtwnEvent events[8];
     uint32_t count = 0;
     uint64_t dropped = 0;
-    CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success &&
+    CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success &&
               mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
-              mtwnPlayer_Seek(context, id, 4.125) == mtwn_success &&
+              mtwnClipPlayer_Seek(context, id, 4.125) == mtwn_success &&
               mtwnContext_ReadEvents(context, events, 8, &count, &dropped) == mtwn_success,
           "played, sought to 4.125 s");
-    CHECK(mtwnPlayer_Sweep(context, id, 7.875) == mtwn_success &&
+    CHECK(mtwnClipPlayer_Sweep(context, id, 7.875) == mtwn_success &&
               mtwnContext_ReadEvents(context, events, 8, &count, &dropped) == mtwn_success &&
               count == 0 && dropped == 0,
           "swept to 7.875 s: no iteration crossed");

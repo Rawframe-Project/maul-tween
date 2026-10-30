@@ -72,14 +72,14 @@ static mtwnPlayerId PlayKept(Scene* s, double rate, mtwnComposite composite, boo
 {
     mtwnBinding binding = mtwnMakeBinding(0, s->target);
     binding.composite = composite;
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = s->clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.rate = rate;
     def.keep = keep;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(s->context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(s->context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -125,9 +125,9 @@ static void TestReadLater(void)
     float expected = Expected(&s, 0.5, 1.0);
     CHECK(expected > 1.0f, "the reference moves");
     CHECK(Near(Velocity(&s, s.target), expected), "read at once");
-    CHECK(mtwnPlayer_SetRate(s.context, p, 3.0) == mtwn_success, "a new rate");
+    CHECK(mtwnClipPlayer_SetRate(s.context, p, 3.0) == mtwn_success, "a new rate");
     CHECK(Near(Velocity(&s, s.target), expected), "the last update's after a rate change");
-    CHECK(mtwnPlayer_Seek(s.context, p, 1.5) == mtwn_success, "a seek");
+    CHECK(mtwnClipPlayer_Seek(s.context, p, 1.5) == mtwn_success, "a seek");
     CHECK(Near(Velocity(&s, s.target), expected), "and after a seek");
     mtwnDestroyContext(s.context);
 }
@@ -187,12 +187,12 @@ static void TestHalfWeight(void)
     Scene s = MakeScene();
     mtwnBinding binding = mtwnMakeBinding(0, s.target);
     binding.weight = 0.5f;
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = s.clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(s.context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(s.context, &def, &id) == mtwn_success, "a player");
     Update(&s, 0.0);
     Update(&s, 0.5);
     CHECK(Near(Velocity(&s, s.target), 0.5f * Expected(&s, 0.5, 1.0)), "at half weight");
@@ -202,7 +202,7 @@ static void TestHalfWeight(void)
     s = MakeSceneAt(0.5);
     binding.target = s.target;
     def.clip = s.clip;
-    CHECK(mtwnCreatePlayer(s.context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(s.context, &def, &id) == mtwn_success, "a player");
     Update(&s, 0.0);
     Update(&s, 1.0);
     float expected = 0.5f * Expected(&s, 1.0, 1.0);
@@ -236,12 +236,12 @@ static void TestInteger(void)
     CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "an integer track");
     CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
     mtwnBinding binding = mtwnMakeBinding(0, integer);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(s.context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(s.context, &def, &id) == mtwn_success, "a player");
     Update(&s, 0.0);
     Update(&s, 0.73);
     // Linear, 10 over 2 s: 5 a second, whatever the rounding.
@@ -255,8 +255,8 @@ static void TestBackwards(void)
     mtwnPlayerId p = Play(&s, -1.0, mtwn_compositeReplace);
     Update(&s, 0.0);
     Update(&s, 0.6);
-    mtwnPlayerState state;
-    CHECK(mtwnPlayer_GetState(s.context, p, &state) == mtwn_success, "a state");
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_GetState(s.context, p, &state) == mtwn_success, "a state");
     float expected = Expected(&s, state.currentTime, -1.0);
     CHECK(expected < -1.0f, "the reference moves back");
     CHECK(Near(Velocity(&s, s.target), expected), "played backwards");
@@ -289,20 +289,20 @@ static void TestBackwardsAtEnd(void)
         CHECK(mtwnClip_AddTrack(s.context, clip, &track, &node) == mtwn_success, "a track");
         CHECK(mtwnClip_Seal(s.context, clip) == mtwn_success, "sealed");
         mtwnBinding binding = mtwnMakeBinding(0, s.target);
-        mtwnPlayerDef def = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
         def.clip = clip;
         def.bindings = &binding;
         def.bindingCount = 1;
         def.rate = -1.0;
         def.keep = true;
         mtwnPlayerId id = {0, 0};
-        CHECK(mtwnCreatePlayer(s.context, &def, &id) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(s.context, &def, &id) == mtwn_success, "a player");
         CHECK(mtwnContext_Update(s.context, 1000000000u, NULL, 0, NULL) == mtwn_success,
               "the start");
         CHECK(mtwnContext_Update(s.context, 1000000000u + ns, NULL, 0, NULL) == mtwn_success,
               "an update");
-        mtwnPlayerState state;
-        CHECK(mtwnPlayer_GetState(s.context, id, &state) == mtwn_success, "a state");
+        mtwnClipPlayerState state;
+        CHECK(mtwnClipPlayer_GetState(s.context, id, &state) == mtwn_success, "a state");
         if (state.currentTime + 0.001 == 2.0)
         {
             found = true;

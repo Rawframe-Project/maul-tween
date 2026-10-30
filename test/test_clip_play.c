@@ -69,14 +69,14 @@ static World MakeWorld(void)
 static mtwnPlayerId Play(World* w, mtwnTargetId target, bool keep, double rate)
 {
     mtwnBinding binding = mtwnMakeBinding(0, target);
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w->clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = keep;
     def.rate = rate;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(w->context, &def, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w->context, &def, &id) == mtwn_success, "a player");
     return id;
 }
 
@@ -115,16 +115,16 @@ static void TestValues(void)
     CHECK(Near((double)s.value.x, 1.0, 1e-6) && Near((double)s.velocity.x, 1.0, 1e-3),
           "1 s into a 2 s track from 0 to 2: 1, moving at 1 per second");
     CHECK(Update(&w, 11.5) == 0, "unchanged, unreported");
-    CHECK(mtwnPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
     Update(&w, 12.0);
     s = Read(&w, w.target);
     CHECK(Near((double)s.value.x, 1.0, 1e-6) && s.velocity.x == 0.0f, "held, at rest");
-    CHECK(mtwnPlayer_Play(w.context, p) == mtwn_success, "resumed");
+    CHECK(mtwnClipPlayer_Play(w.context, p) == mtwn_success, "resumed");
     Update(&w, 13.0);
     Update(&w, 14.0);
     CHECK(Read(&w, w.target).value.x == 0.0f, "past its end without fill: the base again");
-    CHECK(mtwnPlayer_SetRate(w.context, p, -2.0) == mtwn_success &&
-              mtwnPlayer_Seek(w.context, p, 2.0) == mtwn_success,
+    CHECK(mtwnClipPlayer_SetRate(w.context, p, -2.0) == mtwn_success &&
+              mtwnClipPlayer_Seek(w.context, p, 2.0) == mtwn_success,
           "backwards at 2 from 2");
     Update(&w, 14.25);
     s = Read(&w, w.target);
@@ -188,13 +188,13 @@ static void TestTree(void)
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){0}, &count) == mtwn_success,
           "an integer target");
     mtwnBinding bindings[2] = {mtwnMakeBinding(0, w.target), mtwnMakeBinding(1, count)};
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w.clip;
     def.bindings = bindings;
     def.bindingCount = 2;
     def.keep = true;
     mtwnPlayerId p;
-    CHECK(mtwnCreatePlayer(w.context, &def, &p) == mtwn_success, "a player of both");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &p) == mtwn_success, "a player of both");
     Update(&w, 0.0);
     Update(&w, 2.0);
     mtwnTargetState s = Read(&w, w.target);
@@ -213,11 +213,11 @@ static void TestTree(void)
     def.bindings = &wrong;
     def.bindingCount = 1;
     mtwnPlayerId q;
-    CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid,
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &q) == mtwn_errorInvalid,
           "a scalar on an integer slot");
     CHECK(mtwnDestroyTarget(w.context, count) == mtwn_success, "a target destroyed");
     wrong = mtwnMakeBinding(1, count);
-    CHECK(mtwnCreatePlayer(w.context, &def, &q) == mtwn_errorInvalid, "a stale target");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &q) == mtwn_errorInvalid, "a stale target");
     mtwnTargetId reused;
     CHECK(mtwnCreateTarget(w.context, mtwn_valueInteger, (mtwnVec4){42.0f, 0, 0, 0}, &reused) ==
                   mtwn_success &&
@@ -251,7 +251,7 @@ static void TestOrder(void)
     CHECK(Read(&w, w.target).value.x == 2.0f, "then the later wins");
     Update(&w, 1.5);
     CHECK(Read(&w, w.target).value.x == 2.0f, "and alone");
-    CHECK(mtwnPlayer_Cancel(w.context, b) == mtwn_success, "the later canceled");
+    CHECK(mtwnClipPlayer_Cancel(w.context, b) == mtwn_success, "the later canceled");
     Update(&w, 1.75);
     CHECK(Read(&w, w.target).value.x == 0.0f, "neither has effect: the base");
     // A transition before a clip's player that has no effect keeps its value.
@@ -320,8 +320,8 @@ static mtwnNode Boundary(World* w, mtwnNode parent, mtwnClipTimelineDef group)
 static float ShownAt(World* w, double seconds, double rate)
 {
     mtwnPlayerId p = Play(w, w->target, true, rate);
-    CHECK(mtwnPlayer_Pause(w->context, p) == mtwn_success &&
-              mtwnPlayer_Seek(w->context, p, seconds) == mtwn_success,
+    CHECK(mtwnClipPlayer_Pause(w->context, p) == mtwn_success &&
+              mtwnClipPlayer_Seek(w->context, p, seconds) == mtwn_success,
           "held at the time");
     Update(w, 100.0);
     float value = Read(w, w->target).value.x;
@@ -362,12 +362,12 @@ static void TestNumbersPastFloats(void)
         {
             mtwnBinding binding = mtwnMakeBinding(0, w.target);
             binding.composite = path == 2 ? mtwn_compositeAdd : mtwn_compositeReplace;
-            mtwnPlayerDef def = mtwnDefaultPlayerDef();
+            mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
             def.clip = w.clip;
             def.bindings = &binding;
             def.bindingCount = 1;
             mtwnPlayerId id = {0, 0};
-            CHECK(mtwnCreatePlayer(w.context, &def, &id) == mtwn_success, "a player");
+            CHECK(mtwnCreateClipPlayer(w.context, &def, &id) == mtwn_success, "a player");
         }
         int infinite = 0;
         int held = 0;
@@ -547,12 +547,12 @@ static void TestCommitReported(void)
     CHECK(mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &other) == mtwn_success,
           "another target");
     mtwnBinding bindings[2] = {mtwnMakeBinding(0, w.target), mtwnMakeBinding(1, other)};
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w.clip;
     def.bindings = bindings;
     def.bindingCount = 2;
     mtwnPlayerId p;
-    CHECK(mtwnCreatePlayer(w.context, &def, &p) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &p) == mtwn_success, "a player");
     Update(&w, 0.0);
     Update(&w, 1.5);
     CHECK(Read(&w, w.target).value.x == 2.0f && Read(&w, w.target).base.x == 0.0f,
@@ -584,13 +584,13 @@ static void TestAddsOverBase(void)
           "another target");
     mtwnBinding binding = mtwnMakeBinding(0, w.target);
     binding.composite = mtwn_compositeAdd;
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w.clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = true;
     mtwnPlayerId adding;
-    CHECK(mtwnCreatePlayer(w.context, &def, &adding) == mtwn_success, "an adding player");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &adding) == mtwn_success, "an adding player");
     (void)Play(&w, other, true, 1.0);
     Update(&w, 0.0);
     Update(&w, 1.0);
@@ -610,13 +610,13 @@ static void TestZeroWeight(void)
           "a base of 10");
     mtwnBinding binding = mtwnMakeBinding(0, w.target);
     binding.weight = 0.0f;
-    mtwnPlayerDef def = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
     def.clip = w.clip;
     def.bindings = &binding;
     def.bindingCount = 1;
     def.keep = true;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(w.context, &def, &player) == mtwn_success, "a player at weight 0");
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &player) == mtwn_success, "a player at weight 0");
     Update(&w, 0.0);
     Update(&w, 2.0);
     mtwnTargetState s = Read(&w, w.target);
@@ -707,9 +707,9 @@ static void TestFinishExact(void)
         mtwnPlayerId p = Play(&w, w.target, true, rate);
         Update(&w, 1.0 + 0.001 * k);
         Update(&w, 1.0 + 0.0013 * k + 0.05);
-        mtwnPlayerState state;
-        CHECK(mtwnPlayer_Finish(w.context, p) == mtwn_success &&
-                  mtwnPlayer_GetState(w.context, p, &state) == mtwn_success,
+        mtwnClipPlayerState state;
+        CHECK(mtwnClipPlayer_Finish(w.context, p) == mtwn_success &&
+                  mtwnClipPlayer_GetState(w.context, p, &state) == mtwn_success,
               "a finish");
         wrong += state.state != mtwn_playFinished || state.currentTime != state.duration;
         mtwnDestroyContext(w.context);
@@ -753,13 +753,13 @@ static float FullOrRoomy(uint32_t capacity, double seconds)
     CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
           "a target");
     mtwnBinding binding = mtwnMakeBinding(0, target);
-    mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
     playerDef.clip = clip;
     playerDef.bindings = &binding;
     playerDef.bindingCount = 1;
     playerDef.keep = true;
     mtwnPlayerId player;
-    CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
     CHECK(mtwnContext_Update(context, (uint64_t)llround(seconds * 1e9), NULL, 0, NULL) ==
               mtwn_success,

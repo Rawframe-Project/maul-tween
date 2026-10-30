@@ -128,13 +128,13 @@ static void TestDiffering(void)
             bindings[bound++] = mtwnMakeBinding(i, targets[i]);
         }
     }
-    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
     player.clip = clip;
     player.bindings = bindings;
     player.bindingCount = bound;
     player.keep = true;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success, "a player");
     static const double s_times[] = {0.0, 0.1, 0.3, 0.45, 0.7, 1.1, 1.6, 2.4};
     int wrong = 0;
     for (size_t k = 0; k < sizeof s_times / sizeof s_times[0]; ++k)
@@ -203,13 +203,13 @@ static void HeldValues(const double* rates, uint32_t count, float* valuesOut)
                   mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, targets[i]);
-        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
         player.clip = clip;
         player.bindings = &binding;
         player.bindingCount = 1;
         player.rate = rates[i];
         mtwnPlayerId id = {0, 0};
-        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success, "a player");
     }
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success &&
               mtwnContext_Update(context, 400000000u, NULL, 0, NULL) == mtwn_success,
@@ -289,12 +289,12 @@ static int HostCalls(bool apart)
         bindings[i] = mtwnMakeBinding(i, target);
     }
     CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
-    mtwnPlayerDef player = mtwnDefaultPlayerDef();
+    mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
     player.clip = clip;
     player.bindings = bindings;
     player.bindingCount = 3;
     mtwnPlayerId id = {0, 0};
-    CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+    CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success, "a player");
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
     s_calls = 0;
     CHECK(mtwnContext_Update(context, 400000000u, NULL, 0, NULL) == mtwn_success, "an update");
@@ -347,12 +347,12 @@ static int InStepCalls(int players)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef player = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
         player.clip = clip;
         player.bindings = &binding;
         player.bindingCount = 1;
         mtwnPlayerId id = {0, 0};
-        CHECK(mtwnCreatePlayer(context, &player, &id) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success, "a player");
     }
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "the first update");
     s_calls = 0;
@@ -388,13 +388,13 @@ static void TestHeldInStep(void)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = &binding;
         playerDef.bindingCount = 1;
         playerDef.keep = true;
         playerDef.rate = 0.0;
-        CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
     }
     uint32_t starts[4] = {0, 0, 0, 0};
     for (int k = 0; k < 4; ++k)
@@ -403,7 +403,7 @@ static void TestHeldInStep(void)
         {
             for (int i = 0; i < 4; ++i)
             {
-                CHECK(mtwnPlayer_SetRate(context, players[i], 1.0) == mtwn_success, "going");
+                CHECK(mtwnClipPlayer_SetRate(context, players[i], 1.0) == mtwn_success, "going");
             }
         }
         CHECK(mtwnContext_Update(context, (uint64_t)k * 250000000u, NULL, 0, NULL) == mtwn_success,
@@ -449,22 +449,22 @@ static void TestTurnAfterSeek(void)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = &binding;
         playerDef.bindingCount = 1;
         playerDef.keep = true;
-        CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
     }
     uint32_t starts[4] = {0, 0, 0, 0};
     for (int k = 0; k < 4; ++k)
     {
         if (k == 3)
         {
-            CHECK(mtwnPlayer_Seek(context, players[2], 1.0) == mtwn_success, "a seek");
+            CHECK(mtwnClipPlayer_Seek(context, players[2], 1.0) == mtwn_success, "a seek");
             for (int i = 0; i < 4; ++i)
             {
-                CHECK(mtwnPlayer_SetRate(context, players[i], -1.0) == mtwn_success, "back");
+                CHECK(mtwnClipPlayer_SetRate(context, players[i], -1.0) == mtwn_success, "back");
             }
         }
         CHECK(mtwnContext_Update(context, (uint64_t)k * 500000000u, NULL, 0, NULL) == mtwn_success,
@@ -510,12 +510,12 @@ static void TestFullSharedNodes(void)
         CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
               "a target");
         mtwnBinding binding = mtwnMakeBinding(0, target);
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = &binding;
         playerDef.bindingCount = 1;
         playerDef.keep = true;
-        CHECK(mtwnCreatePlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &playerDef, &players[i]) == mtwn_success, "a player");
     }
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
     mtwnEvent events[64];
@@ -575,13 +575,13 @@ static void TestInStepMoreSlots(void)
             bindings[b] = mtwnMakeBinding(b, target);
             last = target;
         }
-        mtwnPlayerDef playerDef = mtwnDefaultPlayerDef();
+        mtwnClipPlayerDef playerDef = mtwnDefaultClipPlayerDef();
         playerDef.clip = clip;
         playerDef.bindings = bindings;
         playerDef.bindingCount = i == 3 ? 2 : 1;
         playerDef.keep = true;
         mtwnPlayerId player;
-        CHECK(mtwnCreatePlayer(context, &playerDef, &player) == mtwn_success, "a player");
+        CHECK(mtwnCreateClipPlayer(context, &playerDef, &player) == mtwn_success, "a player");
     }
     CHECK(mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success, "started");
     CHECK(mtwnContext_Update(context, 500000000u, NULL, 0, NULL) == mtwn_success, "half way");

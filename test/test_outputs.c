@@ -98,9 +98,9 @@ static void TestOnContext(void)
         CLEARED(seconds, mtwnClip_FindLabel(c, noClip, MTWN_ROOT_NODE, 1, &seconds),
                 "a label's time: 0");
         CLEARED(seconds, mtwnClip_GetDuration(c, noClip, &seconds), "a duration: 0");
-        CLEARED(player, mtwnCreatePlayer(c, NULL, &player), "a player: the null id");
-        mtwnPlayerState playerState;
-        CLEARED(playerState, mtwnPlayer_GetState(c, noPlayer, &playerState), "its state: zero");
+        CLEARED(player, mtwnCreateClipPlayer(c, NULL, &player), "a player: the null id");
+        mtwnClipPlayerState playerState;
+        CLEARED(playerState, mtwnClipPlayer_GetState(c, noPlayer, &playerState), "its state: zero");
         uint32_t count;
         CLEARED(count, mtwnContext_ReadEvents(c, NULL, 1, &count, NULL), "events taken: 0");
         uint64_t dropped;

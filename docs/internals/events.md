@@ -28,7 +28,7 @@ A context made with `eventCapacity` 0 skips the sweep altogether: the player's s
 
 An update makes at most one record per player, node or mark, kind and direction, with the count of crossings and the iterations of the first and last. Records are pushed in the order made (players in creation order, a player's nodes in clip order, then start, iteration, end) and sorted, stably, by time once the update is done ([`src/event.c`](../../src/event.c)). A record arriving at a full queue is dropped and counted, so a full queue keeps the first an update made. Nothing is lost silently: a read reports the drops since the last read.
 
-Seeks jump, leaving a seek record; `mtwnPlayer_Sweep` and finishing cross what lies between, their records at once. A cancel of a player with a time, and a transition replaced, give cancel records.
+Seeks jump, leaving a seek record; `mtwnClipPlayer_Sweep` and finishing cross what lies between, their records at once. A cancel of a player with a time, and a transition replaced, give cancel records.
 
 ## Checked by brute force
 
