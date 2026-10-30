@@ -50,9 +50,10 @@ PARTS = [
 # what redoing a settling time's underflowed bound costs, every part but
 # the values' by what keeping a decay within the doubles costs, and the
 # values', the clips' and the whole library's by what counting a start's
-# cycles past the doubles costs.
+# cycles past the doubles costs, and the curves' by what checking a rough
+# easing's points before writing them costs.
 BUDGETS = {
-    "curves": 33900,
+    "curves": 34100,
     "values": 69200,
     "transitions": 69600,
     "clips": 162100,
@@ -75,8 +76,9 @@ RAISED = {
     "curves": "every public call that computes enters the float environment through a "
     "wrapper of its own, 0.8 kB here with -fno-math-errno, and every call taking a spring "
     "or a decay checks it, 1.6 kB, every call taking an easing, 2.0 kB, a spring's "
-    "settling time redoes a bound that underflowed, 1.2 kB, and a decay keeps its times "
-    "and samples within the doubles on the way, 1.3 kB",
+    "settling time redoes a bound that underflowed, 1.2 kB, a decay keeps its times "
+    "and samples within the doubles on the way, 1.3 kB, and a rough easing checks its "
+    "points before it writes them, 0.3 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
     "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
     "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, a color, rotation, "
