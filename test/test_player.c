@@ -949,6 +949,80 @@ static void TestNoBindingsDestroyed(void)
     mtwnDestroyContext(f.context);
 }
 
+// Misuse by kind. A player may free itself at an end the update decides,
+// so a refusal that hangs on that counts none: its stale id, and a clip it
+// still holds. The program's own objects count: a stale clip or target
+// id, and a call the clip's state does not allow.
+static void TestMisuseByKind(void)
+{
+    Fixture f = Make(false, 16);
+    mtwnContext* context = f.context;
+    mtwnBinding binding = mtwnMakeBinding(0, f.target);
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
+    def.clip = f.clip;
+    def.bindings = &binding;
+    def.bindingCount = 1;
+    mtwnPlayerId unkept = {0, 0};
+    CHECK(mtwnCreateClipPlayer(context, &def, &unkept) == mtwn_success, "a player not kept");
+    uint64_t misuse = mtwnContext_GetMisuse(context);
+    CHECK(mtwnDestroyClip(context, f.clip) == mtwn_errorBusy &&
+              mtwnContext_GetMisuse(context) == misuse,
+          "a clip its player holds refused, not misuse");
+    Update(&f, 0.0);
+    Update(&f, 3.0);
+    CHECK(!mtwnPlayer_IsValid(context, unkept), "the player freed at the clip's end");
+    mtwnClipPlayerState state;
+    CHECK(mtwnClipPlayer_Play(context, unkept) == mtwn_errorStale &&
+              mtwnClipPlayer_GetState(context, unkept, &state) == mtwn_errorStale &&
+              mtwnDestroyPlayer(context, unkept) == mtwn_errorStale &&
+              mtwnContext_GetMisuse(context) == misuse,
+          "its stale id refused, not misuse");
+    mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+    transition.target = f.target;
+    transition.value.x = 1.0f;
+    transition.duration = 0.5;
+    mtwnPlayerId moving = {0, 0};
+    CHECK(mtwnStartTransition(context, &transition, &moving) == mtwn_success, "a transition");
+    Update(&f, 3.1);
+    Update(&f, 4.0);
+    CHECK(mtwnDestroyPlayer(context, moving) == mtwn_errorStale &&
+              mtwnContext_GetMisuse(context) == misuse,
+          "an ended transition stopped, not misuse");
+    mtwnPlayerId kept = Player(&f, false, 1.0);
+    CHECK(mtwnDestroyPlayer(context, kept) == mtwn_success &&
+              mtwnDestroyPlayer(context, kept) == mtwn_errorStale &&
+              mtwnContext_GetMisuse(context) == misuse,
+          "a kept player's stale id, not misuse");
+    // Ids never handed out are the program's: the null id, an index past
+    // the highest slot used, generation 0 and a generation not reached.
+    mtwnPlayerId never[4] = {{0, 0}, {99, 1}, {kept.index1, 0}, {kept.index1, kept.generation + 1}};
+    uint32_t counted = 0;
+    for (int k = 0; k < 4; ++k)
+    {
+        uint64_t before = mtwnContext_GetMisuse(context);
+        counted += mtwnDestroyPlayer(context, never[k]) == mtwn_errorStale &&
+                   mtwnClipPlayer_Pause(context, never[k]) == mtwn_errorStale &&
+                   mtwnClipPlayer_GetState(context, never[k], &state) == mtwn_errorStale &&
+                   mtwnContext_GetMisuse(context) == before + 3;
+    }
+    CHECK(counted == 4, "player ids never handed out, misuse each time");
+    misuse += 12;
+    mtwnNode node = 0;
+    mtwnPosition at = {0.5, 0, mtwn_positionAbsolute};
+    CHECK(mtwnClip_AddLabel(context, f.clip, MTWN_ROOT_NODE, at, 9, &node) == mtwn_errorState &&
+              mtwnContext_GetMisuse(context) == misuse + 1,
+          "a label added to a sealed clip, misuse");
+    CHECK(mtwnDestroyClip(context, f.clip) == mtwn_success &&
+              mtwnDestroyClip(context, f.clip) == mtwn_errorStale &&
+              mtwnContext_GetMisuse(context) == misuse + 2,
+          "a stale clip id, misuse");
+    CHECK(mtwnDestroyTarget(context, f.target) == mtwn_success &&
+              mtwnTarget_SetBase(context, f.target, (mtwnVec4){0}) == mtwn_errorStale &&
+              mtwnContext_GetMisuse(context) == misuse + 3,
+          "a stale target id, misuse");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestRateLimit();
@@ -970,6 +1044,7 @@ int main(void)
     TestGrowFromNoBindings();
     TestFullPoolKeepsBindings();
     TestNoBindingsDestroyed();
+    TestMisuseByKind();
     TestOrder();
     return s_failures == 0 ? 0 : 1;
 }

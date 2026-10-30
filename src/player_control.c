@@ -214,7 +214,8 @@ static mtwnResult RunControl(mtwnContext* context, mtwnPlayerId player, Control 
     mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
     if (slot == NULL)
     {
-        return Misuse(context, mtwn_errorStale);
+        return mtwnPlayerIssued(context, player) ? mtwn_errorStale
+                                                 : Misuse(context, mtwn_errorStale);
     }
     // A transition's player is the wrong kind for a clip's controls.
     if (slot->type != MTWN_PLAYER_CLIP)

@@ -58,7 +58,7 @@ Every fallible function returns an `mtwnResult`: `mtwn_success` (0), or a negati
 
 The values are the Maul family's, the same in every library, so a log of a raw value reads one way.
 
-A refused call changes nothing. A context counts the calls refused for an invalid argument, one past a named bound, a stale id or a call back in (`mtwnContext_GetMisuse`), so a host can assert the count stays 0; a full capacity is not misuse.
+A refused call changes nothing. A context counts the calls refused for an invalid argument, one past a named bound, a stale target or clip id, a call the object's state does not allow (`mtwn_errorState`) or a call back in (`mtwnContext_GetMisuse`), so a host can assert the count stays 0. A refusal that depends on what the library does is not misuse: a full capacity, the stale id of a player the context handed out, kept or not (a player may free itself at its end), and a clip a player still holds. A player id never handed out, the null id among them, is misuse.
 
 Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
 

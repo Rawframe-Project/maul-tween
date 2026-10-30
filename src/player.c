@@ -588,7 +588,8 @@ static mtwnResult RunDestroyPlayer(mtwnContext* context, mtwnPlayerId player)
     mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
     if (slot == NULL)
     {
-        return Misuse(context, mtwn_errorStale);
+        return mtwnPlayerIssued(context, player) ? mtwn_errorStale
+                                                 : Misuse(context, mtwn_errorStale);
     }
     if (slot->type == MTWN_PLAYER_CLIP)
     {
@@ -651,7 +652,8 @@ static mtwnResult RunPlayerGetState(const mtwnContext* context, mtwnPlayerId pla
     mtwnPlayerSlot* slot = mtwnFindPlayer(context, player);
     if (slot == NULL)
     {
-        return Misuse(context, mtwn_errorStale);
+        return mtwnPlayerIssued(context, player) ? mtwn_errorStale
+                                                 : Misuse(context, mtwn_errorStale);
     }
     if (stateOut == NULL)
     {
