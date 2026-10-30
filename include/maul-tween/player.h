@@ -352,10 +352,12 @@ extern "C"
     /// @param player    A clip's player.
     /// @param stateOut  Receives the state, zero on failure but mtwn_errorBusy,
     ///                  which leaves it.
-    /// @return As mtwnClipPlayer_Play; mtwn_errorInvalid also for a null
-    ///         stateOut; mtwn_errorBusy when called from the host's code
-    ///         while the update's clip players run on its task system, which
-    ///         may be writing what the call reads.
+    /// @return mtwn_success; mtwn_errorInvalid for a null context or
+    ///         stateOut; mtwn_errorStale for an id that names no live
+    ///         player; mtwn_errorInvalid for a transition; mtwn_errorBusy
+    ///         when called from the host's code while the update's clip
+    ///         players run on its task system, which may be writing what the
+    ///         call reads.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnClipPlayer_GetState(const mtwnContext* context,
