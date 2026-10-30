@@ -8,16 +8,21 @@ refused with `mtwn_errorVersion`.
 
 ## [0.13.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.12.0...v0.13.0) (2026-10-30)
 
+This release settles what a refused call on a context leaves in its outputs, as the Maul family's conventions say. A refused update, event read or target read now clears its array as far as a success could write it, so a host that misses a status reads nothing stale ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160)). A call refused as busy, because host code the library runs called the context back in, now writes none of its outputs, since the call in progress may have written them ([#161](https://github.com/Rawframe-Project/maul-tween/pull/161)). Only refusals change: no value, velocity or event record does.
 
-### ⚠ BREAKING CHANGES
+### Changed
 
-* **context:** a call back in from the context's own host code, refused with mtwn_errorBusy, no longer clears its output in mtwnContext_GetClipBytes, mtwnClip_GetTrack, mtwnClip_GetNode, mtwnClip_FindLabel, mtwnClip_GetDuration, mtwnTarget_GetValue, mtwnTarget_GetState and mtwnPlayer_GetState: the output is left as it was. The creations, the mtwnClip_Add calls included, still give the null id.
-* **context:** a refused mtwnContext_Update, mtwnContext_ReadEvents or mtwnContext_ReadTargets now clears its array, as far as a success could write it (the null id, zero records, zero values), where it left it as it was. A call back in, refused with mtwn_errorBusy, leaves it, and now also leaves the counts beside it (the update's total, the events' count and dropped count), which it set to 0. A null context leaves the update's report and the events.
+- **Breaking:** a refused `mtwnContext_Update`, `mtwnContext_ReadEvents` or `mtwnContext_ReadTargets` now clears its array as far as a success could write it, where it left it as it was ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160)):
+  - the update's report gets the null id in its first `changedCapacity` entries, up to the context's target capacity;
+  - the events read get zero records in their first `capacity` entries, up to the context's event capacity;
+  - the targets read get `count` zero values, without a context too.
 
-### Fixed
+  A null context leaves the update's report and the events, since how far a success could write them depends on the context. A host that reused an array across a refused call now finds the null id or zeros there, not the last call's entries, so it checks the status before it reads the array.
+- **Breaking:** a call back in from the context's own host code (a host easing, the allocator, the task system's functions or tasks), refused with `mtwn_errorBusy`, now writes none of its outputs ([#160](https://github.com/Rawframe-Project/maul-tween/pull/160), [#161](https://github.com/Rawframe-Project/maul-tween/pull/161)):
+  - `mtwnContext_Update` leaves its total, and `mtwnContext_ReadEvents` its count and dropped count, beside the arrays they already left, where it set them to 0;
+  - `mtwnContext_GetClipBytes`, `mtwnClip_GetTrack`, `mtwnClip_GetNode`, `mtwnClip_FindLabel`, `mtwnClip_GetDuration`, `mtwnTarget_GetValue`, `mtwnTarget_GetState` and `mtwnPlayer_GetState` leave their output as it was, where they cleared it.
 
-* **context:** clear the arrays a refused call on a context fills ([#160](https://github.com/Rawframe-Project/maul-tween/issues/160)) ([5520b02](https://github.com/Rawframe-Project/maul-tween/commit/5520b0247d8cd86a3eb9e65ea1f8be12af0546ef)), closes [#156](https://github.com/Rawframe-Project/maul-tween/issues/156)
-* **context:** write no output on a call refused as busy ([#161](https://github.com/Rawframe-Project/maul-tween/issues/161)) ([a5928ce](https://github.com/Rawframe-Project/maul-tween/commit/a5928ce40ef47446cf9590c3f623b531e0daa635)), closes [#159](https://github.com/Rawframe-Project/maul-tween/issues/159)
+  The creations still give the null id: `mtwnCreateTarget`, `mtwnCreateClip`, `mtwnCreatePlayer`, `mtwnStartTransition` and the `mtwnClip_Add...` calls' node. Host code that calls the context back in now finds these outputs as it left them, not 0.
 
 ## [0.12.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.11.0...v0.12.0) (2026-10-29)
 
