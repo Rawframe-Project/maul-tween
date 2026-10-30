@@ -256,7 +256,7 @@ static bool FreeCalls(Values* out)
     TrackDefOver(&def, &over);
     double trackLengths[3];
     mtwnTrack madeTrack;
-    ok = ok && mtwnMakeTrack(&over, trackKeys, 3, trackLengths, NULL, &madeTrack) == mtwn_success;
+    ok = ok && mtwnMakeTrack(trackKeys, 3, &over, trackLengths, NULL, &madeTrack) == mtwn_success;
     ok = ok && mtwnSampleTrack(&madeTrack, 0.3, &out->made) == mtwn_success;
     mtwnTrack track;
     TrackOver(&madeTrack, &track);

@@ -181,7 +181,7 @@ static void MakeValues(Values* v)
         v->trackKeys[k].easing = quadOut;
     }
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScalar);
-    Check(mtwnMakeTrack(&def, v->trackKeys, 3, NULL, NULL, &v->track), "a track");
+    Check(mtwnMakeTrack(v->trackKeys, 3, &def, NULL, NULL, &v->track), "a track");
     static const float rising[5] = {0.0f, 30.0f, 40.0f, 100.0f, 100.0f};
     static const double at[5] = {0.0, 0.1, 0.4, 0.5, 1.0};
     for (int k = 0; k < 5; ++k)
@@ -191,7 +191,7 @@ static void MakeValues(Values* v)
         v->monotoneKeys[k].easing = mtwnMakeLinearEasing();
         v->monotoneKeys[k].kind = mtwn_segmentMonotone;
     }
-    Check(mtwnMakeTrack(&def, v->monotoneKeys, 5, NULL, NULL, &v->monotone), "a monotone track");
+    Check(mtwnMakeTrack(v->monotoneKeys, 5, &def, NULL, NULL, &v->monotone), "a monotone track");
 }
 
 // Samples a case at n progresses, (i + 0.5) / n: the sum of the results.

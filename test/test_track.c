@@ -41,7 +41,7 @@ static void TestNumbers(void)
                             Key(1.0, (mtwnVec4){3, 4, 0, 0}, mtwn_segmentCatmullRom)};
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueVec2);
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_success, "a vector track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, NULL, &track) == mtwn_success, "a vector track");
     mtwnPath path;
     CHECK(mtwnMakePath(keys, 3, 2, 0.5, NULL, &path) == mtwn_success, "its path");
     int same = 1;
@@ -56,11 +56,11 @@ static void TestNumbers(void)
     mtwnKeyframe count[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
                              Key(1.0, (mtwnVec4){3, 0, 0, 0}, mtwn_segmentLinear)};
     def = mtwnDefaultTrackDef(mtwn_valueInteger);
-    CHECK(mtwnMakeTrack(&def, count, 2, NULL, NULL, &track) == mtwn_success, "an integer track");
+    CHECK(mtwnMakeTrack(count, 2, &def, NULL, NULL, &track) == mtwn_success, "an integer track");
     CHECK(SampleTrack(&track, 0.5).x == 2.0f && SampleTrack(&track, 0.4).x == 1.0f,
           "rounded to nearest, ties away from zero");
     count[1].value.x = -3.0f;
-    CHECK(mtwnMakeTrack(&def, count, 2, NULL, NULL, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(count, 2, &def, NULL, NULL, &track) == mtwn_success &&
               SampleTrack(&track, 0.5).x == -2.0f,
           "below zero too");
 }
@@ -83,7 +83,7 @@ static void TestKeyframeOffsets(void)
         }
         mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScalar);
         mtwnTrack track;
-        CHECK(mtwnMakeTrack(&def, keys, 5, NULL, NULL, &track) == mtwn_success, "a track");
+        CHECK(mtwnMakeTrack(keys, 5, &def, NULL, NULL, &track) == mtwn_success, "a track");
         for (int i = 0; i < 5; ++i)
         {
             wrong += SampleTrack(&track, offsets[i]).x != values[i];
@@ -102,7 +102,7 @@ static void TestSamplePastFloats(void)
     CHECK(mtwnMakeBackEasing(mtwn_easeOut, 100.0, &keys[0].easing) == mtwn_success, "a back out");
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueVec2);
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_success, "a track");
+    CHECK(mtwnMakeTrack(keys, 2, &def, NULL, NULL, &track) == mtwn_success, "a track");
     mtwnVec4 half = SampleTrack(&track, 0.5);
     CHECK(half.x == 0x1.fffffep127f && half.y == -0x1.fffffep127f, "held at the bounds");
 }
@@ -115,7 +115,7 @@ static void TestDiscrete(void)
     CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &keys[0].easing) == mtwn_success, "quad");
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueDiscrete);
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_success, "a discrete track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, NULL, &track) == mtwn_success, "a discrete track");
     // Eased 1/2 of the first segment is its local sqrt(1/2).
     double flip = 0.5 * sqrt(0.5);
     CHECK(SampleTrack(&track, flip - 1e-9).x == 4.0f && SampleTrack(&track, flip + 1e-9).x == 9.0f,
@@ -123,11 +123,11 @@ static void TestDiscrete(void)
     CHECK(SampleTrack(&track, 0.99).x == 9.0f && SampleTrack(&track, 1.0).x == 2.0f,
           "a step holds to its end");
     keys[0].easing = mtwnMakeLinearEasing();
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, NULL, &track) == mtwn_success &&
               SampleTrack(&track, 0.25).x == 9.0f,
           "at exactly 1/2 the end, as Web Animations steps it");
     keys[0].kind = mtwn_segmentBezier;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, NULL, &track) == mtwn_errorInvalid,
           "no Bezier for discrete values");
 }
 
@@ -142,7 +142,7 @@ static void TestAngles(void)
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueAngle);
     mtwnTrack track;
     double lengths[3];
-    CHECK(mtwnMakeTrack(&def, keys, 3, lengths, NULL, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(keys, 3, &def, lengths, NULL, &track) == mtwn_success,
           "an angle track at constant speed");
     float turn = (float)(2.0 * s_pi);
     CHECK(fabsf(keys[1].value.x - (10 * deg + turn)) <= 1e-6f &&
@@ -157,7 +157,7 @@ static void TestAngles(void)
     mtwnKeyframe raw[2] = {Key(0.0, (mtwnVec4){350 * deg, 0, 0, 0}, mtwn_segmentLinear),
                            Key(1.0, (mtwnVec4){10 * deg, 0, 0, 0}, mtwn_segmentLinear)};
     def.angleMethod = mtwn_angleRaw;
-    CHECK(mtwnMakeTrack(&def, raw, 2, NULL, NULL, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(raw, 2, &def, NULL, NULL, &track) == mtwn_success &&
               raw[1].value.x == 10 * deg,
           "raw angles stay as given");
     // An unknown method is refused, the keyframes as they were; another
@@ -165,12 +165,12 @@ static void TestAngles(void)
     def.angleMethod = mtwn_angleDecreasing + 1;
     raw[1].value.x = 370 * deg;
     mtwnTrack kept = track;
-    CHECK(mtwnMakeTrack(&def, raw, 2, NULL, NULL, &track) == mtwn_errorInvalid &&
+    CHECK(mtwnMakeTrack(raw, 2, &def, NULL, NULL, &track) == mtwn_errorInvalid &&
               raw[1].value.x == 370 * deg && memcmp(&kept, &track, sizeof track) == 0,
           "an unknown method refused, nothing changed");
     mtwnTrackDef scalar = mtwnDefaultTrackDef(mtwn_valueScalar);
     scalar.angleMethod = mtwn_angleDecreasing + 1;
-    CHECK(mtwnMakeTrack(&scalar, raw, 2, NULL, NULL, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(raw, 2, &scalar, NULL, NULL, &track) == mtwn_success,
           "a number track ignores the method");
 }
 
@@ -182,7 +182,7 @@ static void TestColors(void)
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueColor);
     mtwnSegmentMix mixes[2];
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success, "a color track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track) == mtwn_success, "a color track");
     mtwnColorMix mix;
     CHECK(mtwnMakeColorMix((mtwnColor){1, 0, 0, 1}, (mtwnColor){0, 0, 1, 1}, mtwn_colorOklab,
                            mtwn_hueShorter, &mix) == mtwn_success,
@@ -194,20 +194,20 @@ static void TestColors(void)
     CHECK(Same(SampleTrack(&track, 0.75), keys[1].value) &&
               Same(SampleTrack(&track, 1.0), keys[2].value),
           "a step holds, then the last");
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, NULL, &track) == mtwn_errorInvalid, "no mixes");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, NULL, &track) == mtwn_errorInvalid, "no mixes");
     double lengths[3];
-    CHECK(mtwnMakeTrack(&def, keys, 3, lengths, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(keys, 3, &def, lengths, mixes, &track) == mtwn_errorInvalid,
           "no constant speed");
     keys[2].value.w = 1.5f;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_errorInvalid, "alpha past 1");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track) == mtwn_errorInvalid, "alpha past 1");
     keys[2].value.w = 0.5f;
     keys[0].kind = mtwn_segmentCatmullRom;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track) == mtwn_errorInvalid,
           "no color splines");
     // The last keyframe starts no segment: its kind is not read.
     keys[0].kind = mtwn_segmentLinear;
     keys[2].kind = mtwn_segmentCatmullRom;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track) == mtwn_success,
           "a last keyframe's kind not read");
     // Keyframes 1e-300 apart jump, as at one offset: extended before them
     // by their width, the mix's progress would be -1.5e300, a NaN color.
@@ -215,7 +215,7 @@ static void TestColors(void)
                              Key(1e-300, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
                              Key(1.0, (mtwnVec4){0.5f, 0.5f, 0.2f, 0.3f}, mtwn_segmentLinear)};
     def.colorSpace = mtwn_colorOklch;
-    CHECK(mtwnMakeTrack(&def, close, 3, NULL, mixes, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(close, 3, &def, NULL, mixes, &track) == mtwn_success,
           "keyframes 1e-300 apart");
     CHECK(Same(SampleTrack(&track, -1.5), close[1].value) &&
               Same(SampleTrack(&track, -0.25), close[1].value),
@@ -239,7 +239,7 @@ static void TestRotations(void)
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueRotation);
     mtwnSegmentMix mixes[2];
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success, "a rotation track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track) == mtwn_success, "a rotation track");
     CHECK(Same(keys[1].value, b), "flipped into the hemisphere of the one before");
     mtwnRotationMix turn;
     CHECK(mtwnMakeRotationMix((mtwnQuat){a.x, a.y, a.z, a.w}, (mtwnQuat){b.x, b.y, b.z, b.w},
@@ -254,7 +254,7 @@ static void TestRotations(void)
         Key(0.0, a, mtwn_segmentCatmullRom), Key(0.3, b, mtwn_segmentCatmullRom),
         Key(0.6, c, mtwn_segmentCatmullRom), Key(1.0, About(1, 0, 0, 0.5), mtwn_segmentCatmullRom)};
     mtwnSegmentMix splineMixes[3];
-    CHECK(mtwnMakeTrack(&def, spline, 4, NULL, splineMixes, &track) == mtwn_success, "a spline");
+    CHECK(mtwnMakeTrack(spline, 4, &def, NULL, splineMixes, &track) == mtwn_success, "a spline");
     mtwnPath path;
     CHECK(mtwnMakePath(spline, 4, 4, 0.5, NULL, &path) == mtwn_success, "its components");
     double worst = 0.0;
@@ -276,7 +276,7 @@ static void TestRotations(void)
     mtwnKeyframe big[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 2}, mtwn_segmentStep),
                            Key(1.0, (mtwnVec4){0, 0, 3, 0}, mtwn_segmentLinear)};
     mtwnSegmentMix bigMixes[1];
-    CHECK(mtwnMakeTrack(&def, big, 2, NULL, bigMixes, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(big, 2, &def, NULL, bigMixes, &track) == mtwn_success &&
               SampleTrack(&track, 0.5).w == 1.0f && SampleTrack(&track, 1.0).z == 1.0f,
           "a step's rotations normalized");
     // Bezier controls flip with their keyframe; the longest path flips
@@ -287,20 +287,20 @@ static void TestRotations(void)
     curved[1].in = negatedB;
     mtwnSegmentMix curvedMixes[1];
     def = mtwnDefaultTrackDef(mtwn_valueRotation);
-    CHECK(mtwnMakeTrack(&def, curved, 2, NULL, curvedMixes, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(curved, 2, &def, NULL, curvedMixes, &track) == mtwn_success &&
               Same(curved[1].value, b) && Same(curved[1].in, b),
           "a Bezier rotation's controls flip with it");
     mtwnKeyframe far[2] = {Key(0.0, a, mtwn_segmentCatmullRom),
                            Key(1.0, negatedB, mtwn_segmentLinear)};
     def.rotationPath = mtwn_rotationLongest;
-    CHECK(mtwnMakeTrack(&def, far, 2, NULL, curvedMixes, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(far, 2, &def, NULL, curvedMixes, &track) == mtwn_success &&
               Same(far[1].value, negatedB),
           "the longest path flips nothing");
     mtwnKeyframe equal[2] = {Key(0.0, a, mtwn_segmentCatmullRom), Key(1.0, a, mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, equal, 2, NULL, curvedMixes, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(equal, 2, &def, NULL, curvedMixes, &track) == mtwn_success,
           "equal rotations the long way on a spline, which turns no slerp");
     mtwnKeyframe longLine[2] = {Key(0.0, a, mtwn_segmentLinear), Key(1.0, b, mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, longLine, 2, NULL, curvedMixes, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(longLine, 2, &def, NULL, curvedMixes, &track) == mtwn_success,
           "distinct rotations the long way on a line, its slerp made");
     // An easing at 1 inside a spline segment: the end keyframe, normalized.
     mtwnVec4 odd = {0.1f, -0.7f, 0.3f, 0.6f};
@@ -310,7 +310,7 @@ static void TestRotations(void)
           "steps(1, start)");
     def = mtwnDefaultTrackDef(mtwn_valueRotation);
     mtwnSegmentMix earlyMixes[2];
-    CHECK(mtwnMakeTrack(&def, early, 3, NULL, earlyMixes, &track) == mtwn_success, "made");
+    CHECK(mtwnMakeTrack(early, 3, &def, NULL, earlyMixes, &track) == mtwn_success, "made");
     double ox = (double)odd.x;
     double oy = (double)odd.y;
     double oz = (double)odd.z;
@@ -323,12 +323,12 @@ static void TestRotations(void)
     // A refused track leaves its keyframes as they were.
     mtwnKeyframe still[2] = {Key(0.0, a, mtwn_segmentLinear), Key(1.0, a, mtwn_segmentLinear)};
     def.rotationPath = mtwn_rotationLongest;
-    CHECK(mtwnMakeTrack(&def, still, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(still, 2, &def, NULL, mixes, &track) == mtwn_errorInvalid,
           "the long way between equal rotations");
     mtwnKeyframe zero[2] = {Key(0.0, a, mtwn_segmentLinear),
                             Key(1.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear)};
     def.rotationPath = mtwn_rotationShortest;
-    CHECK(mtwnMakeTrack(&def, zero, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(zero, 2, &def, NULL, mixes, &track) == mtwn_errorInvalid,
           "a zero rotation");
 }
 
@@ -341,19 +341,19 @@ static void TestRotationZero(void)
     mtwnTrack track;
     mtwnKeyframe zero[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentLinear),
                             Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, zero, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(zero, 2, &def, NULL, mixes, &track) == mtwn_errorInvalid,
           "an all-zero rotation refused");
     // Starting a curve too, which makes no mix to refuse it.
     zero[0].kind = mtwn_segmentCatmullRom;
-    CHECK(mtwnMakeTrack(&def, zero, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(zero, 2, &def, NULL, mixes, &track) == mtwn_errorInvalid,
           "an all-zero rotation on a curve refused");
     mtwnKeyframe full[2] = {Key(0.0, (mtwnVec4){0.5f, 0.5f, 0.5f, 0.5f}, mtwn_segmentLinear),
                             Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, full, 2, NULL, mixes, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(full, 2, &def, NULL, mixes, &track) == mtwn_success,
           "a rotation of four nonzero channels taken");
     mtwnKeyframe half[2] = {Key(0.0, (mtwnVec4){1, 0, 0, 0}, mtwn_segmentLinear),
                             Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, half, 2, NULL, mixes, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(half, 2, &def, NULL, mixes, &track) == mtwn_success,
           "a half turn about x taken");
     mtwnVec4 quarter = SampleTrack(&track, 0.5);
     CHECK(fabs((double)quarter.x - sqrt(0.5)) <= 1e-6 && quarter.y == 0.0f && quarter.z == 0.0f &&
@@ -365,7 +365,7 @@ static void TestRotationZero(void)
     {
         mtwnKeyframe one[2] = {Key(0.0, alone[i], mtwn_segmentLinear),
                                Key(1.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear)};
-        CHECK(mtwnMakeTrack(&def, one, 2, NULL, mixes, &track) == mtwn_success,
+        CHECK(mtwnMakeTrack(one, 2, &def, NULL, mixes, &track) == mtwn_success,
               "a half turn about y or z taken");
     }
 }
@@ -380,7 +380,7 @@ static void TestRotationFarOut(void)
     mtwnKeyframe keys[3] = {Key(0.0, (mtwnVec4){0, -0.64f, 0, 1}, mtwn_segmentCatmullRom),
                             Key(1e-300, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentCatmullRom),
                             Key(1.0, (mtwnVec4){0, 0.3f, 0, 1}, mtwn_segmentCatmullRom)};
-    CHECK(mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track) == mtwn_success, "made");
+    CHECK(mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track) == mtwn_success, "made");
     bool unit = true;
     for (double progress = -1.5; progress < 3.0; progress += 0.5)
     {
@@ -402,7 +402,7 @@ static void TestRotationFarOut(void)
     curved[1].in = (mtwnVec4){0, -2.0f, 0, 1};
     for (int far = 0; far < 2; ++far)
     {
-        CHECK(mtwnMakeTrack(&def, far == 0 ? wide : curved, 2, NULL, mixes, &track) == mtwn_success,
+        CHECK(mtwnMakeTrack(far == 0 ? wide : curved, 2, &def, NULL, mixes, &track) == mtwn_success,
               "made");
         mtwnVec4 q = SampleTrack(&track, far == 0 ? -1e200 : -1e120);
         double norm = sqrt((double)q.x * (double)q.x + (double)q.y * (double)q.y +
@@ -424,7 +424,7 @@ static void TestRotationFarOut(void)
                                Key(1.0, (mtwnVec4){0, 0, 0, -1}, mtwn_segmentLinear)};
     through[0].out = (mtwnVec4){0, 0, 0, 0.5f};
     through[1].in = (mtwnVec4){0, 0, 0, -0.5f};
-    CHECK(mtwnMakeTrack(&def, through, 2, NULL, mixes, &track) == mtwn_success, "made");
+    CHECK(mtwnMakeTrack(through, 2, &def, NULL, mixes, &track) == mtwn_success, "made");
     mtwnVec4 half = SampleTrack(&track, 0.5);
     CHECK(half.x == 0.0f && half.y == 0.0f && half.z == 0.0f && half.w == 1.0f,
           "cancelled to nothing: the segment's start");
@@ -438,25 +438,25 @@ static void TestRefusals(void)
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueAngle);
     mtwnTrack track;
     def.alpha = 2.0;
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_errorInvalid &&
+    CHECK(mtwnMakeTrack(keys, 2, &def, NULL, NULL, &track) == mtwn_errorInvalid &&
               keys[1].value.x == 10 * deg,
           "refused, and the keyframes not unwrapped");
     def = mtwnDefaultTrackDef(10);
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_errorInvalid, "a kind");
+    CHECK(mtwnMakeTrack(keys, 2, &def, NULL, NULL, &track) == mtwn_errorInvalid, "a kind");
     def = mtwnDefaultTrackDef(mtwn_valueRotation);
     def.rotationPath = 2;
     mtwnSegmentMix mixes[1];
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_errorInvalid, "a path");
+    CHECK(mtwnMakeTrack(keys, 2, &def, NULL, mixes, &track) == mtwn_errorInvalid, "a path");
     keys[0].kind = mtwn_segmentStep;
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(keys, 2, &def, NULL, mixes, &track) == mtwn_errorInvalid,
           "a path, though only steps, which make no mix");
     keys[0].kind = mtwn_segmentLinear;
     def = mtwnDefaultTrackDef(mtwn_valueScalar);
-    CHECK(mtwnMakeTrack(NULL, keys, 2, NULL, NULL, &track) == mtwn_errorInvalid, "no def");
-    CHECK(mtwnMakeTrack(&def, keys, 2, NULL, NULL, NULL) == mtwn_errorInvalid, "no out");
+    CHECK(mtwnMakeTrack(keys, 2, NULL, NULL, NULL, &track) == mtwn_errorInvalid, "no def");
+    CHECK(mtwnMakeTrack(keys, 2, &def, NULL, NULL, NULL) == mtwn_errorInvalid, "no out");
     def = mtwnDefaultTrackDef(mtwn_valueDiscrete);
     double lengths[2];
-    CHECK(mtwnMakeTrack(&def, keys, 2, lengths, NULL, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(keys, 2, &def, lengths, NULL, &track) == mtwn_errorInvalid,
           "no constant speed for discrete values");
 }
 
@@ -486,7 +486,7 @@ static void TestSampleRefusals(void)
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScalar);
     mtwnTrack made;
     double lengths[3];
-    CHECK(mtwnMakeTrack(&def, keys, 3, lengths, NULL, &made) == mtwn_success, "a number track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, lengths, NULL, &made) == mtwn_success, "a number track");
     CHECK(TrackTaken(&made, 0.25), "as made");
     mtwnVec4 value;
     CHECK(mtwnSampleTrack(NULL, 0.5, &value) == mtwn_errorInvalid &&
@@ -515,7 +515,7 @@ static void TestSampleRefusals(void)
     keys[1].kind = mtwn_segmentLinear;
 
     def = mtwnDefaultTrackDef(mtwn_valueScale);
-    CHECK(mtwnMakeTrack(&def, keys, 3, lengths, NULL, &made) == mtwn_success, "a scale track");
+    CHECK(mtwnMakeTrack(keys, 3, &def, lengths, NULL, &made) == mtwn_success, "a scale track");
     track = made;
     track.path.logarithmic = 0;
     CHECK(TrackRefused(&track, 0.5), "a scale's path not logarithmic");
@@ -524,7 +524,7 @@ static void TestSampleRefusals(void)
     def = mtwnDefaultTrackDef(mtwn_valueColor);
     mtwnKeyframe colors[2] = {Key(0.0, (mtwnVec4){1, 0, 0, 1}, mtwn_segmentLinear),
                               Key(1.0, (mtwnVec4){0, 0, 1, 1}, mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, colors, 2, NULL, mixes, &made) == mtwn_success, "a color track");
+    CHECK(mtwnMakeTrack(colors, 2, &def, NULL, mixes, &made) == mtwn_success, "a color track");
     track = made;
     track.mixes = NULL;
     CHECK(TrackRefused(&track, 0.5), "a color track without its mixes");
@@ -551,7 +551,7 @@ static void TestScales(void)
     mtwnKeyframe linear[3] = {Key(0.0, Scale(1.0f), mtwn_segmentLinear),
                               Key(0.5, Scale(100.0f), mtwn_segmentLinear),
                               Key(1.0, Scale(10000.0f), mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, linear, 3, NULL, NULL, &track) == mtwn_success, "a scale track");
+    CHECK(mtwnMakeTrack(linear, 3, &def, NULL, NULL, &track) == mtwn_success, "a scale track");
     CHECK(SampleTrack(&track, 0.0).x == 1.0f && SampleTrack(&track, 0.5).x == 100.0f &&
               SampleTrack(&track, 1.0).x == 10000.0f,
           "its keyframes exactly");
@@ -569,7 +569,7 @@ static void TestScales(void)
                              Key(2.0 / 3.0, Scale(100.0f), mtwn_segmentCatmullRom),
                              Key(1.0, Scale(1000.0f), mtwn_segmentCatmullRom)};
     def.alpha = 0.0;
-    CHECK(mtwnMakeTrack(&def, curve, 4, NULL, NULL, &track) == mtwn_success, "a curved one");
+    CHECK(mtwnMakeTrack(curve, 4, &def, NULL, NULL, &track) == mtwn_success, "a curved one");
     worst = 0.0;
     for (int k = 0; k <= 30; ++k)
     {
@@ -584,21 +584,21 @@ static void TestScales(void)
                               Key(1.0, Scale(1000.0f), mtwn_segmentLinear)};
     double lengths[3];
     def.alpha = 0.5;
-    CHECK(mtwnMakeTrack(&def, uneven, 3, lengths, NULL, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(uneven, 3, &def, lengths, NULL, &track) == mtwn_success,
           "at constant speed");
     CHECK(fabs(lengths[2] - 3.0 * log(10.0)) <= 1e-12, "its length three decades in the logarithm");
     CHECK(fabsf(SampleTrack(&track, 1.0 / 3.0).x - 10.0f) <= 1e-5f, "a third of the way is 10");
     // A step holds; a Bezier's controls are scales too.
     mtwnKeyframe held[2] = {Key(0.0, Scale(2.0f), mtwn_segmentStep),
                             Key(1.0, Scale(8.0f), mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, held, 2, NULL, NULL, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(held, 2, &def, NULL, NULL, &track) == mtwn_success &&
               SampleTrack(&track, 0.7).x == 2.0f && SampleTrack(&track, 1.0).x == 8.0f,
           "a step holds");
     mtwnKeyframe bezier[2] = {Key(0.0, Scale(1.0f), mtwn_segmentBezier),
                               Key(1.0, Scale(16.0f), mtwn_segmentLinear)};
     bezier[0].out = Scale(2.0f);
     bezier[1].in = Scale(8.0f);
-    CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(bezier, 2, &def, NULL, NULL, &track) == mtwn_success &&
               fabsf(SampleTrack(&track, 0.5).x - 4.0f) <= 1e-5f,
           "1, 2, 8, 16 are 2^0, 2^1, 2^3, 2^4: halfway is 2^2");
     // A quarter of the way the cubic in the logarithm, 0, 1, 3, 4, is
@@ -609,7 +609,7 @@ static void TestScales(void)
     // handle left 0, is not read as a control.
     mtwnKeyframe last[2] = {Key(0.0, Scale(1.0f), mtwn_segmentLinear),
                             Key(1.0, Scale(16.0f), mtwn_segmentBezier)};
-    CHECK(mtwnMakeTrack(&def, last, 2, NULL, NULL, &track) == mtwn_success,
+    CHECK(mtwnMakeTrack(last, 2, &def, NULL, NULL, &track) == mtwn_success,
           "a last keyframe's out handle not read");
     // Extended far past its ends, a scale stays a positive float where
     // its logarithm's line leaves a float's range.
@@ -617,26 +617,26 @@ static void TestScales(void)
     mtwnKeyframe falls[3] = {Key(0.0, Scale(1000.0f), mtwn_segmentLinear),
                              Key(0.01, Scale(1.0f), mtwn_segmentLinear),
                              Key(1.0, Scale(1.0f), mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, falls, 3, NULL, NULL, &track) == mtwn_success, "a steep fall");
+    CHECK(mtwnMakeTrack(falls, 3, &def, NULL, NULL, &track) == mtwn_success, "a steep fall");
     CHECK(SampleTrack(&track, -1.5).x == 0x1.fffffep127f, "before it, the largest float");
     falls[0].value = Scale(0.001f);
-    CHECK(mtwnMakeTrack(&def, falls, 3, NULL, NULL, &track) == mtwn_success, "a steep rise");
+    CHECK(mtwnMakeTrack(falls, 3, &def, NULL, NULL, &track) == mtwn_success, "a steep rise");
     CHECK(SampleTrack(&track, -1.5).x == 0x1p-149f, "before it, the smallest");
     mtwnKeyframe far[3] = {Key(0.0, Scale(53.7f), mtwn_segmentCatmullRom),
                            Key(0.0196, Scale(1.96f), mtwn_segmentCatmullRom),
                            Key(1.0, Scale(53.7f), mtwn_segmentLinear)};
-    CHECK(mtwnMakeTrack(&def, far, 3, NULL, NULL, &track) == mtwn_success, "a curved one");
+    CHECK(mtwnMakeTrack(far, 3, &def, NULL, NULL, &track) == mtwn_success, "a curved one");
     float before = SampleTrack(&track, -1.5).x;
     CHECK(before > 0.0f && isfinite(before), "the fuzzer's: never infinite or 0");
     bezier[1].in = Scale(0.0f);
-    CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(bezier, 2, &def, NULL, NULL, &track) == mtwn_errorInvalid,
           "a control of 0 refused");
     bezier[1].in = Scale(8.0f);
     bezier[0].out = Scale(0.0f);
-    CHECK(mtwnMakeTrack(&def, bezier, 2, NULL, NULL, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(bezier, 2, &def, NULL, NULL, &track) == mtwn_errorInvalid,
           "an out control of 0 refused");
     linear[1].value = Scale(-1.0f);
-    CHECK(mtwnMakeTrack(&def, linear, 3, NULL, NULL, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(linear, 3, &def, NULL, NULL, &track) == mtwn_errorInvalid,
           "a value below 0 refused");
 }
 
@@ -655,11 +655,11 @@ static void TestRotationHemisphere(void)
         c[axis] = 0.8f;
         mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){c[0], c[1], c[2], 0.6f}, mtwn_segmentLinear),
                                 Key(1.0, (mtwnVec4){c[0], c[1], c[2], -0.6f}, mtwn_segmentLinear)};
-        CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success &&
+        CHECK(mtwnMakeTrack(keys, 2, &def, NULL, mixes, &track) == mtwn_success &&
                   Same(keys[1].value, (mtwnVec4){c[0], c[1], c[2], -0.6f}),
               "not flipped: its dot is above 0");
         keys[1].value = (mtwnVec4){-c[0], -c[1], -c[2], 0.6f};
-        CHECK(mtwnMakeTrack(&def, keys, 2, NULL, mixes, &track) == mtwn_success &&
+        CHECK(mtwnMakeTrack(keys, 2, &def, NULL, mixes, &track) == mtwn_success &&
                   Same(keys[1].value, (mtwnVec4){c[0], c[1], c[2], -0.6f}),
               "flipped: its dot is below 0");
     }
@@ -676,7 +676,7 @@ static void TestAnglesFarOut(void)
     keys[1].in = (mtwnVec4){3e38f, 0, 0, 0};
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueAngle);
     mtwnTrack track;
-    bool made = mtwnMakeTrack(&def, keys, 2, NULL, NULL, &track) == mtwn_success;
+    bool made = mtwnMakeTrack(keys, 2, &def, NULL, NULL, &track) == mtwn_success;
     CHECK(made, "unwrapped by 6e38: made");
     CHECK(fabs((double)keys[1].value.x + 3e38) <= 0x1p104 && keys[1].in.x == keys[1].value.x,
           "the control on its keyframe moved with it");
@@ -687,7 +687,7 @@ static void TestAnglesFarOut(void)
     mtwnKeyframe far[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 0}, mtwn_segmentBezier),
                            Key(1.0, (mtwnVec4){3e38f, 0, 0, 0}, mtwn_segmentLinear)};
     far[1].in = (mtwnVec4){-3e38f, 0, 0, 0};
-    made = mtwnMakeTrack(&def, far, 2, NULL, NULL, &track) == mtwn_success;
+    made = mtwnMakeTrack(far, 2, &def, NULL, NULL, &track) == mtwn_success;
     CHECK(made && fabsf(far[1].value.x) <= 8.0f && far[1].in.x == -0x1.fffffep127f,
           "a control moved past the floats: made, held at the lowest");
     half = made ? SampleTrack(&track, 0.5) : (mtwnVec4){0};
@@ -705,7 +705,7 @@ static void TestMixChecks(void)
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueColor);
     mtwnSegmentMix mixes[2];
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, colors, 3, NULL, mixes, &track) == mtwn_success, "a color track");
+    CHECK(mtwnMakeTrack(colors, 3, &def, NULL, mixes, &track) == mtwn_success, "a color track");
     mixes[0].color.space = 9;
     mixes[1].color.space = 9;
     mtwnVec4 v = {0};
@@ -719,7 +719,7 @@ static void TestMixChecks(void)
                              Key(0.6, c, mtwn_segmentCatmullRom), Key(1.0, a, mtwn_segmentLinear)};
     def = mtwnDefaultTrackDef(mtwn_valueRotation);
     mtwnSegmentMix spins[3];
-    CHECK(mtwnMakeTrack(&def, turns, 4, NULL, spins, &track) == mtwn_success, "a rotation track");
+    CHECK(mtwnMakeTrack(turns, 4, &def, NULL, spins, &track) == mtwn_success, "a rotation track");
     for (int i = 0; i < 3; ++i)
     {
         spins[i].rotation.angle = -1.0;

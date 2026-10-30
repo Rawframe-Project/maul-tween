@@ -192,7 +192,7 @@ static void TestTracks(void)
     mtwnKeyframe scales[3] = {Key(0.0, 1.0f, 0.0f), Key(0.2, 10.0f, 0.0f), Key(1.0, 100.0f, 0.0f)};
     mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueScale);
     mtwnTrack track;
-    CHECK(mtwnMakeTrack(&def, scales, 3, NULL, NULL, &track) == mtwn_success, "a scale track");
+    CHECK(mtwnMakeTrack(scales, 3, &def, NULL, NULL, &track) == mtwn_success, "a scale track");
     bool within = true;
     float last = 0.0f;
     for (int j = 0; j <= 100; ++j)
@@ -203,14 +203,14 @@ static void TestTracks(void)
     }
     CHECK(within && SampleTrack(&track, 0.2).x == 10.0f, "rising, within, exact at a key");
     double lengths[3];
-    CHECK(mtwnMakeTrack(&def, scales, 3, lengths, NULL, &track) == mtwn_success &&
+    CHECK(mtwnMakeTrack(scales, 3, &def, lengths, NULL, &track) == mtwn_success &&
               SampleTrack(&track, 1.0).x == 100.0f,
           "at constant speed");
     // Colors mix per segment: refused, as Catmull-Rom is.
     mtwnKeyframe colors[2] = {Key(0.0, 0.0f, 0.0f), Key(1.0, 1.0f, 1.0f)};
     mtwnSegmentMix mixes[1];
     mtwnTrackDef color = mtwnDefaultTrackDef(mtwn_valueColor);
-    CHECK(mtwnMakeTrack(&color, colors, 2, NULL, mixes, &track) == mtwn_errorInvalid,
+    CHECK(mtwnMakeTrack(colors, 2, &color, NULL, mixes, &track) == mtwn_errorInvalid,
           "a color track refuses it");
     // A kind past it is unknown.
     colors[0].kind = mtwn_segmentMonotone + 1;

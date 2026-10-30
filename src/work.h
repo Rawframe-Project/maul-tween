@@ -62,8 +62,8 @@ MTWN_NOINLINE mtwnResult mtwnMakeRotationMixWork(mtwnQuat from, mtwnQuat to, mtw
 MTWN_NOINLINE mtwnQuat mtwnMixRotationWork(const mtwnRotationMix* mix, double progress);
 MTWN_NOINLINE mtwnResult mtwnMakeScaleMixWork(double from, double to, mtwnScaleMix* mixOut);
 MTWN_NOINLINE double mtwnMixScaleWork(const mtwnScaleMix* mix, double progress);
-MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe* keyframes,
-                                           uint32_t count, double* lengthsOut,
+MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(mtwnKeyframe* keyframes, uint32_t count,
+                                           const mtwnTrackDef* def, double* lengthsOut,
                                            mtwnSegmentMix* mixesOut, mtwnTrack* trackOut);
 MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress);
 MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing);

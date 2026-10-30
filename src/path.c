@@ -688,8 +688,8 @@ static void Canonicalize(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint3
     }
 }
 
-MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe* keyframes,
-                                           uint32_t count, double* lengthsOut,
+MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(mtwnKeyframe* keyframes, uint32_t count,
+                                           const mtwnTrackDef* def, double* lengthsOut,
                                            mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
 {
     if (trackOut == NULL || !CheckTrack(def, keyframes, count, lengthsOut != NULL, mixesOut))
@@ -753,11 +753,11 @@ MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(const mtwnTrackDef* def, mtwnKeyframe
     return mtwn_success;
 }
 
-mtwnResult mtwnMakeTrack(const mtwnTrackDef* def, mtwnKeyframe* keyframes, uint32_t count,
+mtwnResult mtwnMakeTrack(mtwnKeyframe* keyframes, uint32_t count, const mtwnTrackDef* def,
                          double* lengthsOut, mtwnSegmentMix* mixesOut, mtwnTrack* trackOut)
 {
     uint64_t env = mtwnFloatEnvEnter();
-    mtwnResult result = mtwnMakeTrackWork(def, keyframes, count, lengthsOut, mixesOut, trackOut);
+    mtwnResult result = mtwnMakeTrackWork(keyframes, count, def, lengthsOut, mixesOut, trackOut);
     mtwnFloatEnvLeave(env);
     return result;
 }

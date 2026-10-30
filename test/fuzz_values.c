@@ -1097,7 +1097,7 @@ static void Paths(Bytes* in)
     mtwnSegmentMix mixes[6];
     mtwnTrack track;
     bool tracked = false;
-    if (mtwnMakeTrack(&def, keys, count, Below(in, 2) == 0 ? trackLengths : NULL, mixes, &track) ==
+    if (mtwnMakeTrack(keys, count, &def, Below(in, 2) == 0 ? trackLengths : NULL, mixes, &track) ==
         mtwn_success)
     {
         tracked = true;

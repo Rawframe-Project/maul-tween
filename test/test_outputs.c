@@ -289,7 +289,7 @@ static void TestPathsAndTracks(void)
     mtwnSegmentMix mixes[2];
     mtwnTrack track;
     memset(mixes, 0xAB, sizeof mixes);
-    UNCHANGED(track, mtwnMakeTrack(&def, keys, 3, NULL, mixes, &track), "a track");
+    UNCHANGED(track, mtwnMakeTrack(keys, 3, &def, NULL, mixes, &track), "a track");
     CHECK(AllBytes(mixes, sizeof mixes, 0xAB), "its mixes unwritten");
     CHECK(memcmp(keys, given, sizeof keys) == 0, "its keyframes as they were");
 }
