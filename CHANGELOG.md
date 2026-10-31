@@ -8,26 +8,30 @@ refused with `mtwn_errorVersion`.
 
 ## [0.15.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.14.0...v0.15.0) (2026-10-31)
 
-
-### ⚠ BREAKING CHANGES
-
-* **family:** the 25 enumeration typedefs (mtwnValueKind, mtwnNodeKind, mtwnPositionKind, mtwnEventKind, mtwnPhase, mtwnFill, mtwnDirection, mtwnAlternateEasing, mtwnStaggerOrigin, mtwnStaggerAxis, mtwnStaggerSpacing, mtwnSegmentKind, mtwnTransitionKind, mtwnVelocitySource, mtwnColorSpace, mtwnHueMethod, mtwnAngleMethod, mtwnRotationPath, mtwnComposite, mtwnPlayState, mtwnEasingKind, mtwnStepPosition, mtwnCssKeyword, mtwnEaseMode and mtwnRoughTaper) are int32_t, no longer uint8_t; mtwnRoughDef.flags is the new uint32_t mtwnRoughFlags. Every struct holding one changes its layout. mtwnContext_GetDroppedEventCount is renamed mtwnContext_GetEventsDropped. The default context def's clip storage is 240 KiB, no longer 224 KiB.
-* **player:** mtwnContext_GetMisuse no longer counts two refusals. A stale id of a player the context handed out, kept or not, is refused with mtwn_errorStale but not counted, in mtwnDestroyPlayer, mtwnClipPlayer_GetState and every clip player control; a player id never handed out still counts. mtwnDestroyClip refused with mtwn_errorBusy while a player holds the clip is not counted.
-
-### Fixed
-
-* **clip:** make the seek limit's derivation agree with its margin ([#195](https://github.com/Rawframe-Project/maul-tween/issues/195)) ([657c486](https://github.com/Rawframe-Project/maul-tween/commit/657c4865bdbeb0b3ed2b16aebe106bb9e97b4180)), closes [#194](https://github.com/Rawframe-Project/maul-tween/issues/194)
-* **context:** name the const readers refused while busy ([#190](https://github.com/Rawframe-Project/maul-tween/issues/190)) ([f1b5c11](https://github.com/Rawframe-Project/maul-tween/commit/f1b5c11b46d718cf2890b5f70fcf4df73808885a)), closes [#186](https://github.com/Rawframe-Project/maul-tween/issues/186)
-* **context:** say mtwn_errorStale covers ids never handed out ([#189](https://github.com/Rawframe-Project/maul-tween/issues/189)) ([9f6edc4](https://github.com/Rawframe-Project/maul-tween/commit/9f6edc4af22685c7b98629ed3f39c81f5687b088)), closes [#185](https://github.com/Rawframe-Project/maul-tween/issues/185)
-* **player:** count no misuse for refusals the library's state decides ([#203](https://github.com/Rawframe-Project/maul-tween/issues/203)) ([15f8431](https://github.com/Rawframe-Project/maul-tween/commit/15f84316a051a8b47fd9729ba0dba5abacab7b03)), closes [#199](https://github.com/Rawframe-Project/maul-tween/issues/199)
-* **player:** list only the codes a clip player's state read returns ([#191](https://github.com/Rawframe-Project/maul-tween/issues/191)) ([6325b11](https://github.com/Rawframe-Project/maul-tween/commit/6325b1167ad131b69e85941e0343f1ab4983ac2d)), closes [#187](https://github.com/Rawframe-Project/maul-tween/issues/187)
-* **player:** say when a big clip's player leaves its group ([#192](https://github.com/Rawframe-Project/maul-tween/issues/192)) ([08dd375](https://github.com/Rawframe-Project/maul-tween/commit/08dd375ef166ba60f3f63cc684797570fc568ed6)), closes [#188](https://github.com/Rawframe-Project/maul-tween/issues/188)
-* **transition:** refuse an unknown choice whatever the target's kind ([#210](https://github.com/Rawframe-Project/maul-tween/issues/210)) ([2083f18](https://github.com/Rawframe-Project/maul-tween/commit/2083f181acb47a19994a47db4b0f86a94091a1c8)), closes [#206](https://github.com/Rawframe-Project/maul-tween/issues/206)
-
+This release follows the Maul family's conventions of .github v0.0.40. The enumerations are `int32_t` and the rough easing's flags `uint32_t`, so every struct holding one changes its layout, and the dropped events counter is `mtwnContext_GetEventsDropped` ([#207](https://github.com/Rawframe-Project/maul-tween/pull/207)). `mtwnContext_GetMisuse` no longer counts two refusals that depend on the library's state ([#203](https://github.com/Rawframe-Project/maul-tween/pull/203)). An unknown color space, hue method, angle method or rotation path is refused whatever the target's or track's kind ([#210](https://github.com/Rawframe-Project/maul-tween/pull/210)), and five corrections make the headers and guides say what the code does. No value, velocity or event record changes.
 
 ### Changed
 
-* **family:** make the enumerations int32_t and name events dropped ([#207](https://github.com/Rawframe-Project/maul-tween/issues/207)) ([6c84e04](https://github.com/Rawframe-Project/maul-tween/commit/6c84e0472c13c3422b5423070d3b3c0c2df11314)), closes [#197](https://github.com/Rawframe-Project/maul-tween/issues/197) [#198](https://github.com/Rawframe-Project/maul-tween/issues/198)
+- **Breaking:** the 25 enumeration typedefs are `int32_t`, no longer `uint8_t`, and `mtwnRoughDef.flags` is the new `mtwnRoughFlags`, a `uint32_t` ([#207](https://github.com/Rawframe-Project/maul-tween/pull/207)). Their values do not change. The 25 are `mtwnValueKind`, `mtwnNodeKind`, `mtwnPositionKind`, `mtwnEventKind`, `mtwnPhase`, `mtwnFill`, `mtwnDirection`, `mtwnAlternateEasing`, `mtwnStaggerOrigin`, `mtwnStaggerAxis`, `mtwnStaggerSpacing`, `mtwnSegmentKind`, `mtwnTransitionKind`, `mtwnVelocitySource`, `mtwnColorSpace`, `mtwnHueMethod`, `mtwnAngleMethod`, `mtwnRotationPath`, `mtwnComposite`, `mtwnPlayState`, `mtwnEasingKind`, `mtwnStepPosition`, `mtwnCssKeyword`, `mtwnEaseMode` and `mtwnRoughTaper`.
+  - Every struct holding one changes its layout on some data model: every def, `mtwnEvent`, `mtwnBinding`, `mtwnTiming` and `mtwnClipNodeInfo`. A program rebuilds against the new headers.
+  - A negative kind, mode or choice, which the signed types allow, is refused with `mtwn_errorInvalid` as an unknown one is, in a call, a def or a made easing, color mix or track; a path's keyframe kind is read within its tables.
+  - The default context def's clip storage is 240 KiB, no longer 224 KiB, still 16 default clips: a default clip takes 14,808 bytes, where it took 14,280. With a task system, a group's share per binding grows from 60 to 68 bytes, and the default def's groups from about 900 KB to about 940 KB.
+- **Breaking:** `mtwnContext_GetDroppedEventCount` is renamed `mtwnContext_GetEventsDropped`, as the family names a counter of work lost ([#207](https://github.com/Rawframe-Project/maul-tween/pull/207)).
+- **Breaking:** `mtwnContext_GetMisuse` no longer counts two refusals the library's state decides ([#203](https://github.com/Rawframe-Project/maul-tween/pull/203)):
+  - a stale id of a player the context handed out, kept or not, given to `mtwnDestroyPlayer`, `mtwnClipPlayer_GetState` or any clip player control. It is still refused with `mtwn_errorStale`. A player id never handed out still counts: the null id, an index past the highest slot used, generation 0 and a generation its slot has not reached;
+  - `mtwnDestroyClip` refused with `mtwn_errorBusy` while a player holds the clip.
+
+  Stale target and clip ids still count. A host now reads no misuse for stopping or reading a player after it ended, naming a kept player after destroying it, or destroying a clip a player still holds: the count is smaller for the same calls, never larger. The transitions guide no longer asks for `mtwnPlayer_IsValid` before stopping a transition that may have ended.
+
+### Fixed
+
+- `mtwnStartTransition` refuses an unknown color space, hue method, angle method or rotation path with `mtwn_errorInvalid` and one misuse whatever the target's kind, and `mtwnContext_MeasureTransition` an unknown angle method or rotation path. `mtwnMakeTrack` and `mtwnClip_AddTrack` refuse an unknown color space, hue method or angle method whatever the track's kind, as they already did the rotation path, the add counting one misuse. A kind that does not read the choice took any value, though `mtwnStartTransition`'s header said every unknown choice is refused ([#210](https://github.com/Rawframe-Project/maul-tween/pull/210)).
+- The headers and guides say what the code does. None of these changes the code.
+  - `mtwn_errorStale` is an id that names no live object: one destroyed since it was handed out, one never handed out, or the null id. `base.h` and the getting started guide said only the first ([#189](https://github.com/Rawframe-Project/maul-tween/pull/189)).
+  - `context.h`'s opening comment names the const readers refused while the host's code runs: `mtwnTarget_GetState` called back in, and four readers inside an update's groups ([#190](https://github.com/Rawframe-Project/maul-tween/pull/190)).
+  - `mtwnClipPlayer_GetState`'s header lists only the codes it returns. It said "As mtwnClipPlayer_Play", whose list has `mtwn_errorState` ([#191](https://github.com/Rawframe-Project/maul-tween/pull/191)).
+  - A player whose clip has more than 128 nodes plays on the calling thread only when other players play the same clip. The threads guide and `mtwnContext_GetSerialAdvanceCount`'s header said it did whenever other players ran ([#192](https://github.com/Rawframe-Project/maul-tween/pull/192)).
+  - `MTWN_SEEK_LIMIT`'s comment derived a margin of 16 from a bound that gives 8. It now derives it from the tighter bound the same lines give ([#195](https://github.com/Rawframe-Project/maul-tween/pull/195)).
 
 ## [0.14.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.13.0...v0.14.0) (2026-10-30)
 
