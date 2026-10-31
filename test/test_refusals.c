@@ -476,6 +476,67 @@ static void TestNegativeKinds(void)
     mtwnDestroyContext(context);
 }
 
+// A choice the target's kind does not read is still a choice: an unknown
+// one is refused and counted, so it cannot change meaning the day a kind
+// reads it. On a scalar target, which reads none of them.
+static void TestUnknownChoices(void)
+{
+    mtwnContextDef contextDef = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&contextDef, &context) == mtwn_success, "a context");
+    mtwnTargetId target;
+    CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+          "a scalar target");
+    const char* names[4] = {"a color space", "a hue method", "an angle method", "a rotation path"};
+    for (int c = 0; c < 4; ++c)
+    {
+        mtwnTransitionDef def = mtwnDefaultTransitionDef();
+        def.target = target;
+        def.value = (mtwnVec4){1.0f, 0, 0, 0};
+        int32_t* choices[4] = {&def.colorSpace, &def.hueMethod, &def.angleMethod,
+                               &def.rotationPath};
+        *choices[c] = 99;
+        uint64_t misuse = mtwnContext_GetMisuse(context);
+        mtwnPlayerId player;
+        CHECK(mtwnStartTransition(context, &def, &player) == mtwn_errorInvalid &&
+                  player.index1 == 0 && mtwnContext_GetMisuse(context) == misuse + 1,
+              names[c]);
+        double distance = 1.0;
+        mtwnResult measured = mtwnContext_MeasureTransition(context, &def, &distance);
+        // A measure reads the angle method and the rotation path only.
+        CHECK(c >= 2 ? measured == mtwn_errorInvalid && distance == 0.0 &&
+                           mtwnContext_GetMisuse(context) == misuse + 2
+                     : measured == mtwn_success,
+              "measured as the choices it reads");
+    }
+    // A track's choices the same way: made without a context, and added to
+    // a clip, counted.
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    for (int c = 0; c < 4; ++c)
+    {
+        mtwnClipTrackDef add = mtwnDefaultClipTrackDef();
+        add.keyframes = keys;
+        add.keyframeCount = 2;
+        int32_t* choices[4] = {&add.track.colorSpace, &add.track.hueMethod, &add.track.angleMethod,
+                               &add.track.rotationPath};
+        *choices[c] = 99;
+        mtwnTrack track;
+        uint64_t misuse = mtwnContext_GetMisuse(context);
+        mtwnNode node = 7;
+        CHECK(mtwnMakeTrack(keys, 2, &add.track, NULL, NULL, &track) == mtwn_errorInvalid &&
+                  mtwnClip_AddTrack(context, clip, &add, &node) == mtwn_errorInvalid && node == 0 &&
+                  mtwnContext_GetMisuse(context) == misuse + 1,
+              names[c]);
+    }
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestMissingContext();
@@ -485,5 +546,6 @@ int main(void)
     TestBindings();
     TestTransitions();
     TestNegativeKinds();
+    TestUnknownChoices();
     return s_failures == 0 ? 0 : 1;
 }

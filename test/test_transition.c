@@ -847,8 +847,8 @@ static void TestAngleTurns(void)
     float turned = (float)MixAngle(1.0, 1.0, mtwn_angleLonger, 1.0);
     CHECK(State(context, angle).base.x == turned && fabsf(near - turned) <= 1e-6f,
           "the end moved by its turn is what is committed: no jump of a turn");
-    // An unknown method is refused for an angle, by every spec; a number
-    // reads no method, so it takes any.
+    // An unknown method is refused for an angle, by every spec, and for a
+    // number, which reads no method: no correct program passes one.
     mtwnPlayerId id;
     uint64_t misuse = mtwnContext_GetMisuse(context);
     def.angleMethod = mtwn_angleDecreasing + 1;
@@ -865,7 +865,10 @@ static void TestAngleTurns(void)
           "the decay starts with a known method");
     def = Linear(Target(context, mtwn_valueScalar, (mtwnVec4){0}), (mtwnVec4){1.0f, 0, 0, 0}, 1.0);
     def.angleMethod = mtwn_angleDecreasing + 1;
-    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_success, "a number ignores the method");
+    misuse = mtwnContext_GetMisuse(context);
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid && id.index1 == 0 &&
+              mtwnContext_GetMisuse(context) == misuse + 1,
+          "a number refuses an unknown method too, counted");
     mtwnDestroyContext(context);
 }
 

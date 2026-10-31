@@ -252,7 +252,7 @@ extern "C"
     ///                    copies them first.
     /// @param count       The number of keyframes.
     /// @param def         The def: a known kind, alpha from 0 to 1, known
-    ///                    choices for its kind.
+    ///                    choices, those its kind does not read too.
     /// @param lengthsOut  Count doubles for constant speed, or NULL; only
     ///                    numbers, vectors, angles, integers and scales take it
     ///                    (a scale's lengths are its logarithm's); unchanged on
