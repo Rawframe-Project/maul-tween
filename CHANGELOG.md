@@ -6,6 +6,29 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.14.0...v0.15.0) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **family:** the 25 enumeration typedefs (mtwnValueKind, mtwnNodeKind, mtwnPositionKind, mtwnEventKind, mtwnPhase, mtwnFill, mtwnDirection, mtwnAlternateEasing, mtwnStaggerOrigin, mtwnStaggerAxis, mtwnStaggerSpacing, mtwnSegmentKind, mtwnTransitionKind, mtwnVelocitySource, mtwnColorSpace, mtwnHueMethod, mtwnAngleMethod, mtwnRotationPath, mtwnComposite, mtwnPlayState, mtwnEasingKind, mtwnStepPosition, mtwnCssKeyword, mtwnEaseMode and mtwnRoughTaper) are int32_t, no longer uint8_t; mtwnRoughDef.flags is the new uint32_t mtwnRoughFlags. Every struct holding one changes its layout. mtwnContext_GetDroppedEventCount is renamed mtwnContext_GetEventsDropped. The default context def's clip storage is 240 KiB, no longer 224 KiB.
+* **player:** mtwnContext_GetMisuse no longer counts two refusals. A stale id of a player the context handed out, kept or not, is refused with mtwn_errorStale but not counted, in mtwnDestroyPlayer, mtwnClipPlayer_GetState and every clip player control; a player id never handed out still counts. mtwnDestroyClip refused with mtwn_errorBusy while a player holds the clip is not counted.
+
+### Fixed
+
+* **clip:** make the seek limit's derivation agree with its margin ([#195](https://github.com/Rawframe-Project/maul-tween/issues/195)) ([657c486](https://github.com/Rawframe-Project/maul-tween/commit/657c4865bdbeb0b3ed2b16aebe106bb9e97b4180)), closes [#194](https://github.com/Rawframe-Project/maul-tween/issues/194)
+* **context:** name the const readers refused while busy ([#190](https://github.com/Rawframe-Project/maul-tween/issues/190)) ([f1b5c11](https://github.com/Rawframe-Project/maul-tween/commit/f1b5c11b46d718cf2890b5f70fcf4df73808885a)), closes [#186](https://github.com/Rawframe-Project/maul-tween/issues/186)
+* **context:** say mtwn_errorStale covers ids never handed out ([#189](https://github.com/Rawframe-Project/maul-tween/issues/189)) ([9f6edc4](https://github.com/Rawframe-Project/maul-tween/commit/9f6edc4af22685c7b98629ed3f39c81f5687b088)), closes [#185](https://github.com/Rawframe-Project/maul-tween/issues/185)
+* **player:** count no misuse for refusals the library's state decides ([#203](https://github.com/Rawframe-Project/maul-tween/issues/203)) ([15f8431](https://github.com/Rawframe-Project/maul-tween/commit/15f84316a051a8b47fd9729ba0dba5abacab7b03)), closes [#199](https://github.com/Rawframe-Project/maul-tween/issues/199)
+* **player:** list only the codes a clip player's state read returns ([#191](https://github.com/Rawframe-Project/maul-tween/issues/191)) ([6325b11](https://github.com/Rawframe-Project/maul-tween/commit/6325b1167ad131b69e85941e0343f1ab4983ac2d)), closes [#187](https://github.com/Rawframe-Project/maul-tween/issues/187)
+* **player:** say when a big clip's player leaves its group ([#192](https://github.com/Rawframe-Project/maul-tween/issues/192)) ([08dd375](https://github.com/Rawframe-Project/maul-tween/commit/08dd375ef166ba60f3f63cc684797570fc568ed6)), closes [#188](https://github.com/Rawframe-Project/maul-tween/issues/188)
+* **transition:** refuse an unknown choice whatever the target's kind ([#210](https://github.com/Rawframe-Project/maul-tween/issues/210)) ([2083f18](https://github.com/Rawframe-Project/maul-tween/commit/2083f181acb47a19994a47db4b0f86a94091a1c8)), closes [#206](https://github.com/Rawframe-Project/maul-tween/issues/206)
+
+
+### Changed
+
+* **family:** make the enumerations int32_t and name events dropped ([#207](https://github.com/Rawframe-Project/maul-tween/issues/207)) ([6c84e04](https://github.com/Rawframe-Project/maul-tween/commit/6c84e0472c13c3422b5423070d3b3c0c2df11314)), closes [#197](https://github.com/Rawframe-Project/maul-tween/issues/197) [#198](https://github.com/Rawframe-Project/maul-tween/issues/198)
+
 ## [0.14.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.13.0...v0.14.0) (2026-10-30)
 
 This release finishes the API review for 1.0. The readers take the context const and read it when host code calls back in ([#170](https://github.com/Rawframe-Project/maul-tween/pull/170)). The calls on a clip's player are named for it ([#178](https://github.com/Rawframe-Project/maul-tween/pull/178)) and the two counters that were not are named `Get...Count` ([#176](https://github.com/Rawframe-Project/maul-tween/pull/176)). The reduced motion switch returns nothing ([#174](https://github.com/Rawframe-Project/maul-tween/pull/174)), the host easing's callback is a function type ([#172](https://github.com/Rawframe-Project/maul-tween/pull/172)), and `mtwnMakeTrack` takes the keyframes it rewrites first ([#184](https://github.com/Rawframe-Project/maul-tween/pull/184)). Three getters no longer crash on a null context, and a refused rough easing leaves its points. The getting started guide says what 1.0 will keep. No value, velocity or event record changes.
