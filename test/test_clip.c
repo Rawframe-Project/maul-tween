@@ -1015,8 +1015,8 @@ static void TestDefaults(void)
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     uint64_t bytes = 0;
     CHECK(mtwnContext_GetClipBytes(context, &clipDef, &bytes) == mtwn_success && bytes > 0 &&
-              bytes <= 14336,
-          "a default clip within 14 KiB");
+              bytes <= 15360,
+          "a default clip within 15 KiB");
     bool made = true;
     for (uint32_t i = 0; i < def.clipCapacity; ++i)
     {

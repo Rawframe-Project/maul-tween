@@ -19,7 +19,7 @@ extern "C"
 #endif
 
     // What an easing is.
-    typedef uint8_t mtwnEasingKind;
+    typedef int32_t mtwnEasingKind;
     enum
     {
         // The identity: eased progress is progress.
@@ -53,7 +53,7 @@ extern "C"
     };
 
     // Where CSS's steps() jumps.
-    typedef uint8_t mtwnStepPosition;
+    typedef int32_t mtwnStepPosition;
     enum
     {
         // At the start of each step: CSS's jump-start and start.
@@ -67,7 +67,7 @@ extern "C"
     };
 
     // CSS's easing keywords.
-    typedef uint8_t mtwnCssKeyword;
+    typedef int32_t mtwnCssKeyword;
     enum
     {
         // linear.
@@ -98,7 +98,7 @@ extern "C"
     // How an easing's curve f is applied to progress p. The in mode is
     // the curve as defined; the others are its reflections, the same for
     // every kind.
-    typedef uint8_t mtwnEaseMode;
+    typedef int32_t mtwnEaseMode;
     enum
     {
         // f(p).
@@ -145,7 +145,7 @@ extern "C"
 
     // How a rough easing's offsets grow and shrink with progress x
     // (GSAP's RoughEase tapers).
-    typedef uint8_t mtwnRoughTaper;
+    typedef int32_t mtwnRoughTaper;
     enum
     {
         // The same everywhere.
@@ -159,6 +159,7 @@ extern "C"
     };
 
     // A rough easing's flags, combined.
+    typedef uint32_t mtwnRoughFlags;
     enum
     {
         // Each output kept in [0, 1] (GSAP's clamp).
@@ -184,7 +185,7 @@ extern "C"
         // How the offsets grow and shrink.
         mtwnRoughTaper taper;
         // mtwn_rough flags, combined.
-        uint8_t flags;
+        mtwnRoughFlags flags;
     } mtwnRoughDef;
 
     /// Makes the linear easing, whose eased progress is its progress.

@@ -192,7 +192,7 @@ uint32_t mtwnContext_GetEventCount(const mtwnContext* context)
     return context != NULL ? context->eventCount : 0;
 }
 
-uint64_t mtwnContext_GetDroppedEventCount(const mtwnContext* context)
+uint64_t mtwnContext_GetEventsDropped(const mtwnContext* context)
 {
     return context != NULL ? context->droppedEvents : 0;
 }

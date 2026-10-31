@@ -561,7 +561,8 @@ static MTWN_NOINLINE mtwnResult mtwnMakeSpringEasingWork(const mtwnSpring* sprin
 {
     // A duration or velocity NaN or infinite leaves a scaled parameter
     // that is not finite, refused below.
-    if (!mtwnValidSpring(spring) || easingOut == NULL || mode > mtwn_easeOutIn || !(duration > 0.0))
+    if (!mtwnValidSpring(spring) || easingOut == NULL || (uint32_t)mode > mtwn_easeOutIn ||
+        !(duration > 0.0))
     {
         return mtwn_errorInvalid;
     }

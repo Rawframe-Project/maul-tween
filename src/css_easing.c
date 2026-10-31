@@ -193,7 +193,8 @@ static double EaseCubicBezier(const mtwnEasing* easing, double progress)
 static MTWN_NOINLINE mtwnResult mtwnSampleCubicBezierEasingWork(const mtwnEasing* easing,
                                                                 double progress, double* easedOut)
 {
-    if (easing == NULL || easing->mode > mtwn_easeOutIn || !isfinite(progress) || easedOut == NULL)
+    if (easing == NULL || (uint32_t)easing->mode > mtwn_easeOutIn || !isfinite(progress) ||
+        easedOut == NULL)
     {
         return mtwn_errorInvalid;
     }
@@ -218,7 +219,7 @@ mtwnResult mtwnSampleCubicBezierEasing(const mtwnEasing* easing, double progress
 
 bool mtwnValidSteps(uint32_t count, mtwnStepPosition position)
 {
-    return position <= mtwn_jumpBoth && count >= (position == mtwn_jumpNone ? 2u : 1u);
+    return (uint32_t)position <= mtwn_jumpBoth && count >= (position == mtwn_jumpNone ? 2u : 1u);
 }
 
 // The jumps steps make from 0 to 1.

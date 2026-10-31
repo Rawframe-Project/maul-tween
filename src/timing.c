@@ -37,13 +37,15 @@ MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing)
     {
         return mtwn_errorInvalid;
     }
-    bool valid =
-        isfinite(timing->delay) && isfinite(timing->endDelay) && isfinite(timing->iterationStart) &&
-        timing->iterationStart >= 0.0 && timing->iterations >= 0.0 && timing->duration >= 0.0 &&
-        isfinite(timing->repeatDelay) && timing->repeatDelay >= 0.0 &&
-        isfinite(timing->playbackRate) && timing->playbackRate != 0.0 &&
-        timing->fill <= mtwn_fillBoth && timing->direction <= mtwn_directionAlternateReverse &&
-        timing->alternateEasing <= mtwn_alternateRepeatsShape && mtwnValidEasing(&timing->easing);
+    bool valid = isfinite(timing->delay) && isfinite(timing->endDelay) &&
+                 isfinite(timing->iterationStart) && timing->iterationStart >= 0.0 &&
+                 timing->iterations >= 0.0 && timing->duration >= 0.0 &&
+                 isfinite(timing->repeatDelay) && timing->repeatDelay >= 0.0 &&
+                 isfinite(timing->playbackRate) && timing->playbackRate != 0.0 &&
+                 (uint32_t)timing->fill <= mtwn_fillBoth &&
+                 (uint32_t)timing->direction <= mtwn_directionAlternateReverse &&
+                 (uint32_t)timing->alternateEasing <= mtwn_alternateRepeatsShape &&
+                 mtwnValidEasing(&timing->easing);
     // An active duration and an end time a double holds: endless only when
     // the iterations or the duration are, making the active duration
     // infinite (not 0, when the other is 0), and the node plays forwards, since

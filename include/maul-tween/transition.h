@@ -23,7 +23,7 @@ extern "C"
 #endif
 
     // How a transition moves.
-    typedef uint8_t mtwnTransitionKind;
+    typedef int32_t mtwnTransitionKind;
     enum
     {
         // Over a duration, by an easing.
@@ -36,7 +36,7 @@ extern "C"
     };
 
     // Where a transition's start velocity comes from.
-    typedef uint8_t mtwnVelocitySource;
+    typedef int32_t mtwnVelocitySource;
     enum
     {
         // The target's velocity, as the animation it interrupts left it.

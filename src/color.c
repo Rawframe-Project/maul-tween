@@ -172,7 +172,7 @@ static void FixHues(mtwnHueMethod method, double* first, double* second)
 MTWN_NOINLINE mtwnResult mtwnMakeColorMixWork(mtwnColor from, mtwnColor to, mtwnColorSpace space,
                                               mtwnHueMethod hue, mtwnColorMix* mixOut)
 {
-    if (mixOut == NULL || !mtwnIsColorSpace(space) || hue > mtwn_hueDecreasing ||
+    if (mixOut == NULL || !mtwnIsColorSpace(space) || (uint32_t)hue > mtwn_hueDecreasing ||
         !mtwnIsColor(from) || !mtwnIsColor(to))
     {
         return mtwn_errorInvalid;

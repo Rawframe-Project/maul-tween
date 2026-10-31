@@ -30,7 +30,7 @@ extern "C"
 
     // How a player's value goes onto what lies under it (Web Animations'
     // composite operations; accumulate is addition for every value kind).
-    typedef uint8_t mtwnComposite;
+    typedef int32_t mtwnComposite;
     enum
     {
         // The player's value, mixed toward by its weight.
@@ -140,7 +140,7 @@ extern "C"
     }
 
     // A player's play state, Web Animations'.
-    typedef uint8_t mtwnPlayState;
+    typedef int32_t mtwnPlayState;
     enum
     {
         // No current time: it has no effect.

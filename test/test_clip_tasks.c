@@ -543,8 +543,8 @@ static uint32_t Compare(const Twin* a, const Twin* b, const mtwnTargetId* change
     CHECK(mtwnContext_ReadEvents(b->context, recordsB, 4096, &nB, &droppedB) == mtwn_success,
           "read");
     differences += nA == nB && droppedA == droppedB &&
-                           mtwnContext_GetDroppedEventCount(a->context) ==
-                               mtwnContext_GetDroppedEventCount(b->context) &&
+                           mtwnContext_GetEventsDropped(a->context) ==
+                               mtwnContext_GetEventsDropped(b->context) &&
                            mtwnContext_GetPlayingOnCount(a->context) ==
                                mtwnContext_GetPlayingOnCount(b->context)
                        ? 0u

@@ -15,7 +15,7 @@ reports a stored count, flag, identity, name or the version, computing no float:
     mtwnGetVersion
     mtwnGetResultName
     mtwnContext_GetEventCount
-    mtwnContext_GetDroppedEventCount
+    mtwnContext_GetEventsDropped
     mtwnContext_GetMisuse
     mtwnContext_GetSerialAdvanceCount
     mtwnContext_GetMemoryBytes

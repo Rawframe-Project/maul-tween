@@ -48,8 +48,9 @@ static bool IsValid(const mtwnStagger* stagger, uint32_t count, const double* of
     {
         return false;
     }
-    bool known = stagger->origin <= mtwn_staggerRandom && stagger->axis <= mtwn_staggerY &&
-                 stagger->spacingKind <= mtwn_staggerAmount;
+    bool known = (uint32_t)stagger->origin <= mtwn_staggerRandom &&
+                 (uint32_t)stagger->axis <= mtwn_staggerY &&
+                 (uint32_t)stagger->spacingKind <= mtwn_staggerAmount;
     bool finite = isfinite(stagger->start) && isfinite(stagger->spacing) &&
                   fabs(stagger->pointX) <= s_pointLimit && fabs(stagger->pointY) <= s_pointLimit;
     bool index = stagger->origin != mtwn_staggerIndex || count == 0 || stagger->index < count;

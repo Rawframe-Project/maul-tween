@@ -140,7 +140,7 @@ extern "C"
 
     // What a value is, a target's or a track's: the channels it uses and how
     // it is interpolated and composed.
-    typedef uint8_t mtwnValueKind;
+    typedef int32_t mtwnValueKind;
     enum
     {
         // One number, in x.

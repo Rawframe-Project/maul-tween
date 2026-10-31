@@ -52,7 +52,7 @@ MTWN_NOINLINE mtwnResult mtwnConvertColorToSpaceWork(mtwnColor color, mtwnColorS
 // other as raw, so every call that takes one from the host checks it first.
 static inline bool mtwnIsAngleMethod(mtwnAngleMethod method)
 {
-    return method <= mtwn_angleDecreasing;
+    return (uint32_t)method <= mtwn_angleDecreasing;
 }
 
 MTWN_NOINLINE double mtwnMixAngleWork(double from, double to, mtwnAngleMethod method,

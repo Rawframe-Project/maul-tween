@@ -9,7 +9,7 @@
 // host reads them when it likes. The queue holds the context def's
 // eventCapacity records. One that arrives at a full queue is dropped and
 // counted, never silently: mtwnContext_ReadEvents reports the drops since the last
-// read, and mtwnContext_GetDroppedEventCount all of them. Records arrive in
+// read, and mtwnContext_GetEventsDropped all of them. Records arrive in
 // the order they are made (players in creation order, each player's nodes
 // in clip order), so a full queue keeps the first made and drops the rest
 // of an update's; those kept are sorted. A context of eventCapacity 0
@@ -33,7 +33,7 @@ extern "C"
 #endif
 
     // What a record tells, as CSS Animations names a node's changes.
-    typedef uint8_t mtwnEventKind;
+    typedef int32_t mtwnEventKind;
     enum
     {
         // A node entered its active interval: from before it going
@@ -125,7 +125,7 @@ extern "C"
     /// @return The count; 0 for a null context.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
-    MTWN_API uint64_t mtwnContext_GetDroppedEventCount(const mtwnContext* context);
+    MTWN_API uint64_t mtwnContext_GetEventsDropped(const mtwnContext* context);
 
 #ifdef __cplusplus
 }
