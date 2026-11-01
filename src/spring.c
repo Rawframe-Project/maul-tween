@@ -275,7 +275,7 @@ mtwnResult mtwnSampleSpring(const mtwnSpring* spring, double offset, double velo
 // The bound e^(-r t) (a + b min(t, cap)) on |x| for x = e^(-alpha t) (x0 C
 // + B S), with a = |x0| and b = |B|, and its logarithm's distance above
 // ln tolerance; logError bounds how far logTolerance, rounded, is from the
-// logarithm it stands for.
+// logarithm it stands for, and certify asks for a time certified within.
 typedef struct Bound
 {
     double a;
@@ -284,6 +284,7 @@ typedef struct Bound
     double cap;
     double logTolerance;
     double logError;
+    bool certify;
 } Bound;
 
 // The bound's logarithm above ln tolerance at a time t at most the cap.
@@ -416,9 +417,11 @@ static double CertainExcess(const Bound* bound, double t)
     {
         return excess;
     }
+    // a alone is exact, with no half subnormal to fear.
+    double lost = bound->b * reach == 0.0 ? 0.0 : 0x1.0p-1072 / value;
     return excess +
            16.0 * s_unit * (1.0 + fabs(logValue) + bound->rate * t + fabs(bound->logTolerance)) +
-           bound->logError + 0x1.0p-1072 / value;
+           bound->logError + lost;
 }
 
 // A time at or after t at which the bound is within its tolerance for
@@ -454,8 +457,8 @@ MTWN_NOINLINE static double Certify(const Bound* bound, double t)
 // the way; or the time itself is past the doubles. For a start not yet
 // scaled, lost tells whether the bound lost digits to underflow: its b,
 // with a product underflowed in it, or its value at its time below the
-// normal doubles. A finite time is certified: within for sure at it,
-// or for a time of 0 at the bound's peak, its largest value.
+// normal doubles. A finite time asked to be certified is within for sure
+// at it, or for a time of 0 at the bound's peak, its largest value.
 MTWN_NOINLINE static double TimeOf(const Bound* bound, bool underflowed, bool* lost)
 {
     if (!(bound->b < HUGE_VAL))
@@ -463,7 +466,7 @@ MTWN_NOINLINE static double TimeOf(const Bound* bound, bool underflowed, bool* l
         return (double)NAN;
     }
     double time = BoundTime(bound);
-    if (isfinite(time) && bound->logTolerance < HUGE_VAL)
+    if (bound->certify && isfinite(time) && bound->logTolerance < HUGE_VAL)
     {
         // A time of 0 is certified at the peak, the bound's largest value.
         double peak = Peak(bound);
@@ -518,11 +521,15 @@ static double LogError(double logTolerance, double margin, double shift)
 }
 
 // The times a start's two bounds stay within their tolerances, given by
-// their logarithms, each lowered by its margin.
+// their logarithms, each lowered by its margin: certified with margins,
+// and without, the bounds' own times as Newton's steps leave them.
 MTWN_NOINLINE static void Settle(const mtwnSpring* spring, const Bound* bound, double offset,
                                  double velocity, const double logTolerances[2],
                                  const double margins[2], double times[2])
 {
+    Bound asked = *bound;
+    asked.certify = margins[0] > 0.0 || margins[1] > 0.0;
+    bound = &asked;
     double logs[2] = {logTolerances[0] - margins[0], logTolerances[1] - margins[1]};
     double errors[2] = {LogError(logTolerances[0], margins[0], 0.0),
                         LogError(logTolerances[1], margins[1], 0.0)};
@@ -618,10 +625,9 @@ MTWN_NOINLINE static void Settle(const mtwnSpring* spring, const Bound* bound, d
 // A start whose nu passes a quarter of a tolerance, or whose margin does
 // not settle, takes the bounds' time or the time its exponentials reach
 // 0, s_zeroRates / r, whichever is later: the sample is 0 from then on.
-// A start at rest, whose sample is always exactly 0, keeps the bounds'
-// time. Where the exponentials never reach 0 within the doubles (s_zeroRates
-// / r infinite), a bound within at once keeps its time of 0, and any other
-// gets infinity.
+// A start at rest, whose sample is always exactly 0, and a bound within at
+// once keep the bounds' time, 0. Any other where the exponentials never
+// reach 0 within the doubles (s_zeroRates / r infinite) gets infinity.
 typedef struct SampleError
 {
     // mu(t) = u (c0 + grows r t), grows = 30 (1 + L).
@@ -709,21 +715,22 @@ static double RateTime(const Bound* bound, double t)
 
 // A bound's time where no margin is sure, from its time without one and
 // the time its exponentials reach 0. A start at rest samples exactly 0 at
-// every time, so its bounds' time stands. Where the exponentials never
-// reach 0 within the doubles, an undamped spring's or one decaying slower
-// still, no later time serves: a bound within at once stays at 0, and any
-// other never settles for sure, the sample's steps below the normal
-// doubles, multiplied by the start, uncovered. Otherwise the later of the
-// two, from which the sample is 0.
+// every time, and a bound within at once is settled at once, as promised,
+// within a subnormal step through rounding ties. Otherwise, where the
+// exponentials never reach 0 within the doubles, an undamped spring's or
+// one decaying slower still, no later time serves, and it never settles
+// for sure: the sample's steps below the normal doubles, multiplied by the
+// start, are uncovered. Else the later of the two, from which the sample
+// is 0.
 static double Unsure(double plain, double zero, bool rest)
 {
-    if (rest)
+    if (rest || plain == 0.0)
     {
         return plain;
     }
     if (!isfinite(zero))
     {
-        return plain == 0.0 ? 0.0 : HUGE_VAL;
+        return HUGE_VAL;
     }
     return plain > zero ? plain : zero;
 }
@@ -738,7 +745,7 @@ MTWN_NOINLINE double mtwnComputeSpringSettlingTimeWork(const mtwnSpring* spring,
     }
     double decay = spring->parameters[s_decay];
     double damped = spring->parameters[s_damped];
-    Bound bound = {0.0, 0.0, decay, HUGE_VAL, 0.0, 0.0};
+    Bound bound = {0.0, 0.0, decay, HUGE_VAL, 0.0, 0.0, false};
     if (spring->regime == s_underdamped)
     {
         // |sin(w t) / w| <= min(t, 1 / w).

@@ -995,6 +995,13 @@ static void TestSettledSampleWithin(void)
           "a start whose sample's rounding is not covered never settles for sure");
     CHECK(ComputeSpringSettlingTime(&faint, 4e-22, 0.0, 4.229e-22, DBL_MAX) == 0.0,
           "while one within both is settled at once");
+    // Starts of the least subnormal within both, whose margin is not sure
+    // as the sample's rounding is a large share of the tolerance: still
+    // settled at once, undamped and at critical damping.
+    CHECK(ComputeSpringSettlingTime(&undamped, 0x1p-1074, 0.0, 0x1p-1074, 1.0) == 0.0,
+          "an undamped start of the least subnormal within both is settled at once");
+    CHECK(ComputeSpringSettlingTime(&critical, 0x1p-1074, 0.0, 0x1p-1073, 1.0) == 0.0,
+          "and a critical one");
 }
 
 // The sample's error against the bounds, mu(t) = u (60 (1 + L)^2 + 30 (1

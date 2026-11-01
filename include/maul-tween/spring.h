@@ -143,12 +143,11 @@ extern "C"
     ///                           spring decaying at a rate below about
     ///                           4e-306 that does not, where the sample's
     ///                           rounding below the normal doubles, times
-    ///                           the start, could pass a tolerance. On an
-    ///                           undamped spring or one decaying slower
-    ///                           than about 4e-306, a start within a
-    ///                           tolerance only a few subnormal steps wide
-    ///                           gets 0 yet can sample one subnormal step
-    ///                           past it, only through exact rounding ties. Unchanged on
+    ///                           the start, could pass a tolerance. On any
+    ///                           spring, a start within a tolerance only a
+    ///                           few subnormal steps wide gets 0 yet can
+    ///                           sample one subnormal step past it, only
+    ///                           through rounding ties. Unchanged on
     ///                           failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a spring
     ///         no maker produced, or a start or tolerance outside the above.
