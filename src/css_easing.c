@@ -26,34 +26,6 @@ static const double s_bezierTolerance = 1e-14;
 static const double s_bezierBracket = 0x1.0p-52;
 static const int s_bezierSteps = 64;
 
-// The polynomial a t^3 + b t^2 + c t of one coordinate, from its control
-// values p1 and p2 between 0 and 1.
-typedef struct Cubic
-{
-    double a;
-    double b;
-    double c;
-} Cubic;
-
-static Cubic MakeCubic(double p1, double p2)
-{
-    Cubic cubic;
-    cubic.c = 3.0 * p1;
-    cubic.b = 3.0 * (p2 - p1) - cubic.c;
-    cubic.a = 1.0 - cubic.c - cubic.b;
-    return cubic;
-}
-
-static double Evaluate(const Cubic* cubic, double t)
-{
-    return ((cubic->a * t + cubic->b) * t + cubic->c) * t;
-}
-
-static double Slope(const Cubic* cubic, double t)
-{
-    return (3.0 * cubic->a * t + 2.0 * cubic->b) * t + cubic->c;
-}
-
 // A value past the doubles as the largest double of its sign.
 static double Saturated(double value)
 {
@@ -121,8 +93,8 @@ double mtwnSampleCubicBezier(const double control[4], double x)
         }
         return x1 < 1.0 ? FromOne((y1 - 1.0) / (x1 - 1.0), x - 1.0) : 1.0;
     }
-    Cubic xs = MakeCubic(x1, x2);
-    Cubic ys = MakeCubic(y1, y2);
+    mtwnCubic xs = mtwnMakeCubic(x1, x2);
+    mtwnCubic ys = mtwnMakeCubic(y1, y2);
     double low = 0.0;
     double high = 1.0;
     double t = x;
@@ -131,7 +103,7 @@ double mtwnSampleCubicBezier(const double control[4], double x)
     MTWN_ASSERT(StrictlyInside(x));
     for (int i = 0; i < s_bezierSteps; ++i)
     {
-        double error = Evaluate(&xs, t) - x;
+        double error = mtwnEvaluateCubic(&xs, t) - x;
         if (fabs(error) <= s_bezierTolerance || high - low <= s_bezierBracket)
         {
             break;
@@ -144,14 +116,14 @@ double mtwnSampleCubicBezier(const double control[4], double x)
         {
             high = t;
         }
-        double slope = Slope(&xs, t);
+        double slope = mtwnCubicSlope(&xs, t);
         double next = t - error / slope;
         t = (slope > 0.0 && next >= low && next <= high) ? next : 0.5 * (low + high);
         // The bracket only narrows within [0, 1], and the step or the
         // midpoint stays inside it.
         MTWN_ASSERT(WithinBracket(low, t, high));
     }
-    return Evaluate(&ys, t);
+    return mtwnEvaluateCubic(&ys, t);
 }
 
 // mtwnSampleEasing's in and out curves of a cubic bezier, by the same arithmetic.
