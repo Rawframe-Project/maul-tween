@@ -31,9 +31,7 @@ static const double s_beziers[][4] = {
 };
 enum
 {
-    BEZIERS = sizeof s_beziers / sizeof s_beziers[0],
-    // CSS's four keywords and the vertical tangent.
-    KEYWORDS_AND_TANGENT = 5
+    BEZIERS = sizeof s_beziers / sizeof s_beziers[0]
 };
 
 static bool s_dense = false;
@@ -132,8 +130,9 @@ static uint64_t Bits(double value)
     return bits;
 }
 
-// The skipping bisections against the full ones at scale, for CSS's
-// keywords and the vertical tangent: a quarter of the progresses on a
+// The skipping bisections against the full ones at scale, for every curve,
+// the flat tangents inside among them, where the bound decides the fewest
+// steps: a quarter of the progresses on a
 // grid, a quarter by an exponent from each end, the doubles about 1/2,
 // and the rest at random (a fixed generator), 300,000 a curve dense and
 // 6,000 otherwise. Skipping rests on the error bound; a bound too small
@@ -143,7 +142,7 @@ static void TestSkipsMatchFullAtScale(void)
     const int count = s_dense ? 300000 : 6000;
     uint64_t state = 0x9E3779B97F4A7C15u;
     int differ = 0;
-    for (int b = 0; b < KEYWORDS_AND_TANGENT; ++b)
+    for (int b = 0; b < BEZIERS; ++b)
     {
         const double* c = s_beziers[b];
         double half = 0.5;
