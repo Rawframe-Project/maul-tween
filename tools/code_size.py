@@ -58,9 +58,9 @@ PARTS = [
 # decreases costs, and every part's by what keeping a spring's sample
 # within its tolerances from its settling time costs.
 BUDGETS = {
-    "curves": 37600,
+    "curves": 37500,
     "values": 72400,
-    "transitions": 73200,
+    "transitions": 73100,
     "clips": 170300,
     "everything": 191000,
 }
