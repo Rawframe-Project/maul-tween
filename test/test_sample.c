@@ -12,6 +12,7 @@
 #include "maul-tween/easing.h"
 #include "maul-tween/sample.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -54,6 +55,22 @@ static void TestEvenTables(void)
     CHECK(mtwnSampleEasingTable(&quad, 2, values) == mtwn_success && values[0] == 0.0f &&
               values[1] == 1.0f,
           "two samples, the ends");
+    // Past the floats' range, a sample is held at the largest finite float
+    // of its sign; within it, it is rounded as it is.
+    mtwnEasing far;
+    CHECK(mtwnMakeCubicBezierEasing(0.5, 1e200, 0.5, 1.0, &far) == mtwn_success, "a far bezier");
+    CHECK(mtwnSampleEasingTable(&far, 5, values) == mtwn_success && values[0] == 0.0f &&
+              values[1] == FLT_MAX && values[2] == FLT_MAX && values[3] == FLT_MAX &&
+              values[4] == 1.0f,
+          "a bezier past the floats held at the largest");
+    CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1e100, &far) == mtwn_success, "a far back easing");
+    CHECK(mtwnSampleEasingTable(&far, 5, values) == mtwn_success && values[1] == -FLT_MAX &&
+              values[3] == -FLT_MAX && values[4] == 1.0f,
+          "a back easing below the floats held at the lowest");
+    static mtwnLinearPoint s_edge[2] = {{0.0, 0.0}, {1.0, 0x1.fffffefffffffp127}};
+    CHECK(mtwnMakeLinearPointsEasing(s_edge, 2, &far) == mtwn_success, "linear() to the edge");
+    CHECK(mtwnSampleEasingTable(&far, 2, values) == mtwn_success && values[1] == FLT_MAX,
+          "a value just below the floats' rounding to infinity, rounded as it is");
     CHECK(mtwnSampleEasingTable(&quad, 1, values) == mtwn_errorInvalid, "one sample");
     CHECK(mtwnSampleEasingTable(NULL, 5, values) == mtwn_errorInvalid, "no easing");
     CHECK(mtwnSampleEasingTable(&quad, 5, NULL) == mtwn_errorInvalid, "no buffer");
@@ -343,6 +360,22 @@ static double Hole(void* context, double progress)
     return progress == 0.0 ? (double)NAN : progress;
 }
 
+// A host function's infinity is held at the largest float like any value
+// past the floats; its NaN is the host's, left NaN.
+static void TestTableHostValues(void)
+{
+    mtwnEasing host;
+    float values[3];
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Unbounded, NULL, &host) == mtwn_success &&
+              mtwnSampleEasingTable(&host, 3, values) == mtwn_success && values[1] == 0.5f &&
+              values[2] == FLT_MAX,
+          "a host's infinity held at the largest float");
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &host) == mtwn_success &&
+              mtwnSampleEasingTable(&host, 3, values) == mtwn_success && isnan(values[0]) &&
+              values[2] == 1.0f,
+          "a host's NaN left NaN");
+}
+
 static void TestFitRefusals(void)
 {
     uint32_t count = 7;
@@ -397,5 +430,6 @@ int main(void)
     TestJumpsEnd();
     TestFitAsDeepAsItGoes();
     TestFitRefusals();
+    TestTableHostValues();
     return s_failures == 0 ? 0 : 1;
 }
