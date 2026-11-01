@@ -618,6 +618,9 @@ MTWN_NOINLINE static void Settle(const mtwnSpring* spring, const Bound* bound, d
 // A start whose nu passes a quarter of a tolerance, or whose margin does
 // not settle, takes the bounds' time or the time its exponentials reach
 // 0, s_zeroRates / r, whichever is later: the sample is 0 from then on.
+// A start at rest, whose sample is always exactly 0, keeps the bounds'
+// time, and so does a spring whose exponentials never reach 0 within the
+// doubles (s_zeroRates / r infinite), where nothing later would serve.
 typedef struct SampleError
 {
     // mu(t) = u (c0 + grows r t), grows = 30 (1 + L).
@@ -749,12 +752,16 @@ MTWN_NOINLINE double mtwnComputeSpringSettlingTimeWork(const mtwnSpring* spring,
                       MarginFor(&error, RateTime(&bound, times[k]), nus[k]) <= margins[k];
         }
     }
+    // A start at rest samples exactly 0 at every time, so its bounds'
+    // time stands; so does one whose exponentials never reach 0 within the
+    // doubles, an undamped spring's or one decaying slower still.
+    bool rest = offset == 0.0 && velocity == 0.0;
     double zero = s_zeroRates / bound.rate;
     for (int k = 0; k < 2; ++k)
     {
         if (!sure[k] || !(nus[k] <= 0.25))
         {
-            times[k] = plain[k] > zero ? plain[k] : zero;
+            times[k] = rest || !isfinite(zero) || plain[k] > zero ? plain[k] : zero;
         }
     }
     return times[0] > times[1] ? times[0] : times[1];

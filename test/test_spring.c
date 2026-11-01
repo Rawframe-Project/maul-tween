@@ -977,6 +977,88 @@ static void TestSettledSampleWithin(void)
         printf("  %d of %d settled starts sampled outside\n", outside, settled);
     }
     CHECK(settled > 4000 && outside == 0, "the sample is within both from the settling time on");
+    // A start at rest samples exactly 0, so even to the least subnormal it
+    // is settled at once, undamped or not.
+    mtwnSpring undamped;
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 0.0, &undamped) == mtwn_success, "undamped");
+    CHECK(ComputeSpringSettlingTime(&undamped, 0.0, 0.0, 0x1p-1074, 0x1p-1074) == 0.0,
+          "an undamped start at rest is settled at once to the least subnormal");
+    CHECK(ComputeSpringSettlingTime(&critical, 0.0, 0.0, 0x1p-1074, 0x1p-1074) == 0.0,
+          "and a damped one");
+}
+
+// The sample's error against the bounds, mu(t) = u (60 (1 + L)^2 + 30 (1
+// + L) r t) in src/spring.c, which the margin rests on: in every regime,
+// near its edges and with v0 + a x0 nearly 0, from the start to where
+// the bounds near the subnormals, each part of the sample is within (1 +
+// mu(t)) times its bound. L is (a + w) min(1 / (2 w), 747 (a + w) / r)
+// above critical damping and 0 otherwise.
+static void TestSampleWithinErrorModel(void)
+{
+    static const double hertz[] = {0.1, 2.0, 60.0};
+    static const double ratios[] = {1e-4, 0.3, 0.99, 1.0, 1.0 + 1e-6, 1.01, 2.0, 50.0};
+    static const double starts[][2] = {{1.0, 0.0}, {1.0, 3.0}, {-3.0, 2.0}, {1.0, 0.0}};
+    const double unit = 0x1.0p-53;
+    int outside = 0;
+    int checked = 0;
+    for (size_t h = 0; h < sizeof hertz / sizeof hertz[0]; ++h)
+    {
+        for (size_t r = 0; r < sizeof ratios / sizeof ratios[0]; ++r)
+        {
+            mtwnSpring spring;
+            CHECK(mtwnMakeSpringFromFrequency(hertz[h], ratios[r], &spring) == mtwn_success,
+                  "a spring");
+            Wide w0 = (Wide)s_twoPi * (Wide)hertz[h];
+            Wide alpha = (Wide)ratios[r] * w0;
+            Wide w = w0 * (Wide)sqrt(fabs((1.0 - ratios[r]) * (1.0 + ratios[r])));
+            for (size_t s = 0; s + 1 <= sizeof starts / sizeof starts[0]; ++s)
+            {
+                // The last start: velocity -a x0, v0 + a x0 nearly 0.
+                SettleCase sc = {hertz[h], ratios[r], starts[s][0],
+                                 s + 1 == sizeof starts / sizeof starts[0]
+                                     ? (double)(-alpha * (Wide)starts[s][0])
+                                     : starts[s][1]};
+                WideBound offset;
+                WideBound velocity;
+                MakeBounds(&sc, 0, &offset, &velocity);
+                Wide lift = 0;
+                if (ratios[r] > 1.0)
+                {
+                    Wide flat = (alpha + w) / (2 * w);
+                    Wide swing = 747 * (alpha + w) / offset.rate;
+                    lift = flat < swing ? flat : swing;
+                }
+                for (int k = 0; k <= 2000; ++k)
+                {
+                    // r t from 0 to 700, and about 1 / (2 w) above critical.
+                    Wide t = (Wide)k * 700 / (2000 * offset.rate);
+                    t = k % 2 && ratios[r] > 1.0 ? offset.cap * (Wide)(0.5 + k / 1000.0) : t;
+                    Wide mu = (Wide)unit *
+                              (60 * (1 + lift) * (1 + lift) + 30 * (1 + lift) * offset.rate * t);
+                    Wide bounds[2] = {BoundAt(&offset, t), BoundAt(&velocity, t)};
+                    double x = 0.0;
+                    double v = 0.0;
+                    SampleSpring(&spring, sc.offset, sc.velocity, (double)t, &x, &v);
+                    double parts[2] = {x, v};
+                    for (int c = 0; c < 2; ++c)
+                    {
+                        if (!(bounds[c] > (Wide)0x1p-900))
+                        {
+                            continue;
+                        }
+                        ++checked;
+                        outside += !((Wide)fabs(parts[c]) <= bounds[c] * (1 + mu));
+                    }
+                }
+            }
+        }
+    }
+    if (outside != 0)
+    {
+        printf("  %d of %d samples past their bound and its error\n", outside, checked);
+    }
+    CHECK(checked > 100000 && outside == 0,
+          "each part of the sample is within its bound and the error model of it");
 }
 
 typedef struct EasingCase
@@ -1288,6 +1370,7 @@ int main(int argc, char** argv)
     TestSettlingAtTheEdges();
     TestSettlingPastUnderflow();
     TestSettledSampleWithin();
+    TestSampleWithinErrorModel();
     TestSpringEasings();
     TestSpringEasingFitsLinear();
     TestSpringEasingRefusals();
