@@ -129,7 +129,10 @@ extern "C"
     /// rest, by bounds on its offset and velocity that never end it early,
     /// less a margin for the sample's rounding; the host then snaps it to
     /// the target. For tolerances near the subnormals, that margin can make
-    /// it noticeably later than the motion's own.
+    /// it noticeably later than the motion's own. One limit: a spring
+    /// undamped or decaying at a rate below about 4e-306, from a start not
+    /// at rest, to a tolerance among the subnormals, can sample one
+    /// subnormal step past it from the time on.
     ///
     /// @param spring             A spring made by this library.
     /// @param offset             The start's offset from the target, finite.
