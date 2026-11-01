@@ -276,8 +276,9 @@ extern "C"
     /// place, the curve linear there in every mode, and a context counts
     /// one misuse for each sample of an update that met one: a
     /// transition's value, and a clip track's for each player
-    /// (mtwnContext_GetMisuse). Its infinity is kept, and held at the
-    /// largest finite float wherever a float is written.
+    /// (mtwnContext_GetMisuse). Its infinity is kept: a transition or
+    /// track between equal ends stays at them, and one between others is
+    /// held at the largest finite float wherever a float is written.
     ///
     /// @param mode       The mode.
     /// @param function   The function; it must be safe to call from every

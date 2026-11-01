@@ -24,6 +24,7 @@
 #include "valid.h"
 #include "work.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
@@ -412,7 +413,11 @@ static double Eased(const mtwnPath* path, uint32_t i, double progress, bool* hos
     // progress of -1.5e300.
     double width = k[i + 1].offset - k[i].offset;
     double local = width > 0x1p-52 ? (progress - k[i].offset) / width : 1.0;
-    return mtwnSampleEasingNoted(&k[i].easing, local, false, hostNan);
+    // An infinite parameter, a host easing's, as the largest double of its
+    // sign: a segment then takes no 0 times infinity, so one between equal
+    // keyframes keeps their value and another goes past the floats.
+    double eased = mtwnSampleEasingNoted(&k[i].easing, local, false, hostNan);
+    return isinf(eased) ? copysign(DBL_MAX, eased) : eased;
 }
 
 // The segment a progress falls in and the parameter within it.

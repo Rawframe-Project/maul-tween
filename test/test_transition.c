@@ -399,6 +399,67 @@ static void TestHostNan(void)
     CHECK(infinite == 0, "a host's NaN: every value and velocity finite");
 }
 
+// Infinite past progress 0.3, as a host's easing may give.
+static double s_farSign = 1.0;
+
+static double Far(void* unused, double progress)
+{
+    (void)unused;
+    return progress > 0.3 ? s_farSign * HUGE_VAL : progress;
+}
+
+// A host easing's infinity of either sign: a transition between equal
+// ends of every kind stays at them, still, where its mix took 0 times
+// infinity; between other ends it is held finite.
+static void TestHostInfinity(void)
+{
+    static const mtwnValueKind s_kinds[6] = {mtwn_valueScalar, mtwn_valueVec2,
+                                             mtwn_valueColor,  mtwn_valueRotation,
+                                             mtwn_valueScale,  mtwn_valueInteger};
+    static const mtwnVec4 s_from[6] = {
+        {3.0f, 0, 0, 0},    {3.0f, -2.0f, 0, 0}, {0.5f, 0.25f, 0.75f, 1.0f},
+        {0, 0, 0.6f, 0.8f}, {2.0f, 0, 0, 0},     {3.0f, 0, 0, 0}};
+    static const mtwnVec4 s_to[6] = {{10.0f, 0, 0, 0},          {10.0f, 5.0f, 0, 0},
+                                     {1.0f, 0.5f, 0.25f, 1.0f}, {0, 0.6f, 0, 0.8f},
+                                     {4.0f, 0, 0, 0},           {10.0f, 0, 0, 0}};
+    static const mtwnVec4 s_still = {0, 0, 0, 0};
+    int moved = 0;
+    int infinite = 0;
+    for (int sign = 0; sign < 2; ++sign)
+    {
+        s_farSign = sign == 0 ? 1.0 : -1.0;
+        for (int kind = 0; kind < 6; ++kind)
+        {
+            for (int equal = 0; equal < 2; ++equal)
+            {
+                mtwnContext* context = Make(4, 4);
+                mtwnTargetId x = Target(context, s_kinds[kind], s_from[kind]);
+                mtwnTransitionDef def = Linear(x, equal ? s_from[kind] : s_to[kind], 1.0);
+                CHECK(mtwnMakeHostEasing(mtwn_easeIn, Far, NULL, &def.easing) == mtwn_success,
+                      "a host easing");
+                Start(context, &def);
+                for (int k = 0; k <= 50; ++k)
+                {
+                    Update(context, (uint64_t)k * s_second / 60u);
+                    mtwnTargetState state = State(context, x);
+                    moved +=
+                        equal && (memcmp(&state.value, &s_from[kind], sizeof state.value) != 0 ||
+                                  memcmp(&state.velocity, &s_still, sizeof s_still) != 0);
+                    const float* v = &state.value.x;
+                    const float* w = &state.velocity.x;
+                    for (int c = 0; c < 4; ++c)
+                    {
+                        infinite += !isfinite(v[c]) || !isfinite(w[c]);
+                    }
+                }
+                mtwnDestroyContext(context);
+            }
+        }
+    }
+    CHECK(moved == 0, "a host's infinity: equal ends of every kind stay, still");
+    CHECK(infinite == 0, "a host's infinity: every value and velocity finite");
+}
+
 static void TestColorPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -1845,6 +1906,7 @@ int main(void)
     TestSpringPastFloats();
     TestColorPastFloats();
     TestHostNan();
+    TestHostInfinity();
     TestEqualEndsFarOut();
     TestExactness();
     TestSpring();

@@ -232,7 +232,8 @@ extern "C"
 
     /// Samples a rotation mix: its rotations normalized exactly at 0 and 1
     /// (the second negated when the path needed it), between and beyond
-    /// them slerp, of unit length to a float's rounding.
+    /// them slerp, of unit length to a float's rounding; ends of one
+    /// rotation stay at any progress.
     ///
     /// @param mix          A mix made by this library, or one whose fields
     ///                     pass its check (this header's opening).

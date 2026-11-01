@@ -12,6 +12,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 static const double s_u = 0x1p-53;
 static uint64_t s_state = 0x9E3779B97F4A7C15u;
@@ -215,8 +216,28 @@ static void TestNearEndsFarOut(void)
           "two roundings, b - a exact: within 2^-40 of the result");
 }
 
+// At an infinite t, a host easing's, equal ends stay, -0 too, where the
+// step is 0 times infinity; others go to the infinity of their way.
+static void TestInfiniteT(void)
+{
+    static const double s_ends[4] = {0.0, -0.0, 3.5, -1e300};
+    int wrong = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int sign = -1; sign <= 1; sign += 2)
+        {
+            double r = mtwnMix(s_ends[i], s_ends[i], sign * HUGE_VAL);
+            wrong += memcmp(&r, &s_ends[i], sizeof r) != 0;
+        }
+    }
+    wrong += mtwnMix(1.0, 2.0, HUGE_VAL) != HUGE_VAL || mtwnMix(1.0, 2.0, -HUGE_VAL) != -HUGE_VAL;
+    wrong += mtwnMix(2.0, 1.0, HUGE_VAL) != -HUGE_VAL;
+    CHECK(wrong == 0, "at an infinite t, equal ends stay and others go to their infinity");
+}
+
 int main(void)
 {
+    TestInfiniteT();
     TestBound();
     TestMonotone();
     TestWithinEnds();

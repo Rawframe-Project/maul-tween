@@ -280,6 +280,24 @@ static void TestFarExtrapolation(void)
           "a NaN progress refused, not reduced");
 }
 
+// Ends of one rotation stay at any progress: far out the weights 1 - p
+// and p cancel to 0, which gave a zero quaternion for 1e20.
+static void TestEqualEndsFarOut(void)
+{
+    mtwnQuat q = {0.0f, 0.0f, 0.6f, 0.8f};
+    mtwnRotationMix mix;
+    CHECK(mtwnMakeRotationMix(q, q, mtwn_rotationShortest, &mix) == mtwn_success, "made");
+    static const double s_progress[6] = {
+        0.25, -3.0, 1e20, -1e20, 0x1.fffffffffffffp1023, -0x1.fffffffffffffp1023};
+    int moved = 0;
+    for (int i = 0; i < 6; ++i)
+    {
+        mtwnQuat r = MixRotation(&mix, s_progress[i]);
+        moved += r.x != q.x || r.y != q.y || r.z != q.z || r.w != q.w;
+    }
+    CHECK(moved == 0, "equal ends stay at any progress");
+}
+
 static void TestRefusals(void)
 {
     mtwnRotationMix mix;
@@ -440,6 +458,7 @@ int main(void)
     TestAngleFarProgress();
     TestHalfTurns();
     TestFarExtrapolation();
+    TestEqualEndsFarOut();
     TestAngles();
     TestRotationsAgainstSlerp();
     TestPaths();

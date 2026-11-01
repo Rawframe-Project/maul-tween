@@ -107,6 +107,65 @@ static void TestSamplePastFloats(void)
     CHECK(half.x == 0x1.fffffep127f && half.y == -0x1.fffffep127f, "held at the bounds");
 }
 
+// Infinite past progress 0.3, as a host's easing may give: equal
+// keyframes hold their value exactly, every segment kind, and other ones
+// stay finite, a scale above 0.
+static double s_farSign = 1.0;
+
+static double Far(void* context, double progress)
+{
+    (void)context;
+    return progress > 0.3 ? s_farSign * HUGE_VAL : progress;
+}
+
+static void TestHostInfinity(void)
+{
+    static const mtwnValueKind s_kinds[4] = {mtwn_valueScalar, mtwn_valueVec2, mtwn_valueScale,
+                                             mtwn_valueRotation};
+    static const mtwnVec4 s_a[4] = {
+        {3.0f, 0, 0, 0}, {3.0f, -2.0f, 0, 0}, {2.0f, 0, 0, 0}, {0, 0, 0.6f, 0.8f}};
+    static const mtwnVec4 s_b[4] = {
+        {10.0f, 0, 0, 0}, {10.0f, 5.0f, 0, 0}, {4.0f, 0, 0, 0}, {0, 0.6f, 0, 0.8f}};
+    int moved = 0;
+    int infinite = 0;
+    for (int sign = 0; sign < 2; ++sign)
+    {
+        s_farSign = sign == 0 ? 1.0 : -1.0;
+        for (int k = 0; k < 4; ++k)
+        {
+            for (int segment = mtwn_segmentLinear; segment <= mtwn_segmentMonotone; ++segment)
+            {
+                for (int equal = 0; equal < 2; ++equal)
+                {
+                    mtwnKeyframe keys[2] = {
+                        Key(0.0, s_a[k], (mtwnSegmentKind)segment),
+                        Key(1.0, equal ? s_a[k] : s_b[k], (mtwnSegmentKind)segment)};
+                    if (segment == mtwn_segmentBezier)
+                    {
+                        keys[0].out = keys[1].in = keys[0].value;
+                    }
+                    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Far, NULL, &keys[0].easing) ==
+                              mtwn_success,
+                          "a host easing");
+                    mtwnTrackDef def = mtwnDefaultTrackDef(s_kinds[k]);
+                    mtwnTrack track;
+                    mtwnSegmentMix mixes[2];
+                    CHECK(mtwnMakeTrack(keys, 2, &def, NULL,
+                                        s_kinds[k] == mtwn_valueRotation ? mixes : NULL,
+                                        &track) == mtwn_success,
+                          "a track");
+                    mtwnVec4 v = SampleTrack(&track, 0.5);
+                    moved += equal && !Same(v, s_a[k]);
+                    infinite += !isfinite(v.x) || !isfinite(v.y) || !isfinite(v.z) ||
+                                !isfinite(v.w) || (s_kinds[k] == mtwn_valueScale && !(v.x > 0.0f));
+                }
+            }
+        }
+    }
+    CHECK(moved == 0, "a host's infinity: equal keyframes hold, every segment kind");
+    CHECK(infinite == 0, "a host's infinity: every sample finite, a scale above 0");
+}
+
 static void TestDiscrete(void)
 {
     mtwnKeyframe keys[3] = {Key(0.0, (mtwnVec4){4, 0, 0, 0}, mtwn_segmentLinear),
@@ -737,6 +796,7 @@ int main(void)
     TestNumbers();
     TestKeyframeOffsets();
     TestSamplePastFloats();
+    TestHostInfinity();
     TestDiscrete();
     TestAngles();
     TestRotationHemisphere();

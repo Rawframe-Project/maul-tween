@@ -100,7 +100,7 @@ RAISED = {
     "doubles on the way, 1.3 kB, the context's counts read 0 for a null context, 0.1 kB, "
     "circ never steps down, 0.2 kB, a spring's settling time keeps its sample within "
     "the tolerances, 3.2 kB, and a host easing's NaN is taken as its progress and counted "
-    "as misuse, 0.2 kB",
+    "as misuse, and its infinity keeps equal ends, 0.3 kB",
     "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
     "timing's computation checks it, 0.1 kB, a spring's settling time redoes a bound that "
     "underflowed, 1.2 kB, a decay keeps its times and samples within the doubles on the "
