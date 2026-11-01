@@ -139,14 +139,15 @@ extern "C"
     /// @param velocityTolerance  How fast is at rest, per second, above 0.
     /// @param secondsOut         Receives the seconds from the start: 0
     ///                           when it starts within both by more than
-    ///                           the margin for the sample's rounding, a
-    ///                           few ulps of each (closer to a tolerance, a
-    ///                           time just past 0); infinity for an
-    ///                           undamped spring that does not, and for a
-    ///                           spring decaying at a rate below about
-    ///                           4e-306 that does not, where the sample's
-    ///                           rounding below the normal doubles, times
-    ///                           the start, could pass a tolerance. On any
+    ///                           the margin for the sample's rounding
+    ///                           (relatively about 1e-14, up to about 4e-9
+    ///                           just above critical damping; closer to a
+    ///                           tolerance, a time just past 0); infinity
+    ///                           for an undamped spring that does not, and
+    ///                           for a spring decaying at a rate below
+    ///                           about 4e-306 that does not, where the
+    ///                           sample's rounding below the normal doubles,
+    ///                           times the start, could pass a tolerance. On any
     ///                           spring, a start within a tolerance only a
     ///                           few subnormal steps wide gets 0 yet can
     ///                           sample one subnormal step past it, only
