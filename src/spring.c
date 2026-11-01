@@ -418,7 +418,7 @@ static double CertainExcess(const Bound* bound, double t)
         return excess;
     }
     // a alone is exact, with no half subnormal to fear.
-    double lost = bound->b * reach == 0.0 ? 0.0 : 0x1.0p-1072 / value;
+    double lost = bound->b == 0.0 || reach == 0.0 ? 0.0 : 0x1.0p-1072 / value;
     return excess +
            16.0 * s_unit * (1.0 + fabs(logValue) + bound->rate * t + fabs(bound->logTolerance)) +
            bound->logError + lost;

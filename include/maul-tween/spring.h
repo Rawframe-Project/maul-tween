@@ -138,7 +138,10 @@ extern "C"
     ///                           0.
     /// @param velocityTolerance  How fast is at rest, per second, above 0.
     /// @param secondsOut         Receives the seconds from the start: 0
-    ///                           when it starts within both; infinity for an
+    ///                           when it starts within both by more than
+    ///                           the margin for the sample's rounding, a
+    ///                           few ulps of each (closer to a tolerance, a
+    ///                           time just past 0); infinity for an
     ///                           undamped spring that does not, and for a
     ///                           spring decaying at a rate below about
     ///                           4e-306 that does not, where the sample's
