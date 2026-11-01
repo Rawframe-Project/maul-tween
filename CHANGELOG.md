@@ -6,6 +6,17 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.0...v0.15.1) (2026-11-01)
+
+
+### Fixed
+
+* **easing:** hold an easing table's samples within the floats ([#223](https://github.com/Rawframe-Project/maul-tween/issues/223)) ([a890aaa](https://github.com/Rawframe-Project/maul-tween/commit/a890aaae889e2cb9b04eecc9bb17750d4ec41197)), closes [#222](https://github.com/Rawframe-Project/maul-tween/issues/222)
+* **easing:** never let a timeline's bezier or circ sample decrease ([#214](https://github.com/Rawframe-Project/maul-tween/issues/214)) ([0bc107c](https://github.com/Rawframe-Project/maul-tween/commit/0bc107cef8db6277c67a0c6d7b7b9748d7528154)), closes [#213](https://github.com/Rawframe-Project/maul-tween/issues/213)
+* **easing:** take a host easing's NaN as its progress and count it ([#225](https://github.com/Rawframe-Project/maul-tween/issues/225)) ([12bd84c](https://github.com/Rawframe-Project/maul-tween/commit/12bd84cebc57b73eecb8266f7956dbab33b085be)), closes [#224](https://github.com/Rawframe-Project/maul-tween/issues/224)
+* **spring:** keep the sample within tolerance from the settling time ([#216](https://github.com/Rawframe-Project/maul-tween/issues/216)) ([92a0df1](https://github.com/Rawframe-Project/maul-tween/commit/92a0df15b0ea1f84ad1113df4089b8461d6e5790)), closes [#215](https://github.com/Rawframe-Project/maul-tween/issues/215)
+* **timing:** refuse a stagger whose offsets pass the doubles ([#221](https://github.com/Rawframe-Project/maul-tween/issues/221)) ([b9673ef](https://github.com/Rawframe-Project/maul-tween/commit/b9673efece5d05574774c0f7f4ae8ee7a696fd7f)), closes [#220](https://github.com/Rawframe-Project/maul-tween/issues/220)
+
 ## [0.15.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.14.0...v0.15.0) (2026-10-31)
 
 This release follows the Maul family's conventions of .github v0.0.40. The enumerations are `int32_t` and the rough easing's flags `uint32_t`, so every struct holding one changes its layout, and the dropped events counter is `mtwnContext_GetEventsDropped` ([#207](https://github.com/Rawframe-Project/maul-tween/pull/207)). `mtwnContext_GetMisuse` no longer counts two refusals that depend on the library's state ([#203](https://github.com/Rawframe-Project/maul-tween/pull/203)). An unknown color space, hue method, angle method or rotation path is refused whatever the target's or track's kind ([#210](https://github.com/Rawframe-Project/maul-tween/pull/210)), and five corrections make the headers and guides say what the code does. No value, velocity or event record changes.
