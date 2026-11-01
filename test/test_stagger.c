@@ -10,6 +10,7 @@
 #include "stagger_internal.h"
 #include "test_harness.h"
 
+#include "maul-tween/easing.h"
 #include "maul-tween/timing.h"
 
 #include <math.h>
@@ -268,6 +269,61 @@ static void TestMisuse(void)
     CHECK(got[0] == -1.0 && got[1] == -1.0 && got[2] == -1.0, "nothing written");
 }
 
+static double Infinite(void* context, double progress)
+{
+    (void)context;
+    return progress > 0.5 ? HUGE_VAL : progress;
+}
+
+// Each offset is the start plus the spread times an eased distance, which
+// can pass the doubles though each part is finite: refused, nothing
+// written, in each order the items are walked.
+static void TestOffsetsPastTheDoubles(void)
+{
+    double got[5] = {-1.0, -1.0, -1.0, -1.0, -1.0};
+    mtwnStagger edge = mtwnDefaultStagger();
+    edge.spacingKind = mtwn_staggerAmount;
+    edge.start = 1e308;
+    edge.spacing = 7e307;
+    CHECK(mtwnComputeStagger(&edge, 3, got) == mtwn_success && got[2] == 1e308 + 7e307,
+          "offsets up to the largest double");
+    for (int i = 0; i < 5; ++i)
+    {
+        got[i] = -1.0;
+    }
+    mtwnStagger past = edge;
+    past.spacing = 1e308;
+    CHECK(mtwnComputeStagger(&past, 3, got) == mtwn_errorInvalid,
+          "a start and an amount whose sum passes the doubles");
+    past.spacing = -1e308;
+    past.start = -1e308;
+    past.origin = mtwn_staggerRandom;
+    CHECK(mtwnComputeStagger(&past, 3, got) == mtwn_errorInvalid,
+          "the same below the doubles in a random order");
+    past = mtwnDefaultStagger();
+    past.spacingKind = mtwn_staggerAmount;
+    past.spacing = 1e300;
+    past.origin = mtwn_staggerCenter;
+    CHECK(mtwnMakeCubicBezierEasing(0.5, 0x1.0p1000, 0.5, 1.0, &past.easing) == mtwn_success,
+          "a bezier rising far past 1");
+    CHECK(mtwnComputeStagger(&past, 5, got) == mtwn_errorInvalid,
+          "a bezier whose eased distance times the spread passes the doubles");
+    CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1e300, &past.easing) == mtwn_success,
+          "a back easing dipping far below 0");
+    CHECK(mtwnComputeStagger(&past, 5, got) == mtwn_errorInvalid,
+          "a back easing whose dip times the spread passes the doubles");
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Infinite, NULL, &past.easing) == mtwn_success,
+          "a host easing");
+    past.spacing = 1.0;
+    CHECK(mtwnComputeStagger(&past, 5, got) == mtwn_errorInvalid, "a host easing giving infinity");
+    int written = 0;
+    for (int i = 0; i < 5; ++i)
+    {
+        written += got[i] != -1.0;
+    }
+    CHECK(written == 0, "nothing written");
+}
+
 // The draw gives every place the same share. Over 3 * 2^30 places a draw
 // without rejection maps 4 of the 2^32 values onto 3 places, so the
 // places that are multiples of 3 would get half the draws; fairly they
@@ -335,5 +391,6 @@ int main(void)
     TestGrid();
     TestRandom();
     TestMisuse();
+    TestOffsetsPastTheDoubles();
     return s_failures == 0 ? 0 : 1;
 }

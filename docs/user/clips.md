@@ -117,7 +117,7 @@ double delays[12];
 mtwnResult spread = mtwnComputeStagger(&stagger, 12, delays);
 ```
 
-The offsets go wherever a time does, such as a track's position offset or a transition's delay, or where a value does, such as a scale from item to item. Items one cell apart are the spacing apart, or with `mtwn_staggerAmount` the spacing is the whole spread; an axis measures along the columns or the rows only, and an easing redistributes the offsets.
+The offsets go wherever a time does, such as a track's position offset or a transition's delay, or where a value does, such as a scale from item to item. Items one cell apart are the spacing apart, or with `mtwn_staggerAmount` the spacing is the whole spread; an axis measures along the columns or the rows only, and an easing redistributes the offsets. Every offset written is finite: a stagger whose start plus its spread times an eased distance would pass the largest double is refused, with nothing written.
 
 Porting from GSAP: a grid with a short last row stays its columns wide, its center and edges the full rectangle's. GSAP's `distribute` puts the center row at `count * 0.5 / columns - 0.5`, so for seven items in three columns its center is 0.67 rows down where here it is 1, and its "edges" is the center's distance reversed where here it is the nearest edge of the rectangle as drawn.
 
