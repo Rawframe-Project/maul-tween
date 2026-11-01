@@ -57,4 +57,5 @@ compose: elementary bounds_internal work
 crossing: invariant timing_internal work
 event: context_internal invariant pool fpenv
 sweep: context_internal crossing pool runs work
+timeline_easing: css_easing invariant work
 test_hooks: context_internal

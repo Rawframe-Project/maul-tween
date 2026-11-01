@@ -359,8 +359,8 @@ static void NoEffect(const mtwnTiming* timing, double localTime, mtwnTimingResul
 // Every caller passes a timing mtwnValidateTimingWork accepted: the public
 // call checks it, and a clip checks each node's where it is added, an
 // automatic duration included (Raise in src/clip.c).
-MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localTime, bool backwards,
-                                         mtwnTimingResult* resultOut)
+MTWN_NOINLINE void mtwnComputeTimingWith(const mtwnTiming* timing, double localTime, bool backwards,
+                                         mtwnEasingSampler* sample, mtwnTimingResult* resultOut)
 {
     MTWN_ASSERT(mtwnValidateTimingWork(timing) == mtwn_success);
     // Built in place: a copy out of a local read back the fields it had
@@ -416,16 +416,10 @@ MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localT
     bool goingForwards = forwards == (timing->playbackRate > 0.0);
     result->before = (result->phase == mtwn_phaseBefore && goingForwards) ||
                      (result->phase == mtwn_phaseAfter && !goingForwards);
-    if (!forwards && timing->alternateEasing == mtwn_alternateRepeatsShape)
-    {
-        result->transformedProgress =
-            1.0 - mtwnSampleEasingWork(&timing->easing, simple, result->before);
-    }
-    else
-    {
-        result->transformedProgress =
-            mtwnSampleEasingWork(&timing->easing, result->directedProgress, result->before);
-    }
+    bool repeatsShape = !forwards && timing->alternateEasing == mtwn_alternateRepeatsShape;
+    double eased =
+        sample(&timing->easing, repeatsShape ? simple : result->directedProgress, result->before);
+    result->transformedProgress = repeatsShape ? 1.0 - eased : eased;
     // The transformed progress is the easing's, a host's any double.
     MTWN_ASSERT(Resolved(timing, result));
 }

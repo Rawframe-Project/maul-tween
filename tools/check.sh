@@ -74,7 +74,8 @@ labels_for() {
     *.md | LICENSE | .github/* | tools/check_*.py | tools/build_docs.py | tools/gen_api.py | tools/code_size.py) ;;
     docs/user/* | test/test_guide.c) echo guide ;;
     src/base.c | include/maul-tween/base.h | test/test_base.c) echo base ;;
-    src/easing.c | src/css_easing.* | src/easing_internal.h | include/maul-tween/easing.h) echo "easing easing_css rival_easing sample guide fuzz_values fuzz_fit" ;;
+    src/easing.c | src/css_easing.* | src/easing_internal.h | include/maul-tween/easing.h) echo "easing easing_css timeline_easing rival_easing sample guide event fuzz_values fuzz_fit" ;;
+    src/timeline_easing.*) echo "timeline_easing event" ;;
     src/rough.c) echo "rough guide" ;;
     src/sample.c | include/maul-tween/sample.h) echo "sample fuzz_fit" ;;
     src/spring.c | src/spring_*.h | include/maul-tween/spring.h) echo "spring rival_spring decay inertia coast guide fuzz_values" ;;
@@ -84,7 +85,7 @@ labels_for() {
     src/scale.c | src/zoom.c) echo "scale track transition compose guide fuzz_values" ;;
     src/signal.c) echo "signal guide fuzz_values" ;;
     src/path.c | src/path_*.c | src/path_*.h | include/maul-tween/path.h) echo "path path_length direction monotone track guide fuzz_values" ;;
-    src/timing.c | src/timing_internal.h | include/maul-tween/timing.h) echo "timing exact invariants crossing" ;;
+    src/timing.c | src/timing_internal.h | include/maul-tween/timing.h) echo "timing timeline_easing exact invariants crossing event" ;;
     src/stagger.c | src/stagger_internal.h) echo "stagger invariants guide" ;;
     src/mix_internal.h) echo "mix color rotation signal" ;;
     test/test_*.c) basename "$1" .c | sed 's/^test_//' ;;

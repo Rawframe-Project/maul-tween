@@ -188,7 +188,7 @@ void mtwnResetAlone(mtwnContext* context, const mtwnClipPlay* play, mtwnWork* gr
 static double ChildTime(const mtwnTiming* timing, double local, bool backwards, bool* forwards)
 {
     mtwnTimingResult result;
-    mtwnComputeTimingWork(timing, local, backwards, &result);
+    mtwnComputeTimelineTimingWork(timing, local, backwards, &result);
     if (forwards != NULL)
     {
         *forwards = result.forwards;

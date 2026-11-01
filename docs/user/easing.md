@@ -46,6 +46,7 @@ Every kind takes the same four modes: in (the curve as defined), out (`1 - f(1 -
 - A host function is called from every thread that samples the easing, so it must be safe there, and it never calls the context sampling it.
 - `mtwnSampleCubicBezierEasing` samples a cubic bezier, or the linear easing, as `mtwnSampleEasing` does, to the bit, without its dispatch over every kind, which keeps every curve linked. A program that samples only cubic beziers through it is smaller: with GCC 14, `-Os`, link-time optimization and unused sections dropped, making one `cubic-bezier()` and sampling it links 1.4 kB of code on x86-64 against 7.9 kB through `mtwnSampleEasing`. Given an easing of another kind it refuses it.
 - `mtwnIsEasingMonotonic` tells whether an easing never decreases, which a timeline's easing must. Back, elastic, bounce, springs and host functions are never monotonic for it.
+- A timeline samples a cubic bezier by a slower method than a keyframe or `mtwnSampleEasing`, whose solver stops within 1e-14 of the progress and can give a value an ulp or so short of the one before. A timeline's values never decrease, so its children's time never runs back inside a forward play, and they can differ from what the same easing gives in a keyframe, a transition or `mtwnSampleEasing` by a few 1e-14 for CSS's keywords, more near a vertical tangent, where the solver's is the one off.
 
 ## Rough easings
 

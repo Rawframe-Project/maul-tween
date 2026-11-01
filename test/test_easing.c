@@ -316,6 +316,52 @@ static void TestAgainstTheFormulas(void)
     }
 }
 
+// Where rounding could step a curve down: the doubles next to 0, 1/4, 1/2
+// (where the modes and circ's forms meet), 3/4 and 1, and down to the
+// subnormals at both ends of each half: where circ's products of two
+// factors rounded apart would step an ulp down, at 2^-53 and next to 1/4.
+static int StepsDown(const mtwnEasing* easing)
+{
+    int down = 0;
+    static const double s_centers[5] = {0.0, 0.25, 0.5, 0.75, 1.0};
+    for (int c = 0; c < 5; ++c)
+    {
+        double p = s_centers[c];
+        for (int i = 0; i < 2000 * s_finer; ++i)
+        {
+            p = nextafter(p, -1.0);
+        }
+        double previous = EaseAt(easing, p < 0.0 ? 0.0 : p, false);
+        for (int i = 0; i < 4000 * s_finer; ++i)
+        {
+            p = nextafter(p, 2.0);
+            if (p >= 0.0 && p <= 1.0)
+            {
+                double value = EaseAt(easing, p, false);
+                down += value < previous;
+                previous = value;
+            }
+        }
+    }
+    static const double s_ends[4][2] = {{0.0, 1.0}, {0.5, -1.0}, {0.5, 1.0}, {1.0, -1.0}};
+    for (int k = 0; k < 4; ++k)
+    {
+        double previous = s_ends[k][1] > 0.0 ? -1.0 : 2.0;
+        for (int e = -1074; e <= -2; ++e)
+        {
+            for (int j = 0; j < 16; ++j)
+            {
+                // Away from the end as e and j grow.
+                double p = s_ends[k][0] + s_ends[k][1] * ldexp(1.0 + j / 16.0, e);
+                double value = EaseAt(easing, p, false);
+                down += s_ends[k][1] > 0.0 ? value < previous : value > previous;
+                previous = value;
+            }
+        }
+    }
+    return down;
+}
+
 static void TestMonotonicEasingsNeverDecrease(void)
 {
     int wrong = 0;
@@ -343,6 +389,7 @@ static void TestMonotonicEasingsNeverDecrease(void)
                 wrong += value < previous;
                 previous = value;
             }
+            wrong += StepsDown(&easing);
         }
     }
     CHECK(wrong == 0, "the easings called monotonic never decrease");
