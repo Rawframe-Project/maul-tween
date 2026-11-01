@@ -129,10 +129,7 @@ extern "C"
     /// rest, by bounds on its offset and velocity that never end it early,
     /// less a margin for the sample's rounding; the host then snaps it to
     /// the target. For tolerances near the subnormals, that margin can make
-    /// it noticeably later than the motion's own. One limit: a spring
-    /// undamped or decaying at a rate below about 4e-306, from a start not
-    /// at rest, to a tolerance among the subnormals, can sample one
-    /// subnormal step past it from the time on.
+    /// it noticeably later than the motion's own.
     ///
     /// @param spring             A spring made by this library.
     /// @param offset             The start's offset from the target, finite.
@@ -142,7 +139,11 @@ extern "C"
     /// @param velocityTolerance  How fast is at rest, per second, above 0.
     /// @param secondsOut         Receives the seconds from the start: 0
     ///                           when it starts within both; infinity for an
-    ///                           undamped spring that does not. Unchanged on
+    ///                           undamped spring that does not, and for a
+    ///                           spring decaying at a rate below about
+    ///                           4e-306 that does not, where the sample's
+    ///                           rounding below the normal doubles, times
+    ///                           the start, could pass a tolerance. Unchanged on
     ///                           failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer, a spring
     ///         no maker produced, or a start or tolerance outside the above.

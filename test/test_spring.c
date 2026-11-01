@@ -985,6 +985,16 @@ static void TestSettledSampleWithin(void)
           "an undamped start at rest is settled at once to the least subnormal");
     CHECK(ComputeSpringSettlingTime(&critical, 0.0, 0.0, 0x1p-1074, 0x1p-1074) == 0.0,
           "and a damped one");
+    // Decaying at a rate of 4e-306, whose exponentials never reach 0 within
+    // the doubles, from 1e300: half a subnormal step of e^(-a t), times the
+    // start, is 2.5e-24, and the offset sampled from the bounds' time on
+    // reached 4.249e-22 against 4.229e-22. No time is sure: infinity.
+    mtwnSpring faint;
+    CHECK(mtwnMakeSpringFromFrequency(1.0, 6.605e-307, &faint) == mtwn_success, "a faint spring");
+    CHECK(ComputeSpringSettlingTime(&faint, 1e300, 0.0, 4.229e-22, DBL_MAX) == HUGE_VAL,
+          "a start whose sample's rounding is not covered never settles for sure");
+    CHECK(ComputeSpringSettlingTime(&faint, 4e-22, 0.0, 4.229e-22, DBL_MAX) == 0.0,
+          "while one within both is settled at once");
 }
 
 // The sample's error against the bounds, mu(t) = u (60 (1 + L)^2 + 30 (1

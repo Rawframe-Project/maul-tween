@@ -619,8 +619,9 @@ MTWN_NOINLINE static void Settle(const mtwnSpring* spring, const Bound* bound, d
 // not settle, takes the bounds' time or the time its exponentials reach
 // 0, s_zeroRates / r, whichever is later: the sample is 0 from then on.
 // A start at rest, whose sample is always exactly 0, keeps the bounds'
-// time, and so does a spring whose exponentials never reach 0 within the
-// doubles (s_zeroRates / r infinite), where nothing later would serve.
+// time. Where the exponentials never reach 0 within the doubles (s_zeroRates
+// / r infinite), a bound within at once keeps its time of 0, and any other
+// gets infinity.
 typedef struct SampleError
 {
     // mu(t) = u (c0 + grows r t), grows = 30 (1 + L).
@@ -706,6 +707,27 @@ static double RateTime(const Bound* bound, double t)
     return bound->rate > 0.0 ? (rateTime > 1.0 ? rateTime : 1.0) : 0.0;
 }
 
+// A bound's time where no margin is sure, from its time without one and
+// the time its exponentials reach 0. A start at rest samples exactly 0 at
+// every time, so its bounds' time stands. Where the exponentials never
+// reach 0 within the doubles, an undamped spring's or one decaying slower
+// still, no later time serves: a bound within at once stays at 0, and any
+// other never settles for sure, the sample's steps below the normal
+// doubles, multiplied by the start, uncovered. Otherwise the later of the
+// two, from which the sample is 0.
+static double Unsure(double plain, double zero, bool rest)
+{
+    if (rest)
+    {
+        return plain;
+    }
+    if (!isfinite(zero))
+    {
+        return plain == 0.0 ? 0.0 : HUGE_VAL;
+    }
+    return plain > zero ? plain : zero;
+}
+
 MTWN_NOINLINE double mtwnComputeSpringSettlingTimeWork(const mtwnSpring* spring, double offset,
                                                        double velocity, double offsetTolerance,
                                                        double velocityTolerance)
@@ -752,16 +774,12 @@ MTWN_NOINLINE double mtwnComputeSpringSettlingTimeWork(const mtwnSpring* spring,
                       MarginFor(&error, RateTime(&bound, times[k]), nus[k]) <= margins[k];
         }
     }
-    // A start at rest samples exactly 0 at every time, so its bounds'
-    // time stands; so does one whose exponentials never reach 0 within the
-    // doubles, an undamped spring's or one decaying slower still.
     bool rest = offset == 0.0 && velocity == 0.0;
-    double zero = s_zeroRates / bound.rate;
     for (int k = 0; k < 2; ++k)
     {
         if (!sure[k] || !(nus[k] <= 0.25))
         {
-            times[k] = rest || !isfinite(zero) || plain[k] > zero ? plain[k] : zero;
+            times[k] = Unsure(plain[k], s_zeroRates / bound.rate, rest);
         }
     }
     return times[0] > times[1] ? times[0] : times[1];
