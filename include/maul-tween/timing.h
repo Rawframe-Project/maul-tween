@@ -258,14 +258,20 @@ extern "C"
     /// mtwn_staggerEach. The offsets are the same bits on every platform.
     ///
     /// @param stagger     The stagger; its easing made by this library.
+    ///                    The easing is sampled twice at each item, once to
+    ///                    check the offset and once to write it, so only a
+    ///                    host function giving a value not finite the second
+    ///                    time writes an offset not finite.
     /// @param count       The items; 0 writes nothing.
     /// @param offsetsOut  Receives count offsets; unchanged on failure.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer with a
     ///         count, an unknown origin, axis or spacing, an index not below a count above 0
     ///         for mtwn_staggerIndex, a start or spacing not finite, a
-    ///         point beyond 2^20, or a spread (the spacing, or for
+    ///         point beyond 2^20, a spread (the spacing, or for
     ///         mtwn_staggerEach the spacing times the distances' range)
-    ///         not finite, writing nothing.
+    ///         not finite, or an offset not finite (the start plus the
+    ///         spread times the eased distance past the doubles, or a
+    ///         host easing's value not finite), writing nothing.
     /// @par Thread safety
     /// Safe from any thread.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnComputeStagger(const mtwnStagger* stagger,
