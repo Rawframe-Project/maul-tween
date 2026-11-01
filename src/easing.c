@@ -84,6 +84,33 @@ static double BounceOut(double q)
     return 7.5625 * q * q + 0.984375;
 }
 
+// Circ's 1 - x^2 and 2x - x^2 = 1 - (1 - x)^2 on [0, 1], never rising and
+// never falling to the bit, as a timeline's easing must, each step one
+// rounding of a value moving one way, and with their digits kept. 1 - x^2:
+// below 1/2, x x rises, and 1 - (x x) falls; from 1/2, 1 - x is exact and
+// falls by 2^-53 a step, while 1 + x, rounded, rises by at most 2^-52, so
+// (1 - x)(1 + x) changes by at most 2^-53 (1 - 3x) < 0 before its
+// rounding. 2x - x^2: below 1/2, 2x rises by 2 ulp(x) a step and x x,
+// rounded, by less than ulp(x) + ulp(x^2) <= 2 ulp(x); from 1/2, 1 - x is
+// exact and falls, and so does its square, rounded. At 1/2 both forms give
+// 0.75 exactly, and below it 1 - x x is at least 0.75, x x being at most
+// 1/4, and 2x - x x at most 0.75, so the step between the forms keeps the
+// way too.
+static double CircSquare(double x)
+{
+    return x < 0.5 ? 1.0 - x * x : (1.0 - x) * (1.0 + x);
+}
+
+static double CircRise(double x)
+{
+    if (x < 0.5)
+    {
+        return 2.0 * x - x * x;
+    }
+    double rest = 1.0 - x;
+    return 1.0 - rest * rest;
+}
+
 // The native curve of a Penner kind at x in [0, 1], before normalization.
 static double RawCurve(const mtwnEasing* easing, double x)
 {
@@ -102,8 +129,7 @@ static double RawCurve(const mtwnEasing* easing, double x)
     case mtwn_easingExpo:
         return mtwnExp2(10.0 * (x - 1.0));
     case mtwn_easingCirc:
-        // 1 - x^2 as a product, which keeps its digits near x = 1.
-        return 1.0 - sqrt((1.0 - x) * (1.0 + x));
+        return 1.0 - sqrt(CircSquare(x));
     case mtwn_easingBack:
         // (s + 1) x - s as x + s (x - 1): exactly 1 at x = 1 for any s,
         // where s + 1 rounds to s from 2^53 on, and with no cancellation
@@ -172,9 +198,8 @@ static double OutCurve(const mtwnEasing* easing, double x)
 {
     if (easing->kind == mtwn_easingCirc)
     {
-        // sqrt(1 - (1 - x)^2) without forming 1 - x, which loses the digits
-        // of a small x where the curve is steepest; exact at both ends.
-        return sqrt(x * (2.0 - x));
+        // sqrt(1 - (1 - x)^2), its digits kept where the curve is steepest.
+        return sqrt(CircRise(x));
     }
     return IsNativeOut(easing->kind) ? NativeCurve(easing, x, false)
                                      : 1.0 - NativeCurve(easing, 1.0 - x, false);

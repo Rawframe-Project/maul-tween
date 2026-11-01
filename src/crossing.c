@@ -91,11 +91,11 @@ static double ChildAt(const mtwnTiming* timing, bool forwards, double q)
     double eased = 0.0;
     if (!forwards && timing->alternateEasing == mtwn_alternateRepeatsShape)
     {
-        eased = 1.0 - mtwnSampleEasingWork(&timing->easing, q, false);
+        eased = 1.0 - mtwnSampleTimelineEasingWork(&timing->easing, q, false);
     }
     else
     {
-        eased = mtwnSampleEasingWork(&timing->easing, forwards ? q : 1.0 - q, false);
+        eased = mtwnSampleTimelineEasingWork(&timing->easing, forwards ? q : 1.0 - q, false);
     }
     return eased * timing->duration;
 }
@@ -817,7 +817,7 @@ double mtwnIterationAt(const mtwnLevel* levels, uint32_t count, double t)
         mtwnTiming timing = levels[i].timing;
         timing.fill = mtwn_fillBoth;
         mtwnTimingResult result;
-        mtwnComputeTimingWork(&timing, x, false, &result);
+        mtwnComputeTimelineTimingWork(&timing, x, false, &result);
         iteration = result.iteration;
         double child = 0.0;
         if (isinf(timing.duration))

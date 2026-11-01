@@ -23,6 +23,11 @@ MTWN_NOINLINE mtwnResult mtwnMakeLinearPointsEasingWork(mtwnLinearPoint* points,
                                                         mtwnEasing* easingOut);
 MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
 MTWN_NOINLINE double mtwnSampleEasingWork(const mtwnEasing* easing, double progress, bool before);
+// mtwnSampleEasingWork as a timeline's easing: a cubic bezier never
+// decreasing to the bit (mtwnSampleMonotoneCubicBezier), so a timeline's
+// child time never runs back inside an iteration, as the crossings assume.
+MTWN_NOINLINE double mtwnSampleTimelineEasingWork(const mtwnEasing* easing, double progress,
+                                                  bool before);
 MTWN_NOINLINE mtwnSpringMotion mtwnComputeSpringMotionWork(const mtwnSpring* spring,
                                                            double seconds);
 MTWN_NOINLINE void mtwnSampleSpringWork(const mtwnSpring* spring, double offset, double velocity,
@@ -67,7 +72,25 @@ MTWN_NOINLINE mtwnResult mtwnMakeTrackWork(mtwnKeyframe* keyframes, uint32_t cou
                                            mtwnSegmentMix* mixesOut, mtwnTrack* trackOut);
 MTWN_NOINLINE mtwnVec4 mtwnSampleTrackWork(const mtwnTrack* track, double progress);
 MTWN_NOINLINE mtwnResult mtwnValidateTimingWork(const mtwnTiming* timing);
-MTWN_NOINLINE void mtwnComputeTimingWork(const mtwnTiming* timing, double localTime, bool backwards,
-                                         mtwnTimingResult* resultOut);
+// The timing at a local time, its easing sampled by the sampler given; a
+// worker of its own, which the two below call, so a program of timings
+// links no timeline's curve and a timeline's costs no call more.
+typedef double mtwnEasingSampler(const mtwnEasing* easing, double progress, bool before);
+MTWN_NOINLINE void mtwnComputeTimingWith(const mtwnTiming* timing, double localTime, bool backwards,
+                                         mtwnEasingSampler* sample, mtwnTimingResult* resultOut);
+
+static inline void mtwnComputeTimingWork(const mtwnTiming* timing, double localTime, bool backwards,
+                                         mtwnTimingResult* resultOut)
+{
+    mtwnComputeTimingWith(timing, localTime, backwards, mtwnSampleEasingWork, resultOut);
+}
+
+// mtwnComputeTimingWork for a timeline, its easing sampled by
+// mtwnSampleTimelineEasingWork.
+static inline void mtwnComputeTimelineTimingWork(const mtwnTiming* timing, double localTime,
+                                                 bool backwards, mtwnTimingResult* resultOut)
+{
+    mtwnComputeTimingWith(timing, localTime, backwards, mtwnSampleTimelineEasingWork, resultOut);
+}
 
 #endif // MAUL_TWEEN_SRC_WORK_H

@@ -399,7 +399,12 @@ extern "C"
     /// must: linear, power, sine, expo, circ and steps in every mode, a
     /// cubic bezier with both y from 0 to 1, linear() with outputs that
     /// never decrease; not back, elastic, bounce or a spring, and not a
-    /// host function, which the library cannot inspect.
+    /// host function, which the library cannot inspect. Each of these
+    /// samples to values that never decrease, but a cubic bezier through
+    /// mtwnSampleEasing, solved to 1e-14 in x, whose values can fall an ulp
+    /// or so short of the last, more near a vertical tangent. A timeline
+    /// samples one so that they never do, a few 1e-14 from mtwnSampleEasing's
+    /// for CSS's keywords.
     ///
     /// @param easing        An easing made by this library.
     /// @param monotonicOut  Receives whether it never decreases; unchanged

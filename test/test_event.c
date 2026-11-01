@@ -1636,8 +1636,87 @@ static void TestPlayAtStart(void)
     mtwnDestroyContext(w.context);
 }
 
+// The forward and backward crossings of a mark at a time of a timeline of
+// 1 s with the easing, played once forwards: with a frame every nanosecond
+// over the timeline's last 200 ns, or with one frame past its end.
+static void EasedMarks(const mtwnEasing* easing, double mark, bool dense, uint64_t* forwards,
+                       uint64_t* backwards)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef def = mtwnDefaultClipTimelineDef();
+    def.autoDuration = false;
+    def.timing.duration = 1.0;
+    def.timing.easing = *easing;
+    mtwnNode timeline = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &def, &timeline) == mtwn_success, "a timeline");
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddMark(w.context, w.clip, timeline, At(mark), 7, &node) == mtwn_success,
+          "a mark");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
+    mtwnClipPlayerDef play = mtwnDefaultClipPlayerDef();
+    play.clip = w.clip;
+    play.keep = true;
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnCreateClipPlayer(w.context, &play, &player) == mtwn_success, "a player");
+    // The first update starts the player; the frames follow, then the end.
+    const uint64_t start = 1000000000u;
+    uint64_t frames[202];
+    uint32_t count = 0;
+    frames[count++] = start;
+    for (uint64_t k = 999999800u; dense && k < start; ++k)
+    {
+        frames[count++] = start + k;
+    }
+    frames[count++] = 3 * start;
+    *forwards = *backwards = 0;
+    for (uint32_t f = 0; f < count; ++f)
+    {
+        CHECK(mtwnContext_Update(w.context, frames[f], NULL, 0, NULL) == mtwn_success, "updated");
+        mtwnEvent e[64];
+        uint32_t read = Read(&w, e, 64);
+        for (uint32_t i = 0; i < read; ++i)
+        {
+            if (e[i].node == node)
+            {
+                *(e[i].backwards ? backwards : forwards) += e[i].count;
+            }
+        }
+    }
+    mtwnDestroyContext(w.context);
+}
+
+// A mark in a timeline eased by an easing mtwnIsEasingMonotonic calls
+// monotonic is crossed once however the frames fall: CSS's ease and
+// cubic-bezier(1, 0, 0, 1), solved to a tolerance as a keyframe's are,
+// step down an ulp next to their end, where a frame landing on the step
+// and one past it would cross a mark at the end twice.
+static void TestEasedTimelineMarks(void)
+{
+    mtwnEasing easings[4];
+    CHECK(mtwnMakeCssEasing(mtwn_cssEase, &easings[0]) == mtwn_success, "ease");
+    CHECK(mtwnMakeCssEasing(mtwn_cssEaseInOut, &easings[1]) == mtwn_success, "ease-in-out");
+    CHECK(mtwnMakeCubicBezierEasing(1.0, 0.0, 0.0, 1.0, &easings[2]) == mtwn_success, "a bezier");
+    CHECK(mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeOut, &easings[3]) == mtwn_success, "circ");
+    double below = nextafter(1.0, 0.0);
+    const double marks[4] = {1.0, below, nextafter(below, 0.0), 0.5};
+    int wrong = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int m = 0; m < 4; ++m)
+        {
+            uint64_t forwards[2] = {0, 0};
+            uint64_t backwards[2] = {0, 0};
+            EasedMarks(&easings[i], marks[m], true, &forwards[0], &backwards[0]);
+            EasedMarks(&easings[i], marks[m], false, &forwards[1], &backwards[1]);
+            wrong += forwards[0] != 1 || forwards[1] != 1 || backwards[0] != 0 || backwards[1] != 0;
+        }
+    }
+    CHECK(wrong == 0, "a mark in an eased timeline crossed once, frames dense or not");
+}
+
 int main(void)
 {
+    TestEasedTimelineMarks();
     TestJumpStartMarks();
     TestReverseAfterReducedFinish();
     TestUnderAZeroTimeline();
