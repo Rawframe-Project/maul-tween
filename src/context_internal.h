@@ -638,10 +638,12 @@ typedef struct mtwnSharedTrack
     double parentBefore;
     bool earlierKnown;
     bool parentBackwards;
-    // Worked out for the last player; with an effect; velocity known.
+    // Worked out for the last player; with an effect; velocity known;
+    // its sample met a host function's NaN, one misuse for each player.
     bool known;
     bool effect;
     bool velocityKnown;
+    bool hostNan;
 } mtwnSharedTrack;
 
 // A clip's player's records as the last player of its clip in a work made

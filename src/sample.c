@@ -35,8 +35,9 @@ enum
 static const double s_narrowest = 0x1.0p-24;
 
 // A sample as a float, past the floats' range the largest finite one of
-// its sign, as the library holds every float it writes; in range the
-// conversion as it is, and a host function's NaN left NaN.
+// its sign, a host function's infinity included; in range the conversion
+// as it is. No NaN reaches it: the sample takes a host's NaN as its
+// progress.
 static float TableFloat(double eased)
 {
     return eased >= 0x1.fffffep127 ? 0x1.fffffep127f

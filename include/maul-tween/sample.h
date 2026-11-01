@@ -24,7 +24,8 @@ extern "C"
     /// Samples an easing evenly over progress 0 to 1: valuesOut[i] is the
     /// eased progress at i / (count - 1), rounded to float, a value past
     /// the floats' range held at the largest finite float of its sign (a
-    /// host function's infinity too; its NaN stays NaN).
+    /// host function's infinity too; its NaN is taken as the progress, as
+    /// mtwnMakeHostEasing says), so every value is finite.
     ///
     /// @param easing     An easing made by this library.
     /// @param count      The number of samples, at least 2.

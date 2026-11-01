@@ -202,7 +202,11 @@ extern "C"
     /// Returns how many calls against the context were refused for an
     /// invalid argument, a stale target or clip id, a call the object's
     /// state does not allow (mtwn_errorState) or a call back in from the
-    /// host's code since it was made. A full capacity, the stale id of a
+    /// host's code since it was made, and the samples of its updates that
+    /// met a host easing's NaN: one for a transition's value at an update,
+    /// one for each player's clip track at an update, whichever of the
+    /// track's easings gave it; the earlier sample a velocity is measured
+    /// from counts none. A full capacity, the stale id of a
     /// player the context handed out, kept or not, and a clip a player
     /// still holds count none: each depends on state the library changes.
     /// A player id never handed out, the null id among them, counts.

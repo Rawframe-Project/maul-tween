@@ -334,6 +334,71 @@ static void TestEqualEndsFarOut(void)
     mtwnDestroyContext(context);
 }
 
+// NaN for progress from 0.3 to 0.7, a host function breaking its
+// contract; the identity elsewhere.
+static double Hole(void* unused, double progress)
+{
+    (void)unused;
+    return progress > 0.3 && progress < 0.7 ? (double)NAN : progress;
+}
+
+// A host easing's NaN is taken as the progress it was called with, so a
+// transition of every kind moves as the linear easing moves it, to the
+// bit, value and velocity finite; each update whose sample met the NaN
+// counts one misuse.
+static void TestHostNan(void)
+{
+    static const mtwnValueKind s_kinds[5] = {mtwn_valueScalar, mtwn_valueVec2, mtwn_valueColor,
+                                             mtwn_valueRotation, mtwn_valueScale};
+    static const mtwnVec4 s_from[5] = {
+        {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 1.0f}, {0, 0, 0, 1.0f}, {1.0f, 0, 0, 0}};
+    static const mtwnVec4 s_to[5] = {{10.0f, 0, 0, 0},
+                                     {10.0f, -3.0f, 0, 0},
+                                     {1.0f, 0.5f, 0.25f, 1.0f},
+                                     {0, 0, 0.70710678f, 0.70710678f},
+                                     {4.0f, 0, 0, 0}};
+    int differences = 0;
+    int infinite = 0;
+    for (int kind = 0; kind < 5; ++kind)
+    {
+        mtwnContext* context = Make(4, 4);
+        mtwnTargetId host = Target(context, s_kinds[kind], s_from[kind]);
+        mtwnTargetId linear = Target(context, s_kinds[kind], s_from[kind]);
+        mtwnTransitionDef def = Linear(host, s_to[kind], 1.0);
+        CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &def.easing) == mtwn_success,
+              "a host easing");
+        Start(context, &def);
+        def = Linear(linear, s_to[kind], 1.0);
+        Start(context, &def);
+        int inHole = 0;
+        for (int k = 0; k <= 60; ++k)
+        {
+            Update(context, (uint64_t)k * s_second / 60u);
+            double progress = (double)((uint64_t)k * s_second / 60u) / 1e9;
+            inHole += progress > 0.3 && progress < 0.7;
+            mtwnTargetState a = State(context, host);
+            mtwnTargetState b = State(context, linear);
+            differences += memcmp(&a.value, &b.value, sizeof a.value) != 0 ||
+                           memcmp(&a.velocity, &b.velocity, sizeof a.velocity) != 0;
+            const float* v = &a.value.x;
+            const float* w = &a.velocity.x;
+            for (int c = 0; c < 4; ++c)
+            {
+                infinite += !isfinite(v[c]) || !isfinite(w[c]);
+            }
+        }
+        if (mtwnContext_GetMisuse(context) != (uint64_t)inHole || inHole < 20)
+        {
+            printf("  kind %d: misuse %llu, updates in the hole %d\n", kind,
+                   (unsigned long long)mtwnContext_GetMisuse(context), inHole);
+            ++differences;
+        }
+        mtwnDestroyContext(context);
+    }
+    CHECK(differences == 0, "a host's NaN: every kind moves as linear does, one misuse an update");
+    CHECK(infinite == 0, "a host's NaN: every value and velocity finite");
+}
+
 static void TestColorPastFloats(void)
 {
     mtwnContext* context = Make(4, 4);
@@ -1779,6 +1844,7 @@ int main(void)
     TestNumbersPastFloats();
     TestSpringPastFloats();
     TestColorPastFloats();
+    TestHostNan();
     TestEqualEndsFarOut();
     TestExactness();
     TestSpring();

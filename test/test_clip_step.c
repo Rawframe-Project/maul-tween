@@ -62,6 +62,18 @@ static void Unreached(void* userTask, void* userContext)
     CHECK(false, "no wait for ranges run at once");
 }
 
+// NaN for progress from 0.3 to 0.7, a host function breaking its
+// contract: the library takes the progress there.
+static double Hole(void* context, double progress)
+{
+    (void)context;
+    return progress > 0.3 && progress < 0.7 ? (double)NAN : progress;
+}
+
+// Whether MakeClip gives the first track's timing, the second track's
+// keyframes and the nested vector's keyframes the host easing above.
+static bool s_hostNan;
+
 // The bench's clip, four numbers in a timeline repeating every second,
 // with marks in it and a nested timeline of a vector and a color, so the
 // players make records; scale sets the keyframes' values, markShift
@@ -90,12 +102,23 @@ static mtwnClipId MakeClip(mtwnContext* context, float scale, double markShift)
         keys[1].value.x = scale * (100.0f + (float)t);
         keys[2].offset = 1.0;
         keys[0].easing = keys[1].easing = keys[2].easing = quadOut;
+        if (s_hostNan && t == 1)
+        {
+            CHECK(mtwnMakeHostEasing(mtwn_easeOut, Hole, NULL, &keys[0].easing) == mtwn_success,
+                  "a host easing");
+            keys[1].easing = keys[0].easing;
+        }
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.parent = loop;
         track.slot = t;
         track.keyframes = keys;
         track.keyframeCount = 3;
         track.timing.duration = 1.0;
+        if (s_hostNan && t == 0)
+        {
+            CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &track.timing.easing) == mtwn_success,
+                  "a host easing");
+        }
         mtwnNode node;
         CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success, "a track");
     }
@@ -121,6 +144,11 @@ static mtwnClipId MakeClip(mtwnContext* context, float scale, double markShift)
         keys[1].offset = 1.0;
         keys[1].value = (mtwnVec4){scale, 0.125f, 0.5f, 0.5f};
         keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+        if (s_hostNan && s == 4)
+        {
+            CHECK(mtwnMakeHostEasing(mtwn_easeInOut, Hole, NULL, &keys[0].easing) == mtwn_success,
+                  "a host easing");
+        }
         mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
         track.parent = nested;
         track.slot = s;
@@ -390,6 +418,83 @@ static void TestMixed(void)
         }
     }
     CHECK(s_applied > 600, "the controls applied");
+}
+
+// A host easing's NaN on a track's timing and keyframes, in the crowd on
+// four contexts: with the sharing on and off, serially and on tasks. Each
+// player's sample that met the NaN counts one misuse, whether it worked
+// the sample out or took it from the player in step before it, so all
+// four count the same and hold the same bits, all finite.
+static void TestHostNan(void)
+{
+    s_hostNan = true;
+    Twin twins[4];
+    memset(twins, 0, sizeof twins);
+    for (int k = 0; k < 4; ++k)
+    {
+        MakeTwin(&twins[k], k % 2 == 1, k >= 2, 4096u);
+        twins[k].clip = MakeClip(twins[k].context, 1.0f, 0.0);
+        for (uint32_t p = 0; p < s_players; ++p)
+        {
+            MakePlayer(&twins[k], p, true, 0.0);
+        }
+    }
+    s_hostNan = false;
+    uint32_t differences = 0;
+    uint32_t infinite = 0;
+    uint32_t kept = 0;
+    uint64_t now = 0;
+    for (uint32_t f = 0; f < 120; ++f, now += 16000000u)
+    {
+        for (int k = 0; k < 4; ++k)
+        {
+            uint32_t total = 0;
+            CHECK(mtwnContext_Update(twins[k].context, now, NULL, 0, &total) == mtwn_success,
+                  "an update");
+        }
+        kept += mtwnTestGetSharing(twins[1].context).sampleKept ? 1u : 0u;
+        for (int k = 1; k < 4; ++k)
+        {
+            differences +=
+                mtwnContext_GetMisuse(twins[k].context) == mtwnContext_GetMisuse(twins[0].context)
+                    ? 0u
+                    : 1u;
+        }
+        for (uint32_t p = 0; p < s_players; ++p)
+        {
+            for (uint32_t s = 0; s < s_slots; ++s)
+            {
+                mtwnTargetState x;
+                CHECK(mtwnTarget_GetState(twins[0].context, twins[0].targets[p][s], &x) ==
+                          mtwn_success,
+                      "a state");
+                const float* v = &x.value.x;
+                const float* w = &x.velocity.x;
+                for (int c = 0; c < 4; ++c)
+                {
+                    infinite += isfinite(v[c]) && isfinite(w[c]) ? 0u : 1u;
+                }
+                for (int k = 1; k < 4; ++k)
+                {
+                    mtwnTargetState y;
+                    CHECK(mtwnTarget_GetState(twins[k].context, twins[k].targets[p][s], &y) ==
+                              mtwn_success,
+                          "a state");
+                    differences += Same(x.value, y.value) && Same(x.velocity, y.velocity) ? 0u : 1u;
+                }
+            }
+        }
+    }
+    uint64_t misuse = mtwnContext_GetMisuse(twins[0].context);
+    CHECK(differences == 0, "a host's NaN: the same bits and misuse count with the sharing on "
+                            "and off, serially and on tasks");
+    CHECK(infinite == 0, "every value and velocity finite");
+    CHECK(kept > 50, "the players in step share their samples");
+    CHECK(misuse > 1000, "each sample that met the NaN counted");
+    for (int k = 0; k < 4; ++k)
+    {
+        mtwnDestroyContext(twins[k].context);
+    }
 }
 
 // Held players of a clip at a time, then the clip destroyed and another
@@ -722,6 +827,7 @@ int main(int argc, char** argv)
         return s_failures == 0 ? 0 : 1;
     }
     TestReusedSlot();
+    TestHostNan();
     TestSweepKeys();
     TestManyRecords();
     TestDirectionAtStart();

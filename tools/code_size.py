@@ -55,14 +55,16 @@ PARTS = [
 # easing's points before writing them costs, the curves' and the
 # transitions' by what a circ that never steps down costs, the clips' and
 # the whole library's by what a timeline's cubic bezier that never
-# decreases costs, and every part's by what keeping a spring's sample
-# within its tolerances from its settling time costs.
+# decreases costs, every part's by what keeping a spring's sample within
+# its tolerances from its settling time costs, and the transitions', the
+# clips' and the whole library's by what taking a host easing's NaN as
+# its progress and counting it as misuse costs.
 BUDGETS = {
     "curves": 37500,
     "values": 72400,
-    "transitions": 73100,
-    "clips": 170300,
-    "everything": 191000,
+    "transitions": 73300,
+    "clips": 171400,
+    "everything": 192100,
 }
 
 
@@ -96,15 +98,17 @@ RAISED = {
     "a transition copies its linear() points, 0.6 kB, a spring's settling time redoes a "
     "bound that underflowed, 1.2 kB, a decay keeps its times and samples within the "
     "doubles on the way, 1.3 kB, the context's counts read 0 for a null context, 0.1 kB, "
-    "circ never steps down, 0.2 kB, and a spring's settling time keeps its sample within "
-    "the tolerances, 3.2 kB",
+    "circ never steps down, 0.2 kB, a spring's settling time keeps its sample within "
+    "the tolerances, 3.2 kB, and a host easing's NaN is taken as its progress and counted "
+    "as misuse, 0.2 kB",
     "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
     "timing's computation checks it, 0.1 kB, a spring's settling time redoes a bound that "
     "underflowed, 1.2 kB, a decay keeps its times and samples within the doubles on the "
     "way, 1.3 kB, a timing counts a start's cycles past the doubles, 0.6 kB, and the "
     "enumerations are int32_t, read in wider fields of the structs a clip's player walks, "
-    "1.4 kB, a timeline's cubic bezier never decreases, 4.1 kB, and a spring's settling time "
-    "keeps its sample within the tolerances, 3.2 kB",
+    "1.4 kB, a timeline's cubic bezier never decreases, 4.1 kB, a spring's settling time "
+    "keeps its sample within the tolerances, 3.2 kB, and a host easing's NaN is taken as its "
+    "progress and counted as misuse for each player's track, 1.1 kB",
     "everything": "the raises of the parts above",
 }
 
