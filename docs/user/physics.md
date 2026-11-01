@@ -17,7 +17,7 @@ double settled = 0.0;
 mtwnResult timed = mtwnComputeSpringSettlingTime(&spring, -1.0, 0.0, 1e-3, 1e-2, &settled);
 ```
 
-`mtwnComputeSpringSettlingTime` gives the time after which the motion stays within both tolerances of its target and of rest, by bounds that never end it early; the host then snaps it to the target. An undamped spring that does not start at rest never settles and gets infinity.
+`mtwnComputeSpringSettlingTime` gives the time after which `mtwnSampleSpring`'s offset and velocity stay within both tolerances of the target and of rest, by bounds that never end it early, with room for the sample's rounding; the host then snaps it to the target. For tolerances near the subnormals, where that rounding is a large share of a tolerance, the time can be noticeably later than the motion's. An undamped spring that does not start at rest never settles and gets infinity.
 
 Every call that takes a spring, a decay or a bounded decay returns a status and gives its results through pointers, left as they were on failure. It refuses a struct no maker produced (a spring's precomputed fields are derived again from its frequency and ratio, bit for bit), a start that is not finite, a time below 0 or NaN, and a tolerance or stop speed not above 0.
 

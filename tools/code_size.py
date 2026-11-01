@@ -51,14 +51,16 @@ PARTS = [
 # the values' by what keeping a decay within the doubles costs, the
 # values', the clips' and the whole library's by what counting a start's
 # cycles past the doubles costs, the transitions' by what reading a null
-# context's counts as 0 costs, and the curves' by what checking a rough
-# easing's points before writing them costs.
+# context's counts as 0 costs, the curves' by what checking a rough
+# easing's points before writing them costs, and every part's by what
+# keeping a spring's sample within its tolerances from its settling time
+# costs.
 BUDGETS = {
-    "curves": 34100,
-    "values": 69200,
-    "transitions": 69700,
-    "clips": 162900,
-    "everything": 183600,
+    "curves": 37300,
+    "values": 72400,
+    "transitions": 72900,
+    "clips": 166100,
+    "everything": 186700,
 }
 
 
@@ -79,23 +81,26 @@ RAISED = {
     "or a decay checks it, 1.6 kB, every call taking an easing, 2.0 kB, a spring's "
     "settling time redoes a bound that underflowed, 1.2 kB, a decay keeps its times "
     "and samples within the doubles on the way, 1.3 kB, and a rough easing checks its "
-    "points before it writes them, 0.3 kB",
+    "points before it writes them, 0.3 kB, and a spring's settling time keeps its sample "
+    "within the tolerances, 3.1 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
     "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
     "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, a color, rotation, "
     "scale or zoom mix, 2.0 kB, a timing's computation checks it, 0.1 kB, a spring's "
-    "settling time redoes a bound that underflowed, 1.2 kB, and a timing counts a "
-    "start's cycles past the doubles, 0.6 kB",
+    "settling time redoes a bound that underflowed, 1.2 kB, a timing counts a "
+    "start's cycles past the doubles, 0.6 kB, and a spring's settling time keeps its sample "
+    "within the tolerances, 3.1 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "a transition copies its linear() points, 0.6 kB, a spring's settling time redoes a "
     "bound that underflowed, 1.2 kB, a decay keeps its times and samples within the "
-    "doubles on the way, 1.3 kB, and the context's counts read 0 for a null context, 0.1 kB",
+    "doubles on the way, 1.3 kB, the context's counts read 0 for a null context, 0.1 kB, "
+    "and a spring's settling time keeps its sample within the tolerances, 3.1 kB",
     "clips": "a track's sample checks its segment's color or rotation mix, 1.1 kB, a "
     "timing's computation checks it, 0.1 kB, a spring's settling time redoes a bound that "
     "underflowed, 1.2 kB, a decay keeps its times and samples within the doubles on the "
     "way, 1.3 kB, a timing counts a start's cycles past the doubles, 0.6 kB, and the "
     "enumerations are int32_t, read in wider fields of the structs a clip's player walks, "
-    "1.4 kB",
+    "1.4 kB, and a spring's settling time keeps its sample within the tolerances, 3.1 kB",
     "everything": "the raises of the parts above",
 }
 

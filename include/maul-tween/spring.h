@@ -124,10 +124,12 @@ extern "C"
                                                         double velocity, double seconds,
                                                         double* offsetOut, double* velocityOut);
 
-    /// Returns the time after which a spring from a start stays within
-    /// both tolerances of its target and of rest, by bounds on its offset
-    /// and velocity that never end it early; the host then snaps it to the
-    /// target.
+    /// Returns the time after which a spring from a start, sampled by
+    /// mtwnSampleSpring, stays within both tolerances of its target and of
+    /// rest, by bounds on its offset and velocity that never end it early,
+    /// less a margin for the sample's rounding; the host then snaps it to
+    /// the target. For tolerances near the subnormals, that margin can make
+    /// it noticeably later than the motion's own.
     ///
     /// @param spring             A spring made by this library.
     /// @param offset             The start's offset from the target, finite.
