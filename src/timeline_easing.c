@@ -269,7 +269,7 @@ double mtwnSampleMonotoneCubicBezier(const double control[4], double x, bool ski
 }
 
 MTWN_NOINLINE double mtwnSampleTimelineEasingWork(const mtwnEasing* easing, double progress,
-                                                  bool before)
+                                                  bool before, bool* hostNan)
 {
     if (easing->kind == mtwn_easingLinear)
     {
@@ -277,9 +277,9 @@ MTWN_NOINLINE double mtwnSampleTimelineEasingWork(const mtwnEasing* easing, doub
     }
     if (easing->kind != mtwn_easingCubicBezier)
     {
-        return mtwnSampleEasingWork(easing, progress, before);
+        return mtwnSampleEasingNoted(easing, progress, before, hostNan);
     }
-    // mtwnSampleEasingWork's reflections of a CSS curve, unclamped, with
+    // mtwnSampleEasingNoted's reflections of a CSS curve, unclamped, with
     // the monotone curve.
     const double* c = easing->parameters;
     double p = progress;

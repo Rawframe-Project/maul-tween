@@ -271,7 +271,14 @@ extern "C"
 
     /// Makes an easing of a host function, called with progress clamped to
     /// 0 to 1, under the mode's reflections. The library neither checks
-    /// nor forces its ends.
+    /// nor forces its ends. A NaN breaks the function's contract: the
+    /// library takes the progress the function was called with in its
+    /// place, the curve linear there in every mode, and a context counts
+    /// one misuse for each sample of an update that met one: a
+    /// transition's value, and a clip track's for each player
+    /// (mtwnContext_GetMisuse). Its infinity is kept: a transition or
+    /// track between equal ends stays at them, and one between others is
+    /// held at the largest finite float wherever a float is written.
     ///
     /// @param mode       The mode.
     /// @param function   The function; it must be safe to call from every
@@ -423,7 +430,9 @@ extern "C"
     /// where it samples progress unreflected.
     ///
     /// Every curve but a host function's gives a finite value: CSS's, past
-    /// the doubles' range, the largest finite double of its sign.
+    /// the doubles' range, the largest finite double of its sign. A host
+    /// function's infinity is given as it is, and its NaN never: the
+    /// progress it was called with is taken instead (mtwnMakeHostEasing).
     ///
     /// @param easing    An easing made by this library.
     /// @param progress  The progress, finite.

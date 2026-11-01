@@ -339,9 +339,9 @@ static void TestFitAsDeepAsItGoes(void)
     CHECK(deepest == 102, "split down to the narrowest segment, and no further");
 }
 
-// Infinite in the middle, where its miss makes the fit split, NaN at the
-// start, infinite at the end: kept points no linear() holds. (A NaN
-// inside never misses most, so it is never kept.)
+// Infinite in the middle, where its miss makes the fit split, and
+// infinite at the end: kept points no linear() holds. A NaN at the start
+// is the host's broken contract, taken as the progress there.
 static double Endless(void* context, double progress)
 {
     (void)context;
@@ -361,7 +361,7 @@ static double Hole(void* context, double progress)
 }
 
 // A host function's infinity is held at the largest float like any value
-// past the floats; its NaN is the host's, left NaN.
+// past the floats; its NaN is taken as the progress it was called with.
 static void TestTableHostValues(void)
 {
     mtwnEasing host;
@@ -371,9 +371,9 @@ static void TestTableHostValues(void)
               values[2] == FLT_MAX,
           "a host's infinity held at the largest float");
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &host) == mtwn_success &&
-              mtwnSampleEasingTable(&host, 3, values) == mtwn_success && isnan(values[0]) &&
-              values[2] == 1.0f,
-          "a host's NaN left NaN");
+              mtwnSampleEasingTable(&host, 3, values) == mtwn_success && values[0] == 0.0f &&
+              values[1] == 0.5f && values[2] == 1.0f,
+          "a host's NaN taken as the progress");
 }
 
 static void TestFitRefusals(void)
@@ -407,16 +407,17 @@ static void TestFitRefusals(void)
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Endless, NULL, &endless) == mtwn_success, "endless");
     CHECK(mtwnFitLinearEasing(&endless, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
           "a curve infinite at a kept point");
-    mtwnEasing hole;
-    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &hole) == mtwn_success, "hole");
-    CHECK(mtwnFitLinearEasing(&hole, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
-          "a curve NaN at a kept point");
     mtwnEasing unbounded;
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Unbounded, NULL, &unbounded) == mtwn_success,
           "unbounded");
     CHECK(mtwnFitLinearEasing(&unbounded, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
           "a curve infinite at its end");
     CHECK(count == 7, "refusals leave the count as it was");
+    mtwnEasing hole;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &hole) == mtwn_success &&
+              mtwnFitLinearEasing(&hole, 1e-3, s_points, s_capacity, &count) == mtwn_success &&
+              count == 2 && s_points[0].output == 0.0 && s_points[1].output == 1.0,
+          "a curve NaN at its start fitted with the progress there");
 }
 
 int main(void)

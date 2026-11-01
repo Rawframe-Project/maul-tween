@@ -201,24 +201,27 @@ static void TestRefusals(void)
     bad.flags = 8;
     refused += mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_errorInvalid;
     bad = def;
-    CHECK(mtwnMakeHostEasing(mtwn_easeIn, NotANumber, NULL, &bad.shape) == mtwn_success,
-          "a host shape");
-    refused += mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_errorInvalid;
+    // A host's NaN is taken as the progress, the shape linear there, so
+    // only an infinity is a value not finite.
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, NotANumber, NULL, &bad.shape) == mtwn_success &&
+              mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_success,
+          "a shape giving NaN taken as linear");
     // Clamping would bring an infinity to 1; the shape is refused first.
     bad.flags = mtwn_roughClamp;
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Infinite, NULL, &bad.shape) == mtwn_success,
           "a host shape");
     refused += mtwnMakeRoughEasing(&bad, points, 8, &easing) == mtwn_errorInvalid;
-    CHECK(refused == 12, "no def, points or easing, one point or none, a strength below 0, "
-                         "infinite or NaN, an unknown taper or flag, and a shape giving NaN or "
-                         "an infinity refused");
+    CHECK(refused == 11, "no def, points or easing, one point or none, a strength below 0, "
+                         "infinite or NaN, an unknown taper or flag, and a shape giving an "
+                         "infinity refused");
 }
 
-// NaN past the middle only, so the inner points before it are finite.
-static double NaNPastHalf(void* context, double progress)
+// Infinite past the middle only, so the inner points before it are
+// finite.
+static double InfinitePastHalf(void* context, double progress)
 {
     (void)context;
-    return progress > 0.5 ? (double)NAN : progress;
+    return progress > 0.5 ? HUGE_VAL : progress;
 }
 
 static bool AllBytes(const void* bytes, size_t size, unsigned char value)
@@ -239,14 +242,14 @@ static bool AllBytes(const void* bytes, size_t size, unsigned char value)
 static void TestRefusalWritesNothing(void)
 {
     mtwnRoughDef def = Def(0.2, 1, mtwn_roughTaperNone, 0);
-    CHECK(mtwnMakeHostEasing(mtwn_easeIn, NaNPastHalf, NULL, &def.shape) == mtwn_success,
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, InfinitePastHalf, NULL, &def.shape) == mtwn_success,
           "a host shape");
     mtwnLinearPoint points[8];
     memset(points, 0xAB, sizeof points);
     mtwnEasing easing;
     memset(&easing, 0xAB, sizeof easing);
     CHECK(mtwnMakeRoughEasing(&def, points, 8, &easing) == mtwn_errorInvalid,
-          "a shape giving NaN past the middle refused");
+          "a shape infinite past the middle refused");
     CHECK(AllBytes(points, sizeof points, 0xAB) && AllBytes(&easing, sizeof easing, 0xAB),
           "the points and the easing left as they were");
 }

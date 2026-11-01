@@ -51,11 +51,11 @@ static int StepsDown(const mtwnEasing* easing, double from, int count, double st
 {
     int down = 0;
     double p = from;
-    double previous = mtwnSampleTimelineEasingWork(easing, p, false);
+    double previous = mtwnSampleTimelineEasingWork(easing, p, false, NULL);
     for (int i = 0; i < count; ++i)
     {
         p = step > 0.0 ? p + step : nextafter(p, 2.0);
-        double value = mtwnSampleTimelineEasingWork(easing, p, false);
+        double value = mtwnSampleTimelineEasingWork(easing, p, false, NULL);
         down += value < previous;
         previous = value;
     }
@@ -82,13 +82,13 @@ static void TestNeverDecreases(void)
                 }
                 down += StepsDown(&easing, from, 600, 0.0);
             }
-            double previous = mtwnSampleTimelineEasingWork(&easing, 0.0, false);
+            double previous = mtwnSampleTimelineEasingWork(&easing, 0.0, false, NULL);
             for (int e = -1074; e <= -2; ++e)
             {
                 for (int j = 0; j < 4; ++j)
                 {
                     double value =
-                        mtwnSampleTimelineEasingWork(&easing, ldexp(1.0 + j / 4.0, e), false);
+                        mtwnSampleTimelineEasingWork(&easing, ldexp(1.0 + j / 4.0, e), false, NULL);
                     down += value < previous;
                     previous = value;
                 }

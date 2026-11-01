@@ -360,7 +360,8 @@ static void NoEffect(const mtwnTiming* timing, double localTime, mtwnTimingResul
 // call checks it, and a clip checks each node's where it is added, an
 // automatic duration included (Raise in src/clip.c).
 MTWN_NOINLINE void mtwnComputeTimingWith(const mtwnTiming* timing, double localTime, bool backwards,
-                                         mtwnEasingSampler* sample, mtwnTimingResult* resultOut)
+                                         mtwnEasingSampler* sample, bool* hostNan,
+                                         mtwnTimingResult* resultOut)
 {
     MTWN_ASSERT(mtwnValidateTimingWork(timing) == mtwn_success);
     // Built in place: a copy out of a local read back the fields it had
@@ -417,8 +418,8 @@ MTWN_NOINLINE void mtwnComputeTimingWith(const mtwnTiming* timing, double localT
     result->before = (result->phase == mtwn_phaseBefore && goingForwards) ||
                      (result->phase == mtwn_phaseAfter && !goingForwards);
     bool repeatsShape = !forwards && timing->alternateEasing == mtwn_alternateRepeatsShape;
-    double eased =
-        sample(&timing->easing, repeatsShape ? simple : result->directedProgress, result->before);
+    double eased = sample(&timing->easing, repeatsShape ? simple : result->directedProgress,
+                          result->before, hostNan);
     result->transformedProgress = repeatsShape ? 1.0 - eased : eased;
     // The transformed progress is the easing's, a host's any double.
     MTWN_ASSERT(Resolved(timing, result));

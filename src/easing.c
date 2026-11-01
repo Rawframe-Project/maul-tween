@@ -158,14 +158,32 @@ static bool IsCss(mtwnEasingKind kind)
            kind == mtwn_easingLinearPoints;
 }
 
+// A host function's value at x. A NaN breaks its contract, and is taken
+// once, here, as x, the function linear there, which keeps every mode's
+// reflection of it moving one way; hostNan, when given, is set to tell
+// the context to count it as misuse.
+static double HostCurve(const mtwnEasing* easing, double x, bool* hostNan)
+{
+    double value = easing->function(easing->context, x);
+    if (isnan(value))
+    {
+        if (hostNan != NULL)
+        {
+            *hostNan = true;
+        }
+        return x;
+    }
+    return value;
+}
+
 // The native curve, Penner's normalized to land exactly on 0 and 1.
 // before reaches the curve only where x is progress unreflected.
-static double NativeCurve(const mtwnEasing* easing, double x, bool before)
+static double NativeCurve(const mtwnEasing* easing, double x, bool before, bool* hostNan)
 {
     switch (easing->kind)
     {
     case mtwn_easingHost:
-        return easing->function(easing->context, x);
+        return HostCurve(easing, x, hostNan);
     case mtwn_easingCubicBezier:
         return mtwnSampleCubicBezier(easing->parameters, x);
     case mtwn_easingSteps:
@@ -188,21 +206,21 @@ static double NativeCurve(const mtwnEasing* easing, double x, bool before)
 
 // The in curve f(x) and the out curve 1 - f(1 - x), one of which is
 // native; circ has both.
-static double InCurve(const mtwnEasing* easing, double x, bool before)
+static double InCurve(const mtwnEasing* easing, double x, bool before, bool* hostNan)
 {
-    return IsNativeOut(easing->kind) ? 1.0 - NativeCurve(easing, 1.0 - x, false)
-                                     : NativeCurve(easing, x, before);
+    return IsNativeOut(easing->kind) ? 1.0 - NativeCurve(easing, 1.0 - x, false, hostNan)
+                                     : NativeCurve(easing, x, before, hostNan);
 }
 
-static double OutCurve(const mtwnEasing* easing, double x)
+static double OutCurve(const mtwnEasing* easing, double x, bool* hostNan)
 {
     if (easing->kind == mtwn_easingCirc)
     {
         // sqrt(1 - (1 - x)^2), its digits kept where the curve is steepest.
         return sqrt(CircRise(x));
     }
-    return IsNativeOut(easing->kind) ? NativeCurve(easing, x, false)
-                                     : 1.0 - NativeCurve(easing, 1.0 - x, false);
+    return IsNativeOut(easing->kind) ? NativeCurve(easing, x, false, hostNan)
+                                     : 1.0 - NativeCurve(easing, 1.0 - x, false, hostNan);
 }
 
 // Fills the normalization from the native curve's raw ends.
@@ -591,7 +609,8 @@ mtwnResult mtwnIsEasingMonotonic(const mtwnEasing* easing, bool* monotonicOut)
     return result;
 }
 
-MTWN_NOINLINE double mtwnSampleEasingWork(const mtwnEasing* easing, double progress, bool before)
+MTWN_NOINLINE double mtwnSampleEasingNoted(const mtwnEasing* easing, double progress, bool before,
+                                           bool* hostNan)
 {
     if (easing->kind == mtwn_easingLinear)
     {
@@ -609,15 +628,15 @@ MTWN_NOINLINE double mtwnSampleEasingWork(const mtwnEasing* easing, double progr
     switch (easing->mode)
     {
     case mtwn_easeIn:
-        return InCurve(easing, p, before);
+        return InCurve(easing, p, before, hostNan);
     case mtwn_easeOut:
-        return OutCurve(easing, p);
+        return OutCurve(easing, p, hostNan);
     case mtwn_easeInOut:
-        return p < 0.5 ? 0.5 * InCurve(easing, 2.0 * p, before)
-                       : 0.5 + 0.5 * OutCurve(easing, 2.0 * p - 1.0);
+        return p < 0.5 ? 0.5 * InCurve(easing, 2.0 * p, before, hostNan)
+                       : 0.5 + 0.5 * OutCurve(easing, 2.0 * p - 1.0, hostNan);
     default:
-        return p < 0.5 ? 0.5 * OutCurve(easing, 2.0 * p)
-                       : 0.5 + 0.5 * InCurve(easing, 2.0 * p - 1.0, before);
+        return p < 0.5 ? 0.5 * OutCurve(easing, 2.0 * p, hostNan)
+                       : 0.5 + 0.5 * InCurve(easing, 2.0 * p - 1.0, before, hostNan);
     }
 }
 

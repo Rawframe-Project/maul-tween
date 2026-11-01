@@ -65,11 +65,14 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
 // The transition at t seconds after its delay, before rounding. A spring
 // or decay on channels gives its own velocity and returns true; the
 // others leave the velocity to the caller.
-static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double velocity[4])
+// hostNan as mtwnSampleEasingNoted's.
+static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double velocity[4],
+                   bool* hostNan)
 {
     if (slot->transitionKind == mtwn_transitionEasing)
     {
-        PathAt(slot, mtwnSampleEasingWork(&slot->easing, t / slot->duration, false), value);
+        PathAt(slot, mtwnSampleEasingNoted(&slot->easing, t / slot->duration, false, hostNan),
+               value);
         return false;
     }
     if (slot->transitionKind == mtwn_transitionSpring && mtwnIsPathKind(slot->kind))
@@ -164,18 +167,18 @@ static bool IsEasedNumbers(const mtwnPlayerSlot* slot)
 }
 
 // A transition's easing at a progress: a power from the slot's first
-// line, or the easing.
-static inline double Eased(const mtwnPlayerSlot* slot, double progress)
+// line, or the easing; hostNan as mtwnSampleEasingNoted's.
+static inline double Eased(const mtwnPlayerSlot* slot, double progress, bool* hostNan)
 {
     return slot->power != 0 ? mtwnEasePower(slot->power, slot->powerMode, progress)
-                            : mtwnEaseFast(&slot->easing, progress);
+                            : mtwnEaseFast(&slot->easing, progress, hostNan);
 }
 
 // An eased transition of numbers at t seconds after its delay, before
 // rounding: Sample's arithmetic for the commonest case, straight through.
-static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4])
+static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4], bool* hostNan)
 {
-    double p = Eased(slot, t / slot->duration);
+    double p = Eased(slot, t / slot->duration, hostNan);
     const float* from = &slot->from.x;
     const float* to = &slot->to.x;
     uint8_t channels = mtwnKindChannels(slot->kind);
@@ -191,7 +194,7 @@ static void EasedValue(const mtwnPlayerSlot* slot, double t, double value[4])
 static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double value[4])
 {
     double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
-    double q = Eased(slot, earlier / slot->duration);
+    double q = Eased(slot, earlier / slot->duration, NULL);
     const float* from = &slot->from.x;
     const float* to = &slot->to.x;
     uint8_t channels = mtwnKindChannels(slot->kind);
@@ -203,6 +206,17 @@ static mtwnVec4 EasedVelocity(const mtwnPlayerSlot* slot, double t, const double
             mtwnVelocityFloat((mtwnNumberHeld(value[i]) - mtwnNumberHeld(before)) / (t - earlier));
     }
     return (mtwnVec4){velocity[0], velocity[1], velocity[2], velocity[3]};
+}
+
+// One misuse for a sample of this update whose easing's host function
+// gave NaN; the earlier sample a velocity is measured from counts none, so
+// the count is the same whenever the velocity is worked out.
+static void CountHostNan(const mtwnContext* context, bool hostNan)
+{
+    if (hostNan)
+    {
+        mtwnCountMisuse(context);
+    }
 }
 
 // The seconds after its delay a transition has run at the host's time.
@@ -222,7 +236,7 @@ static MTWN_NOINLINE mtwnVec4 LazyVelocity(const mtwnContext* context, uint32_t 
     MTWN_ASSERT(slot->type == MTWN_PLAYER_TRANSITION && IsEasedNumbers(slot));
     double t = Elapsed(slot, context->lastTimeNs);
     double value[4];
-    EasedValue(slot, t, value);
+    EasedValue(slot, t, value, NULL);
     return EasedVelocity(slot, t, value);
 }
 
@@ -248,7 +262,7 @@ double mtwnEasedProgress(const mtwnContext* context, uint32_t player)
 {
     const mtwnPlayerSlot* slot = mtwnPlayerAt(context, player);
     double t = slot->started ? Elapsed(slot, context->lastTimeNs) : -1.0;
-    return t < 0.0 ? 0.0 : Eased(slot, t / slot->duration);
+    return t < 0.0 ? 0.0 : Eased(slot, t / slot->duration, NULL);
 }
 
 void mtwnSettleVelocity(mtwnContext* context, uint32_t index1)
@@ -278,7 +292,9 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
 {
     MTWN_ASSERT(IsEasedNumbers(slot));
     double now[4];
-    EasedValue(slot, t, now);
+    bool hostNan = false;
+    EasedValue(slot, t, now, &hostNan);
+    CountHostNan(context, hostNan);
     if (slot->kind == mtwn_valueInteger)
     {
         now[0] = round(now[0]);
@@ -327,6 +343,16 @@ static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t
     return true;
 }
 
+// Sample at this update's time, its host NaN counted.
+static bool SampleNow(const mtwnContext* context, const mtwnPlayerSlot* slot, double t,
+                      double value[4], double velocity[4])
+{
+    bool hostNan = false;
+    bool sampled = Sample(slot, t, value, velocity, &hostNan);
+    CountHostNan(context, hostNan);
+    return sampled;
+}
+
 // A curve's own speed is the value's where the value is not held; held
 // past the floats a number is still, as the speed the values held give.
 static void HoldStill(const double now[4], double speed[4])
@@ -367,7 +393,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         WriteEased(context, slot, target, t);
         return;
     }
-    bool sampledSpeed = Sample(slot, t, now, speed);
+    bool sampledSpeed = SampleNow(context, slot, t, now, speed);
     if (!sampledSpeed)
     {
         // The change over the curve's last millisecond, from its start
@@ -375,7 +401,7 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
         double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
         double before[4];
         double unused[4];
-        Sample(slot, earlier, before, unused);
+        Sample(slot, earlier, before, unused, NULL);
         uint8_t channels = slot->kind == mtwn_valueDiscrete ? 0 : mtwnKindChannels(slot->kind);
         speed[0] = speed[1] = speed[2] = speed[3] = 0.0;
         for (uint8_t i = 0; i < channels; ++i)
