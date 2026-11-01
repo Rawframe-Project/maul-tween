@@ -123,7 +123,7 @@ Porting from GSAP: a grid with a short last row stays its columns wide, its cent
 
 ## Not obvious
 
-- A timeline's easing must never decrease (`mtwnIsEasingMonotonic`), so time never runs back inside a forward play: back, elastic, bounce, springs and host functions are refused there. A cubic bezier is sampled there so that its values never decrease to the bit, which can differ from `mtwnSampleEasing`'s by a few 1e-14 ([easing.md](easing.md)).
+- A timeline's easing must never decrease (`mtwnIsEasingMonotonic`), so time never runs back inside a forward play: back, elastic, bounce, springs and host functions are refused there. A cubic bezier is sampled there so that its values never decrease to the bit, which can differ from what the same easing gives in a keyframe, a transition or `mtwnSampleEasing` by a few 1e-14 ([easing.md](easing.md)).
 - A clip a player plays cannot be destroyed (`mtwn_errorBusy`) until the player is freed. The refusal counts no misuse, since a player not kept frees itself at an end the update decides.
 - A negative playback rate needs a finite active duration, whose end a backward play starts from.
 - Clip storage is allocated when the clip is made and freed when it is destroyed; the context's other capacities are not touched.

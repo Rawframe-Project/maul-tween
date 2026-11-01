@@ -403,8 +403,9 @@ extern "C"
     /// samples to values that never decrease, but a cubic bezier through
     /// mtwnSampleEasing, solved to 1e-14 in x, whose values can fall an ulp
     /// or so short of the last, more near a vertical tangent. A timeline
-    /// samples one so that they never do, a few 1e-14 from mtwnSampleEasing's
-    /// for CSS's keywords.
+    /// samples one so that they never do, which can differ from what the
+    /// same easing gives in a keyframe, a transition or mtwnSampleEasing by
+    /// a few 1e-14 for CSS's keywords.
     ///
     /// @param easing        An easing made by this library.
     /// @param monotonicOut  Receives whether it never decreases; unchanged
