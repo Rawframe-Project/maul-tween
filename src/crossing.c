@@ -395,16 +395,19 @@ static mtwnCrossings Prefix(const mtwnLevel* level, const Shape* shape, double k
 }
 
 // Where a level's reach leaves its moving part to the level below: the
-// child times its partly reached iteration runs between, whether it runs
-// down the local time, the constant kept for its start, and whether its
-// end is in. False when the level ends the walk.
+// iteration reached partly, the child times it runs between and ends at,
+// whether it runs down the local time, whether its end is in, and the
+// constants kept for its start and its end.
 typedef struct Partial
 {
+    double iteration;
     double from;
     double to;
+    double end;
     bool down;
     bool inclusive;
     uint32_t start;
+    uint32_t finish;
 } Partial;
 
 // A prepared level's shape, as its preparation kept it.
@@ -436,7 +439,8 @@ static bool Reaching(const mtwnLevel* level, double x, bool strict, mtwnCrossing
     if (shape.unbounded)
     {
         // One forward iteration from 0, at the rate; reversed, at infinity.
-        *partial = (Partial){0.0, a * timing->playbackRate, false, !strict, 1};
+        *partial =
+            (Partial){shape.first, 0.0, a * timing->playbackRate, HUGE_VAL, false, !strict, 1, 0};
         return Forwards(timing, shape.first);
     }
     Reach reach = Locate(timing, &shape, x, strict);
@@ -448,20 +452,88 @@ static bool Reaching(const mtwnLevel* level, double x, bool strict, mtwnCrossing
     double k = reach.iteration;
     *sum = Prefix(level, &shape, k);
     bool forwards = Forwards(timing, k);
-    double firstJ = shape.forwardRate ? shape.first : shape.last;
-    partial->start = k == firstJ ? 0u : (forwards ? 1u : 2u);
+    partial->iteration = k;
     partial->from = ChildAt(timing, forwards, StartProgress(&shape, k));
     partial->to = ChildAt(timing, forwards, reach.progress);
+    partial->end = ChildAt(timing, forwards, EndProgress(&shape, k));
     partial->down = shape.forwardRate != forwards;
     partial->inclusive = reach.inclusive;
+    double firstJ = shape.forwardRate ? shape.first : shape.last;
+    double lastJ = shape.forwardRate ? shape.last : shape.first;
+    partial->start = k == firstJ ? 0u : (forwards ? 1u : 2u);
+    partial->finish = k == lastJ ? 2u : (forwards ? 0u : 1u);
     return true;
 }
 
-// The crossings at points reached by a local time of level i (or the
-// leaf, at the bottom): one walk down the chain, at most
-// MTWN_MAX_CLIP_DEPTH + 2 levels deep. A level's count is its own plus
-// what the level below reaches of its partly reached iteration, from that
-// iteration's start, where both reaches may be past the doubles (Less).
+static mtwnCrossings Below(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                           uint32_t i, double x, bool strict);
+static mtwnCrossings Gained(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                            uint32_t i, double xa, bool sa, double xb, bool sb, bool split);
+
+// What the level below reaches of a partly reached iteration, from its
+// start to the reach's child time, swapped where the iteration runs down:
+// counted between the two (walk), or as the reach there less the constant
+// kept for the start. It, ToEnd, BelowAt and the count are kept out of
+// line, each called from several places.
+MTWN_NOINLINE static mtwnCrossings FromStart(const mtwnLevel* levels, uint32_t count,
+                                             const mtwnLeaf* leaf, uint32_t i,
+                                             const Partial* partial, bool walk, bool split)
+{
+    double next = NextStart(levels, count, i);
+    double at = partial->to - next;
+    double from = partial->from - next;
+    const mtwnCrossings* start = levels[i].startBelow[partial->start];
+    mtwnCrossings part = {0.0, 0.0};
+    if (partial->from <= partial->to)
+    {
+        // Points in [from, to] or [from, to).
+        part = walk ? Gained(levels, count, leaf, i + 1, from, true, at, !partial->inclusive, split)
+                    : Less(Below(levels, count, leaf, i + 1, at, !partial->inclusive), start[1]);
+    }
+    else
+    {
+        // Points in [to, from] or (to, from].
+        part = walk ? Gained(levels, count, leaf, i + 1, at, partial->inclusive, from, false, split)
+                    : Less(start[0], Below(levels, count, leaf, i + 1, at, partial->inclusive));
+    }
+    mtwnCrossings sum = {0.0, 0.0};
+    Add(&sum, partial->down, part);
+    return sum;
+}
+
+// What the level below reaches of a partly reached iteration beyond the
+// reach, to the iteration's end, as FromStart: with it, the iteration's
+// coverage.
+MTWN_NOINLINE static mtwnCrossings ToEnd(const mtwnLevel* levels, uint32_t count,
+                                         const mtwnLeaf* leaf, uint32_t i, const Partial* partial,
+                                         bool walk, bool split)
+{
+    double next = NextStart(levels, count, i);
+    double at = partial->to - next;
+    double to = partial->end - next;
+    const mtwnCrossings* end = levels[i].endBelow[partial->finish];
+    mtwnCrossings part = {0.0, 0.0};
+    // Which way the iteration runs: at its start the reach's child time is
+    // its start's, whichever way.
+    if (partial->from <= partial->end)
+    {
+        // Points in (to, end] or [to, end].
+        part = walk ? Gained(levels, count, leaf, i + 1, at, !partial->inclusive, to, false, split)
+                    : Less(end[0], Below(levels, count, leaf, i + 1, at, !partial->inclusive));
+    }
+    else
+    {
+        // Points in [end, to) or [end, to].
+        part = walk ? Gained(levels, count, leaf, i + 1, to, true, at, partial->inclusive, split)
+                    : Less(Below(levels, count, leaf, i + 1, at, partial->inclusive), end[1]);
+    }
+    mtwnCrossings sum = {0.0, 0.0};
+    Add(&sum, partial->down, part);
+    return sum;
+}
+
+// What a local time of level i (or the leaf, at the bottom) reaches: one
+// walk down the chain, at most MTWN_MAX_CLIP_DEPTH + 2 levels deep.
 static mtwnCrossings Below(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
                            uint32_t i, double x, bool strict)
 {
@@ -469,27 +541,102 @@ static mtwnCrossings Below(const mtwnLevel* levels, uint32_t count, const mtwnLe
     {
         return LeafBelow(leaf, x, strict);
     }
-    const mtwnLevel* level = &levels[i];
     mtwnCrossings sum = {0.0, 0.0};
     Partial partial;
-    if (!Reaching(level, x, strict, &sum, &partial))
+    if (Reaching(&levels[i], x, strict, &sum, &partial))
     {
+        Add(&sum, false, FromStart(levels, count, leaf, i, &partial, false, false));
+    }
+    return sum;
+}
+
+// The coverage of the whole iterations strictly between two.
+static mtwnCrossings Among(const mtwnLevel* level, double a, double b)
+{
+    double forwards = 0.0;
+    double backwards = 0.0;
+    Between(&level->timing, a, b, &forwards, &backwards);
+    mtwnCrossings sum = Scaled(level->cover[1], forwards);
+    Add(&sum, false, Scaled(level->cover[2], backwards));
+    return sum;
+}
+
+// The crossings at points a local time xb of level i (or the leaf, at the
+// bottom) reaches beyond those an earlier xa reaches, each strictly or not:
+// a walk down the chain with both, at most MTWN_MAX_CLIP_DEPTH + 2 levels
+// deep. Where both lie in one iteration, what came before it is the same
+// and the level below counts between their child times. Where they part
+// in two iterations, a's from a on, the whole ones between and b's up to
+// b: each end's part is walked on below with its iteration's start or
+// end. What either end reaches from the level's start is not added up, so
+// a difference far smaller than that stays exact; where both reaches are
+// past the doubles (Less), the node is held and nothing lies between. A
+// walk that split so once (split) takes a second split's parts as the
+// reaches there less the constants kept for the iterations' starts and
+// ends, so a count costs two walks and four reaches at most, not a walk
+// that doubles at every level.
+static mtwnCrossings Gained(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                            uint32_t i, double xa, bool sa, double xb, bool sb, bool split)
+{
+    if (i == count)
+    {
+        return Less(LeafBelow(leaf, xb, sb), LeafBelow(leaf, xa, sa));
+    }
+    const mtwnLevel* level = &levels[i];
+    mtwnCrossings a = {0.0, 0.0};
+    mtwnCrossings b = {0.0, 0.0};
+    Partial pa;
+    Partial pb;
+    bool partA = Reaching(level, xa, sa, &a, &pa);
+    bool partB = Reaching(level, xb, sb, &b, &pb);
+    if (partB && !partA)
+    {
+        // Nothing reached at a.
+        Add(&b, false, FromStart(levels, count, leaf, i, &pb, true, split));
+        return b;
+    }
+    if (!partA || (!partB && !isfinite(pa.iteration)))
+    {
+        // Each whole, none or a point's; or a held past the doubles.
+        if (partA)
+        {
+            Add(&a, false, FromStart(levels, count, leaf, i, &pa, true, split));
+        }
+        return Less(b, a);
+    }
+    bool up = pa.from <= pa.to;
+    if (partB && pa.iteration == pb.iteration && up == (pb.from <= pb.to))
+    {
+        double next = NextStart(levels, count, i);
+        mtwnCrossings part = up ? Gained(levels, count, leaf, i + 1, pa.to - next, !pa.inclusive,
+                                         pb.to - next, !pb.inclusive, split)
+                                : Gained(levels, count, leaf, i + 1, pb.to - next, pb.inclusive,
+                                         pa.to - next, pa.inclusive, split);
+        mtwnCrossings sum = {0.0, 0.0};
+        Add(&sum, pa.down, part);
         return sum;
     }
-    double childX = partial.to - NextStart(levels, count, i);
-    const mtwnCrossings* start = level->startBelow[partial.start];
-    mtwnCrossings part;
-    if (partial.from <= partial.to)
+    if (partB && pa.iteration == pb.iteration)
     {
-        // Points in [from, to] or [from, to).
-        part = Less(Below(levels, count, leaf, i + 1, childX, !partial.inclusive), start[1]);
+        return Less(FromStart(levels, count, leaf, i, &pb, !split, true),
+                    FromStart(levels, count, leaf, i, &pa, !split, true));
     }
-    else
+    Shape shape = LevelShape(level);
+    double lastJ = shape.forwardRate ? shape.last : shape.first;
+    if (!partB)
     {
-        // Points in [to, from] or (to, from].
-        part = Less(start[0], Below(levels, count, leaf, i + 1, childX, partial.inclusive));
+        // b whole: a's iteration from a on, and every one after it.
+        mtwnCrossings sum = ToEnd(levels, count, leaf, i, &pa, true, split);
+        if (pa.iteration != lastJ)
+        {
+            Add(&sum, false, Among(level, pa.iteration, lastJ));
+            Add(&sum, false, level->cover[3]);
+        }
+        return sum;
     }
-    Add(&sum, partial.down, part);
+    mtwnCrossings sum = ToEnd(levels, count, leaf, i, &pa, !split, true);
+    Add(&sum, false, Among(level, pa.iteration, pb.iteration));
+    Add(&sum, false, FromStart(levels, count, leaf, i, &pb, !split, true));
     return sum;
 }
 
@@ -519,20 +666,42 @@ static bool SameBits(double a, double b)
     return x == y;
 }
 
+// Below at child times, closed and strict, each worked out once: one of
+// the same child time as one before is the same bits, so it is copied.
+MTWN_NOINLINE static void BelowAt(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                  uint32_t i, const double* times, const bool* runs,
+                                  mtwnCrossings (*out)[2])
+{
+    double next = NextStart(levels, count, i);
+    for (int k = 0; k < 3; ++k)
+    {
+        int same = -1;
+        for (int m = 0; m < k; ++m)
+        {
+            same = runs[m] && SameBits(times[m], times[k]) ? m : same;
+        }
+        for (int strict = 0; strict < 2 && runs[k]; ++strict)
+        {
+            out[k][strict] = same >= 0
+                                 ? out[same][strict]
+                                 : Below(levels, count, leaf, i + 1, times[k] - next, strict != 0);
+        }
+    }
+}
+
 // The constants of a level of iterations of positive, finite duration:
-// below at its iteration starts, and its iterations' coverage.
+// below at its iteration starts and ends, and its iterations' coverage.
 static void PrepareIterations(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf, uint32_t i,
                               const Shape* shape)
 {
     mtwnLevel* level = &levels[i];
     const mtwnTiming* timing = &level->timing;
-    double next = NextStart(levels, count, i);
     double firstJ = shape->forwardRate ? shape->first : shape->last;
     double lastJ = shape->forwardRate ? shape->last : shape->first;
     // A whole iteration the direction never runs one way is never read
-    // that way (no start of it is reached, and Between counts none of it),
-    // so its counts stay 0. A count of the same inputs as one worked out
-    // is the same bits: it is copied.
+    // that way (no start or end of it is reached, and Between counts none
+    // of it), so its counts stay 0. A count of the same inputs as one
+    // worked out is the same bits: it is copied.
     bool runs[3] = {true, level->timing.direction != mtwn_directionReverse,
                     level->timing.direction != mtwn_directionNormal};
     bool firstForwards = Forwards(timing, firstJ);
@@ -541,20 +710,13 @@ static void PrepareIterations(mtwnLevel* levels, uint32_t count, const mtwnLeaf*
     double full0 = shape->forwardRate ? 0.0 : 1.0;
     double starts[3] = {ChildAt(timing, firstForwards, firstFrom), ChildAt(timing, true, full0),
                         ChildAt(timing, false, full0)};
-    for (int k = 0; k < 3; ++k)
-    {
-        int same = -1;
-        for (int m = 0; m < k; ++m)
-        {
-            same = runs[m] && SameBits(starts[m], starts[k]) ? m : same;
-        }
-        for (int strict = 0; strict < 2 && runs[k]; ++strict)
-        {
-            level->startBelow[k][strict] =
-                same >= 0 ? level->startBelow[same][strict]
-                          : Below(levels, count, leaf, i + 1, starts[k] - next, strict != 0);
-        }
-    }
+    BelowAt(levels, count, leaf, i, starts, runs, level->startBelow);
+    // The ends of full forward and reversed iterations, and the last's.
+    bool ends[3] = {runs[1], runs[2], isfinite(lastJ)};
+    double finishes[3] = {
+        ChildAt(timing, true, 1.0 - full0), ChildAt(timing, false, 1.0 - full0),
+        ends[2] ? ChildAt(timing, Forwards(timing, lastJ), EndProgress(shape, lastJ)) : 0.0};
+    BelowAt(levels, count, leaf, i, finishes, ends, level->endBelow);
     level->cover[0] = Cover(levels, count, leaf, i, firstForwards, firstFrom, firstTo);
     for (int way = 1; way < 3; ++way)
     {
@@ -595,6 +757,7 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
     // leaves unread as 0, so the level needs no clearing first.
     memset(level->cover, 0, sizeof level->cover);
     memset(level->startBelow, 0, sizeof level->startBelow);
+    memset(level->endBelow, 0, sizeof level->endBelow);
     level->pointBelow = (mtwnCrossings){0.0, 0.0};
     double next = NextStart(levels, count, i);
     if (shape.point)
@@ -637,52 +800,25 @@ void mtwnPrepareLevels(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf)
     }
 }
 
-static mtwnCrossings Reached(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
-                             double t, bool strict, mtwnCrossingMemo* memo)
+MTWN_NOINLINE mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t count,
+                                               const mtwnLeaf* leaf, double from, double to,
+                                               bool fromClosed)
 {
-    if (memo != NULL)
-    {
-        for (uint32_t k = 0; k < memo->count; ++k)
-        {
-            if (memo->strict[k] == strict && SameBits(memo->at[k], t))
-            {
-                return memo->reached[k];
-            }
-        }
-    }
-    double local = count > 0 ? t - levels[0].start : t;
-    mtwnCrossings reached = Below(levels, count, leaf, 0, local, strict);
-    if (memo != NULL)
-    {
-        uint32_t k = memo->count < 8 ? memo->count++ : memo->next;
-        memo->next = (k + 1) % 8;
-        memo->at[k] = t;
-        memo->strict[k] = strict;
-        memo->reached[k] = reached;
-    }
-    return reached;
-}
-
-mtwnCrossings mtwnCountCrossingsMemo(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
-                                     double from, double to, bool fromClosed,
-                                     mtwnCrossingMemo* memo)
-{
+    double start = count > 0 ? levels[0].start : 0.0;
     mtwnCrossings sum = {0.0, 0.0};
     if (to >= from)
     {
-        mtwnCrossings later = Reached(levels, count, leaf, to, false, memo);
-        sum = Less(later, Reached(levels, count, leaf, from, fromClosed, memo));
         if (to == from && !fromClosed)
         {
-            return (mtwnCrossings){0.0, 0.0};
+            return sum;
         }
+        sum = Gained(levels, count, leaf, 0, from - start, fromClosed, to - start, false, false);
         // What is reached by a later time includes what is reached by an
         // earlier one, so no count is negative.
         MTWN_ASSERT(!(sum.same < 0.0) && !(sum.opposite < 0.0));
         return sum;
     }
-    mtwnCrossings later = Reached(levels, count, leaf, from, !fromClosed, memo);
-    sum = Less(later, Reached(levels, count, leaf, to, true, memo));
+    sum = Gained(levels, count, leaf, 0, to - start, true, from - start, !fromClosed, false);
     MTWN_ASSERT(!(sum.same < 0.0) && !(sum.opposite < 0.0));
     // The sweep runs against the coordinate: the leaf moves the other way.
     return (mtwnCrossings){sum.opposite, sum.same};
@@ -728,7 +864,6 @@ typedef struct Search
     mtwnCrossingWay way;
     int64_t near;
     int64_t far;
-    mtwnCrossingMemo* memo;
 } Search;
 
 // Whether the sweep part a search tests counts a crossing: from the sweep's
@@ -736,11 +871,10 @@ typedef struct Search
 static bool Found(const Search* search, int64_t t)
 {
     double at = Unordered(t);
-    mtwnCrossings c =
-        search->last ? mtwnCountCrossingsMemo(search->levels, search->count, search->leaf, at,
-                                              search->to, true, search->memo)
-                     : mtwnCountCrossingsMemo(search->levels, search->count, search->leaf,
-                                              search->from, at, search->fromClosed, search->memo);
+    mtwnCrossings c = search->last ? mtwnCountCrossings(search->levels, search->count, search->leaf,
+                                                        at, search->to, true)
+                                   : mtwnCountCrossings(search->levels, search->count, search->leaf,
+                                                        search->from, at, search->fromClosed);
     return Of(c, search->way) >= 1.0;
 }
 
@@ -792,12 +926,12 @@ static void TestGuess(Search* search, double guess)
 
 double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
                             double from, double to, bool fromClosed, bool last, mtwnCrossingWay way,
-                            double guess, mtwnCrossingMemo* memo)
+                            double guess)
 {
     // The point at the near end itself.
     double end = last ? to : from;
     if ((last || fromClosed) &&
-        Of(mtwnCountCrossingsMemo(levels, count, leaf, end, end, true, memo), way) >= 1.0)
+        Of(mtwnCountCrossings(levels, count, leaf, end, end, true), way) >= 1.0)
     {
         return end;
     }
@@ -813,8 +947,7 @@ double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnL
                      false,
                      way,
                      Ordered(last ? to : from),
-                     Ordered(last ? from : to),
-                     memo};
+                     Ordered(last ? from : to)};
     search.up = search.far > search.near;
     TestGuess(&search, guess);
     for (;;)

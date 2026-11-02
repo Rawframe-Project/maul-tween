@@ -1846,8 +1846,291 @@ static void TestPastTheDoubles(void)
     mtwnDestroyContext(w.context);
 }
 
+// Twin clips whose child times are the same bits: a timeline of 1000
+// iterations of 1 s, swept near 500 s, and the same from iteration 500
+// after a delay of 500 s, which reaches nothing before the iteration swept.
+// Each holds an endless track whose iterations the first clip's 500 whole
+// timeline iterations take past 2^53, the doubles' last exact integer,
+// before any sweep starts. A sweep's records must not depend on that.
+// Some sweeps of one double cross nothing: the clip's root runs once over
+// its 1000 s, and its child time, its progress times that, takes about two
+// doubles there to move.
+static void TestReachedBefore(void)
+{
+    static const double durations[2] = {0x1p-45, 1e-18};
+    static const int steps[4] = {1, 2, 7, 1000};
+    int wrong = 0;
+    int compared = 0;
+    int recorded = 0;
+    for (int d = 0; d < 2; ++d)
+    {
+        World w[2];
+        mtwnPlayerId player[2];
+        for (int t = 0; t < 2; ++t)
+        {
+            w[t] = MakeWorld(16);
+            mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+            group.autoDuration = false;
+            group.timing.duration = 1.0;
+            group.timing.iterations = t == 0 ? 1000.0 : 500.0;
+            group.timing.iterationStart = t == 0 ? 0.0 : 500.0;
+            group.timing.delay = t == 0 ? 0.0 : 500.0;
+            mtwnKeyframe keys[2];
+            memset(keys, 0, sizeof keys);
+            keys[1].offset = 1.0;
+            keys[1].value.x = 1.0f;
+            keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+            mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+            track.keyframes = keys;
+            track.keyframeCount = 2;
+            track.timing.duration = durations[d];
+            track.timing.iterations = HUGE_VAL;
+            mtwnNode node = 0;
+            CHECK(mtwnClip_AddTimeline(w[t].context, w[t].clip, &group, &track.parent) ==
+                          mtwn_success &&
+                      mtwnClip_AddTrack(w[t].context, w[t].clip, &track, &node) == mtwn_success &&
+                      mtwnClip_Seal(w[t].context, w[t].clip) == mtwn_success,
+                  "twin clips");
+            player[t] = Play(&w[t], true, 1.0);
+            Update(&w[t], 0.0);
+            CHECK(mtwnClipPlayer_Pause(w[t].context, player[t]) == mtwn_success, "paused");
+        }
+        for (int s = 0; s < 16; ++s)
+        {
+            double t1 = 500.0 + (s + 1) / 17.0;
+            for (int k = 0; k < 4; ++k)
+            {
+                double t2 = t1;
+                for (int i = 0; i < steps[k]; ++i)
+                {
+                    t2 = nextafter(t2, HUGE_VAL);
+                }
+                for (int back = 0; back < 2; ++back)
+                {
+                    mtwnEvent e[2][16];
+                    uint32_t n[2] = {0, 0};
+                    for (int t = 0; t < 2; ++t)
+                    {
+                        CHECK(mtwnClipPlayer_Seek(w[t].context, player[t], back ? t2 : t1) ==
+                                  mtwn_success,
+                              "sought");
+                        (void)Read(&w[t], e[t], 16);
+                        CHECK(mtwnClipPlayer_Sweep(w[t].context, player[t], back ? t1 : t2) ==
+                                  mtwn_success,
+                              "swept");
+                        n[t] = Read(&w[t], e[t], 16);
+                    }
+                    bool same = n[0] == n[1];
+                    recorded += n[0] > 0 ? 1 : 0;
+                    for (uint32_t i = 0; same && i < n[0]; ++i)
+                    {
+                        const mtwnEvent* a = &e[0][i];
+                        const mtwnEvent* b = &e[1][i];
+                        same = a->kind == b->kind && a->node == b->node && a->count == b->count &&
+                               a->backwards == b->backwards && a->clipTime == b->clipTime &&
+                               a->firstIteration == b->firstIteration &&
+                               a->lastIteration == b->lastIteration;
+                    }
+                    wrong += same ? 0 : 1;
+                    ++compared;
+                }
+            }
+        }
+        mtwnDestroyContext(w[0].context);
+        mtwnDestroyContext(w[1].context);
+    }
+    CHECK(wrong == 0 && compared == 256 && recorded > 200,
+          "a sweep's records the same whatever came before it");
+}
+
+// A track's iteration in a timeline at a clip time, as mtwnComputeTiming
+// gives it through the timeline.
+static double TrackIn(const mtwnTiming* timeline, const mtwnTiming* track, double t)
+{
+    mtwnTiming group = *timeline;
+    group.fill = mtwn_fillBoth;
+    mtwnTimingResult result;
+    CHECK(mtwnComputeTiming(&group, t, false, &result) == mtwn_success, "the timeline's timing");
+    mtwnTiming own = *track;
+    own.fill = mtwn_fillBoth;
+    return IterationAt(&own, result.transformedProgress * group.duration);
+}
+
+// The track's iteration in a timeline of 1000 iterations of 1 s.
+static double TrackIterationAt(const mtwnTiming* track, double t)
+{
+    mtwnTiming group = mtwnDefaultTiming();
+    group.duration = 1.0;
+    group.iterations = 1000.0;
+    return TrackIn(&group, track, t);
+}
+
+// An endless track of 1e-18 s in a timeline of 1000 iterations of 1 s,
+// swept from inside one timeline iteration into the next and past the
+// timeline's end. Each record's first and last iteration and its count lie
+// within 10^7 of the track's iterations at the sweep's ends, as the timing
+// model gives them: a double there is about 5.7e4 of them, and the
+// crossings' times fall within a few doubles of the ends. Taken as what
+// each end reaches from the clip's start, they would be about 10^17 off.
+static void TestIterationEnds(void)
+{
+    World w = MakeWorld(16);
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 1.0;
+    group.timing.iterations = 1000.0;
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 1e-18;
+    track.timing.iterations = HUGE_VAL;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &track.parent) == mtwn_success &&
+              mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success &&
+              mtwnClip_Seal(w.context, w.clip) == mtwn_success,
+          "a timeline of a tiny track");
+    mtwnPlayerId player = Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    CHECK(mtwnClipPlayer_Pause(w.context, player) == mtwn_success, "paused");
+    int wrong = 0;
+    for (int s = 0; s < 8; ++s)
+    {
+        for (int past = 0; past < 2; ++past)
+        {
+            double t1 = 998.0 + past + (s + 1) / 17.0;
+            double t2 = 999.5 + past;
+            CHECK(mtwnClipPlayer_Seek(w.context, player, t1) == mtwn_success, "sought");
+            mtwnEvent e[16];
+            (void)Read(&w, e, 16);
+            CHECK(mtwnClipPlayer_Sweep(w.context, player, t2) == mtwn_success, "swept");
+            uint32_t n = Read(&w, e, 16);
+            double from = TrackIterationAt(&track.timing, t1);
+            double to = TrackIterationAt(&track.timing, t2 < 1000.0 ? t2 : 1000.0);
+            int found = 0;
+            for (uint32_t i = 0; i < n; ++i)
+            {
+                if (e[i].node != node || e[i].kind != mtwn_eventIteration || e[i].backwards)
+                {
+                    continue;
+                }
+                ++found;
+                // Into the next timeline iteration the track starts again:
+                // its crossings run from t1's iteration to the timeline
+                // iteration's end, then from 1 to t2's.
+                double end = past ? to : TrackIterationAt(&track.timing, 999.0 - 0x1p-40);
+                double count = past ? to - from : (end - from) + to;
+                wrong += fabs(e[i].firstIteration - from) > 1e7;
+                wrong += fabs(e[i].lastIteration - to) > 1e7;
+                wrong += fabs((double)e[i].count - count) > 1e7;
+            }
+            wrong += found != 1;
+        }
+    }
+    CHECK(wrong == 0, "a sweep's first and last iteration and count where the timing puts them");
+    mtwnDestroyContext(w.context);
+    // Four alternating iterations of 1 s around a track of 1e-308 s, played
+    // in frames of 0.25 s: each timeline iteration covers about 1e308 of
+    // the track's, a double of time near 4 s about 9e292. The frames to 3 s
+    // and to the timeline's end, 4 s, end where the timing puts the track.
+    w = MakeWorld(16);
+    group.timing.iterations = 4.0;
+    group.timing.direction = mtwn_directionAlternate;
+    track.timing.duration = 1e-308;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &track.parent) == mtwn_success &&
+              mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success &&
+              mtwnClip_Seal(w.context, w.clip) == mtwn_success,
+          "alternating iterations of a tinier track");
+    (void)Play(&w, true, 1.0);
+    wrong = 0;
+    for (int k = 0; k <= 16; ++k)
+    {
+        Update(&w, 0.25 * k);
+        mtwnEvent e[16];
+        uint32_t n = Read(&w, e, 16);
+        double end = TrackIn(&group.timing, &track.timing, 0.25 * k);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            if ((k == 12 || k == 16) && e[i].node == node && e[i].kind == mtwn_eventIteration)
+            {
+                wrong += fabs(e[i].lastIteration - end) > 1e296;
+            }
+        }
+    }
+    CHECK(wrong == 0,
+          "a frame's last iteration where the timing puts it, at the timeline's end too");
+    mtwnDestroyContext(w.context);
+}
+
+// MTWN_MAX_CLIP_DEPTH nested timelines, each endless, a third of its
+// parent's duration and starting a seventh of it before its parent's
+// iteration, so at every level a child runs from before its parent's
+// iteration to past its end, with a mark at the bottom. A sweep across the
+// top timeline's iteration end parts the two ends' iterations at every
+// level: a count that walked both parts on at each would take 2^32 walks.
+// The sweep's crossings are its two halves'.
+static void TestDeepNesting(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = MTWN_MAX_CLIP_DEPTH + 8;
+    mtwnClipId clip = {0, 0};
+    CHECK(mtwnCreateClip(w.context, &clipDef, &clip) == mtwn_success, "a deep clip");
+    mtwnNode parent = MTWN_ROOT_NODE;
+    double duration = 1.0;
+    bool made = true;
+    for (uint32_t j = 0; j < MTWN_MAX_CLIP_DEPTH; ++j)
+    {
+        mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+        group.parent = parent;
+        group.autoDuration = false;
+        group.timing.duration = j == 0 ? 1.0 : duration / 3.0;
+        group.timing.iterations = j == 0 ? 4.0 : HUGE_VAL;
+        group.position = At(j == 0 ? 0.0 : -duration / 7.0);
+        made = made && mtwnClip_AddTimeline(w.context, clip, &group, &parent) == mtwn_success;
+        duration = group.timing.duration;
+    }
+    mtwnNode mark = 0;
+    CHECK(made &&
+              mtwnClip_AddMark(w.context, clip, parent, At(duration * 0.25), 1, &mark) ==
+                  mtwn_success &&
+              mtwnClip_Seal(w.context, clip) == mtwn_success,
+          "timelines nested to the limit");
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
+    def.clip = clip;
+    def.keep = true;
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &player) == mtwn_success, "its player");
+    Update(&w, 0.0);
+    CHECK(mtwnClipPlayer_Pause(w.context, player) == mtwn_success, "paused");
+    static const double ends[3][2] = {{0.9, 1.1}, {0.9, 1.0}, {1.0, 1.1}};
+    uint64_t crossed[3] = {0, 0, 0};
+    for (int k = 0; k < 3; ++k)
+    {
+        mtwnEvent e[64];
+        CHECK(mtwnClipPlayer_Seek(w.context, player, ends[k][0]) == mtwn_success, "sought");
+        (void)Read(&w, e, 64);
+        CHECK(mtwnClipPlayer_Sweep(w.context, player, ends[k][1]) == mtwn_success, "swept");
+        uint32_t n = Read(&w, e, 64);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            crossed[k] += e[i].node == mark ? e[i].count : 0;
+        }
+    }
+    CHECK(crossed[0] > 1000000 && crossed[0] == crossed[1] + crossed[2],
+          "a sweep through timelines nested to the limit is counted, as its halves are");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
+    TestDeepNesting();
+    TestIterationEnds();
+    TestReachedBefore();
     TestPastTheDoubles();
     TestEasedTimelineMarks();
     TestJumpStartMarks();
