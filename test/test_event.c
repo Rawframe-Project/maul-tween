@@ -13,6 +13,7 @@
 #include "maul-tween/player.h"
 #include "maul-tween/transition.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -1714,8 +1715,140 @@ static void TestEasedTimelineMarks(void)
     CHECK(wrong == 0, "a mark in an eased timeline crossed once, frames dense or not");
 }
 
+// One node's records of a kind in an update's, each way.
+static void CountsOf(World* w, mtwnNode node, mtwnEventKind kind, uint64_t* forwardsOut,
+                     uint64_t* backwardsOut)
+{
+    *forwardsOut = 0;
+    *backwardsOut = 0;
+    mtwnEvent e[16];
+    uint32_t n = Read(w, e, 16);
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        if (e[i].node == node && e[i].kind == kind)
+        {
+            *(e[i].backwards ? backwardsOut : forwardsOut) += e[i].count;
+        }
+    }
+}
+
+// The iteration mtwnComputeTiming gives an endless timing at a local time.
+static double IterationAt(const mtwnTiming* timing, double local)
+{
+    mtwnTimingResult result;
+    CHECK(mtwnComputeTiming(timing, local, false, &result) == mtwn_success, "a timing");
+    return result.iteration;
+}
+
+// An endless node of 1e-308 s passes the doubles' iterations at 1.8 s:
+// from there mtwnComputeTiming holds it at the end of its infinite
+// iteration, and its values stand still. Between two frames before that,
+// 0.5 s apart, lie 5e307 iterations, past 2^64: the most there is. From a
+// frame before to one past, the same. Between two past it, none.
+static void TestPastTheDoubles(void)
+{
+    mtwnTiming tiny = mtwnDefaultTiming();
+    tiny.duration = 1e-308;
+    tiny.iterations = HUGE_VAL;
+    // A track, and timelines running forwards or alternating with a mark
+    // at each iteration's start and marks at -1 s and 1 s, which their child
+    // time never reaches.
+    for (int kind = 0; kind < 3; ++kind)
+    {
+        World w = MakeWorld(64);
+        mtwnNode node = 0;
+        mtwnNode mark = 0;
+        mtwnNode never[2] = {0, 0};
+        if (kind == 0)
+        {
+            node = AddTrack(&w, 0.0, tiny.duration, tiny.iterations);
+        }
+        else
+        {
+            mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+            group.autoDuration = false;
+            group.timing = tiny;
+            group.timing.direction = kind == 2 ? mtwn_directionAlternate : mtwn_directionNormal;
+            CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &node) == mtwn_success &&
+                      mtwnClip_AddMark(w.context, w.clip, node, At(0.0), 1, &mark) ==
+                          mtwn_success &&
+                      mtwnClip_AddMark(w.context, w.clip, node, At(-1.0), 2, &never[0]) ==
+                          mtwn_success &&
+                      mtwnClip_AddMark(w.context, w.clip, node, At(1.0), 3, &never[1]) ==
+                          mtwn_success,
+                  "a timeline and its marks");
+            // A track for the player's binding, its records not counted.
+            (void)AddTrack(&w, 0.0, 1.0, 1.0);
+        }
+        CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
+        (void)Play(&w, true, 1.0);
+        Update(&w, 0.0);
+        (void)Read(&w, (mtwnEvent[16]){0}, 16);
+        int wrong = 0;
+        for (int k = 1; k <= 6; ++k)
+        {
+            Update(&w, 0.5 * k);
+            mtwnEvent e[16];
+            uint32_t n = Read(&w, e, 16);
+            bool held =
+                isinf(IterationAt(&tiny, 0.5 * (k - 1))) && isinf(IterationAt(&tiny, 0.5 * k));
+            uint64_t expected = held ? 0 : UINT64_MAX;
+            uint64_t counts[2][2] = {{0, 0}, {0, 0}};
+            for (uint32_t i = 0; i < n; ++i)
+            {
+                int which = e[i].node == node && e[i].kind == mtwn_eventIteration ? 0
+                            : e[i].node == mark && mark != 0                      ? 1
+                                                                                  : -1;
+                if (which >= 0)
+                {
+                    counts[which][e[i].backwards ? 1 : 0] += e[i].count;
+                }
+                wrong += never[0] != 0 && (e[i].node == never[0] || e[i].node == never[1]);
+            }
+            // Alternating, the mark is crossed both ways, and the
+            // iterations made going forwards only.
+            uint64_t markBack = kind == 2 ? expected : 0;
+            wrong += counts[0][0] != expected || counts[0][1] != 0;
+            wrong += mark != 0 && (counts[1][0] != expected || counts[1][1] != markBack);
+        }
+        CHECK(wrong == 0, "the most there is up to the doubles' end, none between two past it");
+        mtwnDestroyContext(w.context);
+    }
+    // A track whose active time passes the doubles at every clip time
+    // (local less a delay of -DBL_MAX): held from the start.
+    World w = MakeWorld(64);
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.position = At(-1e300);
+    track.timing.delay = -DBL_MAX;
+    track.timing.iterations = HUGE_VAL;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a far track");
+    CHECK(isinf(IterationAt(&track.timing, 1e300)), "past the doubles where it plays");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
+    (void)Play(&w, true, 1.0);
+    uint64_t total = 0;
+    for (int k = 0; k <= 3; ++k)
+    {
+        Update(&w, 0.5 * k);
+        uint64_t forwards = 0;
+        uint64_t backwards = 0;
+        CountsOf(&w, node, mtwn_eventIteration, &forwards, &backwards);
+        total += forwards + backwards;
+    }
+    CHECK(total == 0, "no iteration crossed where it is held");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
+    TestPastTheDoubles();
     TestEasedTimelineMarks();
     TestJumpStartMarks();
     TestReverseAfterReducedFinish();
