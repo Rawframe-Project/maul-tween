@@ -6,6 +6,16 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.4](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.3...v0.15.4) (2026-11-02)
+
+This release keeps `linear()` easings monotonic where `mtwnIsEasingMonotonic` says they are, which a timeline's crossing count relies on ([#243](https://github.com/Rawframe-Project/maul-tween/pull/243)). A sample inside a segment could land an ulp past the segment's later point and step down at it. A sample moves only there, by at most about an ulp, so only hosts sampling `linear()` just below a point see it.
+
+### Fixed
+
+- A `linear()` sample no longer passes its segment's later point ([#243](https://github.com/Rawframe-Project/maul-tween/pull/243)). A segment's sample is `a + share * (b - a)`, and the rounded difference could carry it an ulp past `b` where the share is 1 or rounds to it: `linear(0, 0.03 1%, 0.3 3%, 1)` gave 0.30000000000000004 just below 3% and 0.3 at 3%. A timeline eased by such a curve could count a mark twice, depending on where the frames fell. Inside a segment the sample is now held at the point's output where it would pass it.
+  - `mtwnSampleEasing`, and the tracks, transitions and timelines eased by `linear()`, its fits and rough easings included, change only at those progresses, just below a point, by at most about an ulp of the segment's larger output.
+  - A clip's records change only where a timeline eased by such a `linear()` had a frame land there: a mark it crossed twice is now crossed once.
+
 ## [0.15.3](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.2...v0.15.3) (2026-11-02)
 
 This release fixes two ways the event records broke their promise that every crossing between two updates is counted, however far time moved. An endless node whose iteration passes the largest double is held there, as the timing model holds it, where its crossing count was NaN ([#237](https://github.com/Rawframe-Project/maul-tween/pull/237)). A sweep's count is taken between its two ends, so it no longer depends on how much the clip crossed before the sweep ([#241](https://github.com/Rawframe-Project/maul-tween/pull/241)). No value or velocity changes; event records change only for clips that cross more than 2^53 points before a sweep, or whose endless nodes pass the doubles. Each fix below names who sees it.
