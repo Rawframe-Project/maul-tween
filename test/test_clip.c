@@ -259,6 +259,10 @@ static void TestTracks(void)
     mtwnNode node;
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_success, "an angle track");
     CHECK(memcmp(angles, given, sizeof angles) == 0, "the caller's keyframes untouched");
+    mtwnNode label = 0;
+    CHECK(mtwnClip_AddLabel(context, clip, MTWN_ROOT_NODE, At(mtwn_positionAbsolute, 0.5), 7,
+                            &label) == mtwn_success,
+          "a label");
     CHECK(mtwnClip_Seal(context, clip) == mtwn_success, "sealed");
     mtwnClipTrack track;
     CHECK(mtwnClip_GetTrack(context, clip, node, &track) == mtwn_success, "read");
@@ -279,10 +283,15 @@ static void TestTracks(void)
     CHECK(mtwnClip_GetTrack(context, clip, MTWN_ROOT_NODE, &track) == mtwn_errorInvalid,
           "the root is no track");
     CHECK(mtwnClip_GetTrack(context, clip, 9, &track) == mtwn_errorInvalid, "no such node");
-    // Each reader refuses a null output, writing nothing through it.
+    // Each reader refuses a null output, writing nothing through it: the
+    // label is found, so only the null output refuses its search.
+    double seconds = 0.0;
+    CHECK(mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 7, &seconds) == mtwn_success &&
+              seconds == 0.5,
+          "the label found");
     CHECK(mtwnClip_GetTrack(context, clip, node, NULL) == mtwn_errorInvalid &&
               mtwnClip_GetNode(context, clip, node, NULL) == mtwn_errorInvalid &&
-              mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 0, NULL) == mtwn_errorInvalid &&
+              mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 7, NULL) == mtwn_errorInvalid &&
               mtwnClip_GetDuration(context, clip, NULL) == mtwn_errorInvalid,
           "a null output refused by each reader");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorState && node == 0,
