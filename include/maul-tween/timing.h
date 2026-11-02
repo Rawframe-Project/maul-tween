@@ -261,12 +261,13 @@ extern "C"
     /// mtwn_staggerEach. The offsets are the same bits on every platform.
     ///
     /// @param stagger     The stagger; its easing made by this library.
-    ///                    The easing is sampled twice at each item, once to
-    ///                    check the offset and once to write it, so only a
-    ///                    host function giving a value not finite the second
-    ///                    time writes an offset not finite.
     /// @param count       The items; 0 writes nothing.
-    /// @param offsetsOut  Receives count offsets; unchanged on failure.
+    /// @param offsetsOut  Receives count offsets, every one finite; unchanged
+    ///                    on failure: the easing is sampled at every item
+    ///                    before an offset is written, so only a host
+    ///                    function giving a value not finite when sampled
+    ///                    again there, which is refused too, leaves them
+    ///                    unspecified.
     /// @return mtwn_success; mtwn_errorInvalid for a null pointer with a
     ///         count, an unknown origin, axis or spacing, an index not below a count above 0
     ///         for mtwn_staggerIndex, a start or spacing not finite, a
