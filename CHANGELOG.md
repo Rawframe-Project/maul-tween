@@ -6,6 +6,14 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.3](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.2...v0.15.3) (2026-11-02)
+
+
+### Fixed
+
+* **event:** count a sweep's crossings between its two ends ([#241](https://github.com/Rawframe-Project/maul-tween/issues/241)) ([719a906](https://github.com/Rawframe-Project/maul-tween/commit/719a906596a6f7bc07c3ea348b16890f954a1b7a)), closes [#236](https://github.com/Rawframe-Project/maul-tween/issues/236)
+* **event:** hold an endless node past the doubles in its crossing counts ([#237](https://github.com/Rawframe-Project/maul-tween/issues/237)) ([8f7eade](https://github.com/Rawframe-Project/maul-tween/commit/8f7eade57320b1fe2f1c7a435e30696377cbe155)), closes [#235](https://github.com/Rawframe-Project/maul-tween/issues/235)
+
 ## [0.15.2](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.1...v0.15.2) (2026-11-02)
 
 This release fixes two results that broke what the headers promise. An Oklab or OkLCh color far past its ends keeps each channel's sign ([#227](https://github.com/Rawframe-Project/maul-tween/pull/227)), and `mtwnIsEasingMonotonic` no longer approves a linear() easing whose halves step down where in-out or out-in joins them, so a timeline refuses it ([#230](https://github.com/Rawframe-Project/maul-tween/pull/230)). Values change only for colors driven past about 5.6e102 in Oklab or OkLCh; nothing within range moves. Each fix below names who sees it.
