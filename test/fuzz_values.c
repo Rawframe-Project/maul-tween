@@ -10,7 +10,14 @@
 // parameters, is finite at every finite progress, and with a field a host
 // wrote is refused or still finite; easings meet their ends
 // where the API says they do, rotations stay unit, a punch rests outside
-// its span, and a stagger that succeeds writes finite offsets.
+// its span, and a stagger that succeeds writes finite offsets. Each also
+// meets an oracle that can fail: an easing called monotonic never
+// decreases, in the mode drawn; the cubic bezier sampler gives
+// mtwnSampleEasing's bits; a color far past its ends from black holds each
+// channel at the largest float of its sign, and converts there and back;
+// integers stay between their ends; a timing keeps Web Animations'
+// ranges; a rough easing's points run in order from (0, 0) to (1, 1); and
+// every refusal leaves its output as it was.
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
 // corpus directory; in the test suite it replays its seeds and a fixed
@@ -234,6 +241,55 @@ static void Forged(Bytes* in, const mtwnEasing* made)
     }
 }
 
+// An easing mtwnIsEasingMonotonic approves never decreases over the
+// progresses in order, from far before 0 to far past 1; a cubic bezier
+// through mtwnSampleEasing may fall an ulp or so short, as its header says,
+// and is let fall 2^-40.
+static void Monotone(const mtwnEasing* e)
+{
+    bool monotonic = false;
+    if (mtwnIsEasingMonotonic(e, &monotonic) != mtwn_success)
+    {
+        Fail("a made easing refused by the monotonic check", (double)e->kind);
+        return;
+    }
+    if (!monotonic)
+    {
+        return;
+    }
+    double slack = e->kind == mtwn_easingCubicBezier ? 0x1p-40 : 0.0;
+    const double inOrder[] = {-DBL_MAX, -1.5,          -0.25, 0.0,  0x1p-40, 0.1,    0.5,
+                              0.75,     1.0 - 0x1p-40, 1.0,   1.25, 2.5,     DBL_MAX};
+    double last = -HUGE_VAL;
+    for (size_t i = 0; i < sizeof inOrder / sizeof inOrder[0]; ++i)
+    {
+        double eased = Eased(e, inOrder[i], false);
+        if (eased < last - slack)
+        {
+            Fail("a monotonic easing decreases", inOrder[i]);
+        }
+        last = eased > last ? eased : last;
+    }
+}
+
+// mtwnSampleCubicBezierEasing gives mtwnSampleEasing's bits for a cubic
+// bezier or the linear easing, and refuses every other kind.
+static void BezierAlone(const mtwnEasing* e)
+{
+    bool takes = e->kind == mtwn_easingCubicBezier || e->kind == mtwn_easingLinear;
+    const double at[] = {-DBL_MAX, -1.5, 0.0, 0.1, 0.5, 1.0, 2.5, DBL_MAX};
+    for (size_t i = 0; i < sizeof at / sizeof at[0]; ++i)
+    {
+        double alone = (double)NAN;
+        mtwnResult r = mtwnSampleCubicBezierEasing(e, at[i], &alone);
+        if ((r == mtwn_success) != takes ||
+            (takes && memcmp(&alone, &(double){Eased(e, at[i], false)}, sizeof alone) != 0))
+        {
+            Fail("the cubic bezier sampler", at[i]);
+        }
+    }
+}
+
 // The fit of linear() is fuzz_fit's: at its limit it takes a thousand
 // times another section's inputs, so here it would starve the rest.
 static void Easings(Bytes* in, bool fit, bool* deep)
@@ -315,6 +371,19 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     {
         return;
     }
+    // CSS's curves take the mode drawn too, through mtwnSetEaseMode; an
+    // unknown one is refused, leaving the easing as it was.
+    if (kind >= 4 && kind <= 7)
+    {
+        mtwnEasing was = e;
+        mtwnResult set = mtwnSetEaseMode(&e, mode);
+        if ((set == mtwn_success) != ((uint32_t)mode <= mtwn_easeOutIn) ||
+            (set != mtwn_success && memcmp(&e, &was, sizeof e) != 0) ||
+            (set == mtwn_success && e.mode != mode))
+        {
+            Fail("an easing's mode", (double)mode);
+        }
+    }
     for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
     {
         (void)Eased(&e, s_progress[i], false);
@@ -329,6 +398,8 @@ static void Easings(Bytes* in, bool fit, bool* deep)
     {
         Fail("an easing's ends", Eased(&e, 1.0, false));
     }
+    Monotone(&e);
+    BezierAlone(&e);
     if (e.kind != mtwn_easingLinearPoints)
     {
         Forged(in, &e);
@@ -444,12 +515,30 @@ static void Springs(Bytes* in)
     }
 }
 
+// A decay from a share kept each millisecond: taken exactly for a share
+// above 0 and below 1, at -1000 ln of it to the logarithm's rounding,
+// refused otherwise with the output left.
+static void Decelerations(double share)
+{
+    mtwnDecay decay = {-1.0};
+    mtwnResult made = mtwnMakeDecayFromDeceleration(share, &decay);
+    if ((made == mtwn_success) != (share > 0.0 && share < 1.0) ||
+        (made != mtwn_success && decay.rate != -1.0) ||
+        (made == mtwn_success &&
+         !(fabs(decay.rate + 1000.0 * log(share)) <= 1e-13 * fabs(1000.0 * log(share)))))
+    {
+        Fail("a decay from a deceleration", share);
+    }
+}
+
 static void Decays(Bytes* in)
 {
     in->ordinary = true;
     in->finite = true;
     mtwnDecay decay;
-    if (mtwnMakeDecay(Positive(in, 20.0), &decay) != mtwn_success)
+    double rate = Positive(in, 20.0);
+    Decelerations(rate / 20.0);
+    if (mtwnMakeDecay(rate, &decay) != mtwn_success)
     {
         return;
     }
@@ -797,6 +886,187 @@ static void Zooms(const Bytes* in)
     }
 }
 
+// An integer mix of the angles drawn, scaled to integers up to 2^52, where
+// it is exact between its ends: the ends exactly at 0 and 1, between them
+// within the ends, and never back over progress in order; a progress not
+// finite refused, leaving the output. A discrete mix gives from below 1/2
+// and to from it.
+static void Integers(const double angles[3])
+{
+    if (!(fabs(angles[0]) < 1024.0) || !(fabs(angles[1]) < 1024.0))
+    {
+        return;
+    }
+    const int64_t from = (int64_t)(angles[0] * 0x1p42);
+    const int64_t to = (int64_t)(angles[1] * 0x1p42);
+    int64_t kept = 7;
+    mtwnResult mixed = mtwnMixInteger(from, to, angles[2], &kept);
+    if ((mixed == mtwn_success) != (bool)isfinite(angles[2]) ||
+        (mixed != mtwn_success && kept != 7))
+    {
+        Fail("an integer's refusal", angles[2]);
+    }
+    const int64_t low = from < to ? from : to;
+    const int64_t high = from < to ? to : from;
+    const double inOrder[] = {0.0, 0x1p-40, 0.1, 0.5, 0.75, 1.0 - 0x1p-40, 1.0};
+    int64_t last = from;
+    for (size_t i = 0; i < sizeof inOrder / sizeof inOrder[0]; ++i)
+    {
+        int64_t value = 0;
+        if (mtwnMixInteger(from, to, inOrder[i], &value) != mtwn_success || value < low ||
+            value > high || (from <= to ? value < last : value > last) ||
+            (inOrder[i] == 0.0 && value != from) || (inOrder[i] == 1.0 && value != to))
+        {
+            Fail("an integer between its ends", inOrder[i]);
+        }
+        last = value;
+        uint32_t discrete = 0;
+        if (mtwnMixDiscrete(3u, 9u, inOrder[i], &discrete) != mtwn_success ||
+            discrete != (inOrder[i] < 0.5 ? 3u : 9u))
+        {
+            Fail("a discrete value", inOrder[i]);
+        }
+    }
+}
+
+// Past the floats from black, in each space: 1e110 and 1e200 pass the
+// cube of an Oklab coordinate near 1, 1.5 2^1023 and the largest double
+// the mix's step too.
+static const double s_pastFloats[] = {-DBL_MAX, -0x1.8p1023, -1e200,     -1e110,
+                                      1e110,    1e200,       0x1.8p1023, DBL_MAX};
+
+// From black, whose OkLCh hue is powerless and takes the other end's, a
+// color c at progress p is p times c's coordinates in every space, so its
+// linear sRGB is p times c's, or p^3 in Oklab and OkLCh. Far out, each
+// channel of c not near 0 (beside the largest, where a conversion's
+// rounding could give the other sign) is held at the largest float of
+// sign(p) times its own, alpha 1.
+static void FarColors(mtwnColor c)
+{
+    c.alpha = 1.0f;
+    const float channels[3] = {c.red, c.green, c.blue};
+    float largest = fmaxf(fabsf(c.red), fmaxf(fabsf(c.green), fabsf(c.blue)));
+    if (!(largest > 0.0f) || !isfinite(largest))
+    {
+        return;
+    }
+    double lch[4];
+    if (mtwnConvertColorToSpace(c, mtwn_colorOklch, lch) != mtwn_success)
+    {
+        Fail("a color's OkLCh refused", (double)c.red);
+        return;
+    }
+    for (int space = 0; space < 4; ++space)
+    {
+        // A powerless hue, a near gray's, counts as 0 from black too: the
+        // line then holds none of c's own.
+        if (space == mtwn_colorOklch && isnan(lch[2]))
+        {
+            continue;
+        }
+        mtwnColorMix mix;
+        if (mtwnMakeColorMix((mtwnColor){0.0f, 0.0f, 0.0f, 1.0f}, c, (mtwnColorSpace)space,
+                             mtwn_hueShorter, &mix) != mtwn_success)
+        {
+            Fail("a color from black refused", (double)space);
+            return;
+        }
+        for (size_t i = 0; i < sizeof s_pastFloats / sizeof s_pastFloats[0]; ++i)
+        {
+            double p = s_pastFloats[i];
+            mtwnColor out = {0};
+            if (mtwnMixColor(&mix, p, &out) != mtwn_success || out.alpha != 1.0f)
+            {
+                Fail("a color past the floats refused", p);
+                continue;
+            }
+            const float got[3] = {out.red, out.green, out.blue};
+            for (int k = 0; k < 3; ++k)
+            {
+                float want = (p > 0.0) == (channels[k] > 0.0f) ? 0x1.fffffep127f : -0x1.fffffep127f;
+                if (fabsf(channels[k]) >= 1e-3f * largest && got[k] != want)
+                {
+                    Fail("a color past the floats has a channel's sign wrong", p);
+                }
+            }
+        }
+    }
+}
+
+// A color converted to each space and back is itself, within its floats'
+// rounding beside the largest channel; its coordinates times 1e110 or
+// 1e200, the hue apart, convert back to each channel of the color not near
+// 0 held at the largest float of its sign, as linear sRGB is the
+// coordinates' factor, or its cube, times the color's.
+static void Conversions(mtwnColor c)
+{
+    float largest = fmaxf(fabsf(c.red), fmaxf(fabsf(c.green), fabsf(c.blue)));
+    if (!isfinite(largest) || !(c.alpha >= 0.0f && c.alpha <= 1.0f))
+    {
+        return;
+    }
+    const float channels[3] = {c.red, c.green, c.blue};
+    for (int space = 0; space < 4; ++space)
+    {
+        double coordinates[4];
+        mtwnColor back = {0};
+        if (mtwnConvertColorToSpace(c, (mtwnColorSpace)space, coordinates) != mtwn_success ||
+            mtwnConvertColorFromSpace(coordinates, (mtwnColorSpace)space, &back) != mtwn_success)
+        {
+            Fail("a color's conversion refused", (double)space);
+            continue;
+        }
+        // A powerless hue converts back as 0: a near gray keeps none of its
+        // own.
+        if (space == mtwn_colorOklch && isnan(coordinates[2]))
+        {
+            continue;
+        }
+        const float got[3] = {back.red, back.green, back.blue};
+        for (int k = 0; k < 3; ++k)
+        {
+            double bound = 0x1p-22 * fabs((double)channels[k]) + 1e-9 * (double)largest + 1e-37;
+            if (!(fabs((double)got[k] - (double)channels[k]) <= bound))
+            {
+                Fail("a color converted there and back", (double)got[k]);
+            }
+        }
+        if (back.alpha != c.alpha || !(largest > 0.0f))
+        {
+            if (back.alpha != c.alpha)
+            {
+                Fail("a color's alpha converted there and back", (double)back.alpha);
+            }
+            continue;
+        }
+        const double factors[2] = {1e110, 1e200};
+        for (int f = 0; f < 2; ++f)
+        {
+            double scaled[4] = {coordinates[0] * factors[f], coordinates[1] * factors[f],
+                                coordinates[2] * factors[f], coordinates[3]};
+            if (space == mtwn_colorOklch)
+            {
+                scaled[2] = coordinates[2];
+            }
+            mtwnColor far = {0};
+            if (mtwnConvertColorFromSpace(scaled, (mtwnColorSpace)space, &far) != mtwn_success)
+            {
+                Fail("a color's far coordinates refused", factors[f]);
+                continue;
+            }
+            const float farGot[3] = {far.red, far.green, far.blue};
+            for (int k = 0; k < 3; ++k)
+            {
+                float want = channels[k] > 0.0f ? 0x1.fffffep127f : -0x1.fffffep127f;
+                if (fabsf(channels[k]) >= 1e-3f * largest && farGot[k] != want)
+                {
+                    Fail("a color's far coordinates have a channel's sign wrong", factors[f]);
+                }
+            }
+        }
+    }
+}
+
 static void Values(Bytes* in)
 {
     in->ordinary = true;
@@ -850,6 +1120,11 @@ static void Values(Bytes* in)
             }
         }
     }
+    if (Finite4((double)a.x, (double)a.y, (double)a.z, (double)a.w))
+    {
+        FarColors(from);
+        Conversions(from);
+    }
     ForgedTurns(in, coloured ? &colors : NULL, turned ? &rotations : NULL);
     in->ordinary = true;
     in->finite = true;
@@ -871,6 +1146,7 @@ static void Values(Bytes* in)
     {
         Fail("an angle", angle);
     }
+    Integers(angles);
     in->ordinary = true;
     in->finite = true;
     mtwnPunch punch;
@@ -1150,6 +1426,125 @@ static void Staggers(Bytes* in)
     }
 }
 
+// A timing of drawn fields, wild ones included: computed exactly when
+// mtwnValidateTiming takes it and the local time is neither NaN nor
+// negative infinity, leaving the result otherwise; computed, by Web
+// Animations' ranges: an active duration and end time, progress within
+// the iteration and directed from 0 to 1, a whole iteration from the
+// start's, and every progress resolved, the eased one too, where the
+// active time is.
+static void Timings(Bytes* in)
+{
+    in->ordinary = true;
+    in->finite = true;
+    mtwnTiming timing = mtwnDefaultTiming();
+    timing.delay = Param(in, 4.0);
+    timing.endDelay = Param(in, 4.0);
+    timing.iterationStart = Positive(in, 3.0);
+    timing.iterations = Positive(in, 4.0);
+    timing.duration = Positive(in, 3.0);
+    timing.repeatDelay = Positive(in, 1.0);
+    timing.playbackRate = Param(in, 3.0);
+    timing.fill = (mtwnFill)Below(in, 5);
+    timing.direction = (mtwnDirection)Below(in, 5);
+    timing.alternateEasing = (mtwnAlternateEasing)Below(in, 3);
+    if (Below(in, 3) == 0)
+    {
+        double p[2];
+        Draw(in, p, 2, (const double[]){4.0, 4.0}, false);
+        (void)mtwnMakeCubicBezierEasing(0.5, p[0], 0.5, p[1], &timing.easing);
+    }
+    double local = Param(in, 20.0);
+    bool backwards = Below(in, 2) == 1;
+    bool valid = mtwnValidateTiming(&timing) == mtwn_success;
+    mtwnTimingResult r;
+    memset(&r, 0x5A, sizeof r);
+    mtwnTimingResult untouched = r;
+    mtwnResult computed = mtwnComputeTiming(&timing, local, backwards, &r);
+    if ((computed == mtwn_success) != (valid && !isnan(local) && local != -HUGE_VAL) ||
+        (computed != mtwn_success && memcmp(&r, &untouched, sizeof r) != 0))
+    {
+        Fail("a timing's refusal", local);
+        return;
+    }
+    if (computed != mtwn_success)
+    {
+        return;
+    }
+    bool active = !isnan(r.activeTime);
+    if (!((uint32_t)r.phase <= mtwn_phaseAfter) || isnan(r.activeDuration) || isnan(r.endTime) ||
+        (active &&
+         (isnan(r.overallProgress) || isnan(r.simpleProgress) || isnan(r.directedProgress) ||
+          isnan(r.iteration) || isnan(r.transformedProgress))) ||
+        (!isnan(r.simpleProgress) && !(r.simpleProgress >= 0.0 && r.simpleProgress <= 1.0)) ||
+        (!isnan(r.directedProgress) && !(r.directedProgress >= 0.0 && r.directedProgress <= 1.0)) ||
+        (isfinite(r.iteration) && r.iteration != floor(r.iteration)) ||
+        r.iteration < floor(timing.iterationStart))
+    {
+        Fail("a timing outside Web Animations' ranges", local);
+    }
+}
+
+// A rough easing of drawn fields: made exactly when its count, strength,
+// taper and flags are within the header's, leaving the points otherwise;
+// made, its points run from (0, 0) to (1, 1) with inputs in order, its
+// outputs within 0 and 1 when clamped or rising, never back when rising,
+// and its samples finite.
+static void Roughs(Bytes* in)
+{
+    in->ordinary = true;
+    in->finite = true;
+    mtwnRoughDef def = {0};
+    if (Below(in, 2) == 0)
+    {
+        (void)mtwnMakePowerEasing((mtwnEaseMode)Below(in, 4), 3.0, &def.shape);
+    }
+    def.strength = Param(in, 1.0);
+    for (int i = 0; i < 8; ++i)
+    {
+        def.seed = def.seed << 8 | Byte(in);
+    }
+    def.taper = (mtwnRoughTaper)Below(in, 5);
+    def.flags = (mtwnRoughFlags)Below(in, 9);
+    uint32_t count = Below(in, 34);
+    mtwnLinearPoint points[33];
+    memset(points, 0x5A, sizeof points);
+    mtwnLinearPoint untouched[33];
+    memcpy(untouched, points, sizeof points);
+    mtwnEasing e;
+    mtwnResult made = mtwnMakeRoughEasing(&def, points, count, &e);
+    bool takes = count >= 2 && def.strength >= 0.0 && isfinite(def.strength) &&
+                 (uint32_t)def.taper <= mtwn_roughTaperBoth && (uint32_t)def.flags <= 7u;
+    if ((made == mtwn_success) != takes ||
+        (made != mtwn_success && memcmp(points, untouched, sizeof points) != 0))
+    {
+        Fail("a rough easing's refusal", def.strength);
+        return;
+    }
+    if (made != mtwn_success)
+    {
+        return;
+    }
+    bool bounded = (def.flags & (mtwn_roughClamp | mtwn_roughRising)) != 0;
+    bool rising = (def.flags & mtwn_roughRising) != 0;
+    bool fine = points[0].input == 0.0 && points[0].output == 0.0 &&
+                points[count - 1].input == 1.0 && points[count - 1].output == 1.0;
+    for (uint32_t i = 1; i < count; ++i)
+    {
+        fine = fine && points[i].input >= points[i - 1].input && isfinite(points[i].output) &&
+               (!bounded || (points[i].output >= 0.0 && points[i].output <= 1.0)) &&
+               (!rising || points[i].output >= points[i - 1].output);
+    }
+    if (!fine)
+    {
+        Fail("a rough easing's points", (double)count);
+    }
+    for (size_t i = 0; i < sizeof s_progress / sizeof s_progress[0]; ++i)
+    {
+        (void)Eased(&e, s_progress[i], false);
+    }
+}
+
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
@@ -1163,6 +1558,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     (void)Values;
     (void)Paths;
     (void)Staggers;
+    (void)Timings;
+    (void)Roughs;
     // One input in sixteen may run one fit to its limit.
     bool deep = Below(&in, 16) == 0;
     while (in.at < in.size)
@@ -1191,6 +1588,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             break;
         default:
             Staggers(&in);
+            Timings(&in);
+            Roughs(&in);
             break;
         }
     }
