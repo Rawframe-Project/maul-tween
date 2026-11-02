@@ -6,6 +6,23 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.3](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.2...v0.15.3) (2026-11-02)
+
+This release fixes two ways the event records broke their promise that every crossing between two updates is counted, however far time moved. An endless node whose iteration passes the largest double is held there, as the timing model holds it, where its crossing count was NaN ([#237](https://github.com/Rawframe-Project/maul-tween/pull/237)). A sweep's count is taken between its two ends, so it no longer depends on how much the clip crossed before the sweep ([#241](https://github.com/Rawframe-Project/maul-tween/pull/241)). No value or velocity changes; event records change only for clips that cross more than 2^53 points before a sweep, or whose endless nodes pass the doubles. Each fix below names who sees it.
+
+### Changed
+
+- The players guide says a count of 2^64 or more is `UINT64_MAX`, and that an endless node whose iteration passes the largest double crosses nothing between two times past it. The `iteration` field of `mtwnTimingResult` says where it is infinite and what holds there.
+
+### Fixed
+
+- An endless node whose iteration passes the largest double no longer makes its crossing count NaN ([#237](https://github.com/Rawframe-Project/maul-tween/pull/237)). A track of 1e-308 s passes it after about 1.8 s, and one at an offset of -1e300 with a delay of -DBL_MAX at once. Release builds dropped such crossings without a word, and builds with assertions trapped in the update.
+  - Between two times past the doubles the node is held at the end of its infinite iteration, as its values are, and nothing is crossed: no record changes there in Release.
+  - In the frame in which an endless timeline passes the doubles, the marks below it now record `UINT64_MAX` crossings each way they run, where none were recorded.
+- A sweep's records no longer depend on how much its clip crossed before the sweep began ([#241](https://github.com/Rawframe-Project/maul-tween/pull/241)). A count was the difference between what each end reached from the clip's start, and past 2^53, the doubles' last exact integer, that difference lost its low bits. A timeline of 1000 iterations of 1 s holding an endless track of 1e-18 s, swept by two doubles near 500 s, recorded 65,536 iterations where about 113,687 are crossed, and a record's first and last iterations landed where the rounded counts flipped, its last before its first.
+  - A host sees corrected counts and first and last iterations only where a clip's nodes cross more than 2^53 points before a sweep, which takes iterations far below a microsecond in long or nested timelines. Where every count stays below 2^53 the records are the same bits.
+  - A count through timelines nested to `MTWN_MAX_CLIP_DEPTH` stays linear in the depth.
+
 ## [0.15.2](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.1...v0.15.2) (2026-11-02)
 
 This release fixes two results that broke what the headers promise. An Oklab or OkLCh color far past its ends keeps each channel's sign ([#227](https://github.com/Rawframe-Project/maul-tween/pull/227)), and `mtwnIsEasingMonotonic` no longer approves a linear() easing whose halves step down where in-out or out-in joins them, so a timeline refuses it ([#230](https://github.com/Rawframe-Project/maul-tween/pull/230)). Values change only for colors driven past about 5.6e102 in Oklab or OkLCh; nothing within range moves. Each fix below names who sees it.
