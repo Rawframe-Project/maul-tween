@@ -17,7 +17,9 @@
 // what the call's status says: one for a counted refusal, none for a
 // success, a full capacity, a held clip or the stale id of a player the
 // context handed out, and one for each stale id in a read of many
-// targets.
+// targets. Each read of the records takes the whole queue, as its count
+// said, and the dropped records it reports are what the context's total
+// grew by since the last.
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
 // corpus directory; in the test suite it runs a fixed set of random
@@ -47,6 +49,9 @@ enum
     s_targets = 8,
     s_players = 4,
     s_steps = 64,
+    // A queue small enough that some updates fill it and drop records, so
+    // the dropped counts are checked too.
+    s_events = 8,
 };
 
 // The input, read a byte at a time; zeros past its end.
@@ -267,13 +272,15 @@ static mtwnTiming RandomTiming(Bytes* in)
 
 // The run's hash (FNV-1a), whether an invariant failed, whether the
 // step's controls destroyed a player, whose targets are then still to
-// report as changed, and the context's misuse count after the last call.
+// report as changed, the context's misuse count after the last call, and
+// the records it had dropped at the last read.
 typedef struct Run
 {
     uint64_t hash;
     bool bad;
     bool destroyed;
     uint64_t misuse;
+    uint64_t droppedAtRead;
 } Run;
 
 static void Mix(Run* run, const void* bytes, size_t size)
@@ -655,9 +662,9 @@ static mtwnContext* Grown(Run* run, mtwnContext* context, mtwnContextDef* def, b
 static Run Script(const uint8_t* data, size_t size, int mode)
 {
     Bytes in = {data, size, 0};
-    Run run = {14695981039346656037u, false, false, 0};
+    Run run = {14695981039346656037u, false, false, 0, 0};
     mtwnContextDef def = mtwnDefaultContextDef();
-    def.eventCapacity = 256;
+    def.eventCapacity = s_events;
     def.enqueueTask = mode == 1 ? RunAtOnce : NULL;
     def.finishTask = mode == 1 ? WaitForNothing : NULL;
     mtwnContext* context = NULL;
@@ -751,11 +758,19 @@ static Run Script(const uint8_t* data, size_t size, int mode)
                 run.bad = run.bad || !Finite(state.value) || !Finite(state.velocity);
             }
         }
+        // The read takes the whole queue, which holds at most s_events, and
+        // reports what the context's total dropped since the last read.
         mtwnEvent events[256];
         uint32_t n = 0;
         uint64_t dropped = 0;
+        uint64_t queued = mtwnContext_GetEventCount(context);
         Plain(&run, mtwnContext_ReadEvents(context, events, 256, &n, &dropped));
         Mix(&run, &dropped, sizeof dropped);
+        uint64_t droppedTotal = mtwnContext_GetEventsDropped(context);
+        run.bad = run.bad || queued > s_events || n != queued ||
+                  mtwnContext_GetEventCount(context) != 0 ||
+                  droppedTotal - run.droppedAtRead != dropped;
+        run.droppedAtRead = droppedTotal;
         for (uint32_t e = 0; e < n; ++e)
         {
             const mtwnEvent* ev = &events[e];
