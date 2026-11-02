@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The public API driven by bytes: clips
-// built node by node with any timing, valid or not; targets of every
+// built node by node with any timing, valid or not, its starts, durations
+// and delays at the doubles' ends too; targets of every
 // kind; players with layered bindings, controlled and destroyed;
 // transitions; targets destroyed under their players; reduced motion;
 // updates any time apart. One script runs on four contexts: one alone,
@@ -160,6 +161,30 @@ static double Progress(Bytes* in, double scale)
     return rare[f];
 }
 
+// A time, an offset or a duration: Wild's draws, but about one in 61, as
+// Progress, one at the doubles' ends: the smallest subnormal, 1e-308 and
+// the smallest normal double, 1e308, 2^1000 and the largest double, and
+// below 0 the smallest subnormal, -1e300, -1e308 and the largest double.
+// A node of 1e-308 s passes the doubles' iterations within a few seconds,
+// and a start or delay far below 0 an active time past them at once. It
+// takes the same bytes as Wild.
+static double Time(Bytes* in, double scale)
+{
+    size_t at = in->at;
+    uint32_t b = Byte(in);
+    uint32_t f = Byte(in);
+    in->at = at;
+    if (b % 12 < 7 || f >= 10)
+    {
+        return Wild(in, scale);
+    }
+    (void)Byte(in);
+    (void)Byte(in);
+    static const double rare[10] = {0x1p-1074, 1e-308,     DBL_MIN, 1e308,  0x1p1000,
+                                    DBL_MAX,   -0x1p-1074, -1e300,  -1e308, -DBL_MAX};
+    return rare[f];
+}
+
 // A rate: Wild's draws less 1, but about one in 61, as Progress, one at
 // the edge of a rate's size: the smallest, either way, an ulp below it,
 // the smallest subnormal and -1e300. It takes the same bytes as Wild.
@@ -200,12 +225,12 @@ static void Scribble(mtwnLinearPoint* points)
 static mtwnTiming RandomTiming(Bytes* in)
 {
     mtwnTiming t = mtwnDefaultTiming();
-    t.duration = Wild(in, 1.0);
-    t.delay = Below(in, 3) == 0 ? Wild(in, 1.0) : 0.0;
-    t.endDelay = Below(in, 4) == 0 ? Wild(in, 0.5) : 0.0;
+    t.duration = Time(in, 1.0);
+    t.delay = Below(in, 3) == 0 ? Time(in, 1.0) : 0.0;
+    t.endDelay = Below(in, 4) == 0 ? Time(in, 0.5) : 0.0;
     t.iterations = Below(in, 5) == 0 ? HUGE_VAL : (double)(1 + Below(in, 4)) * 0.5;
     t.iterationStart = Below(in, 4) == 0 ? 0.25 * (double)Below(in, 12) : 0.0;
-    t.repeatDelay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
+    t.repeatDelay = Below(in, 3) == 0 ? Time(in, 0.5) : 0.0;
     static const double rates[] = {1.0, 2.0, 0.5, -1.0, -1.5, 3.0};
     t.playbackRate = rates[Below(in, 6)];
     t.direction = (mtwnDirection)Below(in, 5);
@@ -292,7 +317,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
     mtwnPosition at;
     memset(&at, 0, sizeof at);
     at.kind = (mtwnPositionKind)Below(in, 6);
-    at.offset = Wild(in, 1.0);
+    at.offset = Time(in, 1.0);
     at.label = Below(in, 4);
     mtwnNode node = 0;
     mtwnResult r = mtwn_success;
@@ -427,8 +452,8 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         {
             (void)mtwnMakeHostEasing(mtwn_easeIn, Overshooting, NULL, &def.easing);
         }
-        def.delay = Below(in, 3) == 0 ? Wild(in, 0.5) : 0.0;
-        def.duration = Wild(in, 1.0);
+        def.delay = Below(in, 3) == 0 ? Time(in, 0.5) : 0.0;
+        def.duration = Time(in, 1.0);
         def.kind = (mtwnTransitionKind)Below(in, 3);
         double duration = 0.25 + 0.25 * Below(in, 4);
         (void)mtwnMakeSpringFromDuration(duration, 0.1 * Below(in, 5), &def.spring);
@@ -499,7 +524,7 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         mtwnTransitionDef def = mtwnDefaultTransitionDef();
         def.target = targets[Below(in, s_targets)];
         def.value = (mtwnVec4){(float)Value(in, 4.0), 0.25f, 0.5f, 1.0f};
-        def.duration = Wild(in, 1.0);
+        def.duration = Time(in, 1.0);
         def.kind = (mtwnTransitionKind)Below(in, 3);
         (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
                                          &def.spring);

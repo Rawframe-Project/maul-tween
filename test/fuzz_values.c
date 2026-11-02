@@ -1426,6 +1426,34 @@ static void Staggers(Bytes* in)
     }
 }
 
+// A time or a duration: Param's draws, but where Param gives 1e300 the
+// byte's high bits pick one of the doubles' ends (1e300 for 0): the
+// smallest subnormal, 1e-308 and the smallest normal double, 1e308,
+// 2^1000 and the largest double, and their negatives. It takes the same
+// bytes as Param.
+static double TimeParam(Bytes* in, double scale)
+{
+    size_t at = in->at;
+    uint32_t b = Byte(in);
+    in->at = at;
+    double p = Param(in, scale);
+    if (b % 16 != 12)
+    {
+        return p;
+    }
+    static const double ends[16] = {1e300,     0x1p-1074, 1e-308,     DBL_MIN, 1e308,    0x1p1000,
+                                    DBL_MAX,   -1e300,    -0x1p-1074, -1e-308, -DBL_MIN, -1e308,
+                                    -0x1p1000, -DBL_MAX,  1e300,      -1e300};
+    return ends[b / 16];
+}
+
+// TimeParam, positive when ordinary.
+static double TimePositive(Bytes* in, double scale)
+{
+    double p = TimeParam(in, scale);
+    return in->ordinary && p == p ? fabs(p) : p;
+}
+
 // A timing of drawn fields, wild ones included: computed exactly when
 // mtwnValidateTiming takes it and the local time is neither NaN nor
 // negative infinity, leaving the result otherwise; computed, by Web
@@ -1438,12 +1466,12 @@ static void Timings(Bytes* in)
     in->ordinary = true;
     in->finite = true;
     mtwnTiming timing = mtwnDefaultTiming();
-    timing.delay = Param(in, 4.0);
-    timing.endDelay = Param(in, 4.0);
+    timing.delay = TimeParam(in, 4.0);
+    timing.endDelay = TimeParam(in, 4.0);
     timing.iterationStart = Positive(in, 3.0);
     timing.iterations = Positive(in, 4.0);
-    timing.duration = Positive(in, 3.0);
-    timing.repeatDelay = Positive(in, 1.0);
+    timing.duration = TimePositive(in, 3.0);
+    timing.repeatDelay = TimePositive(in, 1.0);
     timing.playbackRate = Param(in, 3.0);
     timing.fill = (mtwnFill)Below(in, 5);
     timing.direction = (mtwnDirection)Below(in, 5);
@@ -1454,7 +1482,7 @@ static void Timings(Bytes* in)
         Draw(in, p, 2, (const double[]){4.0, 4.0}, false);
         (void)mtwnMakeCubicBezierEasing(0.5, p[0], 0.5, p[1], &timing.easing);
     }
-    double local = Param(in, 20.0);
+    double local = TimeParam(in, 20.0);
     bool backwards = Below(in, 2) == 1;
     bool valid = mtwnValidateTiming(&timing) == mtwn_success;
     mtwnTimingResult r;
