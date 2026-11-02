@@ -2066,8 +2066,69 @@ static void TestIterationEnds(void)
     mtwnDestroyContext(w.context);
 }
 
+// MTWN_MAX_CLIP_DEPTH nested timelines, each endless, a third of its
+// parent's duration and starting a seventh of it before its parent's
+// iteration, so at every level a child runs from before its parent's
+// iteration to past its end, with a mark at the bottom. A sweep across the
+// top timeline's iteration end parts the two ends' iterations at every
+// level: a count that walked both parts on at each would take 2^32 walks.
+// The sweep's crossings are its two halves'.
+static void TestDeepNesting(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = MTWN_MAX_CLIP_DEPTH + 8;
+    mtwnClipId clip = {0, 0};
+    CHECK(mtwnCreateClip(w.context, &clipDef, &clip) == mtwn_success, "a deep clip");
+    mtwnNode parent = MTWN_ROOT_NODE;
+    double duration = 1.0;
+    bool made = true;
+    for (uint32_t j = 0; j < MTWN_MAX_CLIP_DEPTH; ++j)
+    {
+        mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+        group.parent = parent;
+        group.autoDuration = false;
+        group.timing.duration = j == 0 ? 1.0 : duration / 3.0;
+        group.timing.iterations = j == 0 ? 4.0 : HUGE_VAL;
+        group.position = At(j == 0 ? 0.0 : -duration / 7.0);
+        made = made && mtwnClip_AddTimeline(w.context, clip, &group, &parent) == mtwn_success;
+        duration = group.timing.duration;
+    }
+    mtwnNode mark = 0;
+    CHECK(made &&
+              mtwnClip_AddMark(w.context, clip, parent, At(duration * 0.25), 1, &mark) ==
+                  mtwn_success &&
+              mtwnClip_Seal(w.context, clip) == mtwn_success,
+          "timelines nested to the limit");
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
+    def.clip = clip;
+    def.keep = true;
+    mtwnPlayerId player = {0, 0};
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &player) == mtwn_success, "its player");
+    Update(&w, 0.0);
+    CHECK(mtwnClipPlayer_Pause(w.context, player) == mtwn_success, "paused");
+    static const double ends[3][2] = {{0.9, 1.1}, {0.9, 1.0}, {1.0, 1.1}};
+    uint64_t crossed[3] = {0, 0, 0};
+    for (int k = 0; k < 3; ++k)
+    {
+        mtwnEvent e[64];
+        CHECK(mtwnClipPlayer_Seek(w.context, player, ends[k][0]) == mtwn_success, "sought");
+        (void)Read(&w, e, 64);
+        CHECK(mtwnClipPlayer_Sweep(w.context, player, ends[k][1]) == mtwn_success, "swept");
+        uint32_t n = Read(&w, e, 64);
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            crossed[k] += e[i].node == mark ? e[i].count : 0;
+        }
+    }
+    CHECK(crossed[0] > 1000000 && crossed[0] == crossed[1] + crossed[2],
+          "a sweep through timelines nested to the limit is counted, as its halves are");
+    mtwnDestroyContext(w.context);
+}
+
 int main(void)
 {
+    TestDeepNesting();
     TestIterationEnds();
     TestReachedBefore();
     TestPastTheDoubles();

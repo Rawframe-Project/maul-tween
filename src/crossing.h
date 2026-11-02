@@ -76,10 +76,13 @@ typedef struct mtwnLevel
     // The coverage of the traversal's first iteration, of full forward
     // and reversed ones, and of the last, relative to the local time.
     mtwnCrossings cover[4];
+    // Below at the iteration starts' child times (the first's, a forward
+    // one's, a reversed one's) and ends' (a forward one's, a reversed
+    // one's, the last's), closed and strict.
+    mtwnCrossings startBelow[3][2];
+    mtwnCrossings endBelow[3][2];
     // Below at the single point a zero-length level has.
     mtwnCrossings pointBelow;
-    // What an endless level's child reaches before its child time 0.
-    mtwnCrossings before;
 } mtwnLevel;
 
 // Prepares the levels, outermost first, for counting the leaf: each keeps

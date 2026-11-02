@@ -63,13 +63,14 @@ PARTS = [
 # channel's sign in an Oklab or OkLCh color far past its ends costs, the
 # curves' by what checking where an in-out or out-in easing's halves meet
 # costs, and the clips' and the whole library's by what holding an endless
-# node past the doubles in its crossing counts costs.
+# node past the doubles in its crossing counts costs, then by what counting
+# a sweep's crossings between its two ends costs.
 BUDGETS = {
     "curves": 37600,
     "values": 72700,
     "transitions": 74200,
-    "clips": 172400,
-    "everything": 193100,
+    "clips": 175600,
+    "everything": 196400,
 }
 
 
@@ -117,8 +118,9 @@ RAISED = {
     "1.4 kB, a timeline's cubic bezier never decreases, 4.1 kB, a spring's settling time "
     "keeps its sample within the tolerances, 3.2 kB, a host easing's NaN is taken as its "
     "progress and counted as misuse for each player's track, 1.1 kB, an Oklab or OkLCh "
-    "color far past its ends keeps each channel's sign, 0.8 kB, and the crossing count holds "
-    "an endless node past the doubles, 0.4 kB",
+    "color far past its ends keeps each channel's sign, 0.8 kB, the crossing count holds "
+    "an endless node past the doubles, 0.4 kB, and a sweep's crossings are counted between "
+    "its two ends, 2.9 kB",
     "everything": "the raises of the parts above",
 }
 
