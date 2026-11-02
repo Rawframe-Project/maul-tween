@@ -8,10 +8,13 @@ refused with `mtwn_errorVersion`.
 
 ## [0.15.4](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.3...v0.15.4) (2026-11-02)
 
+This release keeps `linear()` easings monotonic where `mtwnIsEasingMonotonic` says they are, which a timeline's crossing count relies on ([#243](https://github.com/Rawframe-Project/maul-tween/pull/243)). A sample inside a segment could land an ulp past the segment's later point and step down at it. A sample moves only there, by at most about an ulp, so only hosts sampling `linear()` just below a point see it.
 
 ### Fixed
 
-* **easing:** keep a linear() sample from passing its segment's point ([#243](https://github.com/Rawframe-Project/maul-tween/issues/243)) ([fd52a66](https://github.com/Rawframe-Project/maul-tween/commit/fd52a66284305f95153adeabb23c21714ae445de)), closes [#242](https://github.com/Rawframe-Project/maul-tween/issues/242)
+- A `linear()` sample no longer passes its segment's later point ([#243](https://github.com/Rawframe-Project/maul-tween/pull/243)). A segment's sample is `a + share * (b - a)`, and the rounded difference could carry it an ulp past `b` where the share is 1 or rounds to it: `linear(0, 0.03 1%, 0.3 3%, 1)` gave 0.30000000000000004 just below 3% and 0.3 at 3%. A timeline eased by such a curve could count a mark twice, depending on where the frames fell. Inside a segment the sample is now held at the point's output where it would pass it.
+  - `mtwnSampleEasing`, and the tracks, transitions and timelines eased by `linear()`, its fits and rough easings included, change only at those progresses, just below a point, by at most about an ulp of the segment's larger output.
+  - A clip's records change only where a timeline eased by such a `linear()` had a frame land there: a mark it crossed twice is now crossed once.
 
 ## [0.15.3](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.2...v0.15.3) (2026-11-02)
 
