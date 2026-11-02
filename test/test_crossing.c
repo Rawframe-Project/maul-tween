@@ -586,7 +586,7 @@ static int GuessesAgree(const mtwnLevel* levels, uint32_t count, const mtwnLeaf*
             for (int g = 0; g < 16; ++g)
             {
                 double from = mtwnFindCrossingFrom(levels, count, leaf, t1, t2, false, last == 1,
-                                                   s_ways[w], guesses[g], NULL);
+                                                   s_ways[w], guesses[g]);
                 bool flips = Flips(levels, count, leaf, t1, t2, last == 1, s_ways[w], from);
                 *mismatches += flips && fabs(from - plain) <= 1e-9 ? 0 : 1;
                 ++compared;
@@ -605,8 +605,6 @@ static void TestOracle(int part, int parts)
     int timed = 0;
     int guessed = 0;
     int guessMismatches = 0;
-    int memoCounted = 0;
-    int memoMismatches = 0;
     // A block of consecutive trials, which keeps every third one's leaf of
     // iterations in each slice.
     for (int trial = part * 3000 / parts; trial < (part + 1) * 3000 / parts; ++trial)
@@ -630,10 +628,6 @@ static void TestOracle(int part, int parts)
             leaf.timing.duration = leaf.timing.duration * 0.25;
         }
         mtwnPrepareLevels(levels, count, &leaf);
-        // One memo for this leaf's sweeps: its walks are shared across them.
-        mtwnCrossingMemo memo;
-        memo.count = 0;
-        memo.next = 0;
         mtwnTimingResult root = ComputeTiming(&levels[0].timing, 0.0, false);
         double span = root.endTime + 1.0;
         for (int sweep = 0; sweep < 12; ++sweep)
@@ -641,16 +635,6 @@ static void TestOracle(int part, int parts)
             double t1 = Random() * span - 0.5;
             double t2 = Random() * span - 0.5;
             mtwnCrossings exact = mtwnCountCrossings(levels, count, &leaf, t1, t2, false);
-            for (int closed = 0; closed < 2; ++closed)
-            {
-                mtwnCrossings plain = mtwnCountCrossings(levels, count, &leaf, t1, t2, closed);
-                mtwnCrossings kept =
-                    mtwnCountCrossingsMemo(levels, count, &leaf, t1, t2, closed, &memo);
-                memoMismatches +=
-                    SameBits(plain.same, kept.same) && SameBits(plain.opposite, kept.opposite) ? 0
-                                                                                               : 1;
-                ++memoCounted;
-            }
             mtwnCrossings oracle = {0.0, 0.0};
             s_oracleFound = false;
             Oracle(levels, count, &leaf, t1, t2, 0, &oracle);
@@ -694,8 +678,6 @@ static void TestOracle(int part, int parts)
         }
     }
     CHECK(mismatches == 0, "random nested levels agree with the sampled oracle");
-    CHECK(memoMismatches == 0 && memoCounted > 50000 / parts,
-          "counts with remembered walks the same bits as without, open and closed");
     CHECK(guessMismatches == 0 && guessed > 20000 / parts,
           "a search from any guess finds where the count flips, as one from none does");
     CHECK(timeMismatches == 0 && timed > 5000 / parts,

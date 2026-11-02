@@ -129,11 +129,8 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
     uint32_t passed = mtwnPassedLevels(levels, count);
     const mtwnLevel* counted = levels + passed;
     uint32_t below = count - passed;
-    mtwnCrossingMemo memo;
-    memo.count = 0;
-    memo.next = 0;
-    mtwnCrossings crossings = mtwnCountCrossingsMemo(counted, below, leaf, sweep->from, sweep->to,
-                                                     sweep->fromClosed, &memo);
+    mtwnCrossings crossings =
+        mtwnCountCrossings(counted, below, leaf, sweep->from, sweep->to, sweep->fromClosed);
     if (sweep->fromNone && sweep->play->rate < 0.0)
     {
         // From no time, the point taken is passed the way the player runs.
@@ -153,11 +150,10 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         // the first. Searched apart, the two could land a double from each
         // other, in neighboring iterations.
         double first = mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
-                                            sweep->fromClosed, false, search, sweep->guess, &memo);
-        double last = n == 1.0
-                          ? first
-                          : mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
-                                                 sweep->fromClosed, true, search, first, &memo);
+                                            sweep->fromClosed, false, search, sweep->guess);
+        double last = n == 1.0 ? first
+                               : mtwnFindCrossingFrom(counted, below, leaf, sweep->from, sweep->to,
+                                                      sweep->fromClosed, true, search, first);
         sweep->guess = last;
         mtwnEvent event = {0};
         event.hostTime = HostAt(sweep, first);
