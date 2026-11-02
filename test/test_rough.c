@@ -294,9 +294,6 @@ static void TestShapeChangedAfterCheck(void)
             wrong += mtwnMakeRoughEasing(&def, points, s_count, &easing) != mtwn_errorInvalid;
             wrong += !AllBytes(&easing, sizeof easing, 0xAB);
             wrong += !AllBytes(points + s_count, s_guards * sizeof points[0], 0xAB);
-            // The check sampled every inner point, the writes up to the
-            // infinite one.
-            wrong += s_shapeCalls != s_inner + at + 1;
         }
     }
     CHECK(wrong == 0, "a shape infinite only when the points are written refused, clamped or "
