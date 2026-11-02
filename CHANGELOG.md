@@ -8,11 +8,21 @@ refused with `mtwn_errorVersion`.
 
 ## [0.15.2](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.1...v0.15.2) (2026-11-02)
 
+This release fixes two results that broke what the headers promise. An Oklab or OkLCh color far past its ends keeps each channel's sign ([#227](https://github.com/Rawframe-Project/maul-tween/pull/227)), and `mtwnIsEasingMonotonic` no longer approves a linear() easing whose halves step down where in-out or out-in joins them, so a timeline refuses it ([#230](https://github.com/Rawframe-Project/maul-tween/pull/230)). Values change only for colors driven past about 5.6e102 in Oklab or OkLCh; nothing within range moves. Each fix below names who sees it.
+
+### Changed
+
+- The easing and values guides say when linear() is monotonic in in-out and out-in, and that a color channel past the floats' range is held at the largest finite float of its sign in every space.
 
 ### Fixed
 
-* **easing:** call an easing monotonic only if its halves meet going up ([#230](https://github.com/Rawframe-Project/maul-tween/issues/230)) ([e6cc1ca](https://github.com/Rawframe-Project/maul-tween/commit/e6cc1cae14606f517b91922679da9f89fb8b1b08)), closes [#229](https://github.com/Rawframe-Project/maul-tween/issues/229)
-* **value:** keep each channel's sign in a color far past its ends ([#227](https://github.com/Rawframe-Project/maul-tween/issues/227)) ([6704833](https://github.com/Rawframe-Project/maul-tween/commit/67048335381581c3c19765b4051b4cfd81c23146)), closes [#226](https://github.com/Rawframe-Project/maul-tween/issues/226)
+- An Oklab or OkLCh color whose coordinates pass about 5.6e102 has each channel at the largest finite float of its own sign, as the headers promise, in `mtwnMixColor`, color transitions, color tracks and `mtwnConvertColorFromSpace` ([#227](https://github.com/Rawframe-Project/maul-tween/pull/227)). A channel whose sum met infinities of both signs was held at `+FLT_MAX`: black to white at a progress of -1e110 gave `+FLT_MAX` in each channel, brighter than white, where sRGB gives `-FLT_MAX`. Oklab is the default space of transitions and tracks.
+  - A host that drives a color that far, with a back overshoot past about 1e100 or a linear() output past the doubles' range for example, sees the corrected sign.
+  - An OkLCh color so far out that its hue passes the doubles (a progress past about 1e307) takes a hue of 0, as a missing hue does, where its channels were held at `+FLT_MAX`.
+  - Nothing within range moves: 800,000 mixes and conversions in every space and hue method give the same bits as 0.15.1.
+- `mtwnIsEasingMonotonic` returns false for linear() in in-out ending above 1, or in out-in starting below 0, where it returned true ([#230](https://github.com/Rawframe-Project/maul-tween/pull/230)). Those modes join the curve's halves at 1/2, and such an easing steps down there: `linear(0, 2)` in in-out gives 1 just below 1/2 and 0 at it. `mtwnClip_AddTimeline` took a timeline eased so, and its marks could be counted twice, or trap in a build with assertions.
+  - `mtwnClip_AddTimeline` now refuses such a timeline with `mtwn_errorInvalid`. A host that eased a timeline so sees the refusal.
+  - Every other easing keeps its verdict, and no value, velocity or event record of an accepted clip changes.
 
 ## [0.15.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.0...v0.15.1) (2026-11-01)
 
