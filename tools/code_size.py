@@ -56,13 +56,15 @@ PARTS = [
 # transitions' by what a circ that never steps down costs, the clips' and
 # the whole library's by what a timeline's cubic bezier that never
 # decreases costs, every part's by what keeping a spring's sample within
-# its tolerances from its settling time costs, and the transitions', the
+# its tolerances from its settling time costs, the transitions', the
 # clips' and the whole library's by what taking a host easing's NaN as
-# its progress and counting it as misuse costs, and the values', the
+# its progress and counting it as misuse costs, the values', the
 # transitions', the clips' and the whole library's by what keeping each
-# channel's sign in an Oklab or OkLCh color far past its ends costs.
+# channel's sign in an Oklab or OkLCh color far past its ends costs, and
+# the curves' by what checking where an in-out or out-in easing's halves
+# meet costs.
 BUDGETS = {
-    "curves": 37500,
+    "curves": 37600,
     "values": 72700,
     "transitions": 74200,
     "clips": 172000,
@@ -87,8 +89,9 @@ RAISED = {
     "or a decay checks it, 1.6 kB, every call taking an easing, 2.0 kB, a spring's "
     "settling time redoes a bound that underflowed, 1.2 kB, a decay keeps its times "
     "and samples within the doubles on the way, 1.3 kB, and a rough easing checks its "
-    "points before it writes them, 0.3 kB, circ never steps down, 0.2 kB, and a spring's "
-    "settling time keeps its sample within the tolerances, 3.2 kB",
+    "points before it writes them, 0.3 kB, circ never steps down, 0.2 kB, a spring's "
+    "settling time keeps its sample within the tolerances, 3.2 kB, and the monotonic check "
+    "samples an in-out or out-in easing where its halves meet, 0.1 kB",
     "values": "every call taking a spring, a decay or an easing checks it, 2.5 kB, every "
     "call taking a path or a track, 1.4 kB, a punch, a shake or the rubber band's "
     "arguments, 0.4 kB, a zoom's share far past its ends, 0.4 kB, a color, rotation, "

@@ -684,6 +684,14 @@ static void TestTimelineRefusals(void)
     mtwnNode node;
     CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid,
           "a timeline's easing turns back");
+    // linear(0, 2) in in-out ends its first half at 1 and starts its second
+    // at 0: its child time would run back at the middle.
+    static mtwnLinearPoint s_twice[2] = {{0.0, 0.0}, {1.0, 2.0}};
+    CHECK(mtwnMakeLinearPointsEasing(s_twice, 2, &group.timing.easing) == mtwn_success &&
+              mtwnSetEaseMode(&group.timing.easing, mtwn_easeInOut) == mtwn_success,
+          "linear(0, 2) in-out");
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &node) == mtwn_errorInvalid,
+          "a timeline's easing turns back where its halves meet");
     group = mtwnDefaultClipTimelineDef();
     group.timing.playbackRate = -1.0;
     mtwnNode backward;
