@@ -279,10 +279,16 @@ static void TestTracks(void)
     CHECK(mtwnClip_GetTrack(context, clip, MTWN_ROOT_NODE, &track) == mtwn_errorInvalid,
           "the root is no track");
     CHECK(mtwnClip_GetTrack(context, clip, 9, &track) == mtwn_errorInvalid, "no such node");
+    // Each reader refuses a null output, writing nothing through it.
+    CHECK(mtwnClip_GetTrack(context, clip, node, NULL) == mtwn_errorInvalid &&
+              mtwnClip_GetNode(context, clip, node, NULL) == mtwn_errorInvalid &&
+              mtwnClip_FindLabel(context, clip, MTWN_ROOT_NODE, 0, NULL) == mtwn_errorInvalid &&
+              mtwnClip_GetDuration(context, clip, NULL) == mtwn_errorInvalid,
+          "a null output refused by each reader");
     CHECK(mtwnClip_AddTrack(context, clip, &def, &node) == mtwn_errorState && node == 0,
           "nothing is added once sealed");
     CHECK(mtwnClip_Seal(context, clip) == mtwn_errorState, "sealed once");
-    CHECK(mtwnContext_GetMisuse(context) == 4, "each refusal counted");
+    CHECK(mtwnContext_GetMisuse(context) == 8, "each refusal counted");
     mtwnDestroyContext(context);
 }
 
