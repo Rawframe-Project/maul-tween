@@ -5,12 +5,14 @@
 // built node by node with any timing, valid or not; targets of every
 // kind; players with layered bindings, controlled and destroyed;
 // transitions; targets destroyed under their players; reduced motion;
-// updates any time apart. One script runs on three contexts: one alone,
-// one on a task system that runs its ranges at once, and one counting
-// every record without the sweep's shortcuts. Each run hashes every
-// call's status, every target's state after every update, the changed
-// targets and every record; the three must be the same bits, values
-// finite and records ordered, counted and within their update's span.
+// updates any time apart. One script runs on four contexts: one alone,
+// one on a task system that runs its ranges at once, one counting every
+// record without the sweep's shortcuts, and one grown as it runs, onto
+// the task system and off it again, each time to larger capacities.
+// Each run hashes every call's status, every target's state after every
+// update, the changed targets and every record; the four must be the same
+// bits, values finite and records ordered, counted and within their
+// update's span.
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
 // corpus directory; in the test suite it runs a fixed set of random
@@ -233,11 +235,14 @@ static mtwnTiming RandomTiming(Bytes* in)
     return t;
 }
 
-// The run's hash (FNV-1a) and whether an invariant failed.
+// The run's hash (FNV-1a), whether an invariant failed, and whether the
+// step's controls destroyed a player, whose targets are then still to
+// report as changed.
 typedef struct Run
 {
     uint64_t hash;
     bool bad;
+    bool destroyed;
 } Run;
 
 static void Mix(Run* run, const void* bytes, size_t size)
@@ -397,6 +402,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         break;
     case 9:
         r = mtwnDestroyPlayer(context, player);
+        run->destroyed = run->destroyed || r == mtwn_success;
         break;
     case 10:
     {
@@ -535,12 +541,41 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
     }
 }
 
+// When the grown context grows: after the controls, with changes still to
+// report, at s_growOn and at each step whose controls destroyed a player,
+// on the task system until s_growOff; and off it after s_growOff's update,
+// with its records still queued. Drawing no bytes, so a seed's draws keep
+// their meaning.
+enum
+{
+    s_growOn = 3,
+    s_growOff = 9
+};
+
+// Grows a context to one more of each capacity but the events', whose
+// drops the other contexts' must match, with the task system or without.
+static mtwnContext* Grown(Run* run, mtwnContext* context, mtwnContextDef* def, bool tasks)
+{
+    def->targetCapacity += 1;
+    def->playerCapacity += 1;
+    def->clipCapacity += 1;
+    def->bindingCapacity += 1;
+    def->pointsPerTransition += 1;
+    def->clipStorageBytes += 1024;
+    def->enqueueTask = tasks ? RunAtOnce : NULL;
+    def->finishTask = tasks ? WaitForNothing : NULL;
+    mtwnContext* grown = context;
+    run->bad = run->bad || mtwnContext_Grow(&grown, def) != mtwn_success || grown == NULL;
+    s_watched = grown;
+    return grown;
+}
+
 // The script on one context: 0 alone, 1 with a task system, 2 counting
-// every record.
+// every record, 3 grown at s_growOn and s_growOff.
 static Run Script(const uint8_t* data, size_t size, int mode)
 {
     Bytes in = {data, size, 0};
-    Run run = {14695981039346656037u, false};
+    Run run = {14695981039346656037u, false, false};
     mtwnContextDef def = mtwnDefaultContextDef();
     def.eventCapacity = 256;
     def.enqueueTask = mode == 1 ? RunAtOnce : NULL;
@@ -595,9 +630,17 @@ static Run Script(const uint8_t* data, size_t size, int mode)
     uint64_t now = 0;
     for (uint32_t step = 0; step < s_steps && in.at < in.size; ++step)
     {
+        run.destroyed = false;
         for (uint32_t c = Below(&in, 3); c > 0; --c)
         {
             Control(&in, &run, context, players, targets);
+        }
+        // Grown between the controls and the update, at each step whose
+        // controls destroyed a player, its targets still to report as
+        // changed, and at s_growOn: on the task system until s_growOff.
+        if (mode == 3 && (run.destroyed || step == s_growOn))
+        {
+            context = Grown(&run, context, &def, step < s_growOff);
         }
         uint64_t before = now;
         uint32_t gap = Byte(&in);
@@ -606,6 +649,11 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         uint32_t total = 0;
         Status(&run, mtwnContext_Update(context, now, changed, 64, &total));
         Mix(&run, &total, sizeof total);
+        // Grown between an update and the reads, its records still queued.
+        if (mode == 3 && step == s_growOff)
+        {
+            context = Grown(&run, context, &def, false);
+        }
         for (uint32_t i = 0; i < total && i < 64; ++i)
         {
             Mix(&run, &changed[i], sizeof changed[i]);
@@ -658,11 +706,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     Run alone = Script(data, size, 0);
     Run tasks = Script(data, size, 1);
     Run every = Script(data, size, 2);
-    if (alone.bad || tasks.bad || every.bad || alone.hash != tasks.hash || alone.hash != every.hash)
+    Run grown = Script(data, size, 3);
+    if (alone.bad || tasks.bad || every.bad || grown.bad || alone.hash != tasks.hash ||
+        alone.hash != every.hash || alone.hash != grown.hash)
     {
-        fprintf(stderr, "fuzz_api: bad %d %d %d, hashes %016llx %016llx %016llx\n", alone.bad,
-                tasks.bad, every.bad, (unsigned long long)alone.hash,
-                (unsigned long long)tasks.hash, (unsigned long long)every.hash);
+        fprintf(stderr, "fuzz_api: bad %d %d %d %d, hashes %016llx %016llx %016llx %016llx\n",
+                alone.bad, tasks.bad, every.bad, grown.bad, (unsigned long long)alone.hash,
+                (unsigned long long)tasks.hash, (unsigned long long)every.hash,
+                (unsigned long long)grown.hash);
         __builtin_trap();
     }
     return 0;
