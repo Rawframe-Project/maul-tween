@@ -6,6 +6,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.4](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.3...v0.15.4) (2026-11-02)
+
+
+### Fixed
+
+* **easing:** keep a linear() sample from passing its segment's point ([#243](https://github.com/Rawframe-Project/maul-tween/issues/243)) ([fd52a66](https://github.com/Rawframe-Project/maul-tween/commit/fd52a66284305f95153adeabb23c21714ae445de)), closes [#242](https://github.com/Rawframe-Project/maul-tween/issues/242)
+
 ## [0.15.3](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.2...v0.15.3) (2026-11-02)
 
 This release fixes two ways the event records broke their promise that every crossing between two updates is counted, however far time moved. An endless node whose iteration passes the largest double is held there, as the timing model holds it, where its crossing count was NaN ([#237](https://github.com/Rawframe-Project/maul-tween/pull/237)). A sweep's count is taken between its two ends, so it no longer depends on how much the clip crossed before the sweep ([#241](https://github.com/Rawframe-Project/maul-tween/pull/241)). No value or velocity changes; event records change only for clips that cross more than 2^53 points before a sweep, or whose endless nodes pass the doubles. Each fix below names who sees it.
