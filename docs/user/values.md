@@ -29,7 +29,7 @@ mtwnColor between;
 mtwnResult mixed = mtwnMixColor(&mix, 0.5, &between); // half way, in OkLCh
 ```
 
-A gray's hue in OkLCh is powerless and takes the other color's, as CSS says, so a fade from white to red does not sweep through the hues. Past progress 0 to 1 alpha is clamped and the channels are not. `mtwnConvertColorToSpace` and `mtwnConvertColorFromSpace` convert one color, for a host that springs or blends in a space itself.
+A gray's hue in OkLCh is powerless and takes the other color's, as CSS says, so a fade from white to red does not sweep through the hues. Past progress 0 to 1 alpha is clamped and the channels are not, but a channel past the floats' range is held at the largest finite float of its sign, in every space. `mtwnConvertColorToSpace` and `mtwnConvertColorFromSpace` convert one color, for a host that springs or blends in a space itself.
 
 ## Angles and rotations
 
