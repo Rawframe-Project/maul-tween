@@ -7,8 +7,8 @@
 // transitions; targets destroyed under their players; reduced motion;
 // updates any time apart. One script runs on four contexts: one alone,
 // one on a task system that runs its ranges at once, one counting every
-// record without the sweep's shortcuts, and one grown twice as it runs,
-// onto the task system and off it again, each time to larger capacities.
+// record without the sweep's shortcuts, and one grown as it runs, onto
+// the task system and off it again, each time to larger capacities.
 // Each run hashes every call's status, every target's state after every
 // update, the changed targets and every record; the four must be the same
 // bits, values finite and records ordered, counted and within their
@@ -235,11 +235,14 @@ static mtwnTiming RandomTiming(Bytes* in)
     return t;
 }
 
-// The run's hash (FNV-1a) and whether an invariant failed.
+// The run's hash (FNV-1a), whether an invariant failed, and whether the
+// step's controls destroyed a player, whose targets are then still to
+// report as changed.
 typedef struct Run
 {
     uint64_t hash;
     bool bad;
+    bool destroyed;
 } Run;
 
 static void Mix(Run* run, const void* bytes, size_t size)
@@ -399,6 +402,7 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         break;
     case 9:
         r = mtwnDestroyPlayer(context, player);
+        run->destroyed = run->destroyed || r == mtwn_success;
         break;
     case 10:
     {
@@ -537,9 +541,11 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
     }
 }
 
-// The steps whose update the grown context grows after, its records still
-// queued: onto the task system, then off it. Drawing no bytes, so a seed's
-// draws keep their meaning.
+// When the grown context grows: after the controls, with changes still to
+// report, at s_growOn and at each step whose controls destroyed a player,
+// on the task system until s_growOff; and off it after s_growOff's update,
+// with its records still queued. Drawing no bytes, so a seed's draws keep
+// their meaning.
 enum
 {
     s_growOn = 3,
@@ -569,7 +575,7 @@ static mtwnContext* Grown(Run* run, mtwnContext* context, mtwnContextDef* def, b
 static Run Script(const uint8_t* data, size_t size, int mode)
 {
     Bytes in = {data, size, 0};
-    Run run = {14695981039346656037u, false};
+    Run run = {14695981039346656037u, false, false};
     mtwnContextDef def = mtwnDefaultContextDef();
     def.eventCapacity = 256;
     def.enqueueTask = mode == 1 ? RunAtOnce : NULL;
@@ -624,9 +630,17 @@ static Run Script(const uint8_t* data, size_t size, int mode)
     uint64_t now = 0;
     for (uint32_t step = 0; step < s_steps && in.at < in.size; ++step)
     {
+        run.destroyed = false;
         for (uint32_t c = Below(&in, 3); c > 0; --c)
         {
             Control(&in, &run, context, players, targets);
+        }
+        // Grown between the controls and the update, at each step whose
+        // controls destroyed a player, its targets still to report as
+        // changed, and at s_growOn: on the task system until s_growOff.
+        if (mode == 3 && (run.destroyed || step == s_growOn))
+        {
+            context = Grown(&run, context, &def, step < s_growOff);
         }
         uint64_t before = now;
         uint32_t gap = Byte(&in);
@@ -636,9 +650,9 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         Status(&run, mtwnContext_Update(context, now, changed, 64, &total));
         Mix(&run, &total, sizeof total);
         // Grown between an update and the reads, its records still queued.
-        if (mode == 3 && (step == s_growOn || step == s_growOff))
+        if (mode == 3 && step == s_growOff)
         {
-            context = Grown(&run, context, &def, step == s_growOn);
+            context = Grown(&run, context, &def, false);
         }
         for (uint32_t i = 0; i < total && i < 64; ++i)
         {
