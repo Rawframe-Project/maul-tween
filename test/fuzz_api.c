@@ -5,12 +5,14 @@
 // built node by node with any timing, valid or not; targets of every
 // kind; players with layered bindings, controlled and destroyed;
 // transitions; targets destroyed under their players; reduced motion;
-// updates any time apart. One script runs on three contexts: one alone,
-// one on a task system that runs its ranges at once, and one counting
-// every record without the sweep's shortcuts. Each run hashes every
-// call's status, every target's state after every update, the changed
-// targets and every record; the three must be the same bits, values
-// finite and records ordered, counted and within their update's span.
+// updates any time apart. One script runs on four contexts: one alone,
+// one on a task system that runs its ranges at once, one counting every
+// record without the sweep's shortcuts, and one grown twice as it runs,
+// onto the task system and off it again, each time to larger capacities.
+// Each run hashes every call's status, every target's state after every
+// update, the changed targets and every record; the four must be the same
+// bits, values finite and records ordered, counted and within their
+// update's span.
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
 // corpus directory; in the test suite it runs a fixed set of random
@@ -535,8 +537,35 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
     }
 }
 
+// The steps whose update the grown context grows after, its records still
+// queued: onto the task system, then off it. Drawing no bytes, so a seed's
+// draws keep their meaning.
+enum
+{
+    s_growOn = 3,
+    s_growOff = 9
+};
+
+// Grows a context to one more of each capacity but the events', whose
+// drops the other contexts' must match, with the task system or without.
+static mtwnContext* Grown(Run* run, mtwnContext* context, mtwnContextDef* def, bool tasks)
+{
+    def->targetCapacity += 1;
+    def->playerCapacity += 1;
+    def->clipCapacity += 1;
+    def->bindingCapacity += 1;
+    def->pointsPerTransition += 1;
+    def->clipStorageBytes += 1024;
+    def->enqueueTask = tasks ? RunAtOnce : NULL;
+    def->finishTask = tasks ? WaitForNothing : NULL;
+    mtwnContext* grown = context;
+    run->bad = run->bad || mtwnContext_Grow(&grown, def) != mtwn_success || grown == NULL;
+    s_watched = grown;
+    return grown;
+}
+
 // The script on one context: 0 alone, 1 with a task system, 2 counting
-// every record.
+// every record, 3 grown at s_growOn and s_growOff.
 static Run Script(const uint8_t* data, size_t size, int mode)
 {
     Bytes in = {data, size, 0};
@@ -606,6 +635,11 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         uint32_t total = 0;
         Status(&run, mtwnContext_Update(context, now, changed, 64, &total));
         Mix(&run, &total, sizeof total);
+        // Grown between an update and the reads, its records still queued.
+        if (mode == 3 && (step == s_growOn || step == s_growOff))
+        {
+            context = Grown(&run, context, &def, step == s_growOn);
+        }
         for (uint32_t i = 0; i < total && i < 64; ++i)
         {
             Mix(&run, &changed[i], sizeof changed[i]);
@@ -658,11 +692,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     Run alone = Script(data, size, 0);
     Run tasks = Script(data, size, 1);
     Run every = Script(data, size, 2);
-    if (alone.bad || tasks.bad || every.bad || alone.hash != tasks.hash || alone.hash != every.hash)
+    Run grown = Script(data, size, 3);
+    if (alone.bad || tasks.bad || every.bad || grown.bad || alone.hash != tasks.hash ||
+        alone.hash != every.hash || alone.hash != grown.hash)
     {
-        fprintf(stderr, "fuzz_api: bad %d %d %d, hashes %016llx %016llx %016llx\n", alone.bad,
-                tasks.bad, every.bad, (unsigned long long)alone.hash,
-                (unsigned long long)tasks.hash, (unsigned long long)every.hash);
+        fprintf(stderr, "fuzz_api: bad %d %d %d %d, hashes %016llx %016llx %016llx %016llx\n",
+                alone.bad, tasks.bad, every.bad, grown.bad, (unsigned long long)alone.hash,
+                (unsigned long long)tasks.hash, (unsigned long long)every.hash,
+                (unsigned long long)grown.hash);
         __builtin_trap();
     }
     return 0;
