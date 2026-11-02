@@ -6,6 +6,14 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.15.2](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.1...v0.15.2) (2026-11-02)
+
+
+### Fixed
+
+* **easing:** call an easing monotonic only if its halves meet going up ([#230](https://github.com/Rawframe-Project/maul-tween/issues/230)) ([e6cc1ca](https://github.com/Rawframe-Project/maul-tween/commit/e6cc1cae14606f517b91922679da9f89fb8b1b08)), closes [#229](https://github.com/Rawframe-Project/maul-tween/issues/229)
+* **value:** keep each channel's sign in a color far past its ends ([#227](https://github.com/Rawframe-Project/maul-tween/issues/227)) ([6704833](https://github.com/Rawframe-Project/maul-tween/commit/67048335381581c3c19765b4051b4cfd81c23146)), closes [#226](https://github.com/Rawframe-Project/maul-tween/issues/226)
+
 ## [0.15.1](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.0...v0.15.1) (2026-11-01)
 
 This release fixes five results that broke what the headers promise. A timeline eased by a cubic bezier or circ never steps back, so a mark at its end is crossed once ([#214](https://github.com/Rawframe-Project/maul-tween/pull/214)). A spring's settling time leaves room for the sample's rounding ([#216](https://github.com/Rawframe-Project/maul-tween/pull/216)). A stagger whose offsets would pass the doubles is refused ([#221](https://github.com/Rawframe-Project/maul-tween/pull/221)), an easing table holds a sample past the floats at the largest float ([#223](https://github.com/Rawframe-Project/maul-tween/pull/223)), and a host easing's NaN is taken as its progress and counted as misuse, while its infinity keeps equal ends in place ([#225](https://github.com/Rawframe-Project/maul-tween/pull/225)). Values change: circ samples everywhere, the child times of a timeline eased by a cubic bezier, the ends of spring transitions, and what a host easing's NaN or infinity gives. Each fix below names who sees it.
