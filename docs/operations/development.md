@@ -90,7 +90,7 @@ python3 tools/fuzz_seeds.py extract api out/corpus-api
 ./out/fuzz/fuzz_api -max_total_time=300 out/corpus-api
 ```
 
-`fuzz_api` drives the public API from bytes (clips built node by node, players under controls, transitions and updates) on a context alone, on a task system and counting every record, which must agree bit for bit. `fuzz_values` drives the values layer with ordinary and wild parameters (huge, tiny, infinite, NaN): whatever a function accepts, its results are finite, or at least not NaN where the inputs had none. `fuzz_fit` fits easings to `linear()` at drawn tolerances, kept apart because a fit at its limit costs a thousand times the rest.
+`fuzz_api` drives the public API from bytes (clips built node by node, players under controls, transitions and updates) on a context alone, on a task system and counting every record, which must agree bit for bit. `fuzz_values` drives the values layer with ordinary and wild parameters (huge, tiny, infinite, NaN): whatever a function accepts, its results are finite, or at least not NaN where the inputs had none, and each also meets an oracle that can fail (an easing called monotonic never decreases in its mode, a color far past its ends keeps each channel's sign, a timing keeps Web Animations' ranges, a refusal leaves its output). `fuzz_fit` fits easings to `linear()` at drawn tolerances, kept apart because a fit at its limit costs a thousand times the rest.
 
 Always pass `-max_total_time`, and stop what you started. A crash becomes a test: the minimized input (`-minimize_crash=1`) goes into `test/fuzz_regressions/<target>/` as a `.bin` file. `fuzz_seeds.py write` adds those files to every corpus it records, and so to the seeds header the target's CTest replay runs, so no merge drops them.
 
