@@ -477,6 +477,114 @@ static void TestFarProgress(void)
           "1e44 on: held at the largest float");
 }
 
+// Whether every channel of a color is the largest finite float of a sign,
+// alpha 1.
+static bool HeldAt(mtwnColor color, float sign)
+{
+    float largest = sign * 0x1.fffffep127f;
+    return color.red == largest && color.green == largest && color.blue == largest &&
+           color.alpha == 1.0f;
+}
+
+static bool SameColor(mtwnColor a, mtwnColor b)
+{
+    return a.red == b.red && a.green == b.green && a.blue == b.blue && a.alpha == b.alpha;
+}
+
+// Whether every channel of a color is held at the largest float of one
+// sign or the other, so that a color farther out on the same line can be
+// no other.
+static bool Saturated(mtwnColor color)
+{
+    const float c[3] = {color.red, color.green, color.blue};
+    for (int i = 0; i < 3; ++i)
+    {
+        if (fabsf(c[i]) != 0x1.fffffep127f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Each channel of a color far past its ends is held at the largest float
+// of its own sign in every space: in Oklab and OkLCh an LMS root's cube
+// passed the doubles from about 5.6e102, and the matrix to linear sRGB
+// added infinities of both signs, a NaN held at the positive one; farther
+// out the coordinates themselves passed the doubles.
+static void TestFarPastEndsSign(void)
+{
+    const mtwnColorSpace spaces[4] = {mtwn_colorSrgb, mtwn_colorLinearSrgb, mtwn_colorOklab,
+                                      mtwn_colorOklch};
+    const double far[5] = {1e100, 1e110, 1e200, 1e300, DBL_MAX};
+    mtwnColor black = {0, 0, 0, 1.0f};
+    mtwnColor white = {1.0f, 1.0f, 1.0f, 1.0f};
+    for (int s = 0; s < 4; ++s)
+    {
+        mtwnColorMix mix;
+        CHECK(mtwnMakeColorMix(black, white, spaces[s], mtwn_hueShorter, &mix) == mtwn_success,
+              "black to white");
+        for (int i = 0; i < 5; ++i)
+        {
+            CHECK(HeldAt(MixColor(&mix, -far[i]), -1.0f), "far before black: below it");
+            CHECK(HeldAt(MixColor(&mix, far[i]), 1.0f), "far past white: above it");
+        }
+    }
+    // A color's line in Oklab, red to blue: saturated at 1e60 already,
+    // where nothing passes the doubles, and the same out to the largest
+    // progress, either way.
+    mtwnColor red = {1.0f, 0, 0, 1.0f};
+    mtwnColor blue = {0, 0, 1.0f, 1.0f};
+    mtwnColorMix line;
+    CHECK(mtwnMakeColorMix(red, blue, mtwn_colorOklab, mtwn_hueShorter, &line) == mtwn_success,
+          "red to blue");
+    for (double sign = -1.0; sign <= 1.0; sign += 2.0)
+    {
+        mtwnColor near = MixColor(&line, sign * 1e60);
+        CHECK(Saturated(near) && near.red != near.blue, "saturated at 1e60, not a gray");
+        for (int i = 0; i < 5; ++i)
+        {
+            CHECK(SameColor(MixColor(&line, sign * far[i]), near), "the same color farther out");
+        }
+    }
+    // OkLCh's hue moves on: every channel stays finite, the hue counting
+    // as 0 once it passes the doubles.
+    CHECK(mtwnMakeColorMix(red, blue, mtwn_colorOklch, mtwn_hueShorter, &line) == mtwn_success,
+          "red to blue in OkLCh");
+    for (int i = 0; i < 5; ++i)
+    {
+        mtwnColor out = MixColor(&line, far[i]);
+        CHECK(isfinite(out.red) && isfinite(out.green) && isfinite(out.blue) && out.alpha == 1.0f,
+              "OkLCh far out: finite");
+    }
+    // Converted back: along a direction, the color at 1e40 times it,
+    // saturated already, is the color at any larger multiple.
+    const double directions[4][3] = {{1, 0, 0}, {0.5, 1, 0}, {0.5, -0.25, 1}, {-1, 0.25, -0.5}};
+    const double scales[3] = {1e103, 1e200, 1e307};
+    for (int d = 0; d < 4; ++d)
+    {
+        for (int space = 0; space < 2; ++space)
+        {
+            mtwnColorSpace in = space == 0 ? mtwn_colorOklab : mtwn_colorOklch;
+            double hue = directions[d][2] + 1.0;
+            double at[4] = {1e40 * directions[d][0], 1e40 * directions[d][1],
+                            space == 0 ? 1e40 * directions[d][2] : hue, 1.0};
+            mtwnColor near;
+            CHECK(mtwnConvertColorFromSpace(at, in, &near) == mtwn_success && Saturated(near),
+                  "saturated at 1e40");
+            for (int k = 0; k < 3; ++k)
+            {
+                double farther[4] = {scales[k] * directions[d][0], scales[k] * directions[d][1],
+                                     space == 0 ? scales[k] * directions[d][2] : hue, 1.0};
+                mtwnColor out;
+                CHECK(mtwnConvertColorFromSpace(farther, in, &out) == mtwn_success &&
+                          SameColor(out, near),
+                      "the same color farther along");
+            }
+        }
+    }
+}
+
 // A powerless hue, NaN as mtwnConvertColorToSpace gives it for a gray, converts
 // back as a hue of 0: no chroma, the same gray.
 static void TestPowerlessHue(void)
@@ -647,6 +755,7 @@ int main(void)
     TestBelowZeroAlpha();
     TestRefusals();
     TestFarProgress();
+    TestFarPastEndsSign();
     TestPowerlessHue();
     TestPowerlessThreshold();
     TestMixChecks();

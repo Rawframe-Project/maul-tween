@@ -288,6 +288,31 @@ static mtwnVec4 About(double x, double y, double z, double angle)
     return (mtwnVec4){(float)(x * s), (float)(y * s), (float)(z * s), (float)cos(angle / 2.0)};
 }
 
+// A color track eased far before its first keyframe, by back in with an
+// overshoot of 1e300 (-1.48e299 at 0.66), is held below black in every
+// space: Oklab and OkLCh held it at the largest positive float, brighter
+// than white.
+static void TestColorFarBefore(void)
+{
+    mtwnEasing back;
+    CHECK(mtwnMakeBackEasing(mtwn_easeIn, 1e300, &back) == mtwn_success, "back, 1e300");
+    mtwnKeyframe keys[2] = {Key(0.0, (mtwnVec4){0, 0, 0, 1}, mtwn_segmentLinear),
+                            Key(1.0, (mtwnVec4){1, 1, 1, 1}, mtwn_segmentLinear)};
+    keys[0].easing = back;
+    const mtwnColorSpace spaces[4] = {mtwn_colorSrgb, mtwn_colorLinearSrgb, mtwn_colorOklab,
+                                      mtwn_colorOklch};
+    mtwnVec4 below = {-0x1.fffffep127f, -0x1.fffffep127f, -0x1.fffffep127f, 1.0f};
+    for (int s = 0; s < 4; ++s)
+    {
+        mtwnTrackDef def = mtwnDefaultTrackDef(mtwn_valueColor);
+        def.colorSpace = spaces[s];
+        mtwnSegmentMix mixes[1];
+        mtwnTrack track;
+        CHECK(mtwnMakeTrack(keys, 2, &def, NULL, mixes, &track) == mtwn_success, "a color track");
+        CHECK(Same(SampleTrack(&track, 0.66), below), "held below black");
+    }
+}
+
 static void TestRotations(void)
 {
     mtwnVec4 a = About(0, 0, 1, 0.0);
@@ -802,6 +827,7 @@ int main(void)
     TestRotationHemisphere();
     TestAnglesFarOut();
     TestColors();
+    TestColorFarBefore();
     TestRotations();
     TestRefusals();
     TestSampleRefusals();
