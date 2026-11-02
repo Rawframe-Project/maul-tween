@@ -547,15 +547,34 @@ static void TestFarPastEndsSign(void)
             CHECK(SameColor(MixColor(&line, sign * far[i]), near), "the same color farther out");
         }
     }
-    // OkLCh's hue moves on: every channel stays finite, the hue counting
-    // as 0 once it passes the doubles.
-    CHECK(mtwnMakeColorMix(red, blue, mtwn_colorOklch, mtwn_hueShorter, &line) == mtwn_success,
-          "red to blue in OkLCh");
-    for (int i = 0; i < 5; ++i)
+    // From black, whose powerless hue takes the other end's, a color c at
+    // progress p is p times c's Oklab coordinates, its OkLCh chroma p times
+    // c's at c's own hue: linear sRGB is p^3 times c's, so each channel far
+    // out is held at the largest float of sign(p) times its sign in c. An
+    // extended c, its coordinates near 1e24, takes p past 1e284 for its
+    // coordinates to pass the doubles, and p past 1e79 for its cubes to.
+    mtwnColor extended = {1e30f, -3e29f, 2e29f, 1.0f};
+    const float signs[3] = {1.0f, -1.0f, 1.0f};
+    const double past[4] = {1e100, 1e200, 1e290, DBL_MAX};
+    for (int space = 0; space < 2; ++space)
     {
-        mtwnColor out = MixColor(&line, far[i]);
-        CHECK(isfinite(out.red) && isfinite(out.green) && isfinite(out.blue) && out.alpha == 1.0f,
-              "OkLCh far out: finite");
+        mtwnColorSpace in = space == 0 ? mtwn_colorOklab : mtwn_colorOklch;
+        CHECK(mtwnMakeColorMix(black, extended, in, mtwn_hueShorter, &line) == mtwn_success,
+              "black to an extended color");
+        for (int i = 0; i < 4; ++i)
+        {
+            for (double sign = -1.0; sign <= 1.0; sign += 2.0)
+            {
+                mtwnColor out = MixColor(&line, sign * past[i]);
+                const float got[3] = {out.red, out.green, out.blue};
+                bool held = out.alpha == 1.0f;
+                for (int k = 0; k < 3; ++k)
+                {
+                    held = held && got[k] == (float)sign * signs[k] * 0x1.fffffep127f;
+                }
+                CHECK(held, "each channel at p^3 times its sign in the color");
+            }
+        }
     }
     // Converted back: along a direction, the color at 1e40 times it,
     // saturated already, is the color at any larger multiple.
