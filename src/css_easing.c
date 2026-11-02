@@ -290,6 +290,14 @@ double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, dou
     // own input.
     double value = isinf(span) ? (1.0 - between) * a->output + between * b->output
                                : a->output + between * span;
+    // The difference is rounded, so a share of 1, or one that rounds to it,
+    // can carry the sum an ulp past b's output; inside the segment the
+    // value is kept from passing it, so the curve meets each point at its
+    // output and never steps back there.
+    if (between <= 1.0 && (value - b->output) * span > 0.0)
+    {
+        value = b->output;
+    }
     if (isfinite(value))
     {
         return value;

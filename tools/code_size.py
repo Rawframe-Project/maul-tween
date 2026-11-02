@@ -67,7 +67,7 @@ PARTS = [
 # a sweep's crossings between its two ends costs.
 BUDGETS = {
     "curves": 37600,
-    "values": 72700,
+    "values": 72800,
     "transitions": 74200,
     "clips": 175600,
     "everything": 196400,
@@ -100,8 +100,8 @@ RAISED = {
     "scale or zoom mix, 2.0 kB, a timing's computation checks it, 0.1 kB, a spring's "
     "settling time redoes a bound that underflowed, 1.2 kB, a timing counts a "
     "start's cycles past the doubles, 0.6 kB, a spring's settling time keeps its sample "
-    "within the tolerances, 3.2 kB, and an Oklab or OkLCh color far past its ends keeps each "
-    "channel's sign, 0.9 kB",
+    "within the tolerances, 3.2 kB, an Oklab or OkLCh color far past its ends keeps each "
+    "channel's sign, 0.9 kB, and a linear() segment's sample is held at its point, 0.1 kB",
     "transitions": "every call taking a spring, a decay or an easing checks it, 3.7 kB, "
     "a transition copies its linear() points, 0.6 kB, a spring's settling time redoes a "
     "bound that underflowed, 1.2 kB, a decay keeps its times and samples within the "

@@ -1637,10 +1637,21 @@ static void TestPlayAtStart(void)
     mtwnDestroyContext(w.context);
 }
 
+// Where EasedMarks puts its frames before the one past the end.
+typedef enum EasedFrames
+{
+    // None.
+    s_noFrames,
+    // One every nanosecond over the timeline's last 200 ns.
+    s_lastFrames,
+    // One every nanosecond over its first 200 ns.
+    s_firstFrames,
+} EasedFrames;
+
 // The forward and backward crossings of a mark at a time of a timeline of
-// 1 s with the easing, played once forwards: with a frame every nanosecond
-// over the timeline's last 200 ns, or with one frame past its end.
-static void EasedMarks(const mtwnEasing* easing, double mark, bool dense, uint64_t* forwards,
+// 1 s with the easing, played once forwards: with the frames, then one
+// past its end.
+static void EasedMarks(const mtwnEasing* easing, double mark, EasedFrames where, uint64_t* forwards,
                        uint64_t* backwards)
 {
     World w = MakeWorld(64);
@@ -1664,7 +1675,8 @@ static void EasedMarks(const mtwnEasing* easing, double mark, bool dense, uint64
     uint64_t frames[202];
     uint32_t count = 0;
     frames[count++] = start;
-    for (uint64_t k = 999999800u; dense && k < start; ++k)
+    uint64_t first = where == s_firstFrames ? 1u : 999999800u;
+    for (uint64_t k = first; where != s_noFrames && k < first + 200u; ++k)
     {
         frames[count++] = start + k;
     }
@@ -1690,7 +1702,8 @@ static void EasedMarks(const mtwnEasing* easing, double mark, bool dense, uint64
 // monotonic is crossed once however the frames fall: CSS's ease and
 // cubic-bezier(1, 0, 0, 1), solved to a tolerance as a keyframe's are,
 // step down an ulp next to their end, where a frame landing on the step
-// and one past it would cross a mark at the end twice.
+// and one past it would cross a mark at the end twice; a linear() segment
+// can end an ulp past its point, stepping down there.
 static void TestEasedTimelineMarks(void)
 {
     mtwnEasing easings[4];
@@ -1707,12 +1720,37 @@ static void TestEasedTimelineMarks(void)
         {
             uint64_t forwards[2] = {0, 0};
             uint64_t backwards[2] = {0, 0};
-            EasedMarks(&easings[i], marks[m], true, &forwards[0], &backwards[0]);
-            EasedMarks(&easings[i], marks[m], false, &forwards[1], &backwards[1]);
+            EasedMarks(&easings[i], marks[m], s_lastFrames, &forwards[0], &backwards[0]);
+            EasedMarks(&easings[i], marks[m], s_noFrames, &forwards[1], &backwards[1]);
             wrong += forwards[0] != 1 || forwards[1] != 1 || backwards[0] != 0 || backwards[1] != 0;
         }
     }
     CHECK(wrong == 0, "a mark in an eased timeline crossed once, frames dense or not");
+    // linear(0.03 -100%, 0.3 1e-15%, 0.3 50%, 1): at progress 0 the share
+    // of its first segment rounds to 1, where 0.03 + (0.3 - 0.03) is an ulp
+    // past 0.3, and from 1e-17 it is 0.3 until 1/2: a frame at the start,
+    // one on the flat and one past the end would cross a mark just above
+    // 0.3 twice.
+    mtwnLinearPoint points[4] = {{-1.0, 0.03}, {1e-17, 0.3}, {0.5, 0.3}, {1.0, 1.0}};
+    mtwnEasing linear;
+    bool monotonic = false;
+    CHECK(mtwnMakeLinearPointsEasing(points, 4, &linear) == mtwn_success &&
+              mtwnIsEasingMonotonic(&linear, &monotonic) == mtwn_success && monotonic,
+          "a monotonic linear()");
+    const double past = nextafter(0.3, 1.0);
+    const double linearMarks[3] = {past, nextafter(past, 1.0), 0.75};
+    wrong = 0;
+    for (int m = 0; m < 3; ++m)
+    {
+        for (int f = s_noFrames; f <= s_firstFrames; ++f)
+        {
+            uint64_t forwards = 0;
+            uint64_t backwards = 0;
+            EasedMarks(&linear, linearMarks[m], (EasedFrames)f, &forwards, &backwards);
+            wrong += forwards != 1 || backwards != 0;
+        }
+    }
+    CHECK(wrong == 0, "a mark past a linear() point crossed once, frames dense or not");
 }
 
 // One node's records of a kind in an update's, each way.

@@ -379,6 +379,59 @@ static void TestModesAndTheBeforeFlag(void)
           "out-in: the second half samples progress unreflected");
 }
 
+// Inside a segment linear() lies between its two outputs, so it meets each
+// point at its output, never past it. Output pairs of two decimals whose
+// difference rounds up, 0.03 to 0.3 among them, would end their segment an
+// ulp past the point, where its share is 1 or rounds to it: the 64 doubles
+// below the point, from 1% to 3% and from -100% to 1e-15%, never pass it
+// and never decrease, and the point is its output.
+static void TestLinearMeetsItsPoints(void)
+{
+    int pairs = 0;
+    int wrong = 0;
+    for (int i = 0; i <= 100 && pairs < 32; ++i)
+    {
+        for (int j = i; j <= 100 && pairs < 32; ++j)
+        {
+            double a = (double)i / 100.0;
+            double b = (double)j / 100.0;
+            if (!(a + (b - a) > b))
+            {
+                continue;
+            }
+            ++pairs;
+            mtwnLinearPoint late[4] = {{0.0, 0.0}, {0.01, a}, {0.03, b}, {1.0, 1.0}};
+            mtwnLinearPoint early[4] = {{-1.0, a}, {1e-17, b}, {0.5, b}, {1.0, 1.0}};
+            mtwnLinearPoint* shapes[2] = {late, early};
+            for (int k = 0; k < 2; ++k)
+            {
+                mtwnEasing easing;
+                if (mtwnMakeLinearPointsEasing(shapes[k], 4, &easing) != mtwn_success ||
+                    !IsMonotonicEasing(&easing))
+                {
+                    ++wrong;
+                    continue;
+                }
+                double point = shapes[k][1 + (k == 0)].input;
+                double x = point;
+                for (int n = 0; n < 64; ++n)
+                {
+                    x = nextafter(x, -1.0);
+                }
+                double last = EaseAt(&easing, x, false);
+                for (; x < point; x = nextafter(x, 1.0))
+                {
+                    double at = EaseAt(&easing, x, false);
+                    wrong += at > b || at < last;
+                    last = at;
+                }
+                wrong += EaseAt(&easing, point, false) != b;
+            }
+        }
+    }
+    CHECK(pairs == 32 && wrong == 0, "linear() meets each point at its output, never past it");
+}
+
 // The free sampler reads linear()'s points where the host keeps them, so
 // it is finite for any finite points: changed after making, out of order,
 // spanning more than the doubles, or extended past the doubles' range,
@@ -473,6 +526,7 @@ int main(void)
     TestLinearCanonicalization();
     TestLinearRefusalsAndMonotonic();
     TestModesAndTheBeforeFlag();
+    TestLinearMeetsItsPoints();
     TestLinearFiniteForAnyPoints();
     TestCssCurvesFinite();
     return s_failures == 0 ? 0 : 1;
