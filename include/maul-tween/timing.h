@@ -103,7 +103,10 @@ extern "C"
         double overallProgress;
         // Progress within the current iteration, from 0 to 1.
         double simpleProgress;
-        // The current iteration's index; infinity after an infinite run.
+        // The current iteration's index; infinity after an infinite run,
+        // and where the overall progress passes the doubles, which holds
+        // the node at that iteration's end: its progress the iteration
+        // start's fraction, or 1.
         double iteration;
         // The progress in the iteration's direction, and eased.
         double directedProgress;

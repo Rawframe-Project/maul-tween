@@ -54,7 +54,7 @@ clip_sample: compose context_internal elementary fpenv invariant pool runs bound
 clip_tasks: context_internal fpenv pool runs
 coast: context_internal work
 compose: elementary bounds_internal work
-crossing: invariant timing_internal work
+crossing: fpenv invariant timing_internal work
 event: context_internal invariant pool fpenv
 sweep: context_internal crossing pool runs work
 timeline_easing: css_easing invariant work

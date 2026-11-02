@@ -60,15 +60,16 @@ PARTS = [
 # clips' and the whole library's by what taking a host easing's NaN as
 # its progress and counting it as misuse costs, the values', the
 # transitions', the clips' and the whole library's by what keeping each
-# channel's sign in an Oklab or OkLCh color far past its ends costs, and
-# the curves' by what checking where an in-out or out-in easing's halves
-# meet costs.
+# channel's sign in an Oklab or OkLCh color far past its ends costs, the
+# curves' by what checking where an in-out or out-in easing's halves meet
+# costs, and the clips' and the whole library's by what holding an endless
+# node past the doubles in its crossing counts costs.
 BUDGETS = {
     "curves": 37600,
     "values": 72700,
     "transitions": 74200,
-    "clips": 172000,
-    "everything": 192700,
+    "clips": 172400,
+    "everything": 193100,
 }
 
 
@@ -115,8 +116,9 @@ RAISED = {
     "enumerations are int32_t, read in wider fields of the structs a clip's player walks, "
     "1.4 kB, a timeline's cubic bezier never decreases, 4.1 kB, a spring's settling time "
     "keeps its sample within the tolerances, 3.2 kB, a host easing's NaN is taken as its "
-    "progress and counted as misuse for each player's track, 1.1 kB, and an Oklab or OkLCh "
-    "color far past its ends keeps each channel's sign, 0.8 kB",
+    "progress and counted as misuse for each player's track, 1.1 kB, an Oklab or OkLCh "
+    "color far past its ends keeps each channel's sign, 0.8 kB, and the crossing count holds "
+    "an endless node past the doubles, 0.4 kB",
     "everything": "the raises of the parts above",
 }
 
