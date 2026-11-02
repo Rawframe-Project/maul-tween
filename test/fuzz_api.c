@@ -13,7 +13,11 @@
 // Each run hashes every call's status, every target's state after every
 // update, the changed targets and every record; the four must be the same
 // bits, values finite and records ordered, counted and within their
-// update's span.
+// update's span. After every call the context's misuse count has grown by
+// what the call's status says: one for a counted refusal, none for a
+// success, a full capacity, a held clip or the stale id of a player the
+// context handed out, and one for each stale id in a read of many
+// targets.
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
 // corpus directory; in the test suite it runs a fixed set of random
@@ -22,6 +26,7 @@
 #include "test_hooks.h"
 
 #include "maul-tween/clip.h"
+#include "maul-tween/context.h"
 #include "maul-tween/easing.h"
 #include "maul-tween/event.h"
 #include "maul-tween/player.h"
@@ -260,14 +265,15 @@ static mtwnTiming RandomTiming(Bytes* in)
     return t;
 }
 
-// The run's hash (FNV-1a), whether an invariant failed, and whether the
+// The run's hash (FNV-1a), whether an invariant failed, whether the
 // step's controls destroyed a player, whose targets are then still to
-// report as changed.
+// report as changed, and the context's misuse count after the last call.
 typedef struct Run
 {
     uint64_t hash;
     bool bad;
     bool destroyed;
+    uint64_t misuse;
 } Run;
 
 static void Mix(Run* run, const void* bytes, size_t size)
@@ -279,13 +285,47 @@ static void Mix(Run* run, const void* bytes, size_t size)
     }
 }
 
-// Every call's status, and whether the call left its context busy: each
-// one leaves what it enters, on every return.
-static void Status(Run* run, mtwnResult r)
+// Whether a call's status counts one misuse: every refusal but a full
+// capacity, which depends on what the library holds.
+static bool Counted(mtwnResult r)
+{
+    return r != mtwn_success && r != mtwn_errorCapacity;
+}
+
+// A call on a player's: its stale id counts only where the context never
+// handed it out, as the null id a refused creation leaves; every other id
+// here is one it handed out, and a player may free itself at its end.
+static bool PlayerCounted(mtwnResult r, mtwnPlayerId player)
+{
+    return r == mtwn_errorStale ? player.index1 == 0 : Counted(r);
+}
+
+// Every call's status, whether the call left its context busy: each
+// one leaves what it enters, on every return, and whether it added to
+// the misuse count exactly what its status says, one or none, or for a
+// read of many targets one for each stale id. No host easing here
+// returns NaN at a progress an update samples, so an update adds none for
+// its samples.
+static void Status(Run* run, mtwnResult r, uint64_t added)
 {
     int32_t v = (int32_t)r;
     Mix(run, &v, sizeof v);
     run->bad = run->bad || s_watched == NULL || mtwnTestIsBusy(s_watched);
+    uint64_t misuse = mtwnContext_GetMisuse(s_watched);
+    run->bad = run->bad || misuse - run->misuse != added;
+    run->misuse = misuse;
+}
+
+// A call whose every refusal but a full capacity counts.
+static void Plain(Run* run, mtwnResult r)
+{
+    Status(run, r, Counted(r) ? 1u : 0u);
+}
+
+// A call on a player's id.
+static void OnPlayer(Run* run, mtwnResult r, mtwnPlayerId player)
+{
+    Status(run, r, PlayerCounted(r, player) ? 1u : 0u);
 }
 
 static bool Finite(mtwnVec4 v)
@@ -380,7 +420,7 @@ static void AddNode(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip, 
         break;
     }
     }
-    Status(run, r);
+    Plain(run, r);
     Mix(run, &node, sizeof node);
 }
 
@@ -424,7 +464,8 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         break;
     case 8:
         mtwnContext_EnableReducedMotion(context, Below(in, 2) == 0);
-        break;
+        Status(run, mtwn_success, 0u);
+        return;
     case 9:
         r = mtwnDestroyPlayer(context, player);
         run->destroyed = run->destroyed || r == mtwn_success;
@@ -433,14 +474,16 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
     {
         uint32_t t = Below(in, s_targets);
         r = mtwnDestroyTarget(context, targets[t]);
-        break;
+        Plain(run, r);
+        return;
     }
     case 11:
     {
         uint32_t t = Below(in, s_targets);
         r = mtwnCreateTarget(context, (mtwnValueKind)Below(in, 11), StartOf(mtwn_valueScalar),
                              &targets[t]);
-        break;
+        Plain(run, r);
+        return;
     }
     default:
     {
@@ -475,10 +518,11 @@ static void Control(Bytes* in, Run* run, mtwnContext* context, const mtwnPlayerI
         mtwnPlayerId id = {0, 0};
         r = mtwnStartTransition(context, &def, &id);
         Scribble(s_transitionPoints);
-        break;
+        Plain(run, r);
+        return;
     }
     }
-    Status(run, r);
+    OnPlayer(run, r, player);
 }
 
 // The calls the steps do not draw, in up to four rounds once the steps
@@ -501,26 +545,32 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
             mtwnClipNodeInfo info;
             mtwnClipTrack track;
             double label = 0.0;
-            Status(run, mtwnClip_GetNode(context, clip, node, &info));
-            Status(run, mtwnClip_GetTrack(context, clip, node, &track));
-            Status(run, mtwnClip_FindLabel(context, clip, node, Below(in, 6), &label));
+            Plain(run, mtwnClip_GetNode(context, clip, node, &info));
+            Plain(run, mtwnClip_GetTrack(context, clip, node, &track));
+            Plain(run, mtwnClip_FindLabel(context, clip, node, Below(in, 6), &label));
             Mix(run, &label, sizeof label);
         }
         double duration = 0.0;
-        Status(run, mtwnClip_GetDuration(context, clip, &duration));
+        Plain(run, mtwnClip_GetDuration(context, clip, &duration));
         Mix(run, &duration, sizeof duration);
         uint32_t first = Below(in, s_targets);
         uint32_t count = Below(in, s_targets - first + 1);
         mtwnVec4 values[s_targets];
         memset(values, 0, sizeof values);
-        Status(run, mtwnContext_ReadTargets(context, targets + first, count, values));
+        uint64_t stale = 0;
+        for (uint32_t t = first; t < first + count; ++t)
+        {
+            stale += !mtwnTarget_IsValid(context, targets[t]);
+        }
+        mtwnResult read = mtwnContext_ReadTargets(context, targets + first, count, values);
+        Status(run, read, read == mtwn_errorStale ? stale : 0u);
         Mix(run, values, sizeof values);
         mtwnVec4 value = {0};
-        Status(run, mtwnTarget_GetValue(context, targets[Below(in, s_targets)], &value));
+        Plain(run, mtwnTarget_GetValue(context, targets[Below(in, s_targets)], &value));
         Mix(run, &value, sizeof value);
         uint32_t based = Below(in, s_targets);
-        Status(run, mtwnTarget_SetBase(context, targets[based],
-                                       (mtwnVec4){(float)Value(in, 4.0), 0, 0, 1.0f}));
+        Plain(run, mtwnTarget_SetBase(context, targets[based],
+                                      (mtwnVec4){(float)Value(in, 4.0), 0, 0, 1.0f}));
         mtwnTransitionDef def = mtwnDefaultTransitionDef();
         def.target = targets[Below(in, s_targets)];
         def.value = (mtwnVec4){(float)Value(in, 4.0), 0.25f, 0.5f, 1.0f};
@@ -529,34 +579,39 @@ static void Remaining(Bytes* in, Run* run, mtwnContext* context, mtwnClipId clip
         (void)mtwnMakeSpringFromDuration(0.25 + 0.25 * Below(in, 4), 0.1 * Below(in, 5),
                                          &def.spring);
         double distance = 0.0;
-        Status(run, mtwnContext_MeasureTransition(context, &def, &distance));
+        Plain(run, mtwnContext_MeasureTransition(context, &def, &distance));
         Mix(run, &distance, sizeof distance);
         uint32_t sought = Below(in, s_players);
-        Status(run, mtwnClipPlayer_SeekProgress(context, players[sought], Progress(in, 1.5)));
+        OnPlayer(run, mtwnClipPlayer_SeekProgress(context, players[sought], Progress(in, 1.5)),
+                 players[sought]);
         uint32_t labelled = Below(in, s_players);
-        Status(run, mtwnClipPlayer_SeekLabel(context, players[labelled], Below(in, 6)));
+        OnPlayer(run, mtwnClipPlayer_SeekLabel(context, players[labelled], Below(in, 6)),
+                 players[labelled]);
         if (Below(in, 2) == 0)
         {
-            Status(run, mtwnClipPlayer_Cancel(context, players[Below(in, s_players)]));
+            uint32_t cancelled = Below(in, s_players);
+            OnPlayer(run, mtwnClipPlayer_Cancel(context, players[cancelled]), players[cancelled]);
         }
         for (uint32_t p = 0; p < s_players; ++p)
         {
             mtwnClipPlayerState state;
-            Status(run, mtwnClipPlayer_GetState(context, players[p], &state));
+            OnPlayer(run, mtwnClipPlayer_GetState(context, players[p], &state), players[p]);
         }
         if (Below(in, 4) == 0)
         {
-            Status(run, mtwnDestroyClip(context, clip));
+            // Held by a player, it is refused, but counts none.
+            mtwnResult r = mtwnDestroyClip(context, clip);
+            Status(run, r, r != mtwn_errorBusy && Counted(r) ? 1u : 0u);
         }
         now += 1000000u + (uint64_t)Byte(in) * 4000000u;
         uint32_t total = 0;
-        Status(run, mtwnContext_Update(context, now, NULL, 0, &total));
+        Plain(run, mtwnContext_Update(context, now, NULL, 0, &total));
         Mix(run, &total, sizeof total);
         for (uint32_t t = 0; t < s_targets; ++t)
         {
             mtwnTargetState state;
             mtwnResult r = mtwnTarget_GetState(context, targets[t], &state);
-            Status(run, r);
+            Plain(run, r);
             if (r == mtwn_success)
             {
                 Mix(run, &state.value, sizeof state.value);
@@ -600,7 +655,7 @@ static mtwnContext* Grown(Run* run, mtwnContext* context, mtwnContextDef* def, b
 static Run Script(const uint8_t* data, size_t size, int mode)
 {
     Bytes in = {data, size, 0};
-    Run run = {14695981039346656037u, false, false};
+    Run run = {14695981039346656037u, false, false, 0};
     mtwnContextDef def = mtwnDefaultContextDef();
     def.eventCapacity = 256;
     def.enqueueTask = mode == 1 ? RunAtOnce : NULL;
@@ -618,11 +673,11 @@ static Run Script(const uint8_t* data, size_t size, int mode)
     for (uint32_t t = 0; t < s_targets; ++t)
     {
         mtwnValueKind kind = (mtwnValueKind)Below(&in, 11);
-        Status(&run, mtwnCreateTarget(context, kind, StartOf(kind), &targets[t]));
+        Plain(&run, mtwnCreateTarget(context, kind, StartOf(kind), &targets[t]));
     }
     mtwnClipDef clipDef = mtwnDefaultClipDef();
     mtwnClipId clip = {0, 0};
-    Status(&run, mtwnCreateClip(context, &clipDef, &clip));
+    Plain(&run, mtwnCreateClip(context, &clipDef, &clip));
     mtwnNode timelines[8] = {MTWN_ROOT_NODE};
     uint32_t timelineCount = 1;
     uint32_t nodes = 1 + Below(&in, 12);
@@ -630,7 +685,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
     {
         AddNode(&in, &run, context, clip, timelines, &timelineCount);
     }
-    Status(&run, mtwnClip_Seal(context, clip));
+    Plain(&run, mtwnClip_Seal(context, clip));
     mtwnPlayerId players[s_players];
     memset(players, 0, sizeof players);
     uint32_t playerCount = 1 + Below(&in, s_players);
@@ -650,7 +705,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         playerDef.keep = Below(&in, 2) == 0;
         playerDef.essential = Below(&in, 4) == 0;
         playerDef.rate = Below(&in, 4) == 0 ? -1.0 : 1.0;
-        Status(&run, mtwnCreateClipPlayer(context, &playerDef, &players[p]));
+        Plain(&run, mtwnCreateClipPlayer(context, &playerDef, &players[p]));
     }
     uint64_t now = 0;
     for (uint32_t step = 0; step < s_steps && in.at < in.size; ++step)
@@ -672,7 +727,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         now += gap < 200 ? (uint64_t)gap * 2000000u : (uint64_t)(gap - 199) * 500000000u;
         mtwnTargetId changed[64];
         uint32_t total = 0;
-        Status(&run, mtwnContext_Update(context, now, changed, 64, &total));
+        Plain(&run, mtwnContext_Update(context, now, changed, 64, &total));
         Mix(&run, &total, sizeof total);
         // Grown between an update and the reads, its records still queued.
         if (mode == 3 && step == s_growOff)
@@ -687,7 +742,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         {
             mtwnTargetState state;
             mtwnResult r = mtwnTarget_GetState(context, targets[t], &state);
-            Status(&run, r);
+            Plain(&run, r);
             if (r == mtwn_success)
             {
                 Mix(&run, &state.value, sizeof state.value);
@@ -699,7 +754,7 @@ static Run Script(const uint8_t* data, size_t size, int mode)
         mtwnEvent events[256];
         uint32_t n = 0;
         uint64_t dropped = 0;
-        Status(&run, mtwnContext_ReadEvents(context, events, 256, &n, &dropped));
+        Plain(&run, mtwnContext_ReadEvents(context, events, 256, &n, &dropped));
         Mix(&run, &dropped, sizeof dropped);
         for (uint32_t e = 0; e < n; ++e)
         {
