@@ -395,6 +395,112 @@ static void TestMonotonicEasingsNeverDecrease(void)
     CHECK(wrong == 0, "the easings called monotonic never decrease");
 }
 
+// Whether an easing steps down where in-out and out-in join their halves:
+// from the doubles just below 1/2 to 1/2 itself. A cubic bezier through
+// mtwnSampleEasing may fall an ulp or so short, as its header says (a
+// timeline samples one that never does), and is let fall 2^-40.
+static bool DownAtTheSeam(const mtwnEasing* easing)
+{
+    double slack = easing->kind == mtwn_easingCubicBezier ? 0x1p-40 : 0.0;
+    double p = 0.5;
+    double at = EaseAt(easing, p, false);
+    for (int i = 0; i < 64; ++i)
+    {
+        p = nextafter(p, 0.0);
+        if (EaseAt(easing, p, false) > at + slack)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// In-out and out-in join a curve's halves at 1/2: from below f(1) / 2 to
+// 1 - f(1) / 2, and from below (1 - f(0)) / 2 to (1 + f(0)) / 2. Every
+// kind the check can approve, and the ones it never does, in every mode:
+// the check's verdict is true only where the samples on both sides of the
+// seam do not step down, and for linear() and a rising rough easing, but
+// for a jump at the end that decides, it is false exactly where they do:
+// ending above 1 in in-out or starting below 0 in out-in.
+static void TestHalvesMeetGoingUp(void)
+{
+    enum
+    {
+        s_kinds = 24
+    };
+    mtwnEasing easings[s_kinds];
+    bool exact[s_kinds];
+    int made = 0;
+    int n = 0;
+    made += mtwnMakePowerEasing(mtwn_easeIn, 3.0, &easings[n++]) == mtwn_success;
+    made += mtwnMakePowerEasing(mtwn_easeIn, 0.5, &easings[n++]) == mtwn_success;
+    made += mtwnMakePennerEasing(mtwn_easingSine, mtwn_easeIn, &easings[n++]) == mtwn_success;
+    made += mtwnMakePennerEasing(mtwn_easingExpo, mtwn_easeIn, &easings[n++]) == mtwn_success;
+    made += mtwnMakePennerEasing(mtwn_easingCirc, mtwn_easeIn, &easings[n++]) == mtwn_success;
+    made += mtwnMakePennerEasing(mtwn_easingBounce, mtwn_easeIn, &easings[n++]) == mtwn_success;
+    made += mtwnMakeBackEasing(mtwn_easeIn, 1.70158, &easings[n++]) == mtwn_success;
+    made += mtwnMakeElasticEasing(mtwn_easeIn, 1.0, 0.3, &easings[n++]) == mtwn_success;
+    for (int position = 0; position < 4; ++position)
+    {
+        made += mtwnMakeStepsEasing(3, (mtwnStepPosition)position, &easings[n++]) == mtwn_success;
+    }
+    made += mtwnMakeCssEasing(mtwn_cssEase, &easings[n++]) == mtwn_success;
+    made += mtwnMakeCubicBezierEasing(0.5, -0.5, 0.5, 1.5, &easings[n++]) == mtwn_success;
+    easings[n++] = mtwnMakeLinearEasing();
+    int fixed = n;
+    static mtwnLinearPoint s_points[7][3] = {
+        {{0.0, 0.0}, {0.5, 0.5}, {1.0, 2.0}},   {{0.0, -1.0}, {0.5, 0.5}, {1.0, 1.0}},
+        {{0.0, 0.25}, {0.5, 0.5}, {1.0, 0.75}}, {{0.0, 0.0}, {0.5, 0.25}, {1.0, 0.5}},
+        {{0.0, -0.5}, {0.5, 0.0}, {1.0, 1.5}},  {{0.0, 0.0}, {1.0, 0.5}, {1.0, 1.5}},
+        {{0.0, -0.5}, {0.0, 0.5}, {1.0, 1.0}},
+    };
+    for (int k = 0; k < 7; ++k)
+    {
+        made += mtwnMakeLinearPointsEasing(s_points[k], 3, &easings[n++]) == mtwn_success;
+    }
+    mtwnRoughDef def = {0};
+    def.strength = 0.3;
+    def.seed = 17;
+    def.flags = mtwn_roughRising;
+    static mtwnLinearPoint s_rough[9];
+    made += mtwnMakeRoughEasing(&def, s_rough, 9, &easings[n++]) == mtwn_success;
+    CHECK(made == n - 1 && n <= s_kinds, "every kind made");
+    // The check is strict for a jump at the end that decides: linear(0,
+    // 0.5 100%, 1.5 100%) in in-out meets at 1/4 from 1/4, but ends at 1.5.
+    for (int i = 0; i < n; ++i)
+    {
+        exact[i] = i >= fixed && i != fixed + 5;
+    }
+    static const mtwnEaseMode s_seamModes[4] = {mtwn_easeIn, mtwn_easeOut, mtwn_easeInOut,
+                                                mtwn_easeOutIn};
+    int wrong = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        for (int m = 0; m < 4; ++m)
+        {
+            mtwnEasing easing = easings[i];
+            if (mtwnSetEaseMode(&easing, s_seamModes[m]) != mtwn_success)
+            {
+                ++wrong;
+                continue;
+            }
+            bool down = DownAtTheSeam(&easing);
+            bool monotonic = IsMonotonicEasing(&easing);
+            wrong += monotonic && down;
+            wrong += exact[i] && monotonic == down;
+        }
+    }
+    CHECK(wrong == 0, "no easing called monotonic steps down where its halves meet");
+    mtwnEasing up = easings[fixed];
+    CHECK(mtwnSetEaseMode(&up, mtwn_easeInOut) == mtwn_success && !IsMonotonicEasing(&up) &&
+              mtwnSetEaseMode(&up, mtwn_easeOutIn) == mtwn_success && IsMonotonicEasing(&up),
+          "linear(0, 0.5, 2): in-out not monotonic, out-in monotonic");
+    mtwnEasing below = easings[fixed + 1];
+    CHECK(mtwnSetEaseMode(&below, mtwn_easeOutIn) == mtwn_success && !IsMonotonicEasing(&below) &&
+              mtwnSetEaseMode(&below, mtwn_easeInOut) == mtwn_success && IsMonotonicEasing(&below),
+          "linear(-1, 0.5, 1): out-in not monotonic, in-out monotonic");
+}
+
 static void TestRivalMappings(void)
 {
     // GSAP's back.in(s) is p^2 ((s + 1) p - s) unnormalized; ours lands on
@@ -826,6 +932,7 @@ int main(int argc, char** argv)
     TestEndsAreExactForEveryParameter();
     TestAgainstTheFormulas();
     TestMonotonicEasingsNeverDecrease();
+    TestHalvesMeetGoingUp();
     TestRivalMappings();
     TestModesAreReflections();
     TestHostEasing();

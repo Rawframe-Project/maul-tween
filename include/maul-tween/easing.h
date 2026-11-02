@@ -405,8 +405,10 @@ extern "C"
     /// Tells whether an easing never decreases, as a timeline's easing
     /// must: linear, power, sine, expo, circ and steps in every mode, a
     /// cubic bezier with both y from 0 to 1, linear() with outputs that
-    /// never decrease; not back, elastic, bounce or a spring, and not a
-    /// host function, which the library cannot inspect. Each of these
+    /// never decrease, in in-out ending at 1 or below and in out-in
+    /// starting at 0 or above, since those modes join the curve's halves at
+    /// 1/2; not back, elastic, bounce or a spring, and not a host function,
+    /// which the library cannot inspect. Each of these
     /// samples to values that never decrease, but a cubic bezier through
     /// mtwnSampleEasing, solved to 1e-14 in x, whose values can fall an ulp
     /// or so short of the last, more near a vertical tangent. A timeline

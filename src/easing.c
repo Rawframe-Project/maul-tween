@@ -557,7 +557,8 @@ mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
     return result;
 }
 
-MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing)
+// Whether an easing's curve, in mode in, never decreases.
+static bool InCurveMonotonic(const mtwnEasing* easing)
 {
     switch (easing->kind)
     {
@@ -588,6 +589,23 @@ MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing)
     default:
         return false;
     }
+}
+
+MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing)
+{
+    if (!InCurveMonotonic(easing))
+    {
+        return false;
+    }
+    // Out reflects the curve, so it never decreases either. In-out and
+    // out-in join its halves at 1/2: the first ends at most at 1/2 exactly
+    // when the second starts at 1/2 or above, f(1) / 2 and 1 - f(1) / 2 in
+    // in-out, (1 - f(0)) / 2 and (1 + f(0)) / 2 in out-in, the first's
+    // limit at most that as the curve never decreases. So they meet going
+    // up when the easing at 1/2 is 1/2 or above, as every kind but
+    // linear() always is; a jump at the end that decides makes this
+    // strict.
+    return easing->mode < mtwn_easeInOut || mtwnSampleEasingNoted(easing, 0.5, false, NULL) >= 0.5;
 }
 
 static MTWN_NOINLINE mtwnResult mtwnIsEasingMonotonicChecked(const mtwnEasing* easing,
