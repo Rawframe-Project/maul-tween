@@ -6,6 +6,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.16.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.4...v0.16.0) (2026-11-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **timing:** mtwnComputeStagger with a negative spacing puts the farthest items at the start and the nearest at the start plus the spread, on the easing turned around (start - span * ease(1 - t)), where it put the nearest at the start and the others below it.
+* **timing:** mtwnComputeStagger refuses with mtwn_errorInvalid a stagger whose host easing gives a value not finite when an offset is written, where it returned mtwn_success with that offset not finite.
+
+### Fixed
+
+* **timing:** refuse a stagger offset that is not finite when written ([#254](https://github.com/Rawframe-Project/maul-tween/issues/254)) ([f4c118d](https://github.com/Rawframe-Project/maul-tween/commit/f4c118dd5ef52e0cfbea1e558de9be19de430b61)), closes [#253](https://github.com/Rawframe-Project/maul-tween/issues/253)
+* **timing:** run a negative stagger spacing from the farthest items ([#257](https://github.com/Rawframe-Project/maul-tween/issues/257)) ([f7c897c](https://github.com/Rawframe-Project/maul-tween/commit/f7c897ce985819edb03f945c59c3396638a0db60)), closes [#255](https://github.com/Rawframe-Project/maul-tween/issues/255)
+
 ## [0.15.4](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.3...v0.15.4) (2026-11-02)
 
 This release keeps `linear()` easings monotonic where `mtwnIsEasingMonotonic` says they are, which a timeline's crossing count relies on ([#243](https://github.com/Rawframe-Project/maul-tween/pull/243)). A sample inside a segment could land an ulp past the segment's later point and step down at it. A sample moves only there, by at most about an ulp, so only hosts sampling `linear()` just below a point see it.

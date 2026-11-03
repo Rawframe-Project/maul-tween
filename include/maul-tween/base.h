@@ -23,10 +23,10 @@ extern "C"
 #define MTWN_VERSION_MAJOR 0
 // x-release-please-end
 // x-release-please-start-minor
-#define MTWN_VERSION_MINOR 15
+#define MTWN_VERSION_MINOR 16
 // x-release-please-end
 // x-release-please-start-patch
-#define MTWN_VERSION_PATCH 4
+#define MTWN_VERSION_PATCH 0
 // x-release-please-end
 
 // The binary interface the headers describe, which the context def carries:
