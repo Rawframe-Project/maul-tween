@@ -6,7 +6,7 @@
 # Level 1's procedures for an animation (its current time, play states,
 # play, pause, finish, setting the current time, updating the finished
 # state and seamlessly updating the playback rate), written again from the
-# specification's text, with Maul Tween's two adaptations:
+# specification's text, with Maul Tween's three adaptations:
 #
 # - the ready time of a pending task is the next update's time, and a
 #   pending pause is ready at once, at the last update's time;
@@ -18,7 +18,11 @@
 # - a finished player given a rate other than 0 takes its start time from
 #   the time it holds, start = timeline time - current time / rate, where
 #   the specification's seamless update takes it from the time not held
-#   (docs/internals/timing.md).
+#   (docs/internals/timing.md); it then updates the finished state as
+#   after a seek, where the specification's branch does not, so the
+#   player holds that time exactly, as the library does against the
+#   rounding of current time / rate. On the exact times and rates here
+#   both give the same time.
 #
 # It writes test/generated/player_cases.h: scripts of controls and updates
 # on a player of a 2 s clip, from its own SplitMix64, with the time, play
@@ -223,7 +227,9 @@ class Animation:
             return SUCCESS
         if previous_state == FINISHED:
             if rate != 0:
-                # Maul Tween: from the time held, not the time not held.
+                # Maul Tween: from the time held, not the time not held,
+                # and did seek true where the specification has false;
+                # on exact inputs the two give the same time.
                 self.start = self.timeline - self.current() / rate
                 self.apply_pending_rate()
                 self.update_finished(True)
