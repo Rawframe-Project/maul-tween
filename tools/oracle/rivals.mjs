@@ -260,11 +260,13 @@ for (const r of levels) {
   }
 }
 
-// GSAP's distribute over rows and grids, a full one and one with a short
-// last row: from an index, "end", "center", "edges" and ratio points, on
-// each axis, by each and amount, positive and negative, linear and
-// power1.in, from a base of 0 or 0.5. Each case is written as GSAP takes
-// it, for the test to translate as the clips guide's porting note does.
+// GSAP's distribute over rows and grids: a full one, one with a short last
+// row, one of a single full row and one with fewer items than columns. From
+// an index (5, or the last item), "end", "center", "edges" and ratio
+// points, on each axis, by each and amount, positive and negative, linear
+// and power1.in, from a base of 0 or 0.5. Each case is written as GSAP
+// takes it, for the test to translate as the clips guide's porting note
+// does.
 const froms = { index: 0, end: 1, center: 2, edges: 3, ratio: 4 };
 const axisCodes = { both: 0, x: 1, y: 2 };
 const staggers = [];
@@ -273,8 +275,11 @@ for (const [count, columns] of [
   [6, 0],
   [12, 4],
   [7, 3],
+  [4, 4],
+  [5, 8],
 ]) {
-  for (const from of [0, "end", "center", "edges", 5, [0, 0], [1, 1], [0.25, 0.75]]) {
+  const index = Math.min(5, count - 1);
+  for (const from of [0, "end", "center", "edges", index, [0, 0], [1, 1], [0.25, 0.75]]) {
     for (const axis of columns === 0 ? ["both"] : ["both", "x", "y"]) {
       for (const [kind, spacing, base] of [
         ["each", 0.1, 0],
