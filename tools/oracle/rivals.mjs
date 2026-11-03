@@ -22,8 +22,7 @@
 // in a throwaway container without network, it unpacks the fetched
 // packages into $MTWN_RIVALS_WORK, runs them and writes the headers to
 // $MTWN_RIVALS_OUT; --check compares them with test/generated instead.
-// Outside the container, where $MTWN_RIVALS_CONTAINER is not 1, it
-// refuses to run.
+// Anywhere else it refuses to run (contained.mjs).
 
 import { execFileSync } from "node:child_process";
 import { runInNewContext } from "node:vm";
@@ -33,6 +32,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { refuseOutsideContainer } from "./contained.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const generated = join(root, "test", "generated");
@@ -41,9 +41,8 @@ const work = process.env.MTWN_RIVALS_WORK || join(tmpdir(), "mtwn-rivals-work");
 const out = process.env.MTWN_RIVALS_OUT || generated;
 const fetching = process.argv.includes("--fetch");
 const checking = process.argv.includes("--check");
-if (!fetching && process.env.MTWN_RIVALS_CONTAINER !== "1") {
-  console.error("rivals: run the rivals only through tools/oracle/run-in-container.sh");
-  process.exit(2);
+if (!fetching) {
+  refuseOutsideContainer("rivals");
 }
 const steps = 100;
 

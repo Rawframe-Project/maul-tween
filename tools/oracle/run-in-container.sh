@@ -20,13 +20,14 @@
 # ~/.cache/ms-playwright/chromium-1243 or $MTWN_CHROMIUM_DIR. Each runs
 # in a container of an image pinned by digest, with no network, a
 # read-only root, every capability dropped, no new privileges, an
-# unprivileged user, and bounded memory, CPUs and processes. The script,
-# the packages, the committed headers, the page's folder and the
-# Chromium build are mounted read-only; the only writable mounts are an
-# empty output folder and a /tmp in memory. Bind mounts refuse a host
-# path that does not exist, where -v would make it. The output folder is printed
-# at the end: copy what it holds into the tree by hand, and review the
-# diff.
+# unprivileged user, and bounded memory, CPUs and processes; the scripts
+# check the first two and the user themselves and refuse to run without
+# them (contained.mjs). The scripts, the packages, the committed
+# headers, the page's folder and the Chromium build are mounted
+# read-only; the only writable mounts are an empty output folder and a
+# /tmp in memory. Bind mounts refuse a host path that does not exist,
+# where -v would make it. The output folder is printed at the end: copy
+# what it holds into the tree by hand, and review the diff.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -71,7 +72,7 @@ contain=(
     --security-opt no-new-privileges --user "$user"
     --memory 4g --cpus 4 --pids-limit 512
     --tmpfs "/tmp:rw,nosuid,nodev,size=512m,mode=1777"
-    -e HOME=/tmp -e MTWN_RIVALS_CONTAINER=1 -e MTWN_RIVALS_OUT=/out
+    -e HOME=/tmp -e MTWN_RIVALS_OUT=/out
     --mount "type=bind,src=$out,dst=/out" -w /tmp
 )
 
@@ -84,6 +85,7 @@ rivals)
     }
     "${contain[@]}" \
         --mount "type=bind,src=$root/tools/oracle/rivals.mjs,dst=/src/tools/oracle/rivals.mjs,readonly" \
+        --mount "type=bind,src=$root/tools/oracle/contained.mjs,dst=/src/tools/oracle/contained.mjs,readonly" \
         --mount "type=bind,src=$root/test/generated,dst=/src/test/generated,readonly" \
         --mount "type=bind,src=$rivals,dst=/rivals,readonly" \
         -e MTWN_RIVALS_DIR=/rivals -e MTWN_RIVALS_WORK=/tmp/rivals-work \
@@ -103,6 +105,7 @@ chromium)
     page=$(realpath "$1")
     "${contain[@]}" \
         --mount "type=bind,src=$root/tools/oracle/chromium-page.mjs,dst=/driver/chromium-page.mjs,readonly" \
+        --mount "type=bind,src=$root/tools/oracle/contained.mjs,dst=/driver/contained.mjs,readonly" \
         --mount "type=bind,src=$(dirname "$page"),dst=/page,readonly" \
         --mount "type=bind,src=$chromium,dst=/chromium,readonly" \
         "$chromium_image" node /driver/chromium-page.mjs "/page/$(basename "$page")"

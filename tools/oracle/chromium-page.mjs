@@ -10,18 +10,16 @@
 //     tools/oracle/run-in-container.sh chromium PAGE.html
 //
 // It runs only through that wrapper, in a throwaway container without
-// network, where $MTWN_RIVALS_CONTAINER is 1, and writes the text to
-// $MTWN_RIVALS_OUT/PAGE.txt as well.
+// network, and refuses to run anywhere else (contained.mjs). It writes
+// the text to $MTWN_RIVALS_OUT/PAGE.txt as well.
 
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { refuseOutsideContainer } from "./contained.mjs";
 
-if (process.env.MTWN_RIVALS_CONTAINER !== "1") {
-  console.error("chromium-page: run it only through tools/oracle/run-in-container.sh");
-  process.exit(2);
-}
+refuseOutsideContainer("chromium-page");
 const page = process.argv[2];
 if (!page) {
   console.error("usage: chromium-page.mjs PAGE.html");
