@@ -7,7 +7,8 @@
 #   tools/check.sh changed   the files changed against origin/main: the
 #                            source rules, formatting, the documentation
 #                            checks, clang-tidy with the assertions compiled
-#                            out and live on the changed sources, the
+#                            out and live on the changed sources (on all
+#                            of them when a library header changed), the
 #                            linux-clang-20-asan preset (assertions on), and
 #                            the test labels the changes reach. Under two
 #                            minutes; run it before every push.
@@ -140,16 +141,22 @@ fuzz() { # seconds per target
 
 # clang-tidy on the files given, as CI's checks job runs it: on the
 # Release preset, where the assertions compile out, and with them live.
-# Each hides findings the other shows.
+# Each hides findings the other shows. Run from the root, clang-tidy 20
+# takes the header filter from the root's parent, which has none, not
+# from .clang-tidy, and so drops every header's findings: the filter is
+# passed, anchored at the build's source tree so headers fetched under
+# out/ stay out.
 tidy() { # files
-    local build
+    local build home
     for build in Release Debug; do
         step "clang-tidy, $build, on $# files"
         cmake --preset linux-clang-20 -B "$out/check-tidy-$build" -DCMAKE_BUILD_TYPE=$build \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_TWEEN_BUILD_TESTS=OFF \
             -DMAUL_TWEEN_BUILD_BENCH=OFF -DMAUL_TWEEN_BUILD_SAMPLES=OFF >"$out/check-tidy-$build.log"
+        home=$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$out/check-tidy-$build/CMakeCache.txt" |
+            sed 's/[][\.*^$+?(){}|]/\\&/g')
         printf '%s\n' "$@" | xargs -P "$jobs" -n 1 clang-tidy-20 -p "$out/check-tidy-$build" --quiet \
-            --warnings-as-errors='*' 2>/dev/null
+            --warnings-as-errors='*' --header-filter="^$home/(src|include)/" 2>/dev/null
     done
 }
 
@@ -172,8 +179,16 @@ if [ "$tier" = changed ]; then
         clang-format --dry-run -Werror "${present[@]}"
     fi
     # The changed files of the pr tier's set, new ones too; none runs none.
+    # A changed header of the library's reaches sources that did not
+    # change, so it checks them all.
     mapfile -t sources < <(git ls-files --cached --others --exclude-standard 'src/*.c' |
         grep -Fx -f <(printf '%s\n' "${present[@]+"${present[@]}"}") || true)
+    for f in "${present[@]+"${present[@]}"}"; do
+        if [[ $f == src/*.h || $f == include/*.h ]]; then
+            mapfile -t sources < <(git ls-files --cached --others --exclude-standard 'src/*.c')
+            break
+        fi
+    done
     if [ ${#sources[@]} -gt 0 ]; then
         tidy "${sources[@]}"
     fi
