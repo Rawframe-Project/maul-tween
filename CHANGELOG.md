@@ -6,6 +6,25 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.16.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.4...v0.16.0) (2026-11-03)
+
+This release changes two stagger results, found by comparing staggers with GSAP's `distribute`, which the clips guide names as their model. A negative spacing now runs from the farthest items, as GSAP's does, so no offset falls below the start and every offset is a delay a transition takes ([#257](https://github.com/Rawframe-Project/maul-tween/pull/257)). An offset whose host easing turns out not finite when it is written is refused, where it was returned ([#254](https://github.com/Rawframe-Project/maul-tween/pull/254)). The guide's porting note now gives every translation a port from GSAP needs, checked against GSAP 3.15.0's own outputs ([#258](https://github.com/Rawframe-Project/maul-tween/pull/258)). Offsets change for every stagger with a negative spacing; no other value, velocity or event record changes.
+
+### Changed
+
+- **Breaking:** `mtwnComputeStagger` with a negative spacing puts the farthest items at the start and the nearest at the start plus the spread's size, on the easing turned around: an offset is `start - span * ease(1 - t)` ([#257](https://github.com/Rawframe-Project/maul-tween/pull/257)). It put the nearest items at the start and the others below it, on the same easing. A row of six from the first with a spacing of -0.1 gave 0, -0.1, ..., -0.5, which as delays a transition refuses; it now gives 0.5, 0.4, ..., 0, as GSAP does.
+  - A linear stagger's offsets are the old ones moved up by the whole spread, each item keeping its place in the order. An eased one's follow the easing turned around, so they are not a shift of the old ones.
+  - A negative amount over items all at one distance, a single item among them, gives every item `start - spacing`, where it gave `start`.
+  - A stagger with a positive spacing or a spread of 0 gives the same bits.
+- **Breaking:** `mtwnComputeStagger` refuses with `mtwn_errorInvalid` a stagger whose host easing gives a value that is not finite when an offset is written, where it returned `mtwn_success` with that offset not finite ([#254](https://github.com/Rawframe-Project/maul-tween/pull/254)). The easing is sampled at every item before any offset is written, so only a host function that gives another value at the same progress when sampled again gets there. Its offsets are then unspecified; every other refusal still writes none. Every offset of a success is finite, as the header says.
+- The clips guide's "Porting from GSAP" note names every way a stagger differs from GSAP 3.15.0's `distribute`, each with its translation ([#258](https://github.com/Rawframe-Project/maul-tween/pull/258)):
+  - GSAP's `each` becomes an amount;
+  - its ratio points, and `"end"` and `"center"` in a grid, become points of the grid;
+  - its `"edges"` becomes the center with the spacing negated;
+  - GSAP rounds each offset to 1e-7.
+
+  `tools/oracle/rivals.mjs` writes 448 of GSAP's cases, and `test/test_rival_stagger.c` checks that each case, translated as the note says, agrees within GSAP's rounding.
+
 ## [0.15.4](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.3...v0.15.4) (2026-11-02)
 
 This release keeps `linear()` easings monotonic where `mtwnIsEasingMonotonic` says they are, which a timeline's crossing count relies on ([#243](https://github.com/Rawframe-Project/maul-tween/pull/243)). A sample inside a segment could land an ulp past the segment's later point and step down at it. A sample moves only there, by at most about an ulp, so only hosts sampling `linear()` just below a point see it.
