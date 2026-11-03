@@ -60,7 +60,7 @@ The values are the Maul family's, the same in every library, so a log of a raw v
 
 A refused call changes nothing. A context counts the calls refused for an invalid argument, one past a named bound, a stale target or clip id, a call the object's state does not allow (`mtwn_errorState`) or a call back in (`mtwnContext_GetMisuse`), so a host can assert the count stays 0. A refusal that depends on what the library does is not misuse: a full capacity, the stale id of a player the context handed out, kept or not (a player may free itself at its end), and a clip a player still holds. A player id never handed out, the null id among them, is misuse.
 
-Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: before 1.0 that is any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
+Contexts, clips, tracks, timelines, transitions and players are made from defs. Each def comes from its `mtwnDefault...Def` function, which is inline and sets the def's cookie; a def without it is refused with `mtwn_errorInvalid`. The context def's default also stamps the ABI version of the headers the program includes, and a library of another one refuses it with `mtwn_errorVersion`: another minor version, or before 1.0 any other release. Every other def is used under a context that passed, so it carries only its cookie. Always start from the default and set what differs.
 
 Targets, players and clips are named by ids of an index and a generation. An id of something destroyed is stale: a call given it returns `mtwn_errorStale` and never touches whatever took its slot. The zero id is null; it and an id never handed out get `mtwn_errorStale` too.
 
@@ -72,7 +72,7 @@ The host's code that the library runs (a host easing, the allocator, the task sy
 
 ## Compatibility
 
-Before 1.0.0 any release may change the API and the ABI, and the changelog says how. From 1.0.0 Maul Tween ships minor and patch releases of 1 only, and keeps this promise:
+Maul Tween ships minor and patch releases of 1 only, and keeps this promise. Releases before 1.0.0 could change the API and the ABI, and the changelog says how they did.
 
 - **What it covers.** Every function, type, enum value, macro and struct field declared in the headers under `include/maul-tween/`, by name, signature and meaning. A program that builds against 1.y builds against any later 1.z and means the same. Functions, types, values and fields are only added, a field only at the end of its struct.
 - **What it leaves out.** The fields of the structs a maker fills, which their headers call the library's: `mtwnEasing`, `mtwnSpring`, `mtwnColorMix`, `mtwnRotationMix`, `mtwnScaleMix`, `mtwnZoomMix`, `mtwnPath` and `mtwnTrack`. A host makes, copies and passes them but reads none of their fields, so a minor release may change them. The reasons `mtwnContext_GetSerialAdvanceCount`'s header gives for an advance left serial may change too; what the count counts does not.

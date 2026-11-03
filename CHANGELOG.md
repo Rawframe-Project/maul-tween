@@ -2,9 +2,10 @@
 
 All notable changes to this project are recorded here, grouped as
 Added, Changed, Fixed, Removed and Security. The project uses
-[Semantic Versioning](https://semver.org/). Before 1.0.0, any release
-may change the API and the ABI; a context def built against other headers is
-refused with `mtwn_errorVersion`.
+[Semantic Versioning](https://semver.org/). From 1.0.0 every release of
+1 keeps the API across 1.y and the ABI within a minor version; a context def
+built against another minor version's headers is refused with
+`mtwn_errorVersion`. Before 1.0.0, any release could change both.
 
 ## [0.17.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.16.0...v0.17.0) (2026-11-03)
 

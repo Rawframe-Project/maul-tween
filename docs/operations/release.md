@@ -1,13 +1,12 @@
 # Release
 
-Releases are made by release-please from the conventional commit titles on `main`. Versions follow Semantic Versioning; before 1.0.0 a breaking change bumps the minor version, a feature the minor and a fix the patch. Tags are `vX.Y.Z`. While the major version is 0, the shared library's SOVERSION is the whole version and the CMake package accepts only its exact version, since any release may change the ABI.
+Releases are made by release-please from the conventional commit titles on `main`. Versions follow Semantic Versioning within 1: a feature bumps the minor version and a fix the patch. No change that would break 1.y ships: the family plans no 2.0.0, so such a change is designed to be additive or does not ship, and the pull request title check refuses a breaking title (`!`) or a BREAKING CHANGE footer. Tags are `vX.Y.Z`. The shared library's SOVERSION is major.minor, since a minor release may grow a def, and the CMake package accepts any later version of the same major. Before 1.0.0 a breaking change bumped the minor version, and the SOVERSION and the package took the whole version.
 
 ## Steps
 
-1. release-please keeps a draft pull request titled `chore: release X.Y.Z` open. It moves the version between the markers in `include/maul-tween/base.h`, where CMake reads it, updates `.release-please-manifest.json`, and adds an entry to `CHANGELOG.md` from the `feat`, `fix` and `perf` titles and the `BREAKING CHANGE:` footers.
+1. release-please keeps a draft pull request titled `chore: release X.Y.Z` open. It moves the version between the markers in `include/maul-tween/base.h`, where CMake reads it, updates `.release-please-manifest.json`, and adds an entry to `CHANGELOG.md` from the `feat`, `fix` and `perf` titles.
 2. Rewrite that entry in user language, in `CHANGELOG.md` on the release pull request's branch (`release-please--branches--main--components--maul-tween`): what changed for someone using the library, grouped as Added, Changed, Fixed, Removed and Security.
-   - A breaking change comes first under Changed, prefixed **Breaking:**, and says what a caller must change.
-   - Name every change of results (any bit of a value, velocity or event record), since hosts may replay or compare frames across versions.
+   - A change of results (any bit of a value, velocity or event record) comes first under Changed and says what changes and who sees it, since hosts may replay or compare frames across versions.
    - User documentation (the README and `docs/user/`) gets one short line under Changed when it changes what a user can find or do.
    - Leave out refactors, tests, CI, and the internals and operations documentation.
 3. Put the same entry in the pull request's body, in place of the notes between release-please's `---` lines: release-please publishes the GitHub release notes from the body, not from `CHANGELOG.md`. release-please rewrites both whenever anything else lands on `main`, so the curation is the last change before the merge, and nothing else merges to `main` until the release is published. Curate only after the `release` run for `main`'s latest push has finished, and do not dispatch `release.yml` afterwards: a run in flight force-updates the release branch and writes the body again over the curation.
@@ -17,6 +16,6 @@ Releases are made by release-please from the conventional commit titles on `main
 
 ## Notes
 
-- A change of results is never a patch release. A pull request that gives existing inputs a different result, or breaks the API or ABI, carries `!` in its title and a `BREAKING CHANGE:` footer naming what a host sees, whatever its type.
+- A pull request that gives existing inputs a different result is titled `feat`, or `fix` when it corrects a result the documentation already promised, and never carries `!`. It ships in a minor or a patch release as its type gives, and its body and the release notes say what changes. A change that would break the API or the ABI is made additive or does not ship. Before 1.0.0 a change of results carried `!` and a `BREAKING CHANGE:` footer.
 - The shared family files must match their canonical copies in the organization's `.github` repository before a release.
 - A library that pins this one moves its pin in a pull request of its own.
