@@ -381,8 +381,8 @@ static void TestEasingChangedAfterCheck(void)
 // A negative spacing reverses the order as GSAP 3.15.0's distribute does:
 // a row of six from the first with each -0.1 is 0.5, 0.4, ..., 0 in GSAP,
 // and eased by power1.in (the quadratic) 0.5, 0.32, 0.18, 0.08, 0.02, 0,
-// each GSAP's output rounded to 1e-4. So the offsets stay valid delays: a
-// transition takes each.
+// each GSAP's output, which it rounds to 1e-7. So the offsets stay valid
+// delays: a transition takes each.
 static void TestNegativeSpacing(void)
 {
     const double linear[6] = {0.5, 0.4, 0.3, 0.2, 0.1, 0.0};

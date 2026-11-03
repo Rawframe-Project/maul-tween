@@ -5,9 +5,10 @@
 // Motion's springs run under Node, and CSS Color 4's conversions.js, each
 // fetched by its pinned version and checked against its pinned hash
 // before it runs, never kept in the repository. What they compute for
-// curves, springs and colors Maul Tween shares is written, exactly, to
-// test/generated/rival_easing.h, rival_spring.h and rival_color.h, which
-// test/test_rival_easing.c, test_rival_spring.c and test_rival_color.c
+// curves, springs, colors and staggers Maul Tween shares is written,
+// exactly, to test/generated/rival_easing.h, rival_spring.h,
+// rival_color.h and rival_stagger.h, which test/test_rival_easing.c,
+// test_rival_spring.c, test_rival_color.c and test_rival_stagger.c
 // check. Run by hand, not on every commit:
 //
 //     node tools/oracle/rivals.mjs [--check]
@@ -259,6 +260,57 @@ for (const r of levels) {
   }
 }
 
+// GSAP's distribute over rows and grids, a full one and one with a short
+// last row: from an index, "end", "center", "edges" and ratio points, on
+// each axis, by each and amount, positive and negative, linear and
+// power1.in, from a base of 0 or 0.5. Each case is written as GSAP takes
+// it, for the test to translate as the clips guide's porting note does.
+const froms = { index: 0, end: 1, center: 2, edges: 3, ratio: 4 };
+const axisCodes = { both: 0, x: 1, y: 2 };
+const staggers = [];
+const distribute = gsap.utils.distribute;
+for (const [count, columns] of [
+  [6, 0],
+  [12, 4],
+  [7, 3],
+]) {
+  for (const from of [0, "end", "center", "edges", 5, [0, 0], [1, 1], [0.25, 0.75]]) {
+    for (const axis of columns === 0 ? ["both"] : ["both", "x", "y"]) {
+      for (const [kind, spacing, base] of [
+        ["each", 0.1, 0],
+        ["amount", 1, 0],
+        ["each", -0.1, 0],
+        ["amount", -1, 0.5],
+      ]) {
+        for (const ease of ["none", "power1.in"]) {
+          const vars = { from, ease, base, [kind]: spacing };
+          if (columns > 0) {
+            vars.grid = [Math.ceil(count / columns), columns];
+          }
+          if (axis !== "both") {
+            vars.axis = axis;
+          }
+          const f = distribute(vars);
+          const items = Array.from({ length: count }, (_, i) => i);
+          staggers.push({
+            count,
+            columns,
+            from: Array.isArray(from) ? froms.ratio : typeof from === "number" ? froms.index : froms[from],
+            index: typeof from === "number" ? from : 0,
+            ratio: Array.isArray(from) ? from : [0, 0],
+            axis: axisCodes[axis],
+            amount: kind === "amount" ? 1 : 0,
+            spacing,
+            base,
+            eased: ease === "none" ? 0 : 1,
+            offsets: items.map((i) => f(i, items[i], items)),
+          });
+        }
+      }
+    }
+  }
+}
+
 function header(guard, about, body) {
   return [
     "// SPDX-License-Identifier: MIT",
@@ -314,6 +366,23 @@ const outputs = {
       "};",
     ],
   ),
+  "rival_stagger.h": header(
+    "MTWN_RIVAL_STAGGER_H",
+    [
+      "GSAP 3.15.0's distribute, run under Node: the count, the columns (0",
+      "for a row), from (0 an index, 1 end, 2 center, 3 edges, 4 ratios),",
+      "the index, the ratios, the axis, amount (1) or each (0), the spacing,",
+      "the base, power1.in (1) or none (0), then the offsets.",
+    ],
+    [
+      "static const RivalStagger s_rivalStaggers[] = {",
+      ...staggers.map(
+        (c) =>
+          `    {${c.count}, ${c.columns}, ${c.from}, ${c.index}, {${c.ratio.map(hex).join(", ")}}, ${c.axis}, ${c.amount}, ${hex(c.spacing)}, ${hex(c.base)}, ${c.eased}, {${c.offsets.map(hex).join(", ")}}},`,
+      ),
+      "};",
+    ],
+  ),
   "rival_color.h": header(
     "MTWN_RIVAL_COLOR_H",
     [
@@ -350,5 +419,7 @@ if (stale > 0) {
   process.exit(1);
 }
 if (process.argv.includes("--check")) {
-  console.log(`rivals: current, ${curves.length} curves, ${springs.length} springs, ${colors.length} colors`);
+  console.log(
+    `rivals: current, ${curves.length} curves, ${springs.length} springs, ${colors.length} colors, ${staggers.length} staggers`,
+  );
 }
