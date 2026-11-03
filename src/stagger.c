@@ -199,12 +199,17 @@ static void Spread(const mtwnStagger* stagger, uint32_t count, double* leastOut,
     *rangeOut = most - least;
 }
 
-// The offset of an item at a distance: normalized, eased and scaled.
-static double Offset(const mtwnStagger* stagger, double distance, double least, double range,
-                     double span)
+// The offset of an item at a distance: normalized, eased and scaled. A
+// negative span runs from the farthest items, which take the start, on
+// the easing turned around, as GSAP's distribute does, so no offset falls
+// below the start.
+static MTWN_NOINLINE double Offset(const mtwnStagger* stagger, double distance, double least,
+                                   double range, double span)
 {
     double t = range > 0.0 ? (distance - least) / range : 0.0;
-    return stagger->start + span * mtwnSampleEasingWork(&stagger->easing, t, false);
+    bool reversed = span < 0.0;
+    double eased = mtwnSampleEasingWork(&stagger->easing, reversed ? 1.0 - t : t, false);
+    return stagger->start + (reversed ? -span : span) * eased;
 }
 
 // Whether every offset is finite, nothing written: the start plus the

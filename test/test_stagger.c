@@ -10,8 +10,11 @@
 #include "stagger_internal.h"
 #include "test_harness.h"
 
+#include "maul-tween/context.h"
 #include "maul-tween/easing.h"
+#include "maul-tween/target.h"
 #include "maul-tween/timing.h"
+#include "maul-tween/transition.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -90,13 +93,13 @@ static void TestSpacing(void)
     stagger.easing = mtwnMakeLinearEasing();
     stagger.start = 3.0;
     stagger.spacing = -1.0;
-    CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[0] == 3.0 && got[4] == 2.0,
-          "a negative spread reverses the order");
-    CHECK(mtwnComputeStagger(&stagger, 1, got) == mtwn_success && got[0] == 3.0,
-          "one item at the start");
+    CHECK(mtwnComputeStagger(&stagger, 5, got) == mtwn_success && got[0] == 4.0 && got[4] == 3.0,
+          "a negative spread reverses the order, the farthest at the start");
+    CHECK(mtwnComputeStagger(&stagger, 1, got) == mtwn_success && got[0] == 4.0,
+          "one item the nearest, past the start by the spread");
     stagger.origin = mtwn_staggerEdges;
-    CHECK(mtwnComputeStagger(&stagger, 2, got) == mtwn_success && got[0] == 3.0 && got[1] == 3.0,
-          "all at the same distance, all at the start");
+    CHECK(mtwnComputeStagger(&stagger, 2, got) == mtwn_success && got[0] == 4.0 && got[1] == 4.0,
+          "all at the same distance, all the nearest");
     CHECK(mtwnComputeStagger(&stagger, 0, NULL) == mtwn_success, "no items");
 }
 
@@ -296,10 +299,10 @@ static void TestOffsetsPastTheDoubles(void)
     CHECK(mtwnComputeStagger(&past, 3, got) == mtwn_errorInvalid,
           "a start and an amount whose sum passes the doubles");
     past.spacing = -1e308;
-    past.start = -1e308;
+    past.start = 1e308;
     past.origin = mtwn_staggerRandom;
     CHECK(mtwnComputeStagger(&past, 3, got) == mtwn_errorInvalid,
-          "the same below the doubles in a random order");
+          "a negative amount, its nearest item past the doubles, in a random order");
     past = mtwnDefaultStagger();
     past.spacingKind = mtwn_staggerAmount;
     past.spacing = 1e300;
@@ -375,6 +378,43 @@ static void TestEasingChangedAfterCheck(void)
           "finite on both passes, the offsets written");
 }
 
+// A negative spacing reverses the order as GSAP 3.15.0's distribute does:
+// a row of six from the first with each -0.1 is 0.5, 0.4, ..., 0 in GSAP,
+// and eased by power1.in (the quadratic) 0.5, 0.32, 0.18, 0.08, 0.02, 0,
+// each GSAP's output rounded to 1e-4. So the offsets stay valid delays: a
+// transition takes each.
+static void TestNegativeSpacing(void)
+{
+    const double linear[6] = {0.5, 0.4, 0.3, 0.2, 0.1, 0.0};
+    const double quad[6] = {0.5, 0.32, 0.18, 0.08, 0.02, 0.0};
+    mtwnStagger stagger = mtwnDefaultStagger();
+    stagger.spacing = -0.1;
+    double got[6];
+    CHECK(mtwnComputeStagger(&stagger, 6, got) == mtwn_success && NearAll(got, linear, 6),
+          "GSAP's offsets for a negative each");
+    CHECK(mtwnMakePowerEasing(mtwn_easeIn, 2.0, &stagger.easing) == mtwn_success &&
+              mtwnComputeStagger(&stagger, 6, got) == mtwn_success && NearAll(got, quad, 6),
+          "GSAP's offsets for a negative each, eased");
+    mtwnContextDef def = mtwnDefaultContextDef();
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    int taken = 0;
+    for (int i = 0; i < 6; ++i)
+    {
+        mtwnTargetId target;
+        CHECK(mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){0}, &target) == mtwn_success,
+              "a target");
+        mtwnTransitionDef transition = mtwnDefaultTransitionDef();
+        transition.target = target;
+        transition.value = (mtwnVec4){1.0f, 0.0f, 0.0f, 0.0f};
+        transition.delay = got[i];
+        mtwnPlayerId player;
+        taken += mtwnStartTransition(context, &transition, &player) == mtwn_success;
+    }
+    mtwnDestroyContext(context);
+    CHECK(taken == 6, "every offset of a negative spacing taken as a transition's delay");
+}
+
 // The draw gives every place the same share. Over 3 * 2^30 places a draw
 // without rejection maps 4 of the 2^32 values onto 3 places, so the
 // places that are multiples of 3 would get half the draws; fairly they
@@ -444,5 +484,6 @@ int main(void)
     TestMisuse();
     TestOffsetsPastTheDoubles();
     TestEasingChangedAfterCheck();
+    TestNegativeSpacing();
     return s_failures == 0 ? 0 : 1;
 }
