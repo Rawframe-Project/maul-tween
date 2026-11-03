@@ -1576,9 +1576,11 @@ static void TestPointPassedBack(void)
     mtwnDestroyContext(w.context);
 }
 
-// A player sought past its end is held there, so the time it ran at since
-// is 0: the records of its way back after a rate change carry the update's
-// host time, not one between the updates.
+// A player sought past its end is finished and held there. Given half the
+// rate it stays there, crossing nothing; given -0.5 at 0.5 s it runs back
+// from there at once, its start time 0.5 + 1.125 / 0.5 = 2.75 s, so its
+// records carry the host time it crosses the ends at, 2.75 - 0.75 / 0.5 =
+// 1.25 s, not the update's.
 static void TestHeldAfterSeek(void)
 {
     World w = MakeWorld(64);
@@ -1603,13 +1605,16 @@ static void TestHeldAfterSeek(void)
     (void)Read(&w, e, 16);
     CHECK(mtwnClipPlayer_SetRate(w.context, player, 0.5) == mtwn_success, "half the rate");
     Update(&w, 0.5);
+    CHECK(Read(&w, e, 16) == 0, "still finished past its end, nothing crossed");
+    CHECK(mtwnClipPlayer_SetRate(w.context, player, -0.5) == mtwn_success, "going back");
+    Update(&w, 1.5);
     uint32_t n = Read(&w, e, 16);
-    uint32_t atUpdate = 0;
+    uint32_t atCrossing = 0;
     for (uint32_t i = 0; i < n; ++i)
     {
-        atUpdate += e[i].hostTime == 0.5 ? 1u : 0u;
+        atCrossing += e[i].hostTime == 1.25 && e[i].backwards ? 1u : 0u;
     }
-    CHECK(n == 2 && atUpdate == n, "the root's and the timeline's at the update's host time");
+    CHECK(n == 2 && atCrossing == n, "the root's and the timeline's ends, back at 1.25 s");
     mtwnDestroyContext(w.context);
 }
 
