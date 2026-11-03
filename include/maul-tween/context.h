@@ -193,7 +193,8 @@ extern "C"
     ///         allocator, or a task system with one function of the two;
     ///         mtwn_errorLimit for a capacity past its maximum, as
     ///         mtwnCreateContext; mtwn_errorVersion for a def of another
-    ///         ABI version; mtwn_errorCapacity when the allocator fails.
+    ///         ABI version; mtwn_errorCapacity when the allocator fails or
+    ///         the block's size does not fit.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnContext_Grow(mtwnContext** contextInOut,

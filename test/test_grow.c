@@ -23,6 +23,8 @@
 // An allocator that can be told to fail, counting what it holds.
 typedef struct Budget
 {
+    // Calls, refused ones too.
+    uint32_t asked;
     bool fail;
     uint64_t held;
     uint32_t blocks;
@@ -31,6 +33,7 @@ typedef struct Budget
 static void* Alloc(size_t size, size_t alignment, void* context)
 {
     Budget* budget = (Budget*)context;
+    ++budget->asked;
     if (budget->fail)
     {
         return NULL;
@@ -439,6 +442,34 @@ static void TestGrowLinearPoints(void)
     CHECK(budget.held == 0 && budget.blocks == 0, "everything freed");
 }
 
+// Growing to a block past what a size_t holds on a 32-bit host, as
+// test_context's: 2^24 players with 2^24 linear() points each, 2^52 bytes
+// of points alone. Refused with the context as it was, and not as misuse;
+// the allocator asked only where size_t holds 2^52.
+static void TestGrowPastSize(void)
+{
+    Budget budget = {0};
+    mtwnContextDef def = Small(&budget);
+    mtwnContext* context = NULL;
+    mtwnTargetId a = {0, 0};
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success &&
+              mtwnCreateTarget(context, mtwn_valueScalar, (mtwnVec4){1.0f, 0, 0, 0}, &a) ==
+                  mtwn_success,
+          "a small context and a target");
+    mtwnContext* old = context;
+    uint32_t asked = budget.asked;
+    mtwnContextDef huge = def;
+    huge.playerCapacity = MTWN_MAX_COUNT;
+    huge.pointsPerTransition = MTWN_MAX_COUNT;
+    budget.fail = true;
+    bool holds = (uint64_t)SIZE_MAX >= (uint64_t)MTWN_MAX_COUNT * MTWN_MAX_COUNT * 16u;
+    CHECK(mtwnContext_Grow(&context, &huge) == mtwn_errorCapacity && context == old &&
+              ValueOf(context, a) == 1.0f && mtwnContext_GetMisuse(context) == 0 &&
+              budget.asked - asked == (holds ? 1u : 0u),
+          "a block past size_t refused, the allocator asked only where size_t holds it");
+    mtwnDestroyContext(context);
+}
+
 int main(void)
 {
     TestNoRecords();
@@ -446,5 +477,6 @@ int main(void)
     TestGrowSome();
     TestGrow();
     TestGrowFreeSlots();
+    TestGrowPastSize();
     return s_failures == 0 ? 0 : 1;
 }
