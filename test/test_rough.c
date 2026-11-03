@@ -254,6 +254,52 @@ static void TestRefusalWritesNothing(void)
           "the points and the easing left as they were");
 }
 
+// Finite for its first s_finiteCalls calls, then infinite: a shape that
+// passes the check and gives an infinity when the points are written.
+static uint32_t s_shapeCalls;
+static uint32_t s_finiteCalls;
+
+static double ChangingShape(void* context, double progress)
+{
+    (void)context;
+    return s_shapeCalls++ < s_finiteCalls ? progress : HUGE_VAL;
+}
+
+// A host shape finite on the check's pass and infinite from each inner
+// point of the writes in turn is refused, with the clamp too, which would
+// bring the infinity to 1: the easing as it was, and nothing written past
+// the points given.
+static void TestShapeChangedAfterCheck(void)
+{
+    enum
+    {
+        s_count = 10,
+        s_inner = s_count - 2,
+        s_guards = 4
+    };
+    int wrong = 0;
+    for (int clamp = 0; clamp < 2; ++clamp)
+    {
+        for (uint32_t at = 0; at < s_inner; ++at)
+        {
+            mtwnRoughDef def = Def(0.2, 1, mtwn_roughTaperNone, clamp ? mtwn_roughClamp : 0);
+            CHECK(mtwnMakeHostEasing(mtwn_easeIn, ChangingShape, NULL, &def.shape) == mtwn_success,
+                  "a host shape");
+            mtwnLinearPoint points[s_count + s_guards];
+            memset(points, 0xAB, sizeof points);
+            mtwnEasing easing;
+            memset(&easing, 0xAB, sizeof easing);
+            s_shapeCalls = 0;
+            s_finiteCalls = s_inner + at;
+            wrong += mtwnMakeRoughEasing(&def, points, s_count, &easing) != mtwn_errorInvalid;
+            wrong += !AllBytes(&easing, sizeof easing, 0xAB);
+            wrong += !AllBytes(points + s_count, s_guards * sizeof points[0], 0xAB);
+        }
+    }
+    CHECK(wrong == 0, "a shape infinite only when the points are written refused, clamped or "
+                      "not, the easing as it was and nothing written past the points");
+}
+
 int main(void)
 {
     TestSeedBits();
@@ -261,5 +307,6 @@ int main(void)
     TestZigZag();
     TestRefusals();
     TestRefusalWritesNothing();
+    TestShapeChangedAfterCheck();
     return s_failures == 0 ? 0 : 1;
 }
