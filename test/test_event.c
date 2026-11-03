@@ -1889,6 +1889,50 @@ static void TestPastTheDoubles(void)
     mtwnDestroyContext(w.context);
 }
 
+// A timeline of 1.5e308 iterations of 1e-300 s from iteration 1.7e308
+// ends at 1.5e8 s, but its overall progress passes the doubles at about
+// 1e7 s: from there mtwnComputeTiming holds it at the end of its infinite
+// iteration. A sweep from a frame where it is held to one past its end
+// crosses neither its mark, half an iteration in, nor an iteration: only
+// its end.
+static void TestHeldToItsEnd(void)
+{
+    World w = MakeWorld(64);
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing.duration = 1e-300;
+    group.timing.iterations = 1.5e308;
+    group.timing.iterationStart = 1.7e308;
+    mtwnNode node = 0;
+    mtwnNode mark = 0;
+    CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &node) == mtwn_success &&
+              mtwnClip_AddMark(w.context, w.clip, node, At(0.5e-300), 1, &mark) == mtwn_success,
+          "a timeline held before its end, and its mark");
+    // A track for the player's binding, its records not counted.
+    (void)AddTrack(&w, 0.0, 1.0, 1.0);
+    CHECK(isinf(IterationAt(&group.timing, 1e8)) &&
+              isinf(IterationAt(&group.timing, nextafter(1.5e8, 0.0))),
+          "held from 1e8 s to its end");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
+    (void)Play(&w, true, 1.0);
+    Update(&w, 0.0);
+    Update(&w, 1e8);
+    (void)Read(&w, (mtwnEvent[16]){0}, 16);
+    Update(&w, 2e8);
+    mtwnEvent e[16];
+    uint32_t n = Read(&w, e, 16);
+    uint64_t crossed = 0;
+    uint64_t ended = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        crossed += e[i].node == mark || (e[i].node == node && e[i].kind == mtwn_eventIteration);
+        ended +=
+            e[i].node == node && e[i].kind == mtwn_eventEnd && !e[i].backwards && e[i].count == 1;
+    }
+    CHECK(crossed == 0 && ended == 1, "from where it is held past its end: only its end");
+    mtwnDestroyContext(w.context);
+}
+
 // Twin clips whose child times are the same bits: a timeline of 1000
 // iterations of 1 s, swept near 500 s, and the same from iteration 500
 // after a delay of 500 s, which reaches nothing before the iteration swept.
@@ -2175,6 +2219,7 @@ int main(void)
     TestIterationEnds();
     TestReachedBefore();
     TestPastTheDoubles();
+    TestHeldToItsEnd();
     TestEasedTimelineMarks();
     TestJumpStartMarks();
     TestReverseAfterReducedFinish();
