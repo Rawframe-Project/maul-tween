@@ -221,7 +221,8 @@ extern "C"
     typedef struct mtwnStagger
     {
         // The first offset: the nearest items', or with a negative spacing
-        // the farthest items'.
+        // the farthest items'. A negative amount over items all at one
+        // distance puts every offset at start - spacing.
         double start;
         // Each or the whole spread, by spacingKind; negative reverses the
         // order, the farthest items first from the start.

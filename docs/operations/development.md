@@ -60,7 +60,7 @@ Never edit these by hand; change the generator and run it.
 | `test/generated/exact_cases.h` | `tools/oracle/exact_oracle.py`, timing and crossing counts in exact rationals | `python3 tools/oracle/exact_oracle.py` | `--check` |
 | `test/generated/zoom_cases.h` | `tools/oracle/zoom_oracle.py`, scales and the zoom in 60-digit decimals | `python3 tools/oracle/zoom_oracle.py` | `--check` |
 | `test/generated/cycle_cases.h` | `tools/oracle/cycle_oracle.py`, a repeat delay's cycles where the position passes the doubles, with an exponent without bounds | `python3 tools/oracle/cycle_oracle.py` | `--check` |
-| `test/generated/rival_easing.h`, `rival_spring.h`, `rival_color.h` | `tools/oracle/rivals.mjs`: GSAP 3.15.0, tween.js 25.0.0, Motion's springs and CSS Color 4's `conversions.js` under Node | `node tools/oracle/rivals.mjs` | by hand, `--check` |
+| `test/generated/rival_easing.h`, `rival_spring.h`, `rival_color.h`, `rival_stagger.h` | `tools/oracle/rivals.mjs`: GSAP 3.15.0, tween.js 25.0.0, Motion's springs and CSS Color 4's `conversions.js` under Node | `node tools/oracle/rivals.mjs` | by hand, `--check` |
 | `test/generated/fuzz_seeds_<target>.h` | `tools/fuzz_seeds.py`, a minimized corpus | `python3 tools/fuzz_seeds.py write <target> <corpus>` | no |
 
 `rivals.mjs` fetches each package by its pinned version and refuses it unless its SHA-512 is the pinned one; nothing it runs is kept in the repository or linked into the library. It needs the network, so CI does not run it.
