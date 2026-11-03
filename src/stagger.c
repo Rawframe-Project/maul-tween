@@ -261,6 +261,12 @@ static MTWN_NOINLINE mtwnResult mtwnComputeStaggerWork(const mtwnStagger* stagge
     for (uint32_t i = 0; i < count; ++i)
     {
         offsetsOut[i] = Offset(stagger, offsetsOut[i], least, range, span);
+        // Only a host easing that gives another value at the same progress
+        // than on the check's pass gets here: a refusal, as a rough easing's.
+        if (!isfinite(offsetsOut[i]))
+        {
+            return mtwn_errorInvalid;
+        }
     }
     return mtwn_success;
 }

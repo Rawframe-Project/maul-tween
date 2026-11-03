@@ -324,6 +324,57 @@ static void TestOffsetsPastTheDoubles(void)
     CHECK(written == 0, "nothing written");
 }
 
+// Finite for its first s_finiteCalls calls, then infinite: an easing
+// that passes the check and gives an infinity when the offsets are
+// written.
+static uint32_t s_easingCalls;
+static uint32_t s_finiteCalls;
+
+static double ChangingEasing(void* context, double progress)
+{
+    (void)context;
+    return s_easingCalls++ < s_finiteCalls ? progress : HUGE_VAL;
+}
+
+// A host easing finite for the check and infinite from each item of the
+// writes in turn is refused, as a rough easing's shape is, in each order
+// the items are walked: no call that succeeds writes an offset not
+// finite.
+static void TestEasingChangedAfterCheck(void)
+{
+    enum
+    {
+        s_count = 6
+    };
+    int wrong = 0;
+    for (int random = 0; random < 2; ++random)
+    {
+        for (uint32_t at = 0; at < s_count; ++at)
+        {
+            mtwnStagger stagger = mtwnDefaultStagger();
+            stagger.origin = random ? mtwn_staggerRandom : mtwn_staggerCenter;
+            CHECK(mtwnMakeHostEasing(mtwn_easeIn, ChangingEasing, NULL, &stagger.easing) ==
+                      mtwn_success,
+                  "a host easing");
+            double got[s_count];
+            s_easingCalls = 0;
+            s_finiteCalls = s_count + at;
+            wrong += mtwnComputeStagger(&stagger, s_count, got) != mtwn_errorInvalid;
+        }
+    }
+    CHECK(wrong == 0, "an easing infinite only when the offsets are written refused");
+    // Finite on both passes, the same easing gives the linear offsets.
+    mtwnStagger stagger = mtwnDefaultStagger();
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, ChangingEasing, NULL, &stagger.easing) == mtwn_success,
+          "a host easing");
+    double got[s_count];
+    s_easingCalls = 0;
+    s_finiteCalls = 2 * s_count;
+    CHECK(mtwnComputeStagger(&stagger, s_count, got) == mtwn_success && got[0] == 0.0 &&
+              Near(got[s_count - 1], 0.5),
+          "finite on both passes, the offsets written");
+}
+
 // The draw gives every place the same share. Over 3 * 2^30 places a draw
 // without rejection maps 4 of the 2^32 values onto 3 places, so the
 // places that are multiples of 3 would get half the draws; fairly they
@@ -392,5 +443,6 @@ int main(void)
     TestRandom();
     TestMisuse();
     TestOffsetsPastTheDoubles();
+    TestEasingChangedAfterCheck();
     return s_failures == 0 ? 0 : 1;
 }
