@@ -36,7 +36,7 @@ A player not kept commits what it fills forward as its targets' bases when it fi
 
 ## A rate that eases
 
-A rate set each frame eases a player, as GSAP tweens a timeline's `timeScale` to a stop: a transition on a scalar target runs the rate, and after each update the host gives the player what it reached. The player keeps its time at every change, so it slows without a jump and holds at 0. A moving player takes a new rate at the next update, as Web Animations' seamless change does, so it runs a frame behind the transition:
+A rate set each frame eases a player, as tweening a GSAP timeline's `timeScale` slows it: a transition on a scalar target runs the rate, and after each update the host gives the player what it reached. The player keeps its time at every change, so it slows without a jump and holds at 0. A moving player takes a new rate at the next update, as Web Animations' seamless change does, so it runs a frame behind the transition:
 
 ```c
 // After each update: the rate the speed transition has reached.
