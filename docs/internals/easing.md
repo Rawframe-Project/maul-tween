@@ -10,7 +10,7 @@ One mode applies to every kind: in is the curve as defined, out its reflection `
 
 ## Exact ends
 
-A curve `g` not exact at both ends is used as `(g(p) - g(0)) / (g(1) - g(0))`, with `g(0)` and `g(1)` computed when the easing is made by the same code that samples it. IEEE arithmetic then gives exactly 0 and 1 at the ends with no special case. A rival that misses 1 by a little and sets it there (GSAP's and tween.js's elastic miss by up to `a 2^-10`) jumps at the end; this one does not. An integer power that is exact already skips the division, giving the same bits, and runs inline in the update.
+A curve `g` not exact at both ends is used as `(g(p) - g(0)) / (g(1) - g(0))`, with `g(0)` and `g(1)` computed when the easing is made by the same code that samples it. IEEE arithmetic then gives exactly 0 and 1 at the ends with no special case. A rival that misses 1 by a little and sets it there (GSAP's and tween.js's elastic miss by up to `q 2^-10`, `q` the larger of the amplitude and 1) jumps at the end; this one does not. An integer power that is exact already skips the division, giving the same bits, and runs inline in the update.
 
 ## Cubic bezier
 
@@ -42,4 +42,4 @@ The answer is about the curve; the crossings need the samples, bit for bit, to n
 ## Traps
 
 - The before flag changes only curves that jump at their start; a new curve kind that jumps must read it.
-- The rival tests hold each curve to a bound derived from the definitions, not fitted to the results: 2^-51 where the curves are defined alike, `a (1 + a) 2^-10` for elastic, 2^-10 for expo against Penner's and 2^-7 against GSAP 3's own blend. A change that needs a looser bound has changed the curve.
+- The rival tests hold each curve to a bound derived from the definitions, not fitted to the results: 2^-51 where the curves are defined alike, `q (1 + q) 2^-10 / (1 - q 2^-10)` for elastic, 2^-10 for expo against Penner's and 2^-7 against GSAP 3's own blend. A change that needs a looser bound has changed the curve.
