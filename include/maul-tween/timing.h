@@ -220,10 +220,11 @@ extern "C"
     // any unit when they are values.
     typedef struct mtwnStagger
     {
-        // The nearest items' offset.
+        // The first offset: the nearest items', or with a negative spacing
+        // the farthest items'.
         double start;
         // Each or the whole spread, by spacingKind; negative reverses the
-        // order.
+        // order, the farthest items first from the start.
         double spacing;
         // The point's ratios, for mtwn_staggerPoint.
         double pointX;
@@ -258,7 +259,10 @@ extern "C"
     /// t = (d - min) / (max - min), 0 when all are equal, and the offset
     /// is start + span * ease(t), where span is the spacing for
     /// mtwn_staggerAmount and the spacing times (max - min) for
-    /// mtwn_staggerEach. The offsets are the same bits on every platform.
+    /// mtwn_staggerEach. A negative span gives start - span * ease(1 - t),
+    /// as GSAP's distribute does: the farthest items at the start, the
+    /// nearest at start - span, no offset below the start. The offsets are
+    /// the same bits on every platform.
     ///
     /// @param stagger     The stagger; its easing made by this library.
     /// @param count       The items; 0 writes nothing.

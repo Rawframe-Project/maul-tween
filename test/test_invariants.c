@@ -704,8 +704,11 @@ static void TestTransitions(void)
 }
 
 // Random staggers, valid or not: a refusal writes nothing; an accepted
-// one gives finite offsets, the nearest item's at the start, and with an
-// amount and a monotonic easing every offset within the spread.
+// one gives finite offsets, the first at the start (the nearest item's,
+// or with a negative spacing the farthest's), and with an amount and a
+// monotonic easing every offset from the start to the start plus the
+// spread's size. A negative amount over items all at one distance puts
+// them all at its far end, the start less the spacing, as GSAP does.
 static void TestStaggers(void)
 {
     s_state = 5;
@@ -754,29 +757,26 @@ static void TestStaggers(void)
         }
         ++accepted;
         bool atStart = count == 0;
+        bool amount = stagger.spacingKind == mtwn_staggerAmount;
+        bool allFar = amount && stagger.spacing < 0.0 && count > 0;
         double low = stagger.start;
-        double high = stagger.start + stagger.spacing;
-        if (low > high)
-        {
-            double swap = low;
-            low = high;
-            high = swap;
-        }
+        double high = stagger.start + fabs(stagger.spacing);
         for (uint32_t i = 0; i < count; ++i)
         {
             bad += isfinite(offsets[i]) ? 0u : 1u;
             atStart = atStart || offsets[i] == stagger.start;
-            if (monotonic && stagger.spacingKind == mtwn_staggerAmount)
+            allFar = allFar && offsets[i] == stagger.start - stagger.spacing;
+            if (monotonic && amount)
             {
                 double slack = 1e-12 * (1.0 + fabs(low) + fabs(high));
                 bad += offsets[i] >= low - slack && offsets[i] <= high + slack ? 0u : 1u;
             }
         }
         bad += offsets[count] == -12345.0 ? 0u : 1u;
-        bad += atStart ? 0u : 1u;
+        bad += atStart || allFar ? 0u : 1u;
     }
     CHECK(accepted > 1000 && refused > 500, "staggers accepted and refused");
-    CHECK(bad == 0, "refusals write nothing; offsets finite, the nearest at the start, "
+    CHECK(bad == 0, "refusals write nothing; offsets finite, the first at the start, "
                     "within an amount's spread");
 }
 
