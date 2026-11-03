@@ -44,7 +44,7 @@ A track writes a slot, which a player binds to a target; a slot keeps one value 
 
 ## Positions
 
-Each child is placed when it is added, as GSAP's position parameter places it, and the clip keeps only the resulting start times:
+Each child is placed when it is added, as GSAP's position parameter places it, with the differences below, and the clip keeps only the resulting start times:
 
 | Position | Starts |
 |---|---|
@@ -55,6 +55,17 @@ Each child is placed when it is added, as GSAP's position parameter places it, a
 | `mtwn_positionAtLabel` | At a label of the same parent, plus the offset. |
 
 The previous child is the last track or timeline added to the parent; labels and marks are not children for this, and do not lengthen their parent. A position that resolves to no finite start, such as after the end of an endless timeline, is refused.
+
+Porting from GSAP: a clip places each child where GSAP 3.15.0's timeline does once a port translates these (`test/test_rival_position.c` checks scripts of children, labels and callbacks against GSAP's own start times):
+
+- A child's `delay` moves its start in GSAP, so a `"<"` after it starts after the delay. Port the delay as part of the position's offset, not as the timing's `delay`, which stays inside the node as in Web Animations; then with the previous child's start is GSAP's `"<"`. `repeat: n` is `n + 1` iterations (`repeat: -1` infinite), `repeatDelay` the repeat delay and a time scale the playback rate.
+- GSAP's `"+=50%"` and `"-=50%"` are that share of the inserted child's total duration, all its iterations and repeat delays before its time scale, and `"<50%"` and `">50%"` of the previous child's. Port them as that many seconds.
+- A callback (`call()`) is a child of no duration in GSAP: it is the previous child for `"<"` and `">"`, and it lengthens the timeline to its time. A mark is neither, so port a callback as a mark and a label at its position, and place at that label a child GSAP puts at `"<"` or `">"` right after it, or at the end while the callback lies past every child's end.
+- After an endless child, GSAP's end and `">"` are the previous child's first iteration end: its start plus its duration over its time scale, or a callback's time. Here both resolve to no finite start and are refused, so port them as with the previous child's start plus that.
+- A label GSAP does not know yet is added at its end, and the child goes there. `mtwn_positionAtLabel` refuses it, so add the label after the end first.
+- GSAP moves every child, but not its labels, so that none starts before 0, at its next string position or render: with 1 s children, `"-=2"` after the first puts the second at 0 and the first at 1. Here a child keeps a start before 0, and at the clip's time 0 it is already that far in: a 1 s track at -0.5 shows its value at 0.5 s first, its first half never plays, and its clip lasts 0.5 s. A port that wants GSAP's layout starts its children that much later itself.
+
+Everything else agrees: absolute starts, the end, the previous child's start and end, labels with offsets, rates and repeats, and a nested timeline that grows after a later sibling is placed, which keeps its start.
 
 ## Timing and timelines
 
