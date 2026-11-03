@@ -10,12 +10,20 @@
 // rival_spring.h, rival_color.h, rival_stagger.h and rival_position.h,
 // which test/test_rival_easing.c, test_rival_spring.c,
 // test_rival_color.c, test_rival_stagger.c and test_rival_position.c
-// check. Run by hand, not on every commit:
+// check. Run by hand, not on every commit, and only through
+// tools/oracle/run-in-container.sh:
 //
-//     node tools/oracle/rivals.mjs [--check]
+//     tools/oracle/run-in-container.sh fetch
+//     tools/oracle/run-in-container.sh rivals [--check]
 //
-// The packages are fetched into $MTWN_RIVALS_DIR, or a directory in the
-// system's temporary one.
+// --fetch, on the host, only downloads: each package by npm pack and
+// each sample file, into $MTWN_RIVALS_DIR, and refuses any whose hash is
+// not the pinned one. It runs none of their code. A run never fetches:
+// in a throwaway container without network, it unpacks the fetched
+// packages into $MTWN_RIVALS_WORK, runs them and writes the headers to
+// $MTWN_RIVALS_OUT; --check compares them with test/generated instead.
+// Outside the container, where $MTWN_RIVALS_CONTAINER is not 1, it
+// refuses to run.
 
 import { execFileSync } from "node:child_process";
 import { runInNewContext } from "node:vm";
@@ -29,6 +37,14 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const generated = join(root, "test", "generated");
 const fetched = process.env.MTWN_RIVALS_DIR || join(tmpdir(), "mtwn-rivals");
+const work = process.env.MTWN_RIVALS_WORK || join(tmpdir(), "mtwn-rivals-work");
+const out = process.env.MTWN_RIVALS_OUT || generated;
+const fetching = process.argv.includes("--fetch");
+const checking = process.argv.includes("--check");
+if (!fetching && process.env.MTWN_RIVALS_CONTAINER !== "1") {
+  console.error("rivals: run the rivals only through tools/oracle/run-in-container.sh");
+  process.exit(2);
+}
 const steps = 100;
 
 const packages = {
@@ -75,21 +91,38 @@ const colorFiles = {
   "conversions.js": "73551b73012580c774012279ffbdc7e150f8b269ee4c446a3c042aed4719c153",
 };
 
-// Fetches a package once, refuses it unless its hash is the pinned one,
-// and unpacks it into a node_modules of its own, with what it needs.
-function unpack(key, modules) {
+// A package's tarball, refused unless its hash is the pinned one.
+function checkedTarball(key) {
   const p = packages[key];
   const tarball = join(fetched, p.file);
-  mkdirSync(fetched, { recursive: true });
   if (!existsSync(tarball)) {
-    execFileSync("npm", ["pack", p.spec, "--pack-destination", fetched, "--silent"], {
-      stdio: ["ignore", "ignore", "inherit"],
-    });
+    throw new Error(`${p.spec}: not fetched; run tools/oracle/run-in-container.sh fetch`);
   }
   const got = "sha512-" + createHash("sha512").update(readFileSync(tarball)).digest("base64");
   if (got !== p.integrity) {
     throw new Error(`${p.spec}: ${got} is not the pinned ${p.integrity}`);
   }
+  return tarball;
+}
+
+// Downloads a package once by npm pack, which runs none of its scripts,
+// and checks it.
+function fetchPackage(key) {
+  const p = packages[key];
+  mkdirSync(fetched, { recursive: true });
+  if (!existsSync(join(fetched, p.file))) {
+    execFileSync("npm", ["pack", p.spec, "--pack-destination", fetched, "--silent"], {
+      stdio: ["ignore", "ignore", "inherit"],
+    });
+  }
+  checkedTarball(key);
+}
+
+// Unpacks a fetched package into a node_modules of its own, with what it
+// needs.
+function unpack(key, modules) {
+  const p = packages[key];
+  const tarball = checkedTarball(key);
   const into = join(modules, p.name);
   mkdirSync(into, { recursive: true });
   execFileSync("tar", ["-xzf", tarball, "-C", into, "--strip-components=1"]);
@@ -101,18 +134,17 @@ function unpack(key, modules) {
 // Loads a package's main file from its own node_modules.
 function load(key) {
   const p = packages[key];
-  const modules = join(fetched, key, "node_modules");
+  const modules = join(work, key, "node_modules");
   unpack(key, modules);
   return createRequire(join(modules, "loader.js"))(join(modules, p.name, p.main));
 }
 
-// Fetches CSS Color 4's sample files once, refuses them unless their
-// SHA-256 is the pinned one, and runs them in a context of their own.
-async function loadColor() {
+// Downloads CSS Color 4's sample files once, with fetch, and checks
+// them.
+async function fetchColor() {
   const dir = join(fetched, "css-color-4");
   mkdirSync(dir, { recursive: true });
-  let code = "";
-  for (const [file, sha256] of Object.entries(colorFiles)) {
+  for (const file of Object.keys(colorFiles)) {
     const path = join(dir, file);
     if (!existsSync(path)) {
       const url = `https://raw.githubusercontent.com/w3c/csswg-drafts/${colorCommit}/css-color-4/${file}`;
@@ -122,6 +154,19 @@ async function loadColor() {
       }
       writeFileSync(path, Buffer.from(await response.arrayBuffer()));
     }
+  }
+  checkedColor();
+}
+
+// CSS Color 4's sample files, refused unless their SHA-256 is the pinned
+// one.
+function checkedColor() {
+  let code = "";
+  for (const [file, sha256] of Object.entries(colorFiles)) {
+    const path = join(fetched, "css-color-4", file);
+    if (!existsSync(path)) {
+      throw new Error(`${file}: not fetched; run tools/oracle/run-in-container.sh fetch`);
+    }
     const bytes = readFileSync(path);
     const got = createHash("sha256").update(bytes).digest("hex");
     if (got !== sha256) {
@@ -129,9 +174,24 @@ async function loadColor() {
     }
     code += bytes.toString("utf8") + "\n";
   }
+  return code;
+}
+
+// Runs CSS Color 4's sample files in a context of their own.
+function loadColor() {
+  const code = checkedColor();
   const context = { Math, Array, Number, NaN };
   runInNewContext(code, context);
   return context;
+}
+
+if (fetching) {
+  for (const key of Object.keys(packages)) {
+    fetchPackage(key);
+  }
+  await fetchColor();
+  console.log(`rivals: fetched and checked in ${fetched}`);
+  process.exit(0);
 }
 
 // A double as a C hexadecimal literal, exactly; NaN as RIVAL_NAN.
@@ -256,7 +316,7 @@ for (const [stiffness, damping, mass, origin, target, velocity] of [
 // conversions.js from gamma sRGB, each channel a float as Maul Tween's
 // colors hold them, to linear sRGB, Oklab and OkLCh (hue in degrees, NaN
 // where conversions.js calls it powerless).
-const css = await loadColor();
+const css = loadColor();
 const colors = [];
 const levels = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, -0.1, 1.2];
 for (const r of levels) {
@@ -584,13 +644,14 @@ const outputs = {
 
 let stale = 0;
 for (const [name, text] of Object.entries(outputs)) {
-  const path = join(generated, name);
-  if (process.argv.includes("--check")) {
+  if (checking) {
+    const path = join(generated, name);
     if (!existsSync(path) || readFileSync(path, "utf8") !== text) {
-      console.error(`${path} is not current; run node tools/oracle/rivals.mjs`);
+      console.error(`${name} is not current; run tools/oracle/run-in-container.sh rivals`);
       ++stale;
     }
   } else {
+    const path = join(out, name);
     writeFileSync(path, text);
     console.log(`wrote ${path}`);
   }
@@ -598,7 +659,7 @@ for (const [name, text] of Object.entries(outputs)) {
 if (stale > 0) {
   process.exit(1);
 }
-if (process.argv.includes("--check")) {
+if (checking) {
   console.log(
     `rivals: current, ${curves.length} curves, ${springs.length} springs, ${colors.length} colors, ${staggers.length} staggers, ${positions.length} scripts`,
   );

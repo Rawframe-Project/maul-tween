@@ -20,7 +20,7 @@ How to build, test and change Maul Tween as a maintainer. Building and installin
 - GCC 14 and Clang 20 (`clang-20`, `clang-tidy-20`), with the sanitizer and libFuzzer runtimes (`libclang-rt-20-dev` on Debian and Ubuntu). GCC 13 is refused by `cmake/CompilerFlags.cmake`.
 - `clang-format` at the version CI pins: `pip install clang-format==22.1.5`. Another version formats differently.
 - Python 3 for the checks, the generators, the oracles and the documentation site (`pip install markdown==3.6` for the site only).
-- Node 22 for the rival oracle only, and Emscripten for web builds.
+- For the rival oracle and the Chromium checks only: Node and npm for their fetch, and Docker for their runs. Emscripten for web builds.
 
 ## Build options for development
 
@@ -61,10 +61,16 @@ Never edit these by hand; change the generator and run it.
 | `test/generated/exact_cases.h` | `tools/oracle/exact_oracle.py`, timing and crossing counts in exact rationals | `python3 tools/oracle/exact_oracle.py` | `--check` |
 | `test/generated/zoom_cases.h` | `tools/oracle/zoom_oracle.py`, scales and the zoom in 60-digit decimals | `python3 tools/oracle/zoom_oracle.py` | `--check` |
 | `test/generated/cycle_cases.h` | `tools/oracle/cycle_oracle.py`, a repeat delay's cycles where the position passes the doubles, with an exponent without bounds | `python3 tools/oracle/cycle_oracle.py` | `--check` |
-| `test/generated/rival_easing.h`, `rival_spring.h`, `rival_color.h`, `rival_stagger.h`, `rival_position.h` | `tools/oracle/rivals.mjs`: GSAP 3.15.0, tween.js 25.0.0, Motion's springs and CSS Color 4's `conversions.js` under Node | `node tools/oracle/rivals.mjs` | by hand, `--check` |
+| `test/generated/rival_easing.h`, `rival_spring.h`, `rival_color.h`, `rival_stagger.h`, `rival_position.h` | `tools/oracle/rivals.mjs`: GSAP 3.15.0, tween.js 25.0.0, Motion's springs and CSS Color 4's `conversions.js` under Node | `tools/oracle/run-in-container.sh fetch`, then `tools/oracle/run-in-container.sh rivals` | by hand, `--check` |
 | `test/generated/fuzz_seeds_<target>.h` | `tools/fuzz_seeds.py`, a minimized corpus | `python3 tools/fuzz_seeds.py write <target> <corpus>` | no |
 
-`rivals.mjs` fetches each package by its pinned version and refuses it unless its SHA-512 is the pinned one; nothing it runs is kept in the repository or linked into the library. It needs the network, so CI does not run it.
+The rivals' code and Chromium run only through `tools/oracle/run-in-container.sh`, never on the host:
+
+- `fetch` runs on the host and only downloads. It gets each package by `npm pack` at its pinned version, which runs none of its scripts, and CSS Color 4's sample files, and refuses any whose hash is not the pinned one.
+- `rivals` runs the oracle on what was fetched. `rivals --check` compares its output with `test/generated` instead.
+- `chromium PAGE.html` loads one local page in Playwright 1.63.0's Chromium 1243 and prints the text of its `#out` once that starts with `DONE`. That is how a claim about what Chrome computes is checked.
+
+Each run is a throwaway container from an image pinned by digest. It has no network, a read-only root, every capability dropped, no new privileges, an unprivileged user, and bounded memory, CPUs and processes. The script, the packages, the committed headers, the page and the browser are mounted read-only. The only writable mounts are an empty output folder and a `/tmp` in memory. The wrapper prints the output folder; copy its headers into `test/generated` by hand and review the diff. Nothing the rivals run is kept in the repository or linked into the library. Fetching needs the network, so CI runs none of this.
 
 ## Code size
 
