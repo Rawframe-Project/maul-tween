@@ -7,6 +7,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 built against another minor version's headers is refused with
 `mtwn_errorVersion`. Before 1.0.0, any release could change both.
 
+## [1.0.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.17.0...v1.0.0) (2026-11-03)
+
+This is the first release of 1. Maul Tween's API is settled, and from here it ships only minor and patch releases of 1 ([#273](https://github.com/Rawframe-Project/maul-tween/pull/273)). Every function, type, enum value, macro and struct field in `include/maul-tween/` keeps its name, signature and meaning across 1.y. The binary interface holds within a minor version. The API is the same as 0.17.0's, so a program built against 0.17.0 needs only a rebuild. `MTWN_ABI_VERSION` and a shared library's SOVERSION are now 1.0, and a context def stamped by 0.17.0's headers is refused with `mtwn_errorVersion`. No value, velocity or event record changes.
+
+### Changed
+
+- The getting started guide's Compatibility section states the promise 1.y keeps ([#273](https://github.com/Rawframe-Project/maul-tween/pull/273)):
+  - what it covers, and the fields of the structs a maker fills, which it leaves out;
+  - the binary interface within a minor version, with `MTWN_ABI_VERSION` and the SOVERSION at major.minor, and the CMake package taking any later 1.y;
+  - a changelog line for any change of results;
+  - no stored format to keep.
+- The easing guide and `mtwnMakeElasticEasing`'s header give the largest difference from GSAP's and tween.js's elastic for every amplitude ([#272](https://github.com/Rawframe-Project/maul-tween/pull/272)). The new bound is `q (1 + q) 2^-10 / (1 - q 2^-10)`, with `q` the larger of the amplitude and 1. The old bound, `a (1 + a) 2^-10`, was too small below amplitude 1 and at large amplitudes. The curves do not change; `test_rival_easing` checks 90 of the rivals' curves against the new bound.
+
 ## [0.17.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.16.0...v0.17.0) (2026-11-03)
 
 This release changes two results to follow the references they name, ahead of 1.0.0. A finished player given a new rate runs at it from the time it holds, so a positive rate keeps it finished at its end where it jumped back ([#264](https://github.com/Rawframe-Project/maul-tween/pull/264)). A path's direction through a hold or a step is the way the path goes on, as SVG 2's path directionality takes it, where it was the way it came ([#266](https://github.com/Rawframe-Project/maul-tween/pull/266)). The clips guide's GSAP porting notes now cover grids with fewer items than columns and every way a clip's positions differ from GSAP's timeline, each checked against GSAP 3.15.0's outputs ([#260](https://github.com/Rawframe-Project/maul-tween/pull/260), [#262](https://github.com/Rawframe-Project/maul-tween/pull/262)). Results change for a finished player given a positive rate (its time, the values it writes and its records), and for the direction and angle a host asks of a timed path through a hold or a step.
