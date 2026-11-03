@@ -3,9 +3,10 @@
 //
 // A path's direction, by SVG 2's rules: a line's own,
 // the later segment's at a keyframe, a derivative of 0 by the next one
-// that is not, a step and coincident keyframes by their neighbors, a
-// path of no length along the first channel, at constant speed alike;
-// and its angle.
+// that is not, a step and coincident keyframes by the segment past them
+// (SVG 2 moves past a segment of no length), or at the path's end the one
+// before, a path of no length along the first channel, at constant speed
+// alike; and its angle.
 
 #include "test_harness.h"
 #include "test_values.h"
@@ -118,14 +119,36 @@ static void TestStillDerivatives(void)
 
 static void TestNeighbors(void)
 {
-    // A step holds the heading of the line before it.
+    // A step takes the heading of the line past it, as SVG 2 moves past a
+    // segment of no length.
     mtwnKeyframe held[4] = {
         Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear), Key(0.3, 1.0f, 0.0f, mtwn_segmentStep),
         Key(0.6, 5.0f, 5.0f, mtwn_segmentLinear), Key(1.0, 5.0f, 6.0f, mtwn_segmentLinear)};
     mtwnPath path;
     CHECK(mtwnMakePath(held, 4, 2, 0.5, NULL, &path) == mtwn_success, "a step between lines");
-    CHECK(Along(&path, 0.45, 1.0, 0.0) && Along(&path, 0.8, 0.0, 1.0),
-          "held, the line before's; then its own");
+    CHECK(Along(&path, 0.45, 0.0, 1.0) && Along(&path, 0.8, 0.0, 1.0),
+          "held, the line after's; then its own");
+    // A hold at a corner: right to (1, 0), held there from 0.4 to 0.6, then
+    // up. SVG 2 takes the segment past the hold at the boundary it stands
+    // at, as a plain corner takes the later segment: up from the hold's
+    // start, where the way in was right.
+    mtwnKeyframe corner[4] = {
+        Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear), Key(0.4, 1.0f, 0.0f, mtwn_segmentLinear),
+        Key(0.6, 1.0f, 0.0f, mtwn_segmentLinear), Key(1.0, 1.0f, 1.0f, mtwn_segmentLinear)};
+    CHECK(mtwnMakePath(corner, 4, 2, 0.5, NULL, &path) == mtwn_success, "a hold at a corner");
+    CHECK(Along(&path, 0.2, 1.0, 0.0) && Along(&path, 0.4, 0.0, 1.0) &&
+              Along(&path, 0.5, 0.0, 1.0) && Along(&path, 0.6, 0.0, 1.0),
+          "right to it, up from its start");
+    double cornerLengths[4];
+    CHECK(mtwnMakePath(corner, 4, 2, 0.5, cornerLengths, &path) == mtwn_success &&
+              Along(&path, 0.5, 0.0, 1.0),
+          "and at constant speed, where the hold has no length, up at the corner");
+    mtwnKeyframe plain[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentLinear),
+                             Key(0.5, 1.0f, 0.0f, mtwn_segmentLinear),
+                             Key(1.0, 1.0f, 1.0f, mtwn_segmentLinear)};
+    CHECK(mtwnMakePath(plain, 3, 2, 0.5, NULL, &path) == mtwn_success &&
+              Along(&path, 0.5, 0.0, 1.0),
+          "as a corner with no hold");
     // A still segment after a curve: the curve's way at its end, not its
     // start.
     mtwnKeyframe bent[3] = {Key(0.0, 0.0f, 0.0f, mtwn_segmentBezier),
