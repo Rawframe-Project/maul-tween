@@ -30,6 +30,13 @@ static bool Near(double a, double b)
     return fabs(a - b) <= 1e-6;
 }
 
+// Each channel within one 8-bit step of a browser's color.
+static bool Within8Bits(mtwnVec4 v, int r, int g, int b, int a)
+{
+    return fabs((double)v.x * 255.0 - r) <= 1.0 && fabs((double)v.y * 255.0 - g) <= 1.0 &&
+           fabs((double)v.z * 255.0 - b) <= 1.0 && fabs((double)v.w * 255.0 - a) <= 1.0;
+}
+
 static void TestKinds(void)
 {
     mtwnMoving under = {{1.0f, 2.0f, 0, 0}, {1.0f, 0, 0, 0}};
@@ -53,6 +60,17 @@ static void TestKinds(void)
                     Still(0.3f, 0.4f, 0, 0.5f));
     CHECK(Near((double)r.value.x, 0.35) && Near((double)r.value.y, 0.2) && r.value.w == 1.0f,
           "colors add premultiplied");
+    // Chrome 153's sums of composite "add", in its 8 bits:
+    // rgba(255, 0, 0, 0.5) plus rgba(0, 0, 255, 0.75) is rgb(128, 0, 191),
+    // and plus rgba(0, 0, 255, 0.25) is rgba(170, 0, 85, 0.753), 192 / 255.
+    // Chrome rounds each color to 8 bits first, so a channel may be a step
+    // from it.
+    r = mtwnCompose(mtwn_valueColor, mtwn_compositeAdd, 1.0, Still(1.0f, 0, 0, 0.5f),
+                    Still(0, 0, 1.0f, 0.75f));
+    CHECK(Within8Bits(r.value, 128, 0, 191, 255), "Chrome's sum, alpha clamped at 1");
+    r = mtwnCompose(mtwn_valueColor, mtwn_compositeAdd, 1.0, Still(1.0f, 0, 0, 0.5f),
+                    Still(0, 0, 1.0f, 0.25f));
+    CHECK(Within8Bits(r.value, 170, 0, 85, 192), "Chrome's sum, divided by the alpha");
     r = mtwnCompose(mtwn_valueColor, mtwn_compositeReplace, 0.5, Still(1.0f, 0, 0, 1.0f),
                     Still(0, 0, 1.0f, 0.0f));
     CHECK(Near((double)r.value.x, 1.0) && Near((double)r.value.z, 0.0) &&

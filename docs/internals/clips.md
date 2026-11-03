@@ -33,7 +33,7 @@ A binding composes by replace or add, at a weight in [0, 1], and a player's weig
 Accumulate is not offered: for every value kind here it is addition, as CSS Values 4 defines it.
 
 - Numbers, vectors and angles add and mix per channel, in double; an integer composes unrounded and rounds once.
-- Colors add and mix premultiplied by alpha, alpha clamped to 1, and a result of alpha 0 has color channels 0, as CSS gives.
+- Colors add and mix premultiplied by alpha, alpha clamped to 1, and a result of alpha 0 has color channels 0, as CSS Color 4 un-premultiplies one. The addition is Chrome's (153, headless: `rgba(255, 0, 0, 0.5)` with `rgba(0, 0, 255, 0.25)` added gives `rgba(170, 0, 85, 0.753)`), not CSS's: CSS Values 4 defines `<color>` as not additive, which makes its addition the added value alone.
 - A rotation replaced slerps from the underlying toward the effect by the weight; one added slerps from no rotation toward the effect by the weight, then turns the underlying by it, the effect in the underlying's frame.
 - Scales compose in their logarithm: adding multiplies.
 - A discrete value is not additive and steps at half its weight.
