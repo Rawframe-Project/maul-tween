@@ -168,7 +168,12 @@ function add(source, kind, mode, a, b, ease) {
 
 // GSAP's eases by name, mapped to Maul Tween's parameters: powerN is the
 // power N + 1, back(s) the overshoot s, elastic(a, p) the amplitude and
-// period, in-out elastic's period 0.45 when none is given.
+// period, in-out elastic's period 0.45 when none is given. The elastics
+// include amplitudes below 1, which GSAP takes as 1 with the period
+// divided by them, and the largest amplitude, where GSAP's miss of 1 at
+// the end is largest: (0.05, 0.001), (2, 0.03) and (512, 0.046) come
+// nearest the elastic bound of test_rival_easing on these samples, of
+// amplitudes from 0.05 to 512 and periods from 0.001 to 1.
 const { gsap } = load("gsap");
 for (const mode of ["in", "out", "inOut"]) {
   for (let n = 1; n <= 4; ++n) {
@@ -184,6 +189,10 @@ for (const mode of ["in", "out", "inOut"]) {
     [1, 0.3],
     [1, 0.45],
     [1.5, 0.5],
+    [0.05, 0.001],
+    [0.5, 0.1],
+    [2, 0.03],
+    [512, 0.046],
   ]) {
     add(0, kinds.elastic, modes[mode], a, p, gsap.parseEase(`elastic.${mode}(${a}, ${p})`));
   }

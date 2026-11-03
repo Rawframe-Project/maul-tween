@@ -36,7 +36,7 @@ Every kind takes the same four modes: in (the curve as defined), out (`1 - f(1 -
 ## Not obvious
 
 - Penner's curves, springs, linear and cubic bezier land exactly on 0 at 0 and 1 at 1, in every mode. Expo is normalized to do so and differs from Penner's by at most 2^-10. GSAP 3's expo is its own blend, up to 2^-7 from this one.
-- Penner's and tween.js's in-out back use 1.525 times the overshoot; pass that value to match them. GSAP's and tween.js's elastic miss 1 at the end by up to `a 2^-10` and set it there, so they differ from this one by at most `a (1 + a) 2^-10`.
+- Penner's and tween.js's in-out back use 1.525 times the overshoot; pass that value to match them. GSAP's and tween.js's elastic miss 1 at the end by up to `q 2^-10`, where `q` is the larger of the amplitude and 1, and set it there, so they differ from this one by at most `q (1 + q) 2^-10 / (1 - q 2^-10)`.
 - CSS's curves follow CSS Easing Level 2 outside 0 to 1 (a cubic bezier extends along its end tangents); Penner's curves, springs and host functions see progress clamped to 0 to 1.
 - The last argument of `mtwnSampleEasing` is the timing's before flag: in the before phase, `steps()` landing exactly on a step takes the step below, as CSS says. Pass `false` when sampling a curve on its own.
 - `linear()` canonicalizes its points in place as CSS does (missing inputs spread, decreasing inputs raised), so the array is rewritten; an input of NaN is a stop given without a percentage. The easing reads the points where they are: changed afterwards, even out of order, while finite they give an unspecified but finite value. A transition or a clip copies them when it takes the easing, and refuses points the host put out of their canonical order.

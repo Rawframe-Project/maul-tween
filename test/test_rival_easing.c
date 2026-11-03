@@ -6,7 +6,7 @@
 // mapped as the easing header documents, each curve agrees with the
 // rival's to a few units in the last place, except where Maul Tween lands
 // exactly on 0 and 1 and the rival does not (expo, elastic), where the
-// difference is the rival's miss, under 2^-10.
+// difference comes from the rival's miss.
 
 #include "test_harness.h"
 #include "test_values.h"
@@ -59,14 +59,19 @@ static bool Make(const RivalCurve* curve, mtwnEasing* easing)
 }
 
 // The largest difference allowed from a rival's curve: rounding for the
-// curves defined alike; for elastic the rivals' miss of 1 at the end, a
-// 2^-10, scaled by the curve's height, at most 1 + a; for expo the
-// normalization, 2^-10 from Penner's (tween.js), and GSAP's own blend.
+// curves defined alike; for elastic the normalization by the rivals' end
+// e = 1 + q 2^-10 sin(...), q the larger of a and 1 as GSAP takes an
+// amplitude below 1: the rival's g differs from g / e by |g| |e - 1| / e,
+// with |g| at most 1 + q, |e - 1| at most q 2^-10 and e at least
+// 1 - q 2^-10; for expo the normalization, 2^-10 from Penner's (tween.js),
+// and GSAP's own blend.
 static double Bound(const RivalCurve* curve)
 {
     if (curve->kind == rivalElastic)
     {
-        return curve->a * (1.0 + curve->a) * 0x1.0p-10;
+        double q = curve->a < 1.0 ? 1.0 : curve->a;
+        double miss = q * 0x1.0p-10;
+        return (1.0 + q) * miss / (1.0 - miss);
     }
     if (curve->kind == rivalExpo)
     {
@@ -106,7 +111,7 @@ static void TestRivals(void)
                    curve->kind, curve->mode, curve->a, curve->b, worst, Bound(curve));
         }
     }
-    CHECK(count == 78 && made == (int)count, "every curve the oracle wrote, made");
+    CHECK(count == 90 && made == (int)count, "every curve the oracle wrote, made");
     CHECK(within == made, "every curve within its bound of the rival's");
 }
 
