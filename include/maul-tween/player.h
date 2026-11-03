@@ -183,7 +183,11 @@ extern "C"
     ///         MTWN_MIN_RATE; mtwn_errorStale for a clip that is not
     ///         alive; mtwn_errorState for one not sealed;
     ///         mtwn_errorCapacity when the context holds its capacity of
-    ///         players or of bindings.
+    ///         players or of bindings. Whether a slot is bound twice is
+    ///         checked last, after the rate's limit and the capacities: a
+    ///         def that binds a slot twice gets mtwn_errorLimit or
+    ///         mtwn_errorCapacity where either applies. The checks take
+    ///         time linear in the bindings and the clip's slots.
     /// @par Thread safety
     /// Safe from any thread; the context is used by one thread at a time.
     MTWN_NODISCARD MTWN_API mtwnResult mtwnCreateClipPlayer(mtwnContext* context,

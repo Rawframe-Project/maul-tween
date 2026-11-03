@@ -17,6 +17,8 @@
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const uint64_t s_second = 1000000000u;
@@ -679,6 +681,148 @@ static void TestBindings(void)
     mtwnDestroyContext(f.context);
 }
 
+// A clip of a track on each of its slots, and a scalar target for each,
+// in a context of the given capacities.
+typedef struct Slots
+{
+    mtwnContext* context;
+    mtwnClipId clip;
+    mtwnTargetId* targets;
+    uint32_t count;
+} Slots;
+
+static Slots MakeSlots(uint32_t count, uint32_t bindingCapacity, uint32_t playerCapacity)
+{
+    Slots w = {0};
+    w.count = count;
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.targetCapacity = count;
+    def.bindingCapacity = bindingCapacity;
+    def.playerCapacity = playerCapacity;
+    def.clipStorageBytes = MTWN_MAX_CLIP_STORAGE;
+    CHECK(mtwnCreateContext(&def, &w.context) == mtwn_success, "a context");
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = count + 1;
+    clipDef.keyframeCapacity = 2 * count;
+    clipDef.slotCapacity = count;
+    CHECK(mtwnCreateClip(w.context, &clipDef, &w.clip) == mtwn_success, "a clip");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    w.targets = calloc(count, sizeof *w.targets);
+    CHECK(w.targets != NULL, "the targets' ids");
+    int refused = 0;
+    for (uint32_t i = 0; w.targets != NULL && i < count; ++i)
+    {
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.slot = i;
+        track.timing.duration = 1.0;
+        mtwnNode node = 0;
+        refused += mtwnClip_AddTrack(w.context, w.clip, &track, &node) != mtwn_success ||
+                   mtwnCreateTarget(w.context, mtwn_valueScalar, (mtwnVec4){0}, &w.targets[i]) !=
+                       mtwn_success;
+    }
+    CHECK(refused == 0 && mtwnClip_Seal(w.context, w.clip) == mtwn_success,
+          "a track and a target on each slot, sealed");
+    return w;
+}
+
+static void FreeSlots(Slots* w)
+{
+    mtwnDestroyContext(w->context);
+    free(w->targets);
+}
+
+// A player's def binding each slot of the list to its own target.
+static mtwnClipPlayerDef BindingDef(const Slots* w, mtwnBinding* bindings, const uint32_t* slots,
+                                    uint32_t count)
+{
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        bindings[i] = mtwnMakeBinding(slots[i], w->targets[slots[i]]);
+    }
+    mtwnClipPlayerDef def = mtwnDefaultClipPlayerDef();
+    def.clip = w->clip;
+    def.bindings = bindings;
+    def.bindingCount = count;
+    return def;
+}
+
+// A slot bound again after others, refused as misuse, gives the binding
+// run back: a context of exactly the clip's three bindings then takes a
+// player of all three. The repeat is checked last: with a rate past the
+// limit it is refused for the rate, and where there is no room for the
+// player, for the room, not counted as misuse: with the bindings held,
+// and with the one player's slot held while bindings are free.
+static void TestRepeatedSlot(void)
+{
+    Slots w = MakeSlots(3, 3, 1);
+    mtwnBinding bindings[4];
+    mtwnPlayerId p = {0, 0};
+    mtwnClipPlayerDef twice = BindingDef(&w, bindings, (const uint32_t[]){0, 1, 2, 2}, 4);
+    CHECK(mtwnCreateClipPlayer(w.context, &twice, &p) == mtwn_errorInvalid && p.index1 == 0 &&
+              mtwnContext_GetMisuse(w.context) == 1,
+          "the last slot bound twice: refused as misuse");
+    twice.rate = 2.0 * MTWN_RATE_LIMIT;
+    CHECK(mtwnCreateClipPlayer(w.context, &twice, &p) == mtwn_errorLimit &&
+              mtwnContext_GetMisuse(w.context) == 2,
+          "and with a rate past the limit: refused for the rate");
+    mtwnClipPlayerDef once = BindingDef(&w, bindings, (const uint32_t[]){2, 0, 1}, 3);
+    CHECK(mtwnCreateClipPlayer(w.context, &once, &p) == mtwn_success,
+          "every binding given back: all three taken");
+    twice = BindingDef(&w, bindings, (const uint32_t[]){0, 0}, 2);
+    mtwnPlayerId q = {0, 0};
+    CHECK(mtwnCreateClipPlayer(w.context, &twice, &q) == mtwn_errorCapacity && q.index1 == 0 &&
+              mtwnContext_GetMisuse(w.context) == 2,
+          "a slot bound twice without room: refused for the room");
+    FreeSlots(&w);
+    w = MakeSlots(3, 6, 1);
+    once = BindingDef(&w, bindings, (const uint32_t[]){0}, 1);
+    CHECK(mtwnCreateClipPlayer(w.context, &once, &p) == mtwn_success, "the one player");
+    twice = BindingDef(&w, bindings, (const uint32_t[]){1, 1}, 2);
+    CHECK(mtwnCreateClipPlayer(w.context, &twice, &q) == mtwn_errorCapacity &&
+              mtwnContext_GetMisuse(w.context) == 0,
+          "and with the players full, bindings free: refused for the room");
+    FreeSlots(&w);
+}
+
+// 2^20 bindings, one to each slot of a clip: made in time linear in them,
+// which player_many's ctest TIMEOUT of 60 s guards (compared pair by pair,
+// as before, they took 194 s at -O2), and played.
+static void TestManyBindings(void)
+{
+    const uint32_t count = 1u << 20;
+    Slots w = MakeSlots(count, count, 1);
+    mtwnBinding* bindings = calloc(count, sizeof *bindings);
+    uint32_t* slots = calloc(count, sizeof *slots);
+    CHECK(bindings != NULL && slots != NULL, "the def's arrays");
+    for (uint32_t i = 0; slots != NULL && i < count; ++i)
+    {
+        slots[i] = count - 1 - i;
+    }
+    mtwnClipPlayerDef def = BindingDef(&w, bindings, slots, bindings != NULL ? count : 0);
+    mtwnPlayerId p = {0, 0};
+    CHECK(mtwnCreateClipPlayer(w.context, &def, &p) == mtwn_success, "a player of 2^20 bindings");
+    uint32_t changed = 0;
+    CHECK(mtwnContext_Update(w.context, 0, NULL, 0, NULL) == mtwn_success &&
+              mtwnContext_Update(w.context, s_second / 2, NULL, 0, &changed) == mtwn_success &&
+              changed == count,
+          "every target moved");
+    mtwnTargetState first;
+    mtwnTargetState last;
+    CHECK(mtwnTarget_GetState(w.context, w.targets[0], &first) == mtwn_success &&
+              mtwnTarget_GetState(w.context, w.targets[count - 1], &last) == mtwn_success &&
+              first.value.x == 0.5f && last.value.x == 0.5f,
+          "the first and last slots halfway at 0.5 s");
+    free(slots);
+    free(bindings);
+    FreeSlots(&w);
+}
+
 // A context of no bindings has no free run; grown to four, it holds four
 // one-slot players and refuses a fifth.
 static void TestGrowFromNoBindings(void)
@@ -1164,8 +1308,20 @@ static void TestMisuseByKind(void)
     mtwnDestroyContext(context);
 }
 
-int main(void)
+// With no argument, the fixed cases; with "many", 2^20 bindings.
+int main(int argc, char** argv)
 {
+    bool many = argc == 2 && strcmp(argv[1], "many") == 0;
+    if (argc > 2 || (argc == 2 && !many))
+    {
+        printf("usage: test_player [many]\n");
+        return 2;
+    }
+    if (many)
+    {
+        TestManyBindings();
+        return s_failures == 0 ? 0 : 1;
+    }
     TestRateLimit();
     TestSeekLimit();
     TestSeekLabelOfRoot();
@@ -1184,6 +1340,7 @@ int main(void)
     TestSlotPastFull();
     TestSeekCancel();
     TestBindings();
+    TestRepeatedSlot();
     TestGrowFromNoBindings();
     TestFullPoolKeepsBindings();
     TestNoBindingsDestroyed();
