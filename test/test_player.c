@@ -264,6 +264,147 @@ static void TestFinishReverse(void)
     mtwnDestroyContext(f.context);
 }
 
+// A finished player given a new rate runs at it from the time it holds,
+// its start time set again from it, start = now - current / rate: a 2 s
+// clip played from 10 s and given 0.5 at 12.5 s starts at 8.5 s, so at
+// 12.75 s it is 2.125 s in, held at its end; given -1 it starts at 14.5 s
+// and is at 1.75 s. Level 1's setting of the rate would put the first at
+// (12.75 - 10) * 0.5 = 1.375 s, and its seamless update the second at 2.25
+// s, waiting out its overshoot. A finish after the change keeps the first
+// at its end too. The times are dyadic, so exact.
+static void TestRateAfterTheEnd(void)
+{
+    for (int finish = 0; finish < 2; ++finish)
+    {
+        Fixture f = Make(false, 64);
+        mtwnPlayerId p = Player(&f, true, 1.0);
+        Update(&f, 10.0);
+        Update(&f, 12.5);
+        CHECK(State(&f, p).state == mtwn_playFinished && State(&f, p).currentTime == 2.0,
+              "finished at its end");
+        CHECK(mtwnClipPlayer_SetRate(f.context, p, 0.5) == mtwn_success, "half its rate");
+        CHECK(!finish || mtwnClipPlayer_Finish(f.context, p) == mtwn_success, "finished again");
+        mtwnClipPlayerState s = State(&f, p);
+        CHECK(s.state == mtwn_playFinished && s.currentTime == 2.0 && s.rate == 0.5,
+              "still finished at its end, at the new rate");
+        Update(&f, 12.75);
+        s = State(&f, p);
+        CHECK(s.state == mtwn_playFinished && s.currentTime == 2.0,
+              "and at the next update, where the start time it finished with gives 1.375");
+        Update(&f, 20.0);
+        CHECK(State(&f, p).state == mtwn_playFinished && State(&f, p).currentTime == 2.0,
+              "and after");
+        mtwnDestroyContext(f.context);
+    }
+    Fixture f = Make(false, 64);
+    mtwnPlayerId p = Player(&f, true, 1.0);
+    Update(&f, 10.0);
+    Update(&f, 12.5);
+    CHECK(mtwnClipPlayer_SetRate(f.context, p, -1.0) == mtwn_success &&
+              State(&f, p).currentTime == 2.0 && State(&f, p).state == mtwn_playRunning,
+          "backwards from its end, running");
+    Update(&f, 12.75);
+    mtwnClipPlayerState s = State(&f, p);
+    CHECK(s.state == mtwn_playRunning && s.currentTime == 1.75,
+          "back at once, where the seamless update waits at 2.25");
+    Update(&f, 14.5);
+    s = State(&f, p);
+    CHECK(s.state == mtwn_playFinished && s.currentTime == 0.0, "finished at 0");
+    mtwnDestroyContext(f.context);
+}
+
+typedef struct PlayerStep
+{
+    int kind;
+    double argument;
+    int result;
+    double time;
+    int state;
+    double rate;
+} PlayerStep;
+
+typedef struct PlayerScript
+{
+    PlayerStep steps[12];
+} PlayerScript;
+
+#include "generated/player_cases.h"
+
+static bool SameTime(double a, double b)
+{
+    return a == b || (isnan(a) && isnan(b));
+}
+
+// Scripts of controls and updates against tools/oracle/player_oracle.py,
+// Level 1's procedures written again from the specification's text, with
+// the finished branch of a rate change as the library takes it: every
+// result, time, play state and rate the same bits.
+static void TestOracle(void)
+{
+    enum
+    {
+        stepUpdate,
+        stepPlay,
+        stepPause,
+        stepSeek,
+        stepFinish,
+        stepRate,
+    };
+    uint32_t count = (uint32_t)(sizeof s_playerScripts / sizeof s_playerScripts[0]);
+    uint32_t same = 0;
+    uint32_t finishedRates = 0;
+    for (uint32_t c = 0; c < count; ++c)
+    {
+        Fixture f = Make(false, 64);
+        mtwnPlayerId p = Player(&f, false, 1.0);
+        bool agrees = true;
+        int previous = mtwn_playIdle;
+        for (uint32_t i = 0; i < 12 && agrees; ++i)
+        {
+            const PlayerStep* step = &s_playerScripts[c].steps[i];
+            mtwnResult result = mtwn_success;
+            switch (step->kind)
+            {
+            case stepUpdate:
+                Update(&f, step->argument);
+                break;
+            case stepPlay:
+                result = mtwnClipPlayer_Play(f.context, p);
+                break;
+            case stepPause:
+                result = mtwnClipPlayer_Pause(f.context, p);
+                break;
+            case stepSeek:
+                result = mtwnClipPlayer_Seek(f.context, p, step->argument);
+                break;
+            case stepFinish:
+                result = mtwnClipPlayer_Finish(f.context, p);
+                break;
+            default:
+                finishedRates += previous == mtwn_playFinished ? 1u : 0u;
+                result = mtwnClipPlayer_SetRate(f.context, p, step->argument);
+                break;
+            }
+            mtwnClipPlayerState s = State(&f, p);
+            agrees = (result == mtwn_success) == (step->result == 0) &&
+                     SameTime(s.currentTime, step->time) && (int)s.state == step->state &&
+                     s.rate == step->rate;
+            if (!agrees)
+            {
+                printf(
+                    "script %u step %u (kind %d, %g): time %g state %d rate %g, oracle %g %d %g\n",
+                    c, i, step->kind, step->argument, s.currentTime, (int)s.state, s.rate,
+                    step->time, step->state, step->rate);
+            }
+            previous = step->state;
+        }
+        same += agrees ? 1u : 0u;
+        mtwnDestroyContext(f.context);
+    }
+    CHECK(count == 300 && finishedRates > 0, "every script, rates on finished players among them");
+    CHECK(same == count, "every step as the oracle's");
+}
+
 // Past the end: a finish holds the player at its end, not at the time a
 // seek left it past it (Level 1 sets the current time to the end); and a
 // player at rate 0 there is not finished (Level 1 finishes only a moving
@@ -1036,6 +1177,8 @@ int main(void)
     TestPauseAtRate();
     TestSeeks();
     TestFinishReverse();
+    TestRateAfterTheEnd();
+    TestOracle();
     TestPastTheEnd();
     TestOwnBindings();
     TestSlotPastFull();

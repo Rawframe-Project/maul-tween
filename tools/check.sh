@@ -202,6 +202,7 @@ step "generated sources and oracle tables match their generators"
 python3 tools/gen_math_constants.py --check
 python3 tools/gen_color_matrices.py --check
 python3 tools/oracle/timing_oracle.py --check
+python3 tools/oracle/player_oracle.py --check
 python3 tools/oracle/exact_oracle.py --check
 python3 tools/oracle/zoom_oracle.py --check
 python3 tools/oracle/cycle_oracle.py --check

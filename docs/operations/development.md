@@ -57,6 +57,7 @@ Never edit these by hand; change the generator and run it.
 | `src/generated/math_constants.h`, `math_constants_float.h` | `tools/gen_math_constants.py` (family file) | `python3 tools/gen_math_constants.py` | `--check` |
 | `src/generated/color_matrices.h` | `tools/gen_color_matrices.py`, from CSS Color 4's `conversions.js` in 80-digit decimal | `python3 tools/gen_color_matrices.py` | `--check` |
 | `test/generated/timing_cases.h` | `tools/oracle/timing_oracle.py`, Web Animations' steps in Python | `python3 tools/oracle/timing_oracle.py` | `--check` |
+| `test/generated/player_cases.h` | `tools/oracle/player_oracle.py`, Web Animations' player procedures in Python | `python3 tools/oracle/player_oracle.py` | `--check` |
 | `test/generated/exact_cases.h` | `tools/oracle/exact_oracle.py`, timing and crossing counts in exact rationals | `python3 tools/oracle/exact_oracle.py` | `--check` |
 | `test/generated/zoom_cases.h` | `tools/oracle/zoom_oracle.py`, scales and the zoom in 60-digit decimals | `python3 tools/oracle/zoom_oracle.py` | `--check` |
 | `test/generated/cycle_cases.h` | `tools/oracle/cycle_oracle.py`, a repeat delay's cycles where the position passes the doubles, with an exponent without bounds | `python3 tools/oracle/cycle_oracle.py` | `--check` |
