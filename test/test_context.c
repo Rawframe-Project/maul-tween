@@ -21,6 +21,8 @@
 
 typedef struct Counter
 {
+    // Calls, refused ones too, and allocations made.
+    int asked;
     int allocations;
     int frees;
     size_t bytes;
@@ -31,6 +33,7 @@ typedef struct Counter
 static void* CountAlloc(size_t size, size_t alignment, void* context)
 {
     Counter* counter = context;
+    ++counter->asked;
     if (counter->fail)
     {
         return NULL;
@@ -151,6 +154,24 @@ static uint64_t BytesSharing(bool tasks, uint32_t nodes, uint32_t records);
 // The sharing's capacities: 80 bytes a node and a record's, an mtwnEvent
 // and a double (72 bytes on a 64-bit target), in each work, the serial one
 // and with a task system each of the 16 groups'.
+// A block past what a size_t holds on a 32-bit host: 2^24 players with
+// 2^24 linear() points each, 16 bytes a point, 2^52 bytes of points
+// alone. Where size_t cannot hold 2^52 it is refused before the allocator
+// is asked; where it can, the allocator is asked once, and refuses.
+static void TestBlockPastSize(void)
+{
+    Counter refusing = {.fail = true};
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.allocator = (mtwnAllocator){CountAlloc, CountFree, &refusing};
+    def.playerCapacity = MTWN_MAX_COUNT;
+    def.pointsPerTransition = MTWN_MAX_COUNT;
+    bool holds = (uint64_t)SIZE_MAX >= (uint64_t)MTWN_MAX_COUNT * MTWN_MAX_COUNT * 16u;
+    mtwnContext* context = (mtwnContext*)&refusing;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_errorCapacity && context == NULL &&
+              refusing.asked == (holds ? 1 : 0),
+          "a block past size_t refused, the allocator asked only where size_t holds it");
+}
+
 static void TestSharingCapacities(void)
 {
     uint64_t record = sizeof(mtwnEvent) + sizeof(double);
@@ -369,6 +390,7 @@ int main(void)
     TestReadRefusals();
     TestCreate();
     TestDefRefusals();
+    TestBlockPastSize();
     TestSharingCapacities();
     TestIds();
     TestValues();
