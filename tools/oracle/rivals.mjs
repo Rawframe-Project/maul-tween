@@ -5,10 +5,11 @@
 // Motion's springs run under Node, and CSS Color 4's conversions.js, each
 // fetched by its pinned version and checked against its pinned hash
 // before it runs, never kept in the repository. What they compute for
-// curves, springs, colors and staggers Maul Tween shares is written,
-// exactly, to test/generated/rival_easing.h, rival_spring.h,
-// rival_color.h and rival_stagger.h, which test/test_rival_easing.c,
-// test_rival_spring.c, test_rival_color.c and test_rival_stagger.c
+// curves, springs, colors, staggers and timeline positions Maul Tween
+// shares is written, exactly, to test/generated/rival_easing.h,
+// rival_spring.h, rival_color.h, rival_stagger.h and rival_position.h,
+// which test/test_rival_easing.c, test_rival_spring.c,
+// test_rival_color.c, test_rival_stagger.c and test_rival_position.c
 // check. Run by hand, not on every commit:
 //
 //     node tools/oracle/rivals.mjs [--check]
@@ -316,6 +317,145 @@ for (const [count, columns] of [
   }
 }
 
+// GSAP's timeline positions over scripts of up to six adds: children
+// (tweens of a duration, delay, repeats, repeat delay and time scale),
+// labels and callbacks, each at an absolute time, the end, the previous
+// child's start or end, or a label (one not yet added among them), with
+// offsets in seconds or percent. The scripts come from a fixed xorshift
+// seed, and only those GSAP places without moving a child or a label
+// before 0 are kept, since GSAP shifts its children there and nothing
+// translates that. Each op is written as GSAP takes it, for the test to
+// translate as the clips guide's porting note does, with the start GSAP
+// gives it.
+const opKinds = { child: 0, label: 1, call: 2 };
+const opBases = { abs: 0, end: 1, prevStart: 2, prevEnd: 3, label: 4 };
+const positions = [];
+let state = 0x2545f491;
+function random() {
+  state ^= state << 13;
+  state >>>= 0;
+  state ^= state >>> 17;
+  state ^= state << 5;
+  state >>>= 0;
+  return state / 4294967296;
+}
+const pick = (choices) => choices[Math.floor(random() * choices.length)];
+// A percentage is of the previous child's total duration in "<N%" and
+// ">N%", and of the inserted child's in "+=N%", "-=N%", "<+=N%", ">+=N%"
+// and "label+=N%".
+const ofPrevious = 1;
+const ofInserted = 2;
+function gsapPosition(op) {
+  const size = Math.abs(op.offset) + (op.percent ? "%" : "");
+  const sign = op.offset < 0 ? "-=" : "+=";
+  const fromPrevious = op.percent === ofInserted ? sign + size : op.offset + (op.percent ? "%" : "");
+  switch (op.base) {
+    case "abs":
+      return op.offset;
+    case "end":
+      return sign + size;
+    case "prevStart":
+      return "<" + fromPrevious;
+    case "prevEnd":
+      return ">" + fromPrevious;
+    default:
+      return op.offset === 0 ? `L${op.label}` : `L${op.label}${sign}${size}`;
+  }
+}
+for (let attempt = 0; positions.length < 400 && attempt < 100000; ++attempt) {
+  const timeline = gsap.timeline({ paused: true });
+  const ops = [];
+  const added = [];
+  const names = [];
+  let labels = 0;
+  let moved = false;
+  const count = 2 + Math.floor(random() * 5);
+  for (let i = 0; i < count && !moved; ++i) {
+    const kind = i === 0 ? "child" : pick(["child", "child", "child", "label", "call"]);
+    const op = {
+      kind,
+      base: pick(["abs", "end", "end", "prevStart", "prevEnd", "label"]),
+      offset: pick([0, 0, 0.5, 1, 2, -0.25, -0.5]),
+      percent: 0,
+      label: 0,
+      duration: 0,
+      delay: 0,
+      repeat: 0,
+      repeatDelay: 0,
+      rate: 1,
+    };
+    if (kind === "child") {
+      op.duration = pick([0.5, 1, 2]);
+      op.delay = pick([0, 0, 0.5]);
+      op.repeat = pick([0, 0, 0, 1, 2, -1]);
+      op.repeatDelay = pick([0, 0.25]);
+      op.rate = pick([1, 1, 2, 0.5]);
+    }
+    if (op.base === "abs") {
+      op.offset = Math.abs(op.offset);
+    } else if (op.base === "label") {
+      // A child may name the label after the last, which GSAP adds at its
+      // end; a label or callback names one that exists, or goes at the end.
+      op.label = Math.floor(random() * (labels + (kind === "child" ? 1 : 0)));
+      if (op.label === labels && kind !== "child") {
+        op.base = "end";
+      }
+    }
+    if (kind === "child" && op.base !== "abs" && random() < 0.2) {
+      const fromPrevious = op.base === "prevStart" || op.base === "prevEnd";
+      op.percent = fromPrevious && random() < 0.5 ? ofPrevious : ofInserted;
+      op.offset = pick([25, 50, -50]);
+    }
+    const starts = added.map((a) => a.startTime());
+    const placedLabels = JSON.stringify(timeline.labels);
+    let made = null;
+    if (kind === "label") {
+      names.push(`L${labels}`);
+      timeline.addLabel(`L${labels}`, gsapPosition(op));
+    } else {
+      made =
+        kind === "child"
+          ? gsap.to(
+              { v: 0 },
+              {
+                v: 1,
+                duration: op.duration,
+                delay: op.delay,
+                repeat: op.repeat,
+                repeatDelay: op.repeatDelay,
+                ease: "none",
+              },
+            )
+          : gsap.delayedCall(0, () => {});
+      made.timeScale(op.rate);
+      timeline.add(made, gsapPosition(op));
+      added.push(made);
+    }
+    const missing = op.base === "label" && op.label === labels;
+    labels += kind === "label" || missing ? 1 : 0;
+    // Below 0, GSAP shifts its children at its next string position or
+    // render, so an op that lands there, or a shift of any before it,
+    // leaves the script.
+    moved =
+      added.some((a, j) => j < starts.length && a.startTime() !== starts[j]) ||
+      (made !== null && made.startTime() < 0) ||
+      (kind === "label" && timeline.labels[names.at(-1)] < 0) ||
+      (kind !== "label" && !missing && JSON.stringify(timeline.labels) !== placedLabels);
+    ops.push(op);
+  }
+  const placed = added.map((a) => a.startTime());
+  timeline.duration();
+  moved = moved || added.some((a, j) => a.startTime() !== placed[j]);
+  let child = 0;
+  let label = 0;
+  const starts = ops.map((op) =>
+    op.kind === "label" ? timeline.labels[names[label++]] : added[child++].startTime(),
+  );
+  if (!moved && starts.every((t) => t >= 0 && t < 1e7)) {
+    positions.push({ ops, starts });
+  }
+}
+
 function header(guard, about, body) {
   return [
     "// SPDX-License-Identifier: MIT",
@@ -388,6 +528,32 @@ const outputs = {
       "};",
     ],
   ),
+  "rival_position.h": header(
+    "MTWN_RIVAL_POSITION_H",
+    [
+      "GSAP 3.15.0's timeline positions, run under Node: each script's ops,",
+      "each its kind (0 a child, 1 a label, 2 a callback), base (0 absolute,",
+      "1 the end, 2 the previous start, 3 the previous end, 4 a label), offset,",
+      "seconds (0) or percent of the previous (1) or the inserted child's (2)",
+      "total duration, label, duration, delay, iterations, repeat delay and",
+      "time scale, then the start GSAP gives each op.",
+    ],
+    [
+      "#define RIVAL_INF ((double)INFINITY)",
+      "",
+      "static const RivalScript s_rivalScripts[] = {",
+      ...positions.map(
+        (p) =>
+          `    {${p.ops.length}, {${p.ops
+            .map(
+              (o) =>
+                `{${opKinds[o.kind]}, ${opBases[o.base]}, ${hex(o.offset)}, ${o.percent}, ${o.label}, ${hex(o.duration)}, ${hex(o.delay)}, ${o.repeat < 0 ? "RIVAL_INF" : hex(o.repeat + 1)}, ${hex(o.repeatDelay)}, ${hex(o.rate)}}`,
+            )
+            .join(", ")}}, {${p.starts.map(hex).join(", ")}}},`,
+      ),
+      "};",
+    ],
+  ),
   "rival_color.h": header(
     "MTWN_RIVAL_COLOR_H",
     [
@@ -425,6 +591,6 @@ if (stale > 0) {
 }
 if (process.argv.includes("--check")) {
   console.log(
-    `rivals: current, ${curves.length} curves, ${springs.length} springs, ${colors.length} colors, ${staggers.length} staggers`,
+    `rivals: current, ${curves.length} curves, ${springs.length} springs, ${colors.length} colors, ${staggers.length} staggers, ${positions.length} scripts`,
   );
 }
