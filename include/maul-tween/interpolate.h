@@ -77,8 +77,9 @@ extern "C"
 
     /// Makes the interpolation between two colors in a space, following CSS
     /// Color 4: a powerless OkLCh hue (chroma at most 0.000004) takes the
-    /// other color's, the hues are fixed up by the method, and the colors
-    /// are premultiplied, the hue excepted.
+    /// other color's, its chroma kept as CSS's sample code keeps it where
+    /// Color 4's text sets it to 0, the hues are fixed up by the method,
+    /// and the colors are premultiplied, the hue excepted.
     ///
     /// @param from    The color at progress 0: finite, alpha from 0 to 1.
     /// @param to      The color at progress 1, likewise.
