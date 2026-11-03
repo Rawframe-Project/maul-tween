@@ -7,6 +7,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 built against another minor version's headers is refused with
 `mtwn_errorVersion`. Before 1.0.0, any release could change both.
 
+## [1.0.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.17.0...v1.0.0) (2026-11-03)
+
+
+### Documentation
+
+* state what 1.y keeps for the 1.0.0 release ([#273](https://github.com/Rawframe-Project/maul-tween/issues/273)) ([69d26d8](https://github.com/Rawframe-Project/maul-tween/commit/69d26d8016fec8e55c8cb7df9f3cae06b963057b)), closes [#271](https://github.com/Rawframe-Project/maul-tween/issues/271)
+
 ## [0.17.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.16.0...v0.17.0) (2026-11-03)
 
 This release changes two results to follow the references they name, ahead of 1.0.0. A finished player given a new rate runs at it from the time it holds, so a positive rate keeps it finished at its end where it jumped back ([#264](https://github.com/Rawframe-Project/maul-tween/pull/264)). A path's direction through a hold or a step is the way the path goes on, as SVG 2's path directionality takes it, where it was the way it came ([#266](https://github.com/Rawframe-Project/maul-tween/pull/266)). The clips guide's GSAP porting notes now cover grids with fewer items than columns and every way a clip's positions differ from GSAP's timeline, each checked against GSAP 3.15.0's outputs ([#260](https://github.com/Rawframe-Project/maul-tween/pull/260), [#262](https://github.com/Rawframe-Project/maul-tween/pull/262)). Results change for a finished player given a positive rate (its time, the values it writes and its records), and for the direction and angle a host asks of a timed path through a hold or a step.
