@@ -1,6 +1,6 @@
 # Release
 
-Releases are made by release-please from the conventional commit titles on `main`. Versions follow Semantic Versioning; before 1.0.0 a breaking change bumps the minor version, a feature the minor and a fix the patch. Tags are `vX.Y.Z`. While the major version is 0, the shared library's SOVERSION is the whole version and the CMake package accepts only its exact version, since any release may change the ABI.
+Releases are made by release-please from the conventional commit titles on `main`. Versions follow Semantic Versioning within 1: a feature bumps the minor version and a fix the patch. No change that would break 1.y ships: the family plans no 2.0.0, so such a change is designed to be additive or does not ship, and the pull request title check refuses a breaking title (`!`) or a BREAKING CHANGE footer. Tags are `vX.Y.Z`. The shared library's SOVERSION is major.minor, since a minor release may grow a def, and the CMake package accepts any later version of the same major. Before 1.0.0 a breaking change bumped the minor version, and the SOVERSION and the package took the whole version.
 
 ## Steps
 

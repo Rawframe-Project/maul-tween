@@ -20,7 +20,7 @@ Targets, players and clips are named by a 1-based index and a generation from 1 
 
 ## Defs and versions
 
-Every def opens with a cookie, set by its inline default function; a def not made by it fails the cookie. The context def, the root every other object lives under, also carries `MTWN_ABI_VERSION`, stamped by its default from the headers the program includes: `mtwnCreateContext` and `mtwnContext_Grow` check the cookie first and the version second, before they read anything else. The other defs are taken by a context that already passed, so they carry only their cookie. The version is the whole release before 1.0 and the major and minor version from 1.0 on, with the top bit set so a zeroed value never matches. Starting from the default is what lets a def grow: a field added later is set by the new default, and a program built against old headers is refused rather than misread.
+Every def opens with a cookie, set by its inline default function; a def not made by it fails the cookie. The context def, the root every other object lives under, also carries `MTWN_ABI_VERSION`, stamped by its default from the headers the program includes: `mtwnCreateContext` and `mtwnContext_Grow` check the cookie first and the version second, before they read anything else. The other defs are taken by a context that already passed, so they carry only their cookie. The version is the major and minor version (before 1.0 it was the whole release), with the top bit set so a zeroed value never matches. Starting from the default is what lets a def grow: a field added later is set by the new default, and a program built against old headers is refused rather than misread.
 
 ## Padding
 
@@ -48,7 +48,7 @@ The host's code that the library runs (a host easing, the allocator, the task sy
 
 ## ABI
 
-The headers are the common subset of C17, C23 and C++17. Every public struct's layout is ABI, and a def or a struct it holds grows only with a new ABI version. While the major version is 0, any release may change the API and the ABI; the version the context def carries refuses a mismatch instead of misreading it, and the other defs make objects only inside a context.
+The headers are the common subset of C17, C23 and C++17. Every public struct's layout is ABI, and a def or a struct it holds grows only with a new ABI version, so in a minor release, and only at its end. A patch release keeps the ABI; the version the context def carries refuses another minor version's headers instead of misreading them, and the other defs make objects only inside a context. Before 1.0 any release could change the API and the ABI.
 
 ## Traps
 
