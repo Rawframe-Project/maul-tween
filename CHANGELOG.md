@@ -6,6 +6,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 may change the API and the ABI; a context def built against other headers is
 refused with `mtwn_errorVersion`.
 
+## [0.17.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.16.0...v0.17.0) (2026-11-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **path:** mtwnComputePathDirection and mtwnComputePathAngle change for a timed hold (a segment of no length between keyframes at different offsets) and for a step: each now takes the direction of the nearest later segment with a length, at its start, where it took the nearest earlier one, at its end. Only at the path's end, where no segment with a length follows, does it still take the earlier one.
+* **player:** mtwnClipPlayer_SetRate on a finished player given a positive rate keeps it finished at the time it holds, where the next update put it back at (now - start) * rate; a finish after the change no longer is taken back, and its event records change with it, since no iteration or end is crossed again. A negative rate plays it back from there at once, as before.
+
+### Fixed
+
+* **path:** point a hold or step along the segment past it, as SVG does ([#266](https://github.com/Rawframe-Project/maul-tween/issues/266)) ([bd7bb6e](https://github.com/Rawframe-Project/maul-tween/commit/bd7bb6ef8fc658fe367daa1bdd709304f6a59db8)), closes [#265](https://github.com/Rawframe-Project/maul-tween/issues/265)
+* **player:** keep a finished player at its time when its rate changes ([#264](https://github.com/Rawframe-Project/maul-tween/issues/264)) ([3a07027](https://github.com/Rawframe-Project/maul-tween/commit/3a07027c60559bc3bb67925cfe87b67c1063f2a6)), closes [#263](https://github.com/Rawframe-Project/maul-tween/issues/263)
+
 ## [0.16.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.15.4...v0.16.0) (2026-11-03)
 
 This release changes two stagger results, found by comparing staggers with GSAP's `distribute`, which the clips guide names as their model. A negative spacing now runs from the farthest items, as GSAP's does, so no offset falls below the start and every offset is a delay a transition takes ([#257](https://github.com/Rawframe-Project/maul-tween/pull/257)). An offset whose host easing turns out not finite when it is written is refused, where it was returned ([#254](https://github.com/Rawframe-Project/maul-tween/pull/254)). The guide's porting note now gives every translation a port from GSAP needs, checked against GSAP 3.15.0's own outputs ([#258](https://github.com/Rawframe-Project/maul-tween/pull/258)). Offsets change for every stagger with a negative spacing; no other value, velocity or event record changes.
