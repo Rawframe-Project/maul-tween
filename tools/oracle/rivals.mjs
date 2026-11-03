@@ -340,18 +340,24 @@ function random() {
   return state / 4294967296;
 }
 const pick = (choices) => choices[Math.floor(random() * choices.length)];
+// A percentage is of the previous child's total duration in "<N%" and
+// ">N%", and of the inserted child's in "+=N%", "-=N%", "<+=N%", ">+=N%"
+// and "label+=N%".
+const ofPrevious = 1;
+const ofInserted = 2;
 function gsapPosition(op) {
   const size = Math.abs(op.offset) + (op.percent ? "%" : "");
   const sign = op.offset < 0 ? "-=" : "+=";
+  const fromPrevious = op.percent === ofInserted ? sign + size : op.offset + (op.percent ? "%" : "");
   switch (op.base) {
     case "abs":
       return op.offset;
     case "end":
       return sign + size;
     case "prevStart":
-      return "<" + op.offset + (op.percent ? "%" : "");
+      return "<" + fromPrevious;
     case "prevEnd":
-      return ">" + op.offset + (op.percent ? "%" : "");
+      return ">" + fromPrevious;
     default:
       return op.offset === 0 ? `L${op.label}` : `L${op.label}${sign}${size}`;
   }
@@ -370,7 +376,7 @@ for (let attempt = 0; positions.length < 400 && attempt < 100000; ++attempt) {
       kind,
       base: pick(["abs", "end", "end", "prevStart", "prevEnd", "label"]),
       offset: pick([0, 0, 0.5, 1, 2, -0.25, -0.5]),
-      percent: false,
+      percent: 0,
       label: 0,
       duration: 0,
       delay: 0,
@@ -394,8 +400,10 @@ for (let attempt = 0; positions.length < 400 && attempt < 100000; ++attempt) {
       if (op.label === labels && kind !== "child") {
         op.base = "end";
       }
-    } else if (kind === "child" && random() < 0.2) {
-      op.percent = true;
+    }
+    if (kind === "child" && op.base !== "abs" && random() < 0.2) {
+      const fromPrevious = op.base === "prevStart" || op.base === "prevEnd";
+      op.percent = fromPrevious && random() < 0.5 ? ofPrevious : ofInserted;
       op.offset = pick([25, 50, -50]);
     }
     const starts = added.map((a) => a.startTime());
@@ -526,8 +534,9 @@ const outputs = {
       "GSAP 3.15.0's timeline positions, run under Node: each script's ops,",
       "each its kind (0 a child, 1 a label, 2 a callback), base (0 absolute,",
       "1 the end, 2 the previous start, 3 the previous end, 4 a label), offset,",
-      "percent (1) or seconds (0), label, duration, delay, iterations, repeat",
-      "delay and time scale, then the start GSAP gives each op.",
+      "seconds (0) or percent of the previous (1) or the inserted child's (2)",
+      "total duration, label, duration, delay, iterations, repeat delay and",
+      "time scale, then the start GSAP gives each op.",
     ],
     [
       "#define RIVAL_INF ((double)INFINITY)",
@@ -538,7 +547,7 @@ const outputs = {
           `    {${p.ops.length}, {${p.ops
             .map(
               (o) =>
-                `{${opKinds[o.kind]}, ${opBases[o.base]}, ${hex(o.offset)}, ${o.percent ? 1 : 0}, ${o.label}, ${hex(o.duration)}, ${hex(o.delay)}, ${o.repeat < 0 ? "RIVAL_INF" : hex(o.repeat + 1)}, ${hex(o.repeatDelay)}, ${hex(o.rate)}}`,
+                `{${opKinds[o.kind]}, ${opBases[o.base]}, ${hex(o.offset)}, ${o.percent}, ${o.label}, ${hex(o.duration)}, ${hex(o.delay)}, ${o.repeat < 0 ? "RIVAL_INF" : hex(o.repeat + 1)}, ${hex(o.repeatDelay)}, ${hex(o.rate)}}`,
             )
             .join(", ")}}, {${p.starts.map(hex).join(", ")}}},`,
       ),

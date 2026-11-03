@@ -50,6 +50,10 @@ enum
     rivalAtLabel = 4,
     // A callback's label: its key past every script label's.
     callKey = 100,
+    // A percentage's base: the previous child's or the inserted child's
+    // total duration.
+    ofPrevious = 1,
+    ofInserted = 2,
 };
 
 // GSAP rounds a start to 1e-7, so half of that, and a few units in the
@@ -73,7 +77,8 @@ typedef struct Placed
 enum
 {
     pathDelay,
-    pathPercent,
+    pathPercentOfPrevious,
+    pathPercentOfInserted,
     pathEndless,
     pathAfterCall,
     pathCallPastEnd,
@@ -224,11 +229,15 @@ static Placed Translate(const RivalScript* script, uint32_t index, const SoFar* 
     int32_t previous = Previous(script, index);
     const RivalOp* before = previous >= 0 ? &script->ops[previous] : NULL;
     double offset = op->offset;
-    s_paths[pathPercent] += op->percent ? 1u : 0u;
+    s_paths[pathPercentOfPrevious] += op->percent == ofPrevious ? 1u : 0u;
+    s_paths[pathPercentOfInserted] += op->percent == ofInserted ? 1u : 0u;
     s_paths[pathDelay] += op->delay != 0.0 ? 1u : 0u;
-    if (op->percent)
+    if (op->percent != 0)
     {
-        offset *= (op->base == rivalEnd ? Total(op) : before != NULL ? Total(before) : 0.0) / 100.0;
+        offset *= (op->percent == ofInserted ? Total(op)
+                   : before != NULL          ? Total(before)
+                                             : 0.0) /
+                  100.0;
     }
     // A delay is part of the start.
     offset += op->delay;
