@@ -178,6 +178,31 @@ static void TestExactEdges(void)
           "an iteration start after a delay, at the sweep's ends");
 }
 
+// Played back with repeat delays, a time just after the start is held
+// where the node starts, the last iteration's end, as the timing model
+// holds it: nothing moves there, so a sweep from it counts the same
+// whether it takes that time or not.
+static void TestEndHeldBackwards(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(1.0, 2.0);
+    level[0].timing.repeatDelay = 0.5;
+    level[0].timing.playbackRate = -1.0;
+    double t = 1e-300;
+    mtwnTimingResult start = ComputeTiming(&level[0].timing, 0.0, false);
+    mtwnTimingResult held = ComputeTiming(&level[0].timing, t, false);
+    CHECK(start.iteration == 1.0 && start.transformedProgress == 1.0 && held.iteration == 1.0 &&
+              held.transformedProgress == 1.0,
+          "the timing holds it at the end it starts from");
+    mtwnLeaf end = Instant(1.0);
+    mtwnPrepareLevels(level, 1, &end);
+    mtwnCrossings closed = mtwnCountCrossings(level, 1, &end, t, 5.0, true);
+    mtwnCrossings open = mtwnCountCrossings(level, 1, &end, t, 5.0, false);
+    CHECK(closed.same == open.same && closed.opposite == open.opposite,
+          "a sweep from it the same, closed or open");
+}
+
 static void TestTimes(void)
 {
     mtwnLevel level[1];
@@ -866,6 +891,7 @@ int main(int argc, char** argv)
         TestCyclesPastTheDoubles();
         TestCountNeverFalls();
         TestExactEdges();
+        TestEndHeldBackwards();
         TestTimes();
         TestPassedLevels(argc == 1 ? 2000 : 400);
     }
