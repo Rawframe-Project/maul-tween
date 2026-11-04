@@ -144,19 +144,18 @@ fuzz() { # seconds per target
 # Each hides findings the other shows. Run from the root, clang-tidy 20
 # takes the header filter from the root's parent, which has none, not
 # from .clang-tidy, and so drops every header's findings: the filter is
-# passed, anchored at the build's source tree so headers fetched under
-# out/ stay out.
+# passed, from tools/tidy_filter.sh, anchored at the build's source tree
+# so headers fetched under out/ stay out.
 tidy() { # files
-    local build home
+    local build filter
     for build in Release Debug; do
         step "clang-tidy, $build, on $# files"
         cmake --preset linux-clang-20 -B "$out/check-tidy-$build" -DCMAKE_BUILD_TYPE=$build \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_TWEEN_BUILD_TESTS=OFF \
             -DMAUL_TWEEN_BUILD_BENCH=OFF -DMAUL_TWEEN_BUILD_SAMPLES=OFF >"$out/check-tidy-$build.log"
-        home=$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$out/check-tidy-$build/CMakeCache.txt" |
-            sed 's/[][\.*^$+?(){}|]/\\&/g')
+        filter=$(tools/tidy_filter.sh "$out/check-tidy-$build")
         printf '%s\n' "$@" | xargs -P "$jobs" -n 1 clang-tidy-20 -p "$out/check-tidy-$build" --quiet \
-            --warnings-as-errors='*' --header-filter="^$home/(src|include)/" 2>/dev/null
+            --warnings-as-errors='*' --header-filter="$filter" 2>/dev/null
     done
 }
 
