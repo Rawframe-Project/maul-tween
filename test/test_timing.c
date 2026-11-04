@@ -310,7 +310,9 @@ static void TestValidation(void)
         const char* name;
     } bad[] = {
         {&timing.delay, HUGE_VAL, "infinite delay"},
+        {&timing.delay, -HUGE_VAL, "negative infinite delay"},
         {&timing.endDelay, (double)NAN, "NaN end delay"},
+        {&timing.endDelay, -HUGE_VAL, "negative infinite end delay"},
         {&timing.iterationStart, -0.5, "negative iteration start"},
         {&timing.iterations, (double)NAN, "NaN iterations"},
         {&timing.iterations, -1.0, "negative iterations"},

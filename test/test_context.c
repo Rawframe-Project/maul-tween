@@ -118,14 +118,14 @@ static void TestDefRefusals(void)
     def = mtwnDefaultContextDef();
     def.allocator.alloc = CountAlloc;
     CHECK(mtwnCreateContext(&def, &context) == mtwn_errorInvalid, "an allocator of one function");
-    uint32_t* counts[] = {&def.targetCapacity,     &def.playerCapacity,
-                          &def.clipCapacity,       &def.eventCapacity,
-                          &def.sharedNodeCapacity, &def.sharedRecordCapacity,
-                          &def.pointsPerTransition};
+    uint32_t* counts[] = {&def.targetCapacity,       &def.playerCapacity,
+                          &def.clipCapacity,         &def.eventCapacity,
+                          &def.bindingCapacity,      &def.sharedNodeCapacity,
+                          &def.sharedRecordCapacity, &def.pointsPerTransition};
     // Past its maximum is refused before the allocator is asked, so a
     // missing check reads as a refused allocation, not a huge block.
     Counter refusing = {.fail = true};
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < 8; ++i)
     {
         def = mtwnDefaultContextDef();
         uint32_t* field = (uint32_t*)((char*)&def + ((char*)counts[i] - (char*)&def));

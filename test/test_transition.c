@@ -1007,6 +1007,8 @@ static void TestSpecRefusals(void)
     mtwnPlayerId id;
     mtwnTransitionDef def = SpringTo(flag, (mtwnVec4){1.0f, 0, 0, 0});
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a discrete spring");
+    def.kind = mtwn_transitionDecay;
+    CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a discrete decay");
     def = SpringTo(color, (mtwnVec4){0, 0, 0, 1.0f});
     def.kind = mtwn_transitionDecay;
     CHECK(mtwnStartTransition(context, &def, &id) == mtwn_errorInvalid, "a color decay");

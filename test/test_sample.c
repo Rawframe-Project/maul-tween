@@ -354,6 +354,12 @@ static double Unbounded(void* context, double progress)
     return progress == 1.0 ? HUGE_VAL : progress;
 }
 
+static double Unstarted(void* context, double progress)
+{
+    (void)context;
+    return progress == 0.0 ? -HUGE_VAL : progress;
+}
+
 static double Hole(void* context, double progress)
 {
     (void)context;
@@ -412,6 +418,11 @@ static void TestFitRefusals(void)
           "unbounded");
     CHECK(mtwnFitLinearEasing(&unbounded, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
           "a curve infinite at its end");
+    mtwnEasing unstarted;
+    CHECK(mtwnMakeHostEasing(mtwn_easeIn, Unstarted, NULL, &unstarted) == mtwn_success,
+          "unstarted");
+    CHECK(mtwnFitLinearEasing(&unstarted, 1e-3, s_points, s_capacity, &count) == mtwn_errorInvalid,
+          "a curve infinite at its start");
     CHECK(count == 7, "refusals leave the count as it was");
     mtwnEasing hole;
     CHECK(mtwnMakeHostEasing(mtwn_easeIn, Hole, NULL, &hole) == mtwn_success &&
