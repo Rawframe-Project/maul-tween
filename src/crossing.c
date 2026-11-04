@@ -194,9 +194,16 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
 
 // What a local time reaches at an iteration's start: going forwards the
 // previous end shares the time without a delay; going backwards it is
-// reached as the start is left, whatever lies between.
+// reached as the start is left, whatever lies between. Past 2^54
+// iterations an index less 1 rounds back to itself, and the end before a
+// start cannot be told from it, as the timing model cannot: the start is
+// what is reached.
 static Reach AtStart(const mtwnTiming* timing, const Shape* shape, double j, bool strict)
 {
+    if (j - 1.0 == j)
+    {
+        return Part(j, 0.0, !strict);
+    }
     if (shape->forwardRate)
     {
         if (!strict)
