@@ -7,6 +7,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 built against another minor version's headers is refused with
 `mtwn_errorVersion`. Before 1.0.0, any release could change both.
 
+## [1.1.0](https://github.com/Rawframe-Project/maul-tween/compare/v1.0.0...v1.1.0) (2026-11-04)
+
+
+### Added
+
+* **player:** check a clip player's bindings in linear time ([#292](https://github.com/Rawframe-Project/maul-tween/issues/292)) ([64415a7](https://github.com/Rawframe-Project/maul-tween/commit/64415a780fec0502fbce5bfd71d885833066a912)), closes [#291](https://github.com/Rawframe-Project/maul-tween/issues/291)
+
 ## [1.0.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.17.0...v1.0.0) (2026-11-03)
 
 This is the first release of 1. Maul Tween's API is settled, and from here it ships only minor and patch releases of 1 ([#273](https://github.com/Rawframe-Project/maul-tween/pull/273)). Every function, type, enum value, macro and struct field in `include/maul-tween/` keeps its name, signature and meaning across 1.y. The binary interface holds within a minor version. The API is the same as 0.17.0's, so a program built against 0.17.0 needs only a rebuild. `MTWN_ABI_VERSION` and a shared library's SOVERSION are now 1.0, and a context def stamped by 0.17.0's headers is refused with `mtwn_errorVersion`. No value, velocity or event record changes.
