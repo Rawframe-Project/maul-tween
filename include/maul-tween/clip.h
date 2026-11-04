@@ -220,7 +220,8 @@ extern "C"
     // Any node of a sealed clip.
     typedef struct mtwnClipNodeInfo
     {
-        // A timeline's with its iteration duration resolved.
+        // A timeline's with its iteration duration resolved. A linear()
+        // easing's points are the clip's, as a track's are.
         mtwnTiming timing;
         // Its start and end in its parent, seconds; equal for an instant.
         double start;
@@ -232,8 +233,13 @@ extern "C"
         mtwnNodeKind kind;
     } mtwnClipNodeInfo;
 
-    // A sealed clip's track, for sampling through the values layer: it
-    // references the clip's storage, valid while the clip lives.
+    // A sealed clip's track, for sampling through the values layer. Its
+    // track's keyframes, lengths and mixes, and its easings' linear()
+    // points, point into the clip's storage: valid only while the clip
+    // lives, which a sealed clip does unchanged. The values layer takes it
+    // as input the caller built, as it takes any track: it reads only
+    // within the counts the track states and checks every segment it
+    // reads, so the pointers and counts are the caller's to keep as read.
     typedef struct mtwnClipTrack
     {
         mtwnTrack track;
