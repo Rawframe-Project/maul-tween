@@ -203,6 +203,35 @@ static void TestEndHeldBackwards(void)
           "a sweep from it the same, closed or open");
 }
 
+// Past 2^54 iterations an index less 1 rounds back to itself, so an
+// iteration's start cannot be told from the end before it, as the timing
+// model cannot tell them apart: a time at a start reaches the start, and
+// a sweep of no time there counts what lies at it, never less than none.
+static void TestStartPastTheIndices(void)
+{
+    const mtwnDirection directions[2] = {mtwn_directionNormal, mtwn_directionReverse};
+    int wrong = 0;
+    for (int d = 0; d < 2; ++d)
+    {
+        mtwnLevel level[1];
+        memset(level, 0, sizeof level);
+        level[0].timing = Timing(1.0, HUGE_VAL);
+        level[0].timing.iterationStart = 0x1p54;
+        level[0].timing.direction = directions[d];
+        mtwnTimingResult at = ComputeTiming(&level[0].timing, 4.0, false);
+        // At its start: progress 0 forwards, 1 reversed.
+        wrong += at.iteration == 0x1p54 + 4.0 && at.transformedProgress == (double)d ? 0 : 1;
+        mtwnLeaf mid = Instant(0.5);
+        mtwnPrepareLevels(level, 1, &mid);
+        for (int closed = 0; closed < 2; ++closed)
+        {
+            mtwnCrossings none = mtwnCountCrossings(level, 1, &mid, 4.0, 4.0, closed == 1);
+            wrong += none.same == 0.0 && none.opposite == 0.0 ? 0 : 1;
+        }
+    }
+    CHECK(wrong == 0, "nothing at a start past 2^54 iterations, the start held there");
+}
+
 static void TestTimes(void)
 {
     mtwnLevel level[1];
@@ -973,6 +1002,7 @@ int main(int argc, char** argv)
         TestCyclesPastTheDoubles();
         TestCountNeverFalls();
         TestExactEdges();
+        TestStartPastTheIndices();
         TestEndHeldBackwards();
         TestTimes();
         TestPassedLevels(argc == 1 ? 2000 : 400);
