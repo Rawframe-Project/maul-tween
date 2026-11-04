@@ -791,8 +791,8 @@ static void TestRepeatedSlot(void)
 }
 
 // 2^20 bindings, one to each slot of a clip: made in time linear in them,
-// which player_many's ctest TIMEOUT of 60 s guards (compared pair by pair,
-// as before, they took 194 s at -O2), and played.
+// which player_many's ctest TIMEOUT guards (60 s, 300 s under a sanitizer;
+// compared pair by pair, as before, they took 194 s at -O2), and played.
 static void TestManyBindings(void)
 {
     const uint32_t count = 1u << 20;

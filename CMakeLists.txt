@@ -164,11 +164,17 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(clip)
     maul_add_test(player)
     # player_many: test_player with 2^20 bindings, which made pair by pair
-    # took 194 s at -O2; its TIMEOUT of 60 s fails a regression
-    # instead of stalling the job.
+    # took 194 s at -O2, against about 1.4 s linear; its TIMEOUT fails a
+    # regression instead of stalling the job. A sanitizer slows the linear
+    # run 10 to 45 times (60 s under MemorySanitizer on a slow runner), so
+    # there it gets 300 s, still far below what pair by pair would take.
     if(TARGET test_player)
+        set(player_many_timeout 60)
+        if(MAUL_TWEEN_SANITIZE OR MAUL_TWEEN_TSAN OR CMAKE_C_FLAGS MATCHES "-fsanitize=")
+            set(player_many_timeout 300)
+        endif()
         add_test(NAME player_many COMMAND test_player many)
-        set_tests_properties(player_many PROPERTIES LABELS player TIMEOUT 60)
+        set_tests_properties(player_many PROPERTIES LABELS player TIMEOUT ${player_many_timeout})
         # Its context, clip and arrays take 893 MiB on i686 and 961 MiB on
         # x86-64, past Emscripten's fixed 16 MiB: under it the memory grows,
         # up to 1.5 GiB.
