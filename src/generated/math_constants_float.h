@@ -20,7 +20,7 @@
 // ln 2, the nearest float.
 #define MTWN_LN2_F 0x1.62e43p-1f
 // ln 2 minus MTWN_LN2_F.
-#define MTWN_LN2_TAIL_F -0x1.05c61p-29f
+#define MTWN_LN2_TAIL_F (-0x1.05c61p-29f)
 // pi / 2 in six 8-bit parts and a 24-bit tail: k times each of the
 // first six is exact for |k| < 2^16.
 static const float s_pio2PartsF[7] = {
@@ -37,15 +37,15 @@ static const float s_pio2PartsF[7] = {
 // pi.
 #define MTWN_PI_HI_F 0x1.921fb6p+1f
 // pi minus MTWN_PI_HI_F.
-#define MTWN_PI_LO_F -0x1.777a5cp-24f
+#define MTWN_PI_LO_F (-0x1.777a5cp-24f)
 // pi / 2.
 #define MTWN_PIO2_HI_F 0x1.921fb6p+0f
 // pi / 2 minus MTWN_PIO2_HI_F.
-#define MTWN_PIO2_LO_F -0x1.777a5cp-25f
+#define MTWN_PIO2_LO_F (-0x1.777a5cp-25f)
 // The largest x whose e^x is a finite float.
 #define MTWN_EXP_OVERFLOW_F 0x1.62e42ep+6f
 // The smallest x whose e^x rounds to a float above 0.
-#define MTWN_EXP_UNDERFLOW_F -0x1.9fe368p+6f
+#define MTWN_EXP_UNDERFLOW_F (-0x1.9fe368p+6f)
 // 1 / n! for n from 2 to 7: e^r for |r| <= ln 2 / 2.
 static const float s_expTaylorF[6] = {
     0x1p-1f,
@@ -74,7 +74,7 @@ static const float s_logSeriesF[5] = {
     0x1.745d18p-3f,
 };
 // 2/3 minus s_logSeriesF[0], for the series' leading term as a pair.
-#define MTWN_TWO_THIRDS_LO_F -0x1.555556p-26f
+#define MTWN_TWO_THIRDS_LO_F (-0x1.555556p-26f)
 // (-1)^n / (2n + 1)! for n from 1 to 4: sine for |r| <= pi / 4.
 static const float s_sinTaylorF[4] = {
     -0x1.555556p-3f,
