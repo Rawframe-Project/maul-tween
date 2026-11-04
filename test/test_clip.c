@@ -312,6 +312,9 @@ static void TestRefusals(void)
     clipDef.cookie = 0;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorInvalid, "no cookie");
     clipDef = mtwnDefaultClipDef();
+    clipDef.nodeCapacity = MTWN_MAX_COUNT + 1;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorLimit, "a node capacity too large");
+    clipDef = mtwnDefaultClipDef();
     clipDef.keyframeCapacity = MTWN_MAX_COUNT + 1;
     CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_errorLimit, "a capacity too large");
     clipDef = mtwnDefaultClipDef();

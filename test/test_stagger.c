@@ -256,6 +256,9 @@ static void TestMisuse(void)
     bad.pointX = 0x1.0p20;
     CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_success, "a point at the limit");
     got[0] = got[1] = got[2] = -1.0;
+    bad.pointX = 0x1.0p21;
+    CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid,
+          "a point beyond 2^20, its distances finite");
     bad.pointX = 1e300;
     CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid, "a point beyond 2^20");
     bad = good;
@@ -269,6 +272,17 @@ static void TestMisuse(void)
     bad = good;
     bad.easing.mode = 4;
     CHECK(mtwnComputeStagger(&bad, 3, got) == mtwn_errorInvalid, "an easing no maker produced");
+    // Only the index is read against the count: the other fields are
+    // refused with no items too.
+    bad = good;
+    bad.start = (double)NAN;
+    CHECK(mtwnComputeStagger(&bad, 0, NULL) == mtwn_errorInvalid, "a start not finite, no items");
+    bad = good;
+    bad.spacing = HUGE_VAL;
+    CHECK(mtwnComputeStagger(&bad, 0, NULL) == mtwn_errorInvalid, "a spacing not finite, no items");
+    bad = good;
+    bad.pointX = 0x1.0p21;
+    CHECK(mtwnComputeStagger(&bad, 0, NULL) == mtwn_errorInvalid, "a point beyond 2^20, no items");
     CHECK(got[0] == -1.0 && got[1] == -1.0 && got[2] == -1.0, "nothing written");
 }
 
