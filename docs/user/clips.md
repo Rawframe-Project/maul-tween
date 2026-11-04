@@ -40,7 +40,7 @@ built = mtwnClip_AddTrack(context, clip, &track, &slideIn);
 built = mtwnClip_Seal(context, clip);
 ```
 
-A track writes a slot, which a player binds to a target; a slot keeps one value kind. The track copies its keyframes into the clip. `mtwnClip_Seal` closes the clip: from then on it is read only, can be played, and its tracks can be read (`mtwnClip_GetTrack`) and sampled through the values layer from any thread while the clip lives.
+A track writes a slot, which a player binds to a target; a slot keeps one value kind. The track copies its keyframes into the clip. `mtwnClip_Seal` closes the clip: from then on it is read only, can be played, and its tracks can be read (`mtwnClip_GetTrack`) and sampled through the values layer from any thread while the clip lives. A track read so points into the clip's storage, and the values layer takes it as it takes a track you made: it reads only within the counts the track states, so keep the track as it was read.
 
 ## Positions
 
