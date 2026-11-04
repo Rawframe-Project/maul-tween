@@ -116,7 +116,8 @@ Always pass `-max_total_time`, and stop what you started. A crash becomes a test
     'cmake --preset linux-i686-gcc-14 && cmake --build --preset linux-i686-gcc-14 && ctest --preset linux-i686-gcc-14'
   ```
 
-- **ThreadSanitizer in docker.** Where docker's seccomp blocks `personality(ADDR_NO_RANDOMIZE)`, TSan does not start in the image: run the `linux-clang-20-tsan` preset on the host, or add `--security-opt seccomp=unconfined`.
+- **ThreadSanitizer and MemorySanitizer in docker.** Where docker's seccomp blocks `personality(ADDR_NO_RANDOMIZE)`, neither starts in the image: run the `linux-clang-20-tsan` and `linux-clang-20-msan` presets on the host, or add `--security-opt seccomp=unconfined`.
+- **Where an uninitialized value came from.** The `linux-clang-20-msan` preset tracks no origins, to keep its cell fast. To see where a reported value was created, configure it again with `-fsanitize-memory-track-origins=2` added to `CMAKE_C_FLAGS`, in a tree of its own: `cmake --preset linux-clang-20-msan -B out/msan-origins "-DCMAKE_C_FLAGS=-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer"`.
 - **A part over its code budget.** `python3 tools/code_size.py out/linux-gcc-14/libmaul-tween.a --map PART` shows which object files link it in.
 
 ## Shared family files

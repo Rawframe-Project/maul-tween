@@ -19,8 +19,9 @@
 #                            linux-gcc-14 and linux-clang-20-asan presets, and
 #                            a short fuzzing pass.
 #   tools/check.sh full      also every other Linux preset (ThreadSanitizer,
-#                            shared with the package test, 32-bit x86, Clang
-#                            Release), the nightly scenes and longer fuzzing.
+#                            MemorySanitizer, shared with the package test,
+#                            32-bit x86, Clang Release), the nightly scenes
+#                            and longer fuzzing.
 #
 # The builds are the CI cells' CMake presets (CMakePresets.json), in
 # out/<preset>; the other trees go to out/check-*. Needs gcc-14 (with its
@@ -241,7 +242,8 @@ fi
 
 fuzz 60
 
-for name in linux-clang-20-tsan linux-shared linux-i686-gcc-14 linux-clang-20 linux-clang-20-nightly; do
+for name in linux-clang-20-tsan linux-clang-20-msan linux-shared linux-i686-gcc-14 linux-clang-20 \
+    linux-clang-20-nightly; do
     preset "$name"
 done
 
