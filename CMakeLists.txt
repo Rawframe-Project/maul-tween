@@ -163,6 +163,20 @@ if(MAUL_TWEEN_BUILD_TESTS)
     maul_add_test(track)
     maul_add_test(clip)
     maul_add_test(player)
+    # player_many: test_player with 2^20 bindings, which made pair by pair
+    # took 194 s at -O2; its TIMEOUT of 60 s fails a regression
+    # instead of stalling the job.
+    if(TARGET test_player)
+        add_test(NAME player_many COMMAND test_player many)
+        set_tests_properties(player_many PROPERTIES LABELS player TIMEOUT 60)
+        # Its context, clip and arrays take 893 MiB on i686 and 961 MiB on
+        # x86-64, past Emscripten's fixed 16 MiB: under it the memory grows,
+        # up to 1.5 GiB.
+        if(EMSCRIPTEN)
+            target_link_options(test_player PRIVATE "-sALLOW_MEMORY_GROWTH=1"
+                                "-sMAXIMUM_MEMORY=1610612736")
+        endif()
+    endif()
     maul_add_test(clip_play)
     maul_add_test(clip_share)
     maul_add_test(clip_tasks WHITEBOX THREADS)

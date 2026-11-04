@@ -357,8 +357,9 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
     return done;
 }
 
-// Whether the bindings name slots the clip's tracks use, each once, and
-// live targets of their kinds.
+// Whether the bindings name slots the clip's tracks use and live targets
+// of their kinds. That no slot is named twice is checked in the player's
+// binding run (MarkBindings), in time linear in their count.
 static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def,
                         const mtwnClipSlot* clip)
 {
@@ -378,13 +379,28 @@ static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def
         {
             return false;
         }
-        for (uint32_t j = 0; j < i; ++j)
+    }
+    return true;
+}
+
+// Writes the bindings into the player's run, one entry per slot, the
+// slots left out unbound: false at the first slot named twice, which a
+// live target already marks, the run then the caller's to give back.
+static bool MarkBindings(mtwnBound* bound, uint32_t slots, const mtwnClipPlayerDef* def)
+{
+    for (uint32_t s = 0; s < slots; ++s)
+    {
+        bound[s] = (mtwnBound){.composite = mtwn_compositeReplace};
+    }
+    for (uint32_t i = 0; i < def->bindingCount; ++i)
+    {
+        const mtwnBinding* binding = &def->bindings[i];
+        if (bound[binding->slot].target.index1 != 0)
         {
-            if (def->bindings[j].slot == def->bindings[i].slot)
-            {
-                return false;
-            }
+            return false;
         }
+        bound[binding->slot] = (mtwnBound){
+            .target = binding->target, .weight = binding->weight, .composite = binding->composite};
     }
     return true;
 }
@@ -495,32 +511,27 @@ static mtwnResult CreateWorker(mtwnContext* context, const mtwnClipPlayerDef* de
     {
         return Misuse(context, mtwn_errorLimit);
     }
+    // The capacities before a slot named twice, which needs the run: such
+    // a def without room is refused for the room.
     uint32_t start = 0;
-    if (clip->slotCount > 0 && !mtwnTakeRun(&context->bindings, clip->slotCount, &start))
+    if (!mtwnPoolHasRoom(&context->players) ||
+        (clip->slotCount > 0 && !mtwnTakeRun(&context->bindings, clip->slotCount, &start)))
     {
-        return mtwn_errorCapacity;
-    }
-    uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_CLIP);
-    if (index1 == 0)
-    {
-        if (clip->slotCount > 0)
-        {
-            mtwnGiveRun(&context->bindings, start, clip->slotCount);
-        }
         return mtwn_errorCapacity;
     }
     mtwnBound* bound = &context->bindings.entries[start];
-    for (uint32_t s = 0; s < clip->slotCount; ++s)
+    if (!MarkBindings(bound, clip->slotCount, def))
     {
-        bound[s] = (mtwnBound){.composite = mtwn_compositeReplace};
+        // A run given back leaves the free runs as they were.
+        mtwnGiveRun(&context->bindings, start, clip->slotCount);
+        return Misuse(context, mtwn_errorInvalid);
     }
+    uint32_t index1 = mtwnTakePlayer(context, MTWN_PLAYER_CLIP);
+    MTWN_ASSERT(index1 != 0);
     for (uint32_t i = 0; i < def->bindingCount; ++i)
     {
-        const mtwnBinding* binding = &def->bindings[i];
-        bound[binding->slot] = (mtwnBound){
-            .target = binding->target, .weight = binding->weight, .composite = binding->composite};
         // A bound target is alive (AreBindings): one more writer.
-        mtwnAddWriter(context, mtwnTargetAt(context, binding->target.index1), true);
+        mtwnAddWriter(context, mtwnTargetAt(context, def->bindings[i].target.index1), true);
     }
     mtwnClipPlay* play = &mtwnPlayerAt(context, index1)->play;
     *play = (mtwnClipPlay){.clip = def->clip,
