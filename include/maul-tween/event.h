@@ -81,7 +81,10 @@ extern "C"
         // A mark's key; 0 otherwise.
         uint32_t key;
         mtwnEventKind kind;
-        // Whether the crossings went backwards.
+        // Whether the crossings went backwards. A seek or a cancel record
+        // crosses nothing: for it, whether the player was running
+        // backwards, its rate below 0. A held clip player, its rate 0, and
+        // a transition report false.
         bool backwards;
     } mtwnEvent;
 

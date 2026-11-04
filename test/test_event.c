@@ -1562,17 +1562,29 @@ static void TestPointPassedBack(void)
     CHECK(mtwnClipPlayer_Seek(w.context, player, 0.125) == mtwn_success, "past the point");
     Update(&w, 1.4375);
     mtwnEvent e[32];
-    (void)Read(&w, e, 32);
+    uint32_t n = Read(&w, e, 32);
+    // The seek record says which way the player ran: back at -0.5.
+    uint32_t back = 0;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        back += e[i].kind == mtwn_eventSeek && e[i].backwards ? 1u : 0u;
+    }
+    CHECK(back == 1, "a seek going back, backwards");
     // Going back from past the point, over it, inside one update.
     CHECK(mtwnClipPlayer_SetRate(w.context, player, 0.0) == mtwn_success, "held");
     Update(&w, 1.6875);
-    uint32_t n = Read(&w, e, 32);
+    n = Read(&w, e, 32);
     uint32_t crossed = 0;
     for (uint32_t i = 0; i < n; ++i)
     {
         crossed += e[i].node == timeline && e[i].backwards ? 1u : 0u;
     }
     CHECK(crossed == 2, "the timeline's end and start, crossed back");
+    // Held, a rate of 0 goes neither way: its seek is not backwards.
+    CHECK(mtwnClipPlayer_Seek(w.context, player, 0.5) == mtwn_success, "sought, held");
+    n = Read(&w, e, 32);
+    CHECK(n == 1 && Is(&e[0], mtwn_eventSeek, MTWN_ROOT_NODE, 1.6875, false),
+          "a held seek, not backwards");
     mtwnDestroyContext(w.context);
 }
 
