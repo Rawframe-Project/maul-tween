@@ -9,10 +9,14 @@ built against another minor version's headers is refused with
 
 ## [1.1.0](https://github.com/Rawframe-Project/maul-tween/compare/v1.0.0...v1.1.0) (2026-11-04)
 
+This release makes `mtwnCreateClipPlayer` check its bindings in time linear in their count, where it compared each binding with every one before it ([#292](https://github.com/Rawframe-Project/maul-tween/pull/292)). A player of 2^20 bindings took 194 s to make at -O2 and now takes 12 ms. At the old rate, the 2^24 slots a clip may have would have taken about 11 hours. Two refusals of a def that binds a slot twice change their status, as below. `MTWN_ABI_VERSION` and a shared library's SOVERSION are now 1.1. A context def stamped by 1.0.0's headers is refused with `mtwn_errorVersion`, so a program built against 1.0.0 is rebuilt; its source builds unchanged. No value, velocity or event record changes.
 
-### Added
+### Changed
 
-* **player:** check a clip player's bindings in linear time ([#292](https://github.com/Rawframe-Project/maul-tween/issues/292)) ([64415a7](https://github.com/Rawframe-Project/maul-tween/commit/64415a780fec0502fbce5bfd71d885833066a912)), closes [#291](https://github.com/Rawframe-Project/maul-tween/issues/291)
+- `mtwnCreateClipPlayer` checks its refusals in this order, which its header now states: an invalid def, then the rate's limit, then the context's capacities of players and of bindings, and a slot bound twice last ([#292](https://github.com/Rawframe-Project/maul-tween/pull/292)). A def that binds a slot twice changes its status only where another refusal also applies:
+  - with the context's players or bindings full, `mtwn_errorCapacity`, not counted as misuse, where it was `mtwn_errorInvalid`, counted;
+  - with a rate past `MTWN_RATE_LIMIT`, `mtwn_errorLimit`, where it was `mtwn_errorInvalid`; both are counted as misuse.
+- The clips guide and `mtwnClipTrack`'s header say that a track read with `mtwnClip_GetTrack` points into the clip's storage. The values layer takes it as it takes a track the host made, reading only within the counts the track states, so the host keeps it as it was read ([#299](https://github.com/Rawframe-Project/maul-tween/pull/299)).
 
 ## [1.0.0](https://github.com/Rawframe-Project/maul-tween/compare/v0.17.0...v1.0.0) (2026-11-03)
 
