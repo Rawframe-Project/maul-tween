@@ -354,6 +354,56 @@ static void TestIterationNamedBetweenDoubles(void)
           "where a parent turns back at a start, that start's iteration both ways");
 }
 
+// Going backwards an iteration record names the iteration left, at the
+// exact crossing. 0.4 s iterations from a quarter way end their first at
+// (1 - 0.25) * 0.4 = 0.30000000000000001665 s, which is no double: a sweep
+// back crosses it at the double below, 0.29999999999999998890, where the
+// timing reports iteration 0; the record still names 1. And where the
+// boundary is a double (0.5 s from half way: 0.25 s), at it, the same.
+static void TestIterationLeftAtTheExactCrossing(void)
+{
+    const double durations[2] = {0.4, 0.5};
+    const double starts[2] = {0.25, 0.5};
+    const double crossings[2] = {0x1.3333333333333p-2, 0.25};
+    for (int i = 0; i < 2; ++i)
+    {
+        World w = MakeWorld(16);
+        mtwnKeyframe keys[2];
+        memset(keys, 0, sizeof keys);
+        keys[1].offset = 1.0;
+        keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+        mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+        track.keyframes = keys;
+        track.keyframeCount = 2;
+        track.timing.duration = durations[i];
+        track.timing.iterations = 3.0;
+        track.timing.iterationStart = starts[i];
+        mtwnNode node = 0;
+        CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+        CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
+        mtwnPlayerId p = Play(&w, true, 1.0);
+        CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
+        mtwnEvent e[16];
+        Update(&w, 0.0);
+        CHECK(mtwnClipPlayer_Sweep(w.context, p, 0.45) == mtwn_success, "swept on");
+        (void)Read(&w, e, 16);
+        CHECK(mtwnClipPlayer_Sweep(w.context, p, 0.1) == mtwn_success, "swept back");
+        uint32_t n = Read(&w, e, 16);
+        uint32_t found = 0;
+        for (uint32_t k = 0; k < n; ++k)
+        {
+            found += e[k].kind == mtwn_eventIteration && e[k].node == node && e[k].backwards &&
+                             e[k].clipTime == crossings[i] && e[k].firstIteration == 1.0 &&
+                             e[k].lastIteration == 1.0
+                         ? 1u
+                         : 0u;
+        }
+        CHECK(found == 1, i == 0 ? "at the double below a boundary no double holds: iteration 1"
+                                 : "at a boundary a double holds: iteration 1");
+        mtwnDestroyContext(w.context);
+    }
+}
+
 static void TestSeeks(void)
 {
     World w = MakeWorld(16);
@@ -2344,6 +2394,7 @@ int main(void)
     TestBackwards();
     TestIterationLeftBackwards();
     TestIterationNamedBetweenDoubles();
+    TestIterationLeftAtTheExactCrossing();
     TestSeeks();
     TestRewindAndRates();
     TestRateZeroFirst();

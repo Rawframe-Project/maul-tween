@@ -52,30 +52,45 @@ typedef struct Fx
 
 static const Fx s_fxZero = {{0u, 0u, 0u, 0u, 0u}};
 
-static Fx FxNegate(Fx a)
+// In 64-bit words alone, for the 32-bit targets: a sum's carry, and a
+// product's two words from its 32-bit halves.
+static Fx FxAdd(Fx a, Fx b)
 {
     Fx r;
-    unsigned __int128 carry = 1;
+    uint64_t carry = 0;
     for (int i = 0; i < s_fxLimbs; ++i)
     {
-        carry += (unsigned __int128)(~a.w[i]);
-        r.w[i] = (uint64_t)carry;
-        carry >>= 64;
+        uint64_t sum = a.w[i] + carry;
+        uint64_t over = sum < carry ? 1u : 0u;
+        r.w[i] = sum + b.w[i];
+        carry = over + (r.w[i] < sum ? 1u : 0u);
     }
     return r;
 }
 
-static Fx FxAdd(Fx a, Fx b)
+static Fx FxNegate(Fx a)
 {
-    Fx r;
-    unsigned __int128 carry = 0;
+    Fx one = {{1u, 0u, 0u, 0u, 0u}};
     for (int i = 0; i < s_fxLimbs; ++i)
     {
-        carry += (unsigned __int128)a.w[i] + b.w[i];
-        r.w[i] = (uint64_t)carry;
-        carry >>= 64;
+        a.w[i] = ~a.w[i];
     }
-    return r;
+    return FxAdd(a, one);
+}
+
+// a * b as a high and a low word.
+static uint64_t Multiply(uint64_t a, uint64_t b, uint64_t* highOut)
+{
+    uint64_t a0 = a & 0xffffffffu;
+    uint64_t a1 = a >> 32;
+    uint64_t b0 = b & 0xffffffffu;
+    uint64_t b1 = b >> 32;
+    uint64_t low = a0 * b0;
+    uint64_t middle1 = a1 * b0;
+    uint64_t middle2 = a0 * b1;
+    uint64_t middle = (low >> 32) + (middle1 & 0xffffffffu) + (middle2 & 0xffffffffu);
+    *highOut = a1 * b1 + (middle1 >> 32) + (middle2 >> 32) + (middle >> 32);
+    return (middle << 32) | (low & 0xffffffffu);
 }
 
 static Fx FxSub(Fx a, Fx b)
@@ -111,13 +126,13 @@ static int FxCompare(Fx a, Fx b)
     return 0;
 }
 
-// A 128-bit magnitude times 2^(shift - 192), shift >= 0, as fixed point.
-static Fx FxShifted(unsigned __int128 m, int shift, bool negative)
+// A 64-bit magnitude times 2^(shift - 192), shift >= 0, as fixed point.
+static Fx FxShifted(uint64_t m, int shift, bool negative)
 {
     Fx r = s_fxZero;
     int limb = shift / 64;
     int bit = shift % 64;
-    uint64_t parts[3] = {(uint64_t)m, (uint64_t)(m >> 64), 0u};
+    uint64_t parts[3] = {m, 0u, 0u};
     if (bit != 0)
     {
         parts[2] = parts[1] >> (64 - bit);
@@ -162,14 +177,15 @@ static Fx FxTimes(Fx a, double x)
     // cases scale by (their significands' lowest bit is below 1), and the
     // shift drops no bit of a product kept at 2^-90 or more.
     uint64_t product[s_fxLimbs + 1];
-    unsigned __int128 carry = 0;
+    uint64_t carry = 0;
     for (int i = 0; i < s_fxLimbs; ++i)
     {
-        carry += (unsigned __int128)magnitude.w[i] * m;
-        product[i] = (uint64_t)carry;
-        carry >>= 64;
+        uint64_t high = 0;
+        uint64_t low = Multiply(magnitude.w[i], m, &high);
+        product[i] = low + carry;
+        carry = high + (product[i] < low ? 1u : 0u);
     }
-    product[s_fxLimbs] = (uint64_t)carry;
+    product[s_fxLimbs] = carry;
     Fx r = s_fxZero;
     if (e >= 0)
     {
@@ -353,8 +369,7 @@ static double ExactLast(const ExactCase* c)
 
 // The position of point k, and whether it counts as the leaf moving
 // forwards; false for no point there (a mark outside the node's path).
-static bool ExactPoint(const ExactCase* c, double k, Fx lo, Fx hi, Fx* positionOut,
-                       bool* sameOut)
+static bool ExactPoint(const ExactCase* c, double k, Fx lo, Fx hi, Fx* positionOut, bool* sameOut)
 {
     const mtwnTiming* timing = &c->timing;
     Fx cycle = FxAdd(FxOf(timing->duration), FxOf(timing->repeatDelay));
@@ -457,7 +472,8 @@ static void ExactReached(const ExactCase* c, Fx x, bool strict, double* sameOut,
             continue;
         }
         int side = FxCompare(x, p);
-        bool reached = forwardRate ? (strict ? side > 0 : side >= 0) : (strict ? side < 0 : side <= 0);
+        bool reached =
+            forwardRate ? (strict ? side > 0 : side >= 0) : (strict ? side < 0 : side <= 0);
         *(same ? sameOut : oppositeOut) += reached ? 1.0 : 0.0;
     }
 }

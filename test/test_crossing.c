@@ -495,9 +495,13 @@ static void TestExactGrid(void)
             ExactCase c;
             memset(&c, 0, sizeof c);
             bool marks = config < 4;
-            c.timing = Timing(1.0, marks ? HUGE_VAL : (config == 4 ? 1.0 : config == 5 ? 4.0 : 24.0));
+            c.timing = Timing(1.0, marks ? HUGE_VAL
+                                         : (config == 4   ? 1.0
+                                            : config == 5 ? 4.0
+                                                          : 24.0));
             c.timing.iterationStart = starts[si];
-            c.timing.direction = marks && config >= 2 ? mtwn_directionAlternate : mtwn_directionNormal;
+            c.timing.direction =
+                marks && config >= 2 ? mtwn_directionAlternate : mtwn_directionNormal;
             c.marks = marks;
             c.mark = config % 2 == 0 ? 0.25 : 0.5;
             c.active = ComputeTiming(&c.timing, 0.0, false).activeDuration;
@@ -549,10 +553,14 @@ static void TestExactRandom(int cases)
         memset(&c, 0, sizeof c);
         double d = durations[(int)(Uniform() * 4.0)];
         bool endless = Uniform() < 0.2;
-        c.timing = Timing(d, endless ? HUGE_VAL : (Uniform() < 0.5 ? floor(Uniform() * 40.0) : OnGrid(Uniform() * 40.0)));
-        c.timing.iterationStart = Uniform() < 0.5 ? floor(ldexp(1.0 + Uniform(), 52 + (int)(Uniform() * 4.0)))
-                                                  : OnGrid(ldexp(Uniform(), (int)(Uniform() * 7.0)));
-        c.timing.playbackRate = endless ? fabs(rates[(int)(Uniform() * 4.0)]) : rates[(int)(Uniform() * 4.0)];
+        c.timing = Timing(
+            d, endless ? HUGE_VAL
+                       : (Uniform() < 0.5 ? floor(Uniform() * 40.0) : OnGrid(Uniform() * 40.0)));
+        c.timing.iterationStart = Uniform() < 0.5
+                                      ? floor(ldexp(1.0 + Uniform(), 52 + (int)(Uniform() * 4.0)))
+                                      : OnGrid(ldexp(Uniform(), (int)(Uniform() * 7.0)));
+        c.timing.playbackRate =
+            endless ? fabs(rates[(int)(Uniform() * 4.0)]) : rates[(int)(Uniform() * 4.0)];
         c.timing.direction = directions[(int)(Uniform() * 4.0)];
         double r = Uniform();
         c.timing.repeatDelay = r < 0.5 ? 0.0 : (r < 0.75 ? d / 4.0 : OnGrid(0.3 * d));

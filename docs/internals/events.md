@@ -18,7 +18,7 @@ A sweep forwards counts `(previous, current]`, backwards `[current, previous)`, 
 
 ## Times of the first and last crossing
 
-A record carries the host and clip time of its first crossing. That time is found by bisection on the count over the doubles in their order as 64-bit integers: exact to the double, at most 64 halvings, each one count. The search starts from a guess, the last crossing the sweep found, or a record's first crossing for its last: records in one frame mostly share a time, and a right guess costs two counts. The invariant is kept, so the result is still a double where the count flips; where it flips more than once, the guess picks the same one of those few doubles on every platform.
+A record carries the host and clip time of its first crossing. That time is found by bisection on the count ([`src/crossing_search.c`](../../src/crossing_search.c)) over the doubles in their order as 64-bit integers: exact to the double, at most 64 halvings, each one count. The search starts from a guess, the last crossing the sweep found, or a record's first crossing for its last: records in one frame mostly share a time, and a right guess costs two counts. The invariant is kept, so the result is still a double where the count flips; where it flips more than once, the guess picks the same one of those few doubles on every platform.
 
 ## The sweep
 
