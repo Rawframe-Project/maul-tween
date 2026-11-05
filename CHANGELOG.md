@@ -7,6 +7,15 @@ Added, Changed, Fixed, Removed and Security. The project uses
 built against another minor version's headers is refused with
 `mtwn_errorVersion`. Before 1.0.0, any release could change both.
 
+## [1.1.1](https://github.com/Rawframe-Project/maul-tween/compare/v1.1.0...v1.1.1) (2026-11-05)
+
+
+### Fixed
+
+* **build:** make MTWN_NODISCARD the attribute under GCC 14's C23 too ([#320](https://github.com/Rawframe-Project/maul-tween/issues/320)) ([8f6b9a9](https://github.com/Rawframe-Project/maul-tween/commit/8f6b9a9e2b43e901b2de7158b0f34dce2a5971e3)), closes [#317](https://github.com/Rawframe-Project/maul-tween/issues/317)
+* **build:** mark every internal bool function nodiscard and check it ([#326](https://github.com/Rawframe-Project/maul-tween/issues/326)) ([f2a30d3](https://github.com/Rawframe-Project/maul-tween/commit/f2a30d3f6462de6fbf6c58705af51587fed581c8)), closes [#325](https://github.com/Rawframe-Project/maul-tween/issues/325)
+* **event:** name the iteration left or entered between two doubles ([#328](https://github.com/Rawframe-Project/maul-tween/issues/328)) ([9c7263e](https://github.com/Rawframe-Project/maul-tween/commit/9c7263eda99993be8dec3c3cf5208fd513bef80a)), closes [#327](https://github.com/Rawframe-Project/maul-tween/issues/327)
+
 ## [1.1.0](https://github.com/Rawframe-Project/maul-tween/compare/v1.0.0...v1.1.0) (2026-11-04)
 
 This release makes `mtwnCreateClipPlayer` check its bindings in time linear in their count, where it compared each binding with every one before it ([#292](https://github.com/Rawframe-Project/maul-tween/pull/292)). A player of 2^20 bindings took 194 s to make at -O2 and now takes 12 ms. At the old rate, the 2^24 slots a clip may have would have taken about 11 hours. Two refusals of a def that binds a slot twice change their status, as below. `MTWN_ABI_VERSION` and a shared library's SOVERSION are now 1.1. A context def stamped by 1.0.0's headers is refused with `mtwn_errorVersion`, so a program built against 1.0.0 is rebuilt; its source builds unchanged. No value, velocity or event record changes.
