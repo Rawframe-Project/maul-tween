@@ -9,6 +9,7 @@
 // counting only within the pieces where nothing jumps.
 
 #include "crossing.h"
+#include "test_crossing_exact.h"
 #include "test_harness.h"
 #include "test_values.h"
 #include "timing_internal.h"
@@ -397,6 +398,194 @@ static double ScanTime(void)
     return kind == 0   ? (1 + (int)(Uniform() * 16.0)) / 64.0
            : kind == 1 ? (1 + (int)(Uniform() * 4.0)) / 10.0
                        : 0.02 + 0.3 * Uniform();
+}
+
+// A double on 2^-60: every time, start and mark the exact cases use is,
+// so the fixed point of test_crossing_exact.h holds them exactly.
+static double OnGrid(double x)
+{
+    return ldexp(round(ldexp(x, 60)), -60);
+}
+
+// Tallies of a run of exact cases.
+typedef struct ExactTally
+{
+    int sweeps;
+    int agree;
+    int inWindow;
+    int wrong;
+    int negative;
+    int split;
+} ExactTally;
+
+static void ExactTallyOne(const ExactCase* c, const mtwnLevel* level, uint32_t count,
+                          const mtwnLeaf* leaf, double from, double to, bool closed,
+                          ExactTally* tally)
+{
+    mtwnCrossings got;
+    mtwnCrossings exact;
+    ExactVerdict v = ExactCheck(c, level, count, leaf, from, to, closed, &got, &exact);
+    tally->sweeps++;
+    tally->agree += v == s_exactAgrees;
+    tally->inWindow += v == s_exactInWindow;
+    tally->negative += got.same < 0.0 || got.opposite < 0.0;
+    if (v == s_exactWrong && tally->wrong++ < 5)
+    {
+        const mtwnTiming* t = &c->timing;
+        printf("  start %a, %a iterations of %a, rate %g, direction %d, repeat delay %a, delay "
+               "%a, %s %a: %a to %a%s counts %g/%g, exactly %g/%g\n",
+               t->iterationStart, t->iterations, t->duration, t->playbackRate, (int)t->direction,
+               t->repeatDelay, t->delay, c->marks ? "mark" : "starts", c->mark, from, to,
+               closed ? " closed" : "", got.same, got.opposite, exact.same, exact.opposite);
+    }
+}
+
+// Whether a sweep's count is the sum of its two halves', each way.
+static bool Additive(const mtwnLevel* level, uint32_t count, const mtwnLeaf* leaf, double a,
+                     double b, double c, bool closed)
+{
+    mtwnCrossings whole = mtwnCountCrossings(level, count, leaf, a, c, closed);
+    mtwnCrossings first = mtwnCountCrossings(level, count, leaf, a, b, closed);
+    mtwnCrossings second = mtwnCountCrossings(level, count, leaf, b, c, false);
+    return whole.same == first.same + second.same &&
+           whole.opposite == first.opposite + second.opposite;
+}
+
+// A position is the fraction plus the quotient, floored exactly: from
+// iteration start 0.5 at 1 s iterations, 0.5 - 2^-54 s in sums to 1 -
+// 2^-54, which rounds (a tie) to 1. The next start lies 2^-54 ahead, not
+// reached; and 0.5 + 2^-53 s in sums to 1 + 2^-53, which rounds to 1, and
+// a mark 2^-54 s into iteration 1 lies behind it, reached.
+static void TestPositionRoundedOntoAStart(void)
+{
+    mtwnLeaf starts;
+    memset(&starts, 0, sizeof starts);
+    starts.kind = mtwn_leafIterations;
+    starts.timing = Timing(1.0, 4.0);
+    starts.timing.iterationStart = 0.5;
+    mtwnPrepareLevels(NULL, 0, &starts);
+    mtwnCrossings none = mtwnCountCrossings(NULL, 0, &starts, -1.0, 0.5 - 0x1p-54, false);
+    mtwnCrossings one = mtwnCountCrossings(NULL, 0, &starts, -1.0, 0.5, false);
+    CHECK(none.same == 0.0 && one.same == 1.0, "a start 2^-54 ahead not reached, reached at it");
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(1.0, HUGE_VAL);
+    level[0].timing.iterationStart = 0.5;
+    mtwnLeaf mark = Instant(0x1p-54);
+    mtwnPrepareLevels(level, 1, &mark);
+    mtwnCrossings behind = mtwnCountCrossings(level, 1, &mark, 0.0, 0.5 + 0x1p-53, false);
+    mtwnCrossings before = mtwnCountCrossings(level, 1, &mark, 0.0, 0.5, false);
+    CHECK(behind.same == 1.0 && before.same == 0.0, "a mark 2^-54 behind the position reached");
+}
+
+// The grid the counts past 2^53 were measured on: starts 2^53 + {0, 2, 4}
+// and 2^54 + {0, 4}, sweeps from 0 (an iterations node from -1) to t in
+// 0.25 steps up to 24 and back, marks at 0.25 and 0.5 s in an endless
+// level normal and alternating, nodes of 1, 4 and 24 iterations. Every
+// count exact, and those to t never fall as t grows.
+static void TestExactGrid(void)
+{
+    const double starts[5] = {0x1p53, 0x1p53 + 2.0, 0x1p53 + 4.0, 0x1p54, 0x1p54 + 4.0};
+    ExactTally tally = {0};
+    int falls = 0;
+    for (int si = 0; si < 5; ++si)
+    {
+        for (int config = 0; config < 7; ++config)
+        {
+            ExactCase c;
+            memset(&c, 0, sizeof c);
+            bool marks = config < 4;
+            c.timing = Timing(1.0, marks ? HUGE_VAL : (config == 4 ? 1.0 : config == 5 ? 4.0 : 24.0));
+            c.timing.iterationStart = starts[si];
+            c.timing.direction = marks && config >= 2 ? mtwn_directionAlternate : mtwn_directionNormal;
+            c.marks = marks;
+            c.mark = config % 2 == 0 ? 0.25 : 0.5;
+            c.active = ComputeTiming(&c.timing, 0.0, false).activeDuration;
+            mtwnLevel level[1];
+            mtwnLeaf leaf;
+            uint32_t count = 0;
+            ExactSetUp(&c, level, &leaf, &count);
+            double from = marks ? 0.0 : -1.0;
+            double before[2] = {0.0, 0.0};
+            for (int q = 1; q <= 96; ++q)
+            {
+                double t = 0.25 * q;
+                ExactTallyOne(&c, level, count, &leaf, from, t, false, &tally);
+                ExactTallyOne(&c, level, count, &leaf, t, from, false, &tally);
+                mtwnCrossings up = mtwnCountCrossings(level, count, &leaf, from, t, false);
+                mtwnCrossings down = mtwnCountCrossings(level, count, &leaf, t, from, false);
+                double now[2] = {up.same + up.opposite, down.same + down.opposite};
+                falls += now[0] < before[0] || now[1] < before[1];
+                before[0] = now[0];
+                before[1] = now[1];
+            }
+        }
+    }
+    printf("  grid: %d sweeps, %d exact, %d in a window\n", tally.sweeps, tally.agree,
+           tally.inWindow);
+    CHECK(tally.wrong == 0 && tally.inWindow == 0 && tally.negative == 0 && falls == 0 &&
+              tally.sweeps == 6720,
+          "every count on the grid exact, none falling");
+}
+
+// Random cases: starts in [2^52, 2^56] and small fractional ones, every
+// direction, either sign of rate, repeat delays, endless levels, marks and
+// iteration starts; random sweeps open and closed both ways. Each count is
+// exact or differs within its ends' rounding windows, none is negative,
+// and a sweep's count is the sum of its halves'.
+static void TestExactRandom(int cases)
+{
+    s_scan = 88172645463325252u;
+    const double durations[4] = {1.0, 0.25, 3.0, 0x1p-10};
+    const double rates[4] = {1.0, -1.0, 2.0, -0.5};
+    const mtwnDirection directions[4] = {mtwn_directionNormal, mtwn_directionReverse,
+                                         mtwn_directionAlternate, mtwn_directionAlternateReverse};
+    ExactTally tally = {0};
+    int split = 0;
+    int made = 0;
+    for (int n = 0; n < cases; ++n)
+    {
+        ExactCase c;
+        memset(&c, 0, sizeof c);
+        double d = durations[(int)(Uniform() * 4.0)];
+        bool endless = Uniform() < 0.2;
+        c.timing = Timing(d, endless ? HUGE_VAL : (Uniform() < 0.5 ? floor(Uniform() * 40.0) : OnGrid(Uniform() * 40.0)));
+        c.timing.iterationStart = Uniform() < 0.5 ? floor(ldexp(1.0 + Uniform(), 52 + (int)(Uniform() * 4.0)))
+                                                  : OnGrid(ldexp(Uniform(), (int)(Uniform() * 7.0)));
+        c.timing.playbackRate = endless ? fabs(rates[(int)(Uniform() * 4.0)]) : rates[(int)(Uniform() * 4.0)];
+        c.timing.direction = directions[(int)(Uniform() * 4.0)];
+        double r = Uniform();
+        c.timing.repeatDelay = r < 0.5 ? 0.0 : (r < 0.75 ? d / 4.0 : OnGrid(0.3 * d));
+        c.timing.delay = OnGrid(Uniform() * 2.0 - 1.0);
+        c.marks = Uniform() < 0.6;
+        c.mark = OnGrid(d * (0.001 + 0.998 * Uniform()));
+        if (mtwnValidateTiming(&c.timing) != mtwn_success)
+        {
+            continue;
+        }
+        c.active = ComputeTiming(&c.timing, 0.0, false).activeDuration;
+        double span = (isinf(c.active) ? 40.0 * (d + c.timing.repeatDelay) : c.active) + 2.0;
+        mtwnLevel level[1];
+        mtwnLeaf leaf;
+        uint32_t count = 0;
+        ExactSetUp(&c, level, &leaf, &count);
+        ++made;
+        for (int k = 0; k < 6; ++k)
+        {
+            double a = OnGrid(c.timing.delay - 1.0 + span * Uniform());
+            double b = OnGrid(a + (d + c.timing.repeatDelay) * 6.0 * Uniform());
+            double e = OnGrid(b + (d + c.timing.repeatDelay) * 6.0 * Uniform());
+            bool closed = Uniform() < 0.5;
+            ExactTallyOne(&c, level, count, &leaf, a, e, closed, &tally);
+            ExactTallyOne(&c, level, count, &leaf, e, a, closed, &tally);
+            split += Additive(level, count, &leaf, a, b, e, closed) ? 0 : 1;
+            split += Additive(level, count, &leaf, e, b, a, closed) ? 0 : 1;
+        }
+    }
+    printf("  random: %d cases, %d sweeps, %d exact, %d in a window\n", made, tally.sweeps,
+           tally.agree, tally.inWindow);
+    CHECK(tally.wrong == 0 && tally.negative == 0 && split == 0 && made > cases / 2,
+          "every count exact or within its ends' windows, none negative, halves adding up");
 }
 
 // The iteration starts a local time has reached never fall as it grows,
@@ -1098,6 +1287,9 @@ int main(int argc, char** argv)
         TestStartPastTheIndices();
         TestWholeIterationsPastTheIndices();
         TestBothWaysPastTheDoubles();
+        TestPositionRoundedOntoAStart();
+        TestExactGrid();
+        TestExactRandom(argc == 1 ? 20000 : 4000);
         TestEndHeldBackwards();
         TestTimes();
         TestPassedLevels(argc == 1 ? 2000 : 400);

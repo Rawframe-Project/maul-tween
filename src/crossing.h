@@ -65,13 +65,14 @@ typedef struct mtwnLevel
     // clip's node keeps it).
     double activeDuration;
     bool activeKnown;
-    // Its iterations' shape, with the four below, kept for the counts.
+    // Its iterations' shape, with the four below, kept for the counts:
+    // the first iteration, and the last as an offset from it.
     bool forwardRate;
     bool point;
     bool unbounded;
     double firstIteration;
     double firstProgress;
-    double lastIteration;
+    double lastOffset;
     double lastProgress;
     // The coverage of the traversal's first iteration, of full forward
     // and reversed ones, and of the last, relative to the local time.
@@ -84,6 +85,17 @@ typedef struct mtwnLevel
     // Below at the single point a zero-length level has.
     mtwnCrossings pointBelow;
 } mtwnLevel;
+
+// Whether a timing has iteration starts after its first: its last
+// iteration, as the counts take it, past the first.
+MTWN_NODISCARD bool mtwnStartsAfterFirst(const mtwnTiming* timing);
+
+// The iteration, an offset from the first, and the child time a local
+// time reaches of a timing with finite iterations of positive, finite
+// duration and an active duration, as the counts take them, bit for bit:
+// false where it reaches none or all of its path.
+MTWN_NODISCARD bool mtwnCountPosition(const mtwnTiming* timing, double active, double local,
+                                      double* iterationOut, double* childOut);
 
 // Prepares the levels, outermost first, for counting the leaf: each keeps
 // counts of the levels below it.
