@@ -194,13 +194,12 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
 
 // What a local time reaches at an iteration's start: going forwards the
 // previous end shares the time without a delay; going backwards it is
-// reached as the start is left, whatever lies between. Past 2^54
-// iterations an index less 1 rounds back to itself, and the end before a
-// start cannot be told from it, as the timing model cannot: the start is
-// what is reached.
+// reached as the start is left, whatever lies between. Past 2^53 an index
+// less 1 is no double, and the end before a start cannot be told from it,
+// as the timing model cannot: the start is what is reached.
 static Reach AtStart(const mtwnTiming* timing, const Shape* shape, double j, bool strict)
 {
-    if (j - 1.0 == j)
+    if (j > 0x1p53)
     {
         return Part(j, 0.0, !strict);
     }
@@ -290,17 +289,20 @@ MTWN_NOINLINE static mtwnCrossings Less(mtwnCrossings later, mtwnCrossings earli
 }
 
 // The iterations strictly between two that run forwards, and those that
-// run backwards. Up to an endless node's last, past the doubles, there are
-// infinitely many of each parity, where all less even would be infinity
-// less infinity.
+// run backwards, from the indices' difference d, exact below 2^53: d - 1,
+// the even ones by the lower's parity. Up to an endless node's last, past
+// the doubles, infinitely many of each parity.
 static void Between(const mtwnTiming* timing, double a, double b, double* forwardsOut,
                     double* backwardsOut)
 {
-    double lo = (a < b ? a : b) + 1.0;
-    double hi = (a < b ? b : a) - 1.0;
-    double all = hi >= lo ? hi - lo + 1.0 : 0.0;
-    double even = hi >= lo ? floor(hi / 2.0) - ceil(lo / 2.0) + 1.0 : 0.0;
-    double odd = isinf(all) ? all : all - even;
+    double lo = a < b ? a : b;
+    double hi = a < b ? b : a;
+    double d = hi > lo ? hi - lo : 1.0;
+    double all = d - 1.0;
+    // From an even index the first between is odd: halving is exact.
+    bool fromEven = floor(lo * 0.5) * 2.0 == lo;
+    double even = isinf(d) ? d : floor((fromEven ? all : d) * 0.5);
+    double odd = isinf(d) ? d : all - even;
     switch (timing->direction)
     {
     case mtwn_directionNormal:
