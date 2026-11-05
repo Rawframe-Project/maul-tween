@@ -352,15 +352,13 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
                           : result.transformedProgress * timing.duration;
         // In its active interval, the count's own iteration (an offset
         // from the first) and child time, which round at the time's
-        // magnitude, not the iteration start's as the timing model's do.
-        // The offset is kept below 0, so it never matches an end outside,
-        // where the timing model's iteration (0 or more) stays: such a
-        // node is not taken as steady.
+        // magnitude, not the iteration start's as the timing model's do:
+        // the model's where they are the same (mtwnModelPositions). The
+        // offset is kept below 0, so it never matches an end outside,
+        // where the model's iteration (0 or more) stays, as it does where
+        // the count has none: such a node is not taken as steady.
         double offset = 0.0;
         double child = 0.0;
-        // Where the timing model's position is the count's
-        // (mtwnModelPositions), it is taken as it is; where the count has
-        // none, the model's iteration stays.
         if (n->modelPositions && result.phase == mtwn_phaseActive &&
             result.activeTime < n->activeDuration)
         {
