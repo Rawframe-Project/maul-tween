@@ -822,6 +822,85 @@ static void TestPassedLevels(int trials)
           "not passed over a level with something before its start");
 }
 
+// A time just after the start whose cycle comes out a double below the
+// start's fraction: the timing model holds it at the start, so the child
+// has not moved and a mark at its start, or just below, is not crossed
+// coming back.
+static void TestStartFractionRoundedBelow(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(1.45, HUGE_VAL);
+    level[0].timing.iterationStart = 1.75;
+    level[0].timing.repeatDelay = 0.15625;
+    level[0].timing.playbackRate = 2.0;
+    double t = 1e-300;
+    mtwnTimingResult r = ComputeTiming(&level[0].timing, t, false);
+    double start = 0.75 * 1.45;
+    CHECK(r.iteration == 1.0 && r.transformedProgress == 0.75 &&
+              ComputeTiming(&level[0].timing, 0.0, false).transformedProgress == 0.75,
+          "the timing holds it at the start");
+    mtwnLeaf at = Instant(start);
+    mtwnPrepareLevels(level, 1, &at);
+    mtwnCrossings back = mtwnCountCrossings(level, 1, &at, t, 0.0, false);
+    CHECK(back.same == 0.0 && back.opposite == 0.0, "a mark at the start not crossed coming back");
+    mtwnLeaf below = Instant(nextafter(start, 0.0));
+    mtwnPrepareLevels(level, 1, &below);
+    CHECK(Total(mtwnCountCrossings(level, 1, &below, -1.0, t, false)) == 0.0 &&
+              Total(mtwnCountCrossings(level, 1, &below, t, 0.0, true)) == 0.0,
+          "nor one just below it, either way");
+}
+
+// A start past 2^53 holds every time of the first iteration at its start,
+// as the timing model does (2^53 + 1 rounds to 2^53): a mark inside it is
+// never crossed, swept on its own or as a parent's child, either way.
+static void TestStartPastTheIntegers(void)
+{
+    mtwnTiming held = Timing(1.0, 3.0);
+    held.iterationStart = 0x1p53;
+    double at[3] = {0.25, 0.75, 1.0};
+    bool start = true;
+    for (int i = 0; i < 3; ++i)
+    {
+        mtwnTimingResult r = ComputeTiming(&held, at[i], false);
+        start = start && r.transformedProgress == 0.0 && r.iteration == 0x1p53;
+    }
+    CHECK(start, "the timing holds the first iteration at its start");
+    mtwnLeaf mid = Instant(0.5);
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = held;
+    mtwnPrepareLevels(level, 1, &mid);
+    CHECK(Total(mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, true)) == 0.0 &&
+              Total(mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, false)) == 0.0,
+          "a mark inside it never crossed");
+    mtwnLevel levels[2];
+    memset(levels, 0, sizeof levels);
+    levels[0].timing = Timing(1.0, 2.0);
+    levels[1].timing = held;
+    mtwnPrepareLevels(levels, 2, &mid);
+    CHECK(Total(mtwnCountCrossings(levels, 2, &mid, -1.0, 3.0, true)) == 0.0 &&
+              Total(mtwnCountCrossings(levels, 2, &mid, 0.5, 1.5, false)) == 0.0,
+          "nor as a child, across its parent's iterations");
+    CHECK(Total(mtwnCountCrossings(levels, 2, &mid, 0.25, -1.0, false)) == 0.0 &&
+              Total(mtwnCountCrossings(levels, 2, &mid, 1.5, 0.25, false)) == 0.0,
+          "nor swept back, which reaches the earlier end strictly");
+}
+
+// An endless child restarts at each of its parent's iterations: a mark at
+// the child's start is reached at each, every one counted.
+static void TestEndlessChildAtItsStart(void)
+{
+    mtwnLevel levels[2];
+    memset(levels, 0, sizeof levels);
+    levels[0].timing = Timing(1.0, 3.0);
+    levels[1].timing = Timing(HUGE_VAL, 1.0);
+    mtwnLeaf start = Instant(0.0);
+    mtwnCrossings all = Count(levels, 2, &start, -1.0, 3.0);
+    CHECK(all.same == 3.0 && all.opposite == 0.0, "reached at each of the parent's iterations");
+    CHECK(Total(Count(levels, 2, &start, 0.5, 2.5)) == 2.0, "the two a sweep inside them reaches");
+}
+
 // No argument: every test. "exact": all but the oracle's trials, with
 // the passed levels' fewer trials; "passed": the passed levels' every
 // trial; "oracle K N": slice K of N of the oracle's, so ctest runs the
@@ -888,6 +967,9 @@ int main(int argc, char** argv)
         TestDelaysAndRates();
         TestIterations();
         TestStartBelowItsQuotient();
+        TestStartFractionRoundedBelow();
+        TestStartPastTheIntegers();
+        TestEndlessChildAtItsStart();
         TestCyclesPastTheDoubles();
         TestCountNeverFalls();
         TestExactEdges();
