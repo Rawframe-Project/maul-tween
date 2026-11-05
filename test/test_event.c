@@ -260,6 +260,100 @@ static void TestIterationLeftBackwards(void)
     }
 }
 
+// A track of iterations of d seconds from iteration start s, alone or in
+// a timeline alternating parentIterations of parentSeconds, swept from a
+// to b once paused: its iteration records then, each way.
+static uint32_t IterationsSwept(double parentSeconds, double parentIterations, double d, double n,
+                                double s, double a, double b, mtwnEvent* out, uint32_t capacity)
+{
+    World w = MakeWorld(32);
+    mtwnNode parent = 0;
+    if (parentSeconds > 0.0)
+    {
+        mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+        group.autoDuration = false;
+        group.timing.duration = parentSeconds;
+        group.timing.iterations = parentIterations;
+        group.timing.direction = mtwn_directionAlternate;
+        group.timing.fill = mtwn_fillBoth;
+        CHECK(mtwnClip_AddTimeline(w.context, w.clip, &group, &parent) == mtwn_success, "a parent");
+    }
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.parent = parent != 0 ? parent : track.parent;
+    track.timing.duration = d;
+    track.timing.iterations = n;
+    track.timing.iterationStart = s;
+    track.timing.fill = mtwn_fillBoth;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(w.context, w.clip, &track, &node) == mtwn_success, "a track");
+    CHECK(mtwnClip_Seal(w.context, w.clip) == mtwn_success, "sealed");
+    mtwnPlayerId p = Play(&w, true, 1.0);
+    CHECK(mtwnClipPlayer_Pause(w.context, p) == mtwn_success, "paused");
+    mtwnEvent e[32];
+    Update(&w, 0.0);
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, a) == mtwn_success, "swept to the start");
+    (void)Read(&w, e, 32);
+    CHECK(mtwnClipPlayer_Sweep(w.context, p, b) == mtwn_success, "swept");
+    uint32_t n32 = Read(&w, e, 32);
+    uint32_t kept = 0;
+    for (uint32_t i = 0; i < n32 && kept < capacity; ++i)
+    {
+        if (e[i].kind == mtwn_eventIteration && e[i].node == node)
+        {
+            out[kept++] = e[i];
+        }
+    }
+    mtwnDestroyContext(w.context);
+    return kept;
+}
+
+// An iteration record names the iteration entered going forwards and the
+// one left going backwards, however its boundary falls on the doubles. A
+// first crossing's time is the double past it, toward the sweep's end, a
+// last's the double before it: where the boundary is no double the
+// timing there reports the iteration after the crossing at the first, the
+// one before at the last.
+static void TestIterationNamedBetweenDoubles(void)
+{
+    mtwnEvent e[8];
+    // Boundaries that are doubles: 0.5 s iterations from half way start
+    // the second at 0.25 s.
+    uint32_t n = IterationsSwept(0.0, 0.0, 0.5, 3.0, 0.5, 0.45, 0.1, e, 8);
+    CHECK(n == 1 && e[0].backwards && e[0].firstIteration == 1.0 && e[0].lastIteration == 1.0,
+          "at a boundary a double holds, the one left");
+    // 0.1 s iterations from 0 start their fourth at 3 * 0.1 =
+    // 0.30000000000000001665 s, no double. Back over it, the one left.
+    n = IterationsSwept(0.0, 0.0, 0.1, 5.0, 0.0, 0.38, 0.25, e, 8);
+    CHECK(n == 1 && e[0].backwards && e[0].count == 1 && e[0].firstIteration == 3.0 &&
+              e[0].lastIteration == 3.0,
+          "back over a boundary no double holds, the one left");
+    // Forwards over the starts at 0.1, 0.2 and 0.30000000000000001665, the
+    // last of them the one entered.
+    n = IterationsSwept(0.0, 0.0, 0.1, 5.0, 0.0, 0.05, 0.38, e, 8);
+    CHECK(n == 1 && !e[0].backwards && e[0].count == 3 && e[0].firstIteration == 1.0 &&
+              e[0].lastIteration == 3.0,
+          "forwards over a boundary no double holds, the one entered last");
+    // In a parent's reversed iteration the track runs back as the clip
+    // runs on: from 1.25 s to 1.35 s it goes from 0.75 s to 0.65 s, back
+    // over the start of iteration 7, which no double holds.
+    n = IterationsSwept(1.0, 2.0, 0.1, 10.0, 0.0, 1.25, 1.35, e, 8);
+    CHECK(n == 1 && e[0].backwards && e[0].firstIteration == 7.0 && e[0].lastIteration == 7.0,
+          "back under a reversed parent, the one left");
+    // Where the parent turns back, at 1.5 s, the track touches the start
+    // of iteration 3 (3 * 0.5 s) and leaves it again: both records there,
+    // each naming 3, the one entered and the one left.
+    n = IterationsSwept(1.5, 2.0, 0.5, 4.0, 0.0, 1.9, 1.1, e, 8);
+    CHECK(n == 2 && e[0].clipTime == 1.5 && e[1].clipTime == 1.5 && e[0].firstIteration == 3.0 &&
+              e[1].firstIteration == 3.0 && e[0].backwards != e[1].backwards,
+          "where a parent turns back at a start, that start's iteration both ways");
+}
+
 static void TestSeeks(void)
 {
     World w = MakeWorld(16);
@@ -2249,6 +2343,7 @@ int main(void)
     TestStall();
     TestBackwards();
     TestIterationLeftBackwards();
+    TestIterationNamedBetweenDoubles();
     TestSeeks();
     TestRewindAndRates();
     TestRateZeroFirst();

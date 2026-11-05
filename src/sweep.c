@@ -98,6 +98,50 @@ static double IterationOf(const mtwnLevel* levels, uint32_t count, double known,
     return isnan(known) ? mtwnIterationAt(levels, count, t) : known;
 }
 
+// The time an iteration record's iteration is looked up at. A first
+// crossing's time is the double past it toward the sweep's end, where the
+// timing reports the iteration entered; a last crossing's the double
+// before it, toward the sweep's start, where it reports the one before.
+// Forwards a record names the iteration entered, backwards the one left:
+// where the crossing falls between two doubles, a forward record's last
+// and a backward record's first are looked up a double on, past the
+// crossing. Where the crossing is that double itself (a boundary that is
+// a double, or one a parent turns back at), the timing reports there what
+// either names.
+MTWN_NOINLINE static double IterationTimeOf(const Sweep* sweep, const mtwnLevel* levels,
+                                            uint32_t count, const mtwnLeaf* leaf, Kinds kinds,
+                                            int way, double t, bool last)
+{
+    if (kinds.forwards != mtwn_eventIteration || (way == 0) != last)
+    {
+        return t;
+    }
+    mtwnCrossings at = mtwnCountCrossings(levels, count, leaf, t, t, true);
+    if (at.same + at.opposite >= 1.0)
+    {
+        return t;
+    }
+    return nextafter(t, way == 0 ? sweep->to : sweep->from);
+}
+
+// A record's iterations at its first and last crossing: one crossing's
+// is looked up once, its last being its first, found from the first's
+// side.
+static void NameIterations(const Sweep* sweep, const mtwnLevel* counted, uint32_t below,
+                           const mtwnLeaf* leaf, Kinds kinds, int way, double first, double last,
+                           uint32_t iterationLevels, double iteration, mtwnEvent* event)
+{
+    const mtwnLevel* levels = sweep->work->levels;
+    double firstAt = IterationTimeOf(sweep, counted, below, leaf, kinds, way, first, false);
+    double lastAt = last == first
+                        ? firstAt
+                        : IterationTimeOf(sweep, counted, below, leaf, kinds, way, last, true);
+    event->firstIteration = IterationOf(levels, iterationLevels, iteration, firstAt);
+    event->lastIteration = lastAt == firstAt
+                               ? event->firstIteration
+                               : IterationOf(levels, iterationLevels, iteration, lastAt);
+}
+
 // A record's crossings one way, which are never NaN: what a later time
 // reaches includes what an earlier one does (src/crossing.c). Were they
 // NaN, they would make no record, as converting them to the record's
@@ -158,10 +202,8 @@ static void Record(Sweep* sweep, uint32_t count, uint32_t iterationLevels, const
         mtwnEvent event = {0};
         event.hostTime = HostAt(sweep, first);
         event.clipTime = first;
-        // One crossing's iteration is looked up once.
-        event.firstIteration = IterationOf(levels, iterationLevels, iteration, first);
-        event.lastIteration = last == first ? event.firstIteration
-                                            : IterationOf(levels, iterationLevels, iteration, last);
+        NameIterations(sweep, counted, below, leaf, kinds, way, first, last, iterationLevels,
+                       iteration, &event);
         // Exact below 2^64, where a count converts; past it the most there is.
         event.count = n >= 0x1p64 ? UINT64_MAX : (uint64_t)n;
         event.player = mtwnPlayerIdAt(sweep->context, sweep->player);
