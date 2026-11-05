@@ -34,7 +34,7 @@ typedef struct ClipLayout
     uint64_t bytes;
 } ClipLayout;
 
-static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offsetOut)
+MTWN_NODISCARD static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offsetOut)
 {
     uint64_t bytes = 0;
     uint64_t start = 0;
@@ -48,7 +48,7 @@ static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offset
     return !ckd_add(end, start, bytes);
 }
 
-static bool PlanClip(const mtwnClipDef* def, ClipLayout* layout)
+MTWN_NODISCARD static bool PlanClip(const mtwnClipDef* def, ClipLayout* layout)
 {
     uint64_t end = 0;
     bool placed =
@@ -63,7 +63,7 @@ static bool PlanClip(const mtwnClipDef* def, ClipLayout* layout)
     return placed && end <= SIZE_MAX;
 }
 
-static bool IsCount(uint32_t count)
+MTWN_NODISCARD static bool IsCount(uint32_t count)
 {
     return count <= MTWN_MAX_COUNT;
 }
@@ -293,7 +293,8 @@ static double StartOf(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition po
 
 // Whether a position names a finite start: after an endless child (whose
 // timeline is endless too) there is none.
-static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent, mtwnPosition position)
+MTWN_NODISCARD static bool IsPosition(const mtwnClipSlot* clip, uint32_t parent,
+                                      mtwnPosition position)
 {
     return (uint32_t)position.kind <= mtwn_positionAtLabel && isfinite(position.offset) &&
            (position.kind != mtwn_positionAtLabel ||
@@ -355,7 +356,7 @@ static mtwnResult Raise(mtwnClipSlot* clip, uint32_t parent, double end, bool wr
 }
 
 // Whether there is room for one more node.
-static bool HasRoom(const mtwnClipSlot* clip)
+MTWN_NODISCARD static bool HasRoom(const mtwnClipSlot* clip)
 {
     return clip->nodeCount <= clip->def.nodeCapacity;
 }
@@ -826,7 +827,7 @@ mtwnResult mtwnClip_AddMark(mtwnContext* context, mtwnClipId clip, mtwnNode pare
 // Whether two timings give the same results for the same inputs: every
 // field the same, doubles as bits, linear() points by their values. A host easing is never the
 // same, as nothing says calling it fewer times is allowed.
-static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
+MTWN_NODISCARD static bool SameTiming(const mtwnTiming* a, const mtwnTiming* b)
 {
     const mtwnEasing* e = &a->easing;
     const mtwnEasing* f = &b->easing;

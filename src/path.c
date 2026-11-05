@@ -31,7 +31,7 @@
 
 // The smallest knot gap, as a share of the segment's largest.
 static const double s_smallestGap = 1e-12;
-static bool IsFinite4(mtwnVec4 v, uint8_t channels)
+MTWN_NODISCARD static bool IsFinite4(mtwnVec4 v, uint8_t channels)
 {
     const float* c = &v.x;
     for (uint8_t i = 0; i < channels; ++i)
@@ -169,7 +169,7 @@ static double Steffen(double a, double b, double ha, double hb)
 
 // Whether a keyframe's neighbor on one side leaves a width to measure a
 // secant over: not past the ends, and not a jump.
-static bool Measured(double width)
+MTWN_NODISCARD static bool Measured(double width)
 {
     return width > 0x1p-52;
 }
@@ -313,8 +313,8 @@ static void Evaluate(const mtwnCubic* cubic, const double end[4], double u, uint
     }
 }
 
-static bool IsValid(const mtwnKeyframe* keyframes, uint32_t count, uint8_t channels, double alpha,
-                    bool constantSpeed)
+MTWN_NODISCARD static bool IsValid(const mtwnKeyframe* keyframes, uint32_t count, uint8_t channels,
+                                   double alpha, bool constantSpeed)
 {
     if (keyframes == NULL || count < 2 || channels < 1 || channels > 4 || !isfinite(alpha) ||
         alpha < 0.0 || alpha > 1.0 || keyframes[0].offset != 0.0 ||
@@ -495,7 +495,7 @@ MTWN_NOINLINE bool mtwnValidPath(const mtwnPath* path)
 // Whether a sample may read segment i: its kind known and, timed by its
 // keyframes, its easing a maker's; at constant speed not a step, which has
 // no length to travel.
-static bool Reads(const mtwnPath* path, uint32_t i)
+MTWN_NODISCARD static bool Reads(const mtwnPath* path, uint32_t i)
 {
     const mtwnKeyframe* k = &path->keyframes[i];
     if (path->lengths != NULL)
@@ -584,14 +584,15 @@ static const uint8_t s_kindChannels[] = {1, 2, 3, 4, 4, 1, 4, 1, 1, 1};
 
 // Whether a kind's track is its path's numbers: a scale's are their
 // logarithms, which constant speed takes as well.
-static bool IsNumberKind(mtwnValueKind kind)
+MTWN_NODISCARD static bool IsNumberKind(mtwnValueKind kind)
 {
     return kind != mtwn_valueColor && kind != mtwn_valueRotation && kind != mtwn_valueDiscrete &&
            kind != mtwn_valueScale;
 }
 
 // Whether the track's kind takes every segment its keyframes start.
-static bool TakesSegments(mtwnValueKind kind, const mtwnKeyframe* keyframes, uint32_t count)
+MTWN_NODISCARD static bool TakesSegments(mtwnValueKind kind, const mtwnKeyframe* keyframes,
+                                         uint32_t count)
 {
     if (kind != mtwn_valueColor && kind != mtwn_valueDiscrete)
     {
@@ -607,13 +608,13 @@ static bool TakesSegments(mtwnValueKind kind, const mtwnKeyframe* keyframes, uin
     return true;
 }
 
-static bool IsZero4(mtwnVec4 v)
+MTWN_NODISCARD static bool IsZero4(mtwnVec4 v)
 {
     return v.x == 0.0f && v.y == 0.0f && v.z == 0.0f && v.w == 0.0f;
 }
 
-static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes, uint32_t count,
-                       bool lengths, const mtwnSegmentMix* mixes)
+MTWN_NODISCARD static bool CheckTrack(const mtwnTrackDef* def, const mtwnKeyframe* keyframes,
+                                      uint32_t count, bool lengths, const mtwnSegmentMix* mixes)
 {
     // Every choice known, whatever the kind reads: no correct program
     // passes an unknown one, which would change meaning the day a kind
@@ -903,7 +904,7 @@ static mtwnVec4 TrackIn(const mtwnTrack* track, uint32_t i, double progress, boo
     return Normalized(value, k[i].value);
 }
 
-static bool MixReads(const mtwnTrack* track, uint32_t i);
+MTWN_NODISCARD static bool MixReads(const mtwnTrack* track, uint32_t i);
 
 // A clip's own track (src/clip_sample.c), made from the keyframes it
 // copied: every segment reads, whatever the progress.
@@ -932,7 +933,7 @@ MTWN_NOINLINE bool mtwnValidTrack(const mtwnTrack* track)
 // Whether a track's sample in segment i may read its mix there, which is
 // the host's as its keyframes are: a color's unless the segment steps, a
 // rotation's where it is linear.
-static bool MixReads(const mtwnTrack* track, uint32_t i)
+MTWN_NODISCARD static bool MixReads(const mtwnTrack* track, uint32_t i)
 {
     mtwnSegmentKind kind = track->path.keyframes[i].kind;
     if (track->kind == mtwn_valueColor)

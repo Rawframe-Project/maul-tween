@@ -99,7 +99,8 @@ static int WorstProbe(const mtwnEasing* easing, Point a, Point b, double toleran
 // The point a segment splits at, its worst probe held within the middle
 // probes; false when the curve is not finite there, as a host function's
 // infinity, and no linear() holds the point.
-static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe, Point* split)
+MTWN_NODISCARD static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe,
+                                   Point* split)
 {
     probe = probe < s_firstSplit ? s_firstSplit : (probe > s_lastSplit ? s_lastSplit : probe);
     split->x = start.x + (next.x - start.x) * ((double)probe / (double)(s_probes + 1));
@@ -113,7 +114,7 @@ static bool SplitAt(const mtwnEasing* easing, Point start, Point next, int probe
 // Whether the segment to next lies past start and, when wide enough to
 // split, less than s_stackDepth deep: it is at most 102 deep, so the
 // stack's own bound never stops a split. Only an assertion calls it.
-[[maybe_unused]] static inline bool PendingWithin(Point start, Point next, int depth)
+MTWN_NODISCARD [[maybe_unused]] static inline bool PendingWithin(Point start, Point next, int depth)
 {
     return next.x > start.x && (next.x - start.x < s_narrowest || depth < s_stackDepth);
 }

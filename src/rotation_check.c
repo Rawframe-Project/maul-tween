@@ -27,7 +27,7 @@ static const double s_halfTurn = 2.0 * MTWN_PIO2_HI;
 static const double s_unitTolerance = 12.0 * 0x1.0p-53;
 
 // An end of unit length to Normalize's rounding, stored as its floats.
-static MTWN_NOINLINE bool IsUnitEnd(const double end[4], mtwnQuat rotation)
+MTWN_NODISCARD static MTWN_NOINLINE bool IsUnitEnd(const double end[4], mtwnQuat rotation)
 {
     double squared = end[0] * end[0] + end[1] * end[1] + end[2] * end[2] + end[3] * end[3];
     return fabs(squared - 1.0) <= s_unitTolerance && rotation.x == (float)end[0] &&

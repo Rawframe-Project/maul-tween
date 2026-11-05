@@ -53,7 +53,7 @@ static MTWN_NOINLINE mtwnLinearPoint Point(const mtwnRoughDef* def, uint32_t k, 
 // Whether the shape gives every inner point a finite output, from the same
 // draws as the points, so a shape that does not is refused before any point
 // is written.
-static bool InnerPointsFinite(const mtwnRoughDef* def, uint32_t count)
+MTWN_NODISCARD static bool InnerPointsFinite(const mtwnRoughDef* def, uint32_t count)
 {
     uint64_t state = def->seed;
     for (uint32_t k = 0; k + 2 < count; ++k)

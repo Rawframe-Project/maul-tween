@@ -19,7 +19,7 @@ static inline const mtwnClipNode* mtwnClipNodeAt(const mtwnClipSlot* clip, uint3
     return &clip->nodes[index1 - 1];
 }
 
-static inline bool mtwnClipIsTimeline(const mtwnClipSlot* clip, uint32_t index1)
+MTWN_NODISCARD static inline bool mtwnClipIsTimeline(const mtwnClipSlot* clip, uint32_t index1)
 {
     return index1 >= 1 && index1 <= clip->nodeCount &&
            mtwnClipNodeAt(clip, index1)->kind == mtwn_nodeTimeline;

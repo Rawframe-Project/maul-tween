@@ -40,7 +40,7 @@ static inline double mtwnIntegerPower(double x, uint32_t n)
 }
 
 // Whether an easing is an integer power whose raw ends are 0 and 1.
-static inline bool mtwnIsNormalPower(const mtwnEasing* easing)
+MTWN_NODISCARD static inline bool mtwnIsNormalPower(const mtwnEasing* easing)
 {
     return easing->kind == mtwn_easingPower && easing->count > 0 &&
            easing->parameters[MTWN_EASING_START] == 0.0 &&

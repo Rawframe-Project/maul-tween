@@ -178,7 +178,7 @@ typedef struct mtwnPlayerSlot
 
 // Whether a kind moves along a path by its progress: colors, rotations and
 // scales.
-static inline bool mtwnIsPathKind(mtwnValueKind kind)
+MTWN_NODISCARD static inline bool mtwnIsPathKind(mtwnValueKind kind)
 {
     return kind == mtwn_valueColor || kind == mtwn_valueRotation || kind == mtwn_valueScale;
 }
@@ -371,7 +371,7 @@ struct mtwnContext
 
 // Whether two doubles are the same bits: a key's inputs, where -0 and +0
 // (and a rate's sign) differ and NaN is one value.
-static inline bool mtwnSameBits(double a, double b)
+MTWN_NODISCARD static inline bool mtwnSameBits(double a, double b)
 {
     uint64_t x = 0;
     uint64_t y = 0;
@@ -392,7 +392,7 @@ static inline void mtwnCountMisuse(const mtwnContext* context)
 // Marks a context busy for one of its functions: false, with one misuse
 // counted, when one is running already, the host's code it runs calling
 // back in. A NULL context passes, for the call to refuse.
-static inline bool mtwnEnter(mtwnContext* context)
+MTWN_NODISCARD static inline bool mtwnEnter(mtwnContext* context)
 {
     if (context == NULL)
     {
@@ -422,7 +422,7 @@ static inline void mtwnLeave(mtwnContext* context)
 // which could run the same code again, into itself. It takes the context
 // const, as the misuse count does: the flag too is a part every call may
 // write, and a context is never an object defined const.
-static inline bool mtwnEnterReading(const mtwnContext* context)
+MTWN_NODISCARD static inline bool mtwnEnterReading(const mtwnContext* context)
 {
     return mtwnEnter((mtwnContext*)context);
 }
@@ -437,7 +437,7 @@ static inline bool mtwnEnterReading(const mtwnContext* context)
 // reads before the clear. A group the host runs inline on the calling
 // thread, within enqueueTask, finds it set too. True when refused, with
 // one misuse counted.
-static inline bool mtwnRefuseInGroups(const mtwnContext* context)
+MTWN_NODISCARD static inline bool mtwnRefuseInGroups(const mtwnContext* context)
 {
     if (context == NULL || !context->grouping)
     {
@@ -503,7 +503,7 @@ static inline void mtwnMarkChanged(mtwnContext* context, uint32_t index1)
 
 // The value with the kind's channels kept and the others 0, or false when
 // the kind refuses it: a channel not finite, or a rotation all zero.
-bool mtwnAcceptValue(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out);
+MTWN_NODISCARD bool mtwnAcceptValue(mtwnValueKind kind, mtwnVec4 value, mtwnVec4* out);
 
 // Takes a player slot, put last in creation order; 0 when the pool is
 // full.
@@ -757,8 +757,8 @@ void mtwnApplyTrack(mtwnContext* context, const mtwnTrackOut* out, mtwnWork* gro
 // Advances a clip's player from the last update's host time to this one's
 // in a work, what it crossed recorded and it sampled: true when it has
 // finished and is not kept, to be freed (src/player.c).
-bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player, double before,
-                           double now);
+MTWN_NODISCARD bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player,
+                                          double before, double now);
 
 // The node times a work samples and sweeps a clip in: a group's own, but
 // a clip's own when the clip has one player, which no other group can
@@ -773,7 +773,7 @@ static inline mtwnNodeTime* mtwnTimesFor(const mtwnWork* work, mtwnClipSlot* cli
 // Whether a target's writers need an order among them: two clips'
 // players' bindings or more, or one beside a transition. One binding alone
 // is composed in its player's group.
-static inline bool mtwnLayered(const mtwnTargetSlot* slot)
+MTWN_NODISCARD static inline bool mtwnLayered(const mtwnTargetSlot* slot)
 {
     return slot->clipWriters >= 2u || (slot->clipWriters == 1u && slot->header.link != 0);
 }
@@ -817,7 +817,8 @@ void mtwnRunClipGroups(mtwnContext* context, double before, double now);
 // The serial pass's part for the next clip's player the phase staged: its
 // records queued and its results applied, or, left to this pass, advanced
 // here; true when it has finished and is not kept.
-bool mtwnApplyStaged(mtwnContext* context, uint32_t player, double before, double now);
+MTWN_NODISCARD bool mtwnApplyStaged(mtwnContext* context, uint32_t player, double before,
+                                    double now);
 
 // After the serial pass: the records the groups dropped counted.
 void mtwnEndClipGroups(mtwnContext* context);

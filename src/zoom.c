@@ -82,7 +82,7 @@ static MTWN_NOINLINE double FarShare(double along, double r0)
     return along < 0.0 ? -share : share;
 }
 
-static bool IsView(mtwnZoomView v)
+MTWN_NODISCARD static bool IsView(mtwnZoomView v)
 {
     return isfinite(v.x) && isfinite(v.y) && isfinite(v.width) && v.width > 0.0;
 }

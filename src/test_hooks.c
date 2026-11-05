@@ -94,7 +94,7 @@ static void CountPlayers(const mtwnClipId* clips, uint32_t clipCount, const mtwn
     }
 }
 
-static bool AnyAlone(const mtwnContext* context, const mtwnStaged* staged)
+MTWN_NODISCARD static bool AnyAlone(const mtwnContext* context, const mtwnStaged* staged)
 {
     // A player that finished was freed in the update: not read.
     if (staged->done)

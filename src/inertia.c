@@ -81,8 +81,8 @@ typedef struct Handoff
     double velocity;
 } Handoff;
 
-static MTWN_NOINLINE bool HandoffOf(const mtwnBoundedDecay* bounded, double position,
-                                    double velocity, Handoff* out)
+MTWN_NODISCARD static MTWN_NOINLINE bool HandoffOf(const mtwnBoundedDecay* bounded, double position,
+                                                   double velocity, Handoff* out)
 {
     if (position < bounded->lower || position > bounded->upper)
     {

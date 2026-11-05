@@ -31,12 +31,12 @@ static mtwnQuat ToQuat(mtwnVec4 value)
     return (mtwnQuat){value.x, value.y, value.z, value.w};
 }
 
-static bool IsTime(double seconds)
+MTWN_NODISCARD static bool IsTime(double seconds)
 {
     return isfinite(seconds) && seconds >= 0.0;
 }
 
-static bool IsTolerance(double value)
+MTWN_NODISCARD static bool IsTolerance(double value)
 {
     return isfinite(value) && value > 0.0;
 }
@@ -46,14 +46,14 @@ static bool IsTolerance(double value)
 // Every choice known, whatever the target's kind reads: an unknown one is
 // an argument no correct program passes, and taking it would let it mean
 // something else the day a kind reads its field.
-static bool KnownChoices(const mtwnTransitionDef* def)
+MTWN_NODISCARD static bool KnownChoices(const mtwnTransitionDef* def)
 {
     return (uint32_t)def->colorSpace <= mtwn_colorSrgb &&
            (uint32_t)def->hueMethod <= mtwn_hueDecreasing && mtwnIsAngleMethod(def->angleMethod) &&
            (uint32_t)def->rotationPath <= mtwn_rotationLongest;
 }
 
-static bool SuitsKind(const mtwnTransitionDef* def, mtwnValueKind kind)
+MTWN_NODISCARD static bool SuitsKind(const mtwnTransitionDef* def, mtwnValueKind kind)
 {
     if (!mtwnValidEasing(&def->easing))
     {
@@ -79,8 +79,8 @@ static bool SuitsKind(const mtwnTransitionDef* def, mtwnValueKind kind)
 // The start velocity per channel, or for a path, in progress: the channel
 // velocity projected on the end minus the start. inherited is the
 // target's.
-static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* target,
-                          mtwnVec4 inherited, mtwnPlayerSlot* out)
+MTWN_NODISCARD static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* target,
+                                         mtwnVec4 inherited, mtwnPlayerSlot* out)
 {
     bool given = def->velocitySource == mtwn_velocityGiven;
     const float* v = given ? &def->velocity.x : &inherited.x;
@@ -126,7 +126,7 @@ static bool StartVelocity(const mtwnTransitionDef* def, const mtwnTargetSlot* ta
 
 // Whether two accepted values are equal, as CSS compares computed
 // values: channel by channel, so 0 and -0 are; NaN was refused.
-static bool Same(mtwnVec4 a, mtwnVec4 b)
+MTWN_NODISCARD static bool Same(mtwnVec4 a, mtwnVec4 b)
 {
     return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
@@ -211,7 +211,8 @@ static void EndOf(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
 
 // A landing's channel: its rate from its start velocity to its value;
 // false when the velocity does not move it there.
-static MTWN_NOINLINE bool Land(const mtwnTransitionDef* def, mtwnPlayerSlot* out, uint8_t i)
+MTWN_NODISCARD static MTWN_NOINLINE bool Land(const mtwnTransitionDef* def, mtwnPlayerSlot* out,
+                                              uint8_t i)
 {
     double start = Line(out->kind, (&out->from.x)[i]);
     double goal = Line(out->kind, (&out->to.x)[i]);
@@ -223,7 +224,8 @@ static MTWN_NOINLINE bool Land(const mtwnTransitionDef* def, mtwnPlayerSlot* out
 
 // A bounded decay's channel: whether it starts past a bound or reaches
 // one, that bound its end; false for bounds refused.
-static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* out, uint8_t i)
+MTWN_NODISCARD static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* out,
+                                               uint8_t i)
 {
     float lower = (&def->lower.x)[i];
     float upper = (&def->upper.x)[i];
@@ -255,7 +257,7 @@ static MTWN_NOINLINE bool Bound(const mtwnTransitionDef* def, mtwnPlayerSlot* ou
 // channel and its value as the end; the channels a bounded decay hands
 // over to its bounce, their bound as the end. False when the def's
 // landing or bounds are refused.
-static bool Coast(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
+MTWN_NODISCARD static bool Coast(const mtwnTransitionDef* def, mtwnPlayerSlot* out)
 {
     uint8_t channels = mtwnKindChannels(out->kind);
     out->lands = def->lands;

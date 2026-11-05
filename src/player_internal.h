@@ -22,7 +22,7 @@ static inline mtwnPlayerSlot* mtwnFindPlayer(const mtwnContext* context, mtwnPla
 // player may free itself at an end the update decides, so such an id
 // outlives it by design and is not misuse; one never handed out (the null
 // id among them) is the program's.
-static inline bool mtwnPlayerIssued(const mtwnContext* context, mtwnPlayerId player)
+MTWN_NODISCARD static inline bool mtwnPlayerIssued(const mtwnContext* context, mtwnPlayerId player)
 {
     return mtwnPoolIssued(&context->players, player.index1, player.generation);
 }
@@ -69,7 +69,7 @@ static inline void mtwnApplyPendingRate(mtwnClipPlay* play)
 
 // A rate whose size keeps the time to its limit's resolution and, if not
 // 0, every start time finite (MTWN_SEEK_LIMIT).
-static inline bool mtwnIsRate(double rate)
+MTWN_NODISCARD static inline bool mtwnIsRate(double rate)
 {
     return rate == 0.0 || (fabs(rate) >= MTWN_MIN_RATE && fabs(rate) <= MTWN_RATE_LIMIT);
 }
@@ -86,7 +86,7 @@ static inline mtwnResult mtwnCheckRate(double rate)
     return mtwnIsRate(rate) ? mtwn_success : mtwn_errorLimit;
 }
 
-static inline bool mtwnIsWeight(double weight)
+MTWN_NODISCARD static inline bool mtwnIsWeight(double weight)
 {
     return weight >= 0.0 && weight <= 1.0;
 }

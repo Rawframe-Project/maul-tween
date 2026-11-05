@@ -11,7 +11,7 @@
 
 #include <string.h>
 
-static bool IsKind(mtwnValueKind kind)
+MTWN_NODISCARD static bool IsKind(mtwnValueKind kind)
 {
     return (uint32_t)kind <= mtwn_valueScale;
 }
@@ -24,13 +24,13 @@ static uint32_t Bits(float value)
 }
 
 // Finite: the exponent's bits are not all ones.
-static bool IsFiniteBits(float value)
+MTWN_NODISCARD static bool IsFiniteBits(float value)
 {
     return (Bits(value) & 0x7F800000u) != 0x7F800000u;
 }
 
 // Zero of either sign.
-static bool IsZeroBits(float value)
+MTWN_NODISCARD static bool IsZeroBits(float value)
 {
     return (Bits(value) & 0x7FFFFFFFu) == 0;
 }

@@ -53,7 +53,7 @@ static const double s_expoRange = 0x1.ff8p-1;
 static const double s_largestAmplitude = 512.0;
 static const double s_largestAngular = 4.0 * MTWN_PIO2_HI * 0x1.0p10;
 
-static bool IsMode(mtwnEaseMode mode)
+MTWN_NODISCARD static bool IsMode(mtwnEaseMode mode)
 {
     return (uint32_t)mode <= mtwn_easeOutIn;
 }
@@ -147,12 +147,12 @@ static double RawCurve(const mtwnEasing* easing, double x)
     }
 }
 
-static bool IsNativeOut(mtwnEasingKind kind)
+MTWN_NODISCARD static bool IsNativeOut(mtwnEasingKind kind)
 {
     return kind == mtwn_easingElastic || kind == mtwn_easingBounce;
 }
 
-static bool IsCss(mtwnEasingKind kind)
+MTWN_NODISCARD static bool IsCss(mtwnEasingKind kind)
 {
     return kind == mtwn_easingCubicBezier || kind == mtwn_easingSteps ||
            kind == mtwn_easingLinearPoints;
@@ -232,7 +232,7 @@ static void Normalize(mtwnEasing* easing)
 }
 
 // Whether a curve's normalization is the one given.
-static bool IsNormalized(const mtwnEasing* easing, double start, double range)
+MTWN_NODISCARD static bool IsNormalized(const mtwnEasing* easing, double start, double range)
 {
     return easing->parameters[s_start] == start && easing->parameters[s_range] == range;
 }
@@ -241,7 +241,7 @@ static bool IsNormalized(const mtwnEasing* easing, double start, double range)
 // in radians, asin(1 / a) at most pi / 2, and its sine's angle are finite,
 // its raw curve within a of 1, and less its start over its range at most
 // 2056 in magnitude.
-static bool ValidElastic(const mtwnEasing* easing)
+MTWN_NODISCARD static bool ValidElastic(const mtwnEasing* easing)
 {
     const double* parameter = easing->parameters;
     double range = parameter[s_range];
@@ -253,7 +253,7 @@ static bool ValidElastic(const mtwnEasing* easing)
 
 // Whether a Penner kind's fields are its maker's: those it computes
 // exactly by their values, the elastic's by their ranges.
-static bool ValidPenner(const mtwnEasing* easing)
+MTWN_NODISCARD static bool ValidPenner(const mtwnEasing* easing)
 {
     double first = easing->parameters[0];
     switch (easing->kind)
@@ -558,7 +558,7 @@ mtwnResult mtwnSetEaseMode(mtwnEasing* easing, mtwnEaseMode mode)
 }
 
 // Whether an easing's curve, in mode in, never decreases.
-static bool InCurveMonotonic(const mtwnEasing* easing)
+MTWN_NODISCARD static bool InCurveMonotonic(const mtwnEasing* easing)
 {
     switch (easing->kind)
     {

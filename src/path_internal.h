@@ -24,6 +24,6 @@ void mtwnPathSegmentCubic(const mtwnPath* path, uint32_t i, mtwnCubic* cubic);
 // Whether a sample of a valid path at a progress reads what a maker gives:
 // the progress finite, and the segment it falls in of a known kind and,
 // timed by its keyframes, eased by a maker's easing.
-bool mtwnPathReadsValid(const mtwnPath* path, double progress);
+MTWN_NODISCARD bool mtwnPathReadsValid(const mtwnPath* path, double progress);
 
 #endif // MAUL_TWEEN_SRC_PATH_INTERNAL_H

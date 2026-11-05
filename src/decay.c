@@ -296,7 +296,7 @@ mtwnResult mtwnComputeDecayCrossingTime(const mtwnDecay* decay, double position,
 
 // Whether a rubber band takes a view's dimension and a coefficient: above
 // 0, an endless one too.
-static bool Bands(double dimension, double coefficient)
+MTWN_NODISCARD static bool Bands(double dimension, double coefficient)
 {
     return dimension > 0.0 && coefficient > 0.0;
 }

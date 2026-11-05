@@ -111,7 +111,7 @@ static double Crossed(double n)
 // Whether the records kept for a track have room for one more: a track
 // makes at most six, its start, iterations and end, each either way.
 // Only an assertion calls it.
-[[maybe_unused]] static inline bool RoomToReplay(const Sweep* sweep, mtwnNode node)
+MTWN_NODISCARD [[maybe_unused]] static inline bool RoomToReplay(const Sweep* sweep, mtwnNode node)
 {
     return sweep->replayNode != node || sweep->replayCount < 6;
 }
@@ -239,7 +239,7 @@ static const double s_missedMargin = 1e-6;
 // And a point the parent's time stood on at an open start of
 // the sweep, moving from there: the sweep before crossed it. False when
 // unsure, NaN included.
-static bool Missed(const mtwnNodeTime* parent, double from, double to)
+MTWN_NODISCARD static bool Missed(const mtwnNodeTime* parent, double from, double to)
 {
     if (!parent->sure)
     {
@@ -258,7 +258,7 @@ static bool Missed(const mtwnNodeTime* parent, double from, double to)
 
 // Whether a timing has iteration starts after its first: an integer
 // strictly inside (iterationStart, iterationStart + iterations).
-static bool Iterates(const mtwnTiming* timing)
+MTWN_NODISCARD static bool Iterates(const mtwnTiming* timing)
 {
     return floor(timing->iterationStart) + 1.0 < timing->iterationStart + timing->iterations;
 }
@@ -266,7 +266,7 @@ static bool Iterates(const mtwnTiming* timing)
 // Whether a child time lies clearly inside an iteration of a duration:
 // off 0 and the duration by more than the margin Missed leaves. False for
 // NaN.
-static bool Inside(double child, double duration)
+MTWN_NODISCARD static bool Inside(double child, double duration)
 {
     double margin = s_missedMargin * (1.0 + fabs(child));
     bool offStart = fabs(child) > margin;
@@ -275,7 +275,7 @@ static bool Inside(double child, double duration)
 }
 
 // Whether a lies within the margin Missed leaves of b.
-static bool Near(double a, double b)
+MTWN_NODISCARD static bool Near(double a, double b)
 {
     return fabs(a - b) <= s_missedMargin * (1.0 + fabs(b));
 }
@@ -342,8 +342,8 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
 // one way between two points of that iteration (the shortcut's own
 // argument, one level down). A timeline's times are worked out already; a
 // track's are worked out here.
-static bool Settled(const mtwnClipSlot* clip, const mtwnNodeTime* times, uint32_t node,
-                    const mtwnNodeTime* parent)
+MTWN_NODISCARD static bool Settled(const mtwnClipSlot* clip, const mtwnNodeTime* times,
+                                   uint32_t node, const mtwnNodeTime* parent)
 {
     if (!parent->sure)
     {
@@ -479,7 +479,8 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
 // its parent, a timeline, so the sweep has its parent's times when it
 // comes to it. A player's clip is sealed before it plays and kept while
 // it does: destroying it is refused as busy. Only an assertion calls it.
-[[maybe_unused]] static inline bool Playable(const mtwnClipSlot* clip, const mtwnClipPlay* play)
+MTWN_NODISCARD [[maybe_unused]] static inline bool Playable(const mtwnClipSlot* clip,
+                                                            const mtwnClipPlay* play)
 {
     if (clip->header.generation != play->clip.generation || !clip->sealed ||
         clip->nodes[0].parent != 0)
@@ -511,7 +512,7 @@ typedef struct SweepKey
     bool negative;
 } SweepKey;
 
-static bool SameSweep(const mtwnSharing* sharing, const SweepKey* key)
+MTWN_NODISCARD static bool SameSweep(const mtwnSharing* sharing, const SweepKey* key)
 {
     return sharing->sweepValid && sharing->sweepClip.index1 == key->clip.index1 &&
            sharing->sweepClip.generation == key->clip.generation &&
@@ -612,8 +613,8 @@ void mtwnSweepEvents(mtwnContext* context, mtwnWork* work, uint32_t player, doub
 
 // A sweep's key, the player's swept time and way left as they are: false
 // when its time did not move.
-static bool KeyOf(const mtwnClipPlay* play, double to, double rate, double hostFrom, double hostTo,
-                  SweepKey* key, int8_t* way)
+MTWN_NODISCARD static bool KeyOf(const mtwnClipPlay* play, double to, double rate, double hostFrom,
+                                 double hostTo, SweepKey* key, int8_t* way)
 {
     double from = play->swept;
     bool fromNone = isnan(from);

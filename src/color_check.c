@@ -22,7 +22,8 @@ static const double s_turn = 4.0 * MTWN_PIO2_HI;
 // A mix's end in its space: finite coordinates, premultiplied or not,
 // its alpha its color's, and an OkLCh hue within the two turns the
 // fix-ups reach from a hue of 0 to a turn.
-static MTWN_NOINLINE bool IsEnd(const double end[4], mtwnColor color, mtwnColorSpace space)
+MTWN_NODISCARD static MTWN_NOINLINE bool IsEnd(const double end[4], mtwnColor color,
+                                               mtwnColorSpace space)
 {
     return isfinite(end[0]) && isfinite(end[1]) && isfinite(end[2]) &&
            end[3] == (double)color.alpha &&

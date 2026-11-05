@@ -65,7 +65,8 @@ static uint32_t SlotOf(const mtwnContext* context, uint32_t i)
 // Whether a record comes before another: by time, then, for one player,
 // by its place along the sweep. Records are made in the players' creation
 // order, which the stable sort keeps among players.
-static bool Before(const mtwnEvent* a, double alongA, const mtwnEvent* b, double alongB)
+MTWN_NODISCARD static bool Before(const mtwnEvent* a, double alongA, const mtwnEvent* b,
+                                  double alongB)
 {
     if (a->hostTime != b->hostTime)
     {

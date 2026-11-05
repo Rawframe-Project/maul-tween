@@ -387,7 +387,7 @@ static double BoundTime(const Bound* bound)
 // Whether a product of nonzero factors fell below the normal doubles,
 // rounded by up to half the least subnormal or to 0. A sum of such
 // products at least the least normal double is still within an ulp.
-static bool Underflows(double factor, double other)
+MTWN_NODISCARD static bool Underflows(double factor, double other)
 {
     return fabs(factor * other) < DBL_MIN && factor != 0.0 && other != 0.0;
 }
@@ -395,7 +395,7 @@ static bool Underflows(double factor, double other)
 // Whether a bound's time rests on its value a + b t below the normal
 // doubles with b t rounded there: at its peak for a time of 0, else at the
 // time, or the cap past it.
-MTWN_NOINLINE static bool Lost(const Bound* bound, double time)
+MTWN_NODISCARD MTWN_NOINLINE static bool Lost(const Bound* bound, double time)
 {
     double t = time == 0.0 ? Peak(bound) : (time < bound->cap ? time : bound->cap);
     return Underflows(bound->b, t) && bound->a + bound->b * t < DBL_MIN;
@@ -483,9 +483,10 @@ MTWN_NOINLINE static double TimeOf(const Bound* bound, bool underflowed, bool* l
 // A start not yet scaled leaves NaN for a bound that overflowed or lost
 // digits to underflow; a scaled one gives infinity for a time still past
 // the doubles.
-MTWN_NOINLINE static bool SettleFrom(const mtwnSpring* spring, const Bound* bound, bool scaled,
-                                     double offset, double velocity, const double logs[2],
-                                     const double errors[2], double times[2])
+MTWN_NODISCARD MTWN_NOINLINE static bool SettleFrom(const mtwnSpring* spring, const Bound* bound,
+                                                    bool scaled, double offset, double velocity,
+                                                    const double logs[2], const double errors[2],
+                                                    double times[2])
 {
     double decay = spring->parameters[s_decay];
     double squared = spring->parameters[s_squared];
@@ -916,7 +917,7 @@ bool mtwnValidSpringEasing(const mtwnEasing* easing)
 
 // Whether two doubles have the same bits: a sign of zero or a NaN no
 // maker gives is refused with the rest.
-static bool SameBits(double a, double b)
+MTWN_NODISCARD static bool SameBits(double a, double b)
 {
     uint64_t x = 0;
     uint64_t y = 0;

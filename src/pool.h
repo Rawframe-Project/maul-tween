@@ -9,6 +9,8 @@
 #ifndef MAUL_TWEEN_SRC_POOL_H
 #define MAUL_TWEEN_SRC_POOL_H
 
+#include "maul-tween/base.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -48,13 +50,13 @@ mtwnSlotHeader* mtwnPoolFind(const mtwnPool* pool, uint32_t index1, uint32_t gen
 // Whether the pool ever handed an id out, alive now or not: never the null
 // id, an index past the highest slot used, generation 0 or one its slot
 // has not reached.
-bool mtwnPoolIssued(const mtwnPool* pool, uint32_t index1, uint32_t generation);
+MTWN_NODISCARD bool mtwnPoolIssued(const mtwnPool* pool, uint32_t index1, uint32_t generation);
 
 // Takes a slot, zeroed but for its advanced generation and marked alive;
 // returns its index1, or 0 when the pool is full.
 uint32_t mtwnPoolAcquire(mtwnPool* pool);
 // Whether mtwnPoolAcquire would take a slot, nothing changed.
-static inline bool mtwnPoolHasRoom(const mtwnPool* pool)
+MTWN_NODISCARD static inline bool mtwnPoolHasRoom(const mtwnPool* pool)
 {
     return pool->free != 0 || pool->high < pool->capacity;
 }

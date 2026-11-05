@@ -24,7 +24,7 @@
 // Whether a segment's cubic has no length to speak of: its derivatives
 // within its values' rounding (coincident keyframes; a Catmull-Rom's
 // tangents between them are rounding, as the sample holds them still).
-static bool Still(const mtwnPath* path, const mtwnCubic* cubic)
+MTWN_NODISCARD static bool Still(const mtwnPath* path, const mtwnCubic* cubic)
 {
     double extent = 0.0;
     double scale = 0.0;
@@ -39,7 +39,8 @@ static bool Still(const mtwnPath* path, const mtwnCubic* cubic)
 
 // The first of a segment's derivatives at u that is not 0, as a unit
 // vector: false for a step or a segment of no length.
-static bool Heading(const mtwnPath* path, const mtwnCubic* cubic, double u, double out[4])
+MTWN_NODISCARD static bool Heading(const mtwnPath* path, const mtwnCubic* cubic, double u,
+                                   double out[4])
 {
     if (cubic->step || Still(path, cubic))
     {
@@ -115,7 +116,7 @@ static MTWN_NOINLINE void mtwnComputePathDirectionWork(const mtwnPath* path, dou
 
 // Whether a direction or an angle may be taken: the path and the segment
 // it reads as a maker gives them, the progress finite.
-static bool Takes(const mtwnPath* path, double progress)
+MTWN_NODISCARD static bool Takes(const mtwnPath* path, double progress)
 {
     return mtwnValidPath(path) && mtwnPathReadsValid(path, progress);
 }

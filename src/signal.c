@@ -84,7 +84,7 @@ mtwnResult mtwnMixDiscrete(uint32_t from, uint32_t to, double progress, uint32_t
     return result;
 }
 
-static bool IsPositive(double value)
+MTWN_NODISCARD static bool IsPositive(double value)
 {
     return isfinite(value) && value > 0.0;
 }
