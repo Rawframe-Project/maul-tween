@@ -209,27 +209,120 @@ static void TestEndHeldBackwards(void)
 // a sweep of no time there counts what lies at it, never less than none.
 static void TestStartPastTheIndices(void)
 {
+    // Past 2^53 the iteration before a start j is no double: j - 1 rounds
+    // back to j (2^54 + 4) or, a tie, to the even double below (2^53 + 2
+    // less 1 to 2^53).
     const mtwnDirection directions[2] = {mtwn_directionNormal, mtwn_directionReverse};
+    const double starts[2] = {0x1p53, 0x1p54};
+    const double ats[2] = {2.0, 4.0};
+    int wrong = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        for (int d = 0; d < 2; ++d)
+        {
+            mtwnLevel level[1];
+            memset(level, 0, sizeof level);
+            level[0].timing = Timing(1.0, HUGE_VAL);
+            level[0].timing.iterationStart = starts[i];
+            level[0].timing.direction = directions[d];
+            mtwnTimingResult at = ComputeTiming(&level[0].timing, ats[i], false);
+            // At its start: progress 0 forwards, 1 reversed.
+            wrong +=
+                at.iteration == starts[i] + ats[i] && at.transformedProgress == (double)d ? 0 : 1;
+            mtwnLeaf mid = Instant(0.5);
+            mtwnPrepareLevels(level, 1, &mid);
+            for (int closed = 0; closed < 2; ++closed)
+            {
+                mtwnCrossings none =
+                    mtwnCountCrossings(level, 1, &mid, ats[i], ats[i], closed == 1);
+                wrong += none.same == 0.0 && none.opposite == 0.0 ? 0 : 1;
+            }
+        }
+    }
+    CHECK(wrong == 0, "nothing at a start past 2^53 iterations, the start held there");
+}
+
+// An endless level alternating, its iterations of 2^-1000 s: by 2^24 s
+// its index (2^1024) passes the doubles, and the marks in the middle of
+// its iterations are infinitely many each way.
+static void TestBothWaysPastTheDoubles(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(0x1p-1000, HUGE_VAL);
+    level[0].timing.direction = mtwn_directionAlternate;
+    mtwnLeaf mid = Instant(0x1p-1001);
+    mtwnCrossings c = Count(level, 1, &mid, 0.0, 0x1p24);
+    CHECK(isinf(c.same) && isinf(c.opposite), "infinitely many each way");
+}
+
+// The marks at the middle of each iteration of an endless level from a,
+// swept over (0, b - a] and back: b - a whole iterations, a and b exact
+// starts, so exactly b - a marks, those of even iterations one way and odd
+// ones the other when alternating, counted here as 64-bit integers; none
+// at either start alone.
+static int WholeIterationsWrong(double a, double b)
+{
+    const mtwnDirection directions[2] = {mtwn_directionNormal, mtwn_directionAlternate};
+    uint64_t span = (uint64_t)b - (uint64_t)a;
+    // The even integers in [a, b - 1], a >= 1.
+    uint64_t evens = ((uint64_t)b - 1u) / 2u - ((uint64_t)a - 1u) / 2u;
     int wrong = 0;
     for (int d = 0; d < 2; ++d)
     {
         mtwnLevel level[1];
         memset(level, 0, sizeof level);
         level[0].timing = Timing(1.0, HUGE_VAL);
-        level[0].timing.iterationStart = 0x1p54;
+        level[0].timing.iterationStart = a;
         level[0].timing.direction = directions[d];
-        mtwnTimingResult at = ComputeTiming(&level[0].timing, 4.0, false);
-        // At its start: progress 0 forwards, 1 reversed.
-        wrong += at.iteration == 0x1p54 + 4.0 && at.transformedProgress == (double)d ? 0 : 1;
         mtwnLeaf mid = Instant(0.5);
         mtwnPrepareLevels(level, 1, &mid);
-        for (int closed = 0; closed < 2; ++closed)
+        double t = b - a;
+        mtwnCrossings forwards = mtwnCountCrossings(level, 1, &mid, 0.0, t, false);
+        mtwnCrossings backwards = mtwnCountCrossings(level, 1, &mid, t, 0.0, false);
+        mtwnCrossings atA = mtwnCountCrossings(level, 1, &mid, 0.0, 0.0, true);
+        mtwnCrossings atB = mtwnCountCrossings(level, 1, &mid, t, t, true);
+        double same = d == 0 ? (double)span : (double)evens;
+        double opposite = d == 0 ? 0.0 : (double)(span - evens);
+        wrong += forwards.same == same && forwards.opposite == opposite ? 0 : 1;
+        wrong += backwards.same == opposite && backwards.opposite == same ? 0 : 1;
+        wrong += Total(atA) == 0.0 && Total(atB) == 0.0 ? 0 : 1;
+    }
+    return wrong;
+}
+
+// Every pair of iteration starts up to 24 apart among the doubles around
+// 2^53 and 2^54, both of an index less 1's ties among them (2^53 + 2 and
+// 2^53 + 4): the iterations between each pair, and the starts at its
+// ends, exactly.
+static void TestWholeIterationsPastTheIndices(void)
+{
+    const double centers[2] = {0x1p53, 0x1p54};
+    int wrong = 0;
+    int pairs = 0;
+    for (int c = 0; c < 2; ++c)
+    {
+        double from = centers[c] - 16.0;
+        double last = centers[c] + 48.0;
+        for (double a = from; a <= last; a = nextafter(a, HUGE_VAL))
         {
-            mtwnCrossings none = mtwnCountCrossings(level, 1, &mid, 4.0, 4.0, closed == 1);
-            wrong += none.same == 0.0 && none.opposite == 0.0 ? 0 : 1;
+            for (double b = nextafter(a, HUGE_VAL); b <= last && b - a <= 24.0;
+                 b = nextafter(b, HUGE_VAL))
+            {
+                int w = WholeIterationsWrong(a, b);
+                if (w != 0 && wrong < 5)
+                {
+                    printf("  from %.17g to %.17g: %d wrong\n", a, b, w);
+                }
+                wrong += w;
+                ++pairs;
+            }
         }
     }
-    CHECK(wrong == 0, "nothing at a start past 2^54 iterations, the start held there");
+    // From 2^54 + 4 to 2^54 + 12 eight marks, the two starts' and the six
+    // iterations' strictly between, which no double holds.
+    CHECK(WholeIterationsWrong(0x1p54 + 4.0, 0x1p54 + 12.0) == 0, "eight from 2^54 + 4");
+    CHECK(wrong == 0 && pairs == 599, "every pair's iterations exactly");
 }
 
 static void TestTimes(void)
@@ -921,6 +1014,8 @@ int main(int argc, char** argv)
         TestCountNeverFalls();
         TestExactEdges();
         TestStartPastTheIndices();
+        TestWholeIterationsPastTheIndices();
+        TestBothWaysPastTheDoubles();
         TestEndHeldBackwards();
         TestTimes();
         TestPassedLevels(argc == 1 ? 2000 : 400);
