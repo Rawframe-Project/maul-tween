@@ -17,6 +17,7 @@
 #include "work.h"
 
 #include <math.h>
+#include <string.h>
 
 // A sweep in progress: its player, its ends, and the host's times.
 typedef struct Sweep
@@ -314,10 +315,25 @@ MTWN_NODISCARD static bool Near(double a, double b)
     return fabs(a - b) <= s_missedMargin * (1.0 + fabs(b));
 }
 
+// Whether the count's own position at a local time is an iteration and a
+// child time, bit for bit. Only an assertion calls it.
+MTWN_NODISCARD [[maybe_unused]] static bool CountAgrees(const mtwnClipNode* n,
+                                                        const mtwnTiming* timing, double local,
+                                                        double iteration, double child)
+{
+    double offset = 0.0;
+    double exact = 0.0;
+    return mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact) &&
+           memcmp(&offset, &iteration, sizeof offset) == 0 &&
+           memcmp(&exact, &child, sizeof exact) == 0;
+}
+
 // A timeline's child times at the sweep's ends, whether it stayed in one
 // iteration, and whether it moved at the sweep's start.
 static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTime* out)
 {
+    MTWN_ASSERT(n->modelPositions == mtwnModelPositions(&n->timing) &&
+                n->hasPositions == mtwnHasPositions(&n->timing));
     bool movingAtStart = false;
     bool atEdge = parent->atEdge;
     mtwnTiming timing = n->timing;
@@ -342,8 +358,22 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
         // node is not taken as steady.
         double offset = 0.0;
         double child = 0.0;
-        if (result.phase == mtwn_phaseActive &&
-            mtwnCountPosition(&timing, n->activeDuration, ends[k] - n->start, &offset, &child))
+        // Where the timing model's position is the count's
+        // (mtwnModelPositions), it is taken as it is; where the count has
+        // none, the model's iteration stays.
+        if (n->modelPositions && result.phase == mtwn_phaseActive &&
+            result.activeTime < n->activeDuration)
+        {
+            MTWN_ASSERT(CountAgrees(n, &timing, ends[k] - n->start, result.iteration, children[k]));
+            iterations[k] = -1.0 - result.iteration;
+        }
+        else if (result.phase == mtwn_phaseActive && !n->hasPositions)
+        {
+            MTWN_ASSERT(!mtwnCountPosition(&timing, n->activeDuration, ends[k] - n->start, &offset,
+                                           &child));
+        }
+        else if (result.phase == mtwn_phaseActive &&
+                 mtwnCountPosition(&timing, n->activeDuration, ends[k] - n->start, &offset, &child))
         {
             iterations[k] = -1.0 - offset;
             children[k] = child;
@@ -497,7 +527,8 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0,
                n->startIteration);
     }
-    if (mtwnStartsAfterFirst(&n->timing) && !Missed(parent, activeStart, activeEnd) &&
+    MTWN_ASSERT(n->startsAfterFirst == mtwnStartsAfterFirst(&n->timing));
+    if (n->startsAfterFirst && !Missed(parent, activeStart, activeEnd) &&
         !Settled(clip, sweep->times, node, parent))
     {
         mtwnLeaf iterations = {0};

@@ -87,8 +87,53 @@ typedef struct mtwnLevel
 } mtwnLevel;
 
 // Whether a timing has iteration starts after its first: its last
-// iteration, as the counts take it, past the first.
-MTWN_NODISCARD bool mtwnStartsAfterFirst(const mtwnTiming* timing);
+// iteration, as the counts take it, past the first. Endless, or ending
+// past the doubles, it has; otherwise its last, an offset of
+// ceil(f + n) - 1 from the first for the start's fraction f, is past it
+// when f + n passes 1.
+MTWN_NODISCARD static inline bool mtwnStartsAfterFirst(const mtwnTiming* timing)
+{
+    double n = timing->iterations;
+    double s = timing->iterationStart;
+    return isinf(n) || isinf(s + n) || (s - floor(s)) + n > 1.0;
+}
+
+// Whether the count has positions in a timing's iterations at all
+// (mtwnCountPosition): none for no duration or no iterations, a point,
+// and none for an endless duration, whose iteration never ends.
+MTWN_NODISCARD static inline bool mtwnHasPositions(const mtwnTiming* timing)
+{
+    return timing->duration > 0.0 && isfinite(timing->duration) && timing->iterations != 0.0;
+}
+
+// Whether the timing model's iteration and child time in a timing's
+// active interval, before its active end, are the count's own
+// (mtwnCountPosition) bit for bit: going forwards from iteration start 0
+// through a finite duration.
+// - The count's time is the model's active time, local less the delay,
+//   and both scale it by the rate.
+// - Without a repeat delay, the count's sum of the quotient and the
+//   start's fraction, 0, is the quotient with no error, so its floor and
+//   progress are the model's floor(x) and x - floor(x). With one, both
+//   take mtwnCycleOf of the same scaled time, start 0, duration and cycle,
+//   step back a time below 0 in it alike, and form the progress, the
+//   delay and the held iteration from it alike.
+// - A quotient rounded to or past the iterations' end is clamped by both
+//   to the last iteration's end: the model holds the overall progress at
+//   the end and its progress at 1 when the end is whole, the count its
+//   offset at the last and its progress at the last's.
+// - The child time samples the same easing at the same parity, times the
+//   duration.
+// The active end itself is the count's alone, which reaches all of the
+// node there: the model's active phase ends where the local time reaches
+// the delay plus the active duration, rounded, so the active time, the
+// local time less the delay, can reach the active duration while it is
+// active.
+MTWN_NODISCARD static inline bool mtwnModelPositions(const mtwnTiming* timing)
+{
+    return timing->playbackRate > 0.0 && timing->iterationStart == 0.0 && timing->duration > 0.0 &&
+           isfinite(timing->duration);
+}
 
 // The iteration, an offset from the first, and the child time a local
 // time reaches of a timing with finite iterations of positive, finite

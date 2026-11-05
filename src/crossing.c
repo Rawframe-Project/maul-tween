@@ -99,6 +99,7 @@ static Shape ShapeOf(const mtwnTiming* timing, double active)
         shape.last = ceil(end) - 1.0;
         shape.lastProgress = end - shape.last;
     }
+    MTWN_ASSERT((shape.last > 0.0) == mtwnStartsAfterFirst(timing));
     return shape;
 }
 
@@ -829,11 +830,6 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
         return;
     }
     PrepareIterations(levels, count, leaf, i, &shape);
-}
-
-bool mtwnStartsAfterFirst(const mtwnTiming* timing)
-{
-    return ShapeOf(timing, 0.0).last > 0.0;
 }
 
 bool mtwnCountPosition(const mtwnTiming* timing, double active, double local, double* iterationOut,
