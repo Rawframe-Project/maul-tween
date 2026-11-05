@@ -1170,9 +1170,11 @@ static void TestStartFractionRoundedBelow(void)
           "nor one just below it, either way");
 }
 
-// A start past 2^53 holds every time of the first iteration at its start,
-// as the timing model does (2^53 + 1 rounds to 2^53): a mark inside it is
-// never crossed, swept on its own or as a parent's child, either way.
+// From a start past 2^53 the timing model holds every time of the first
+// iteration at its start (2^53 + 0.5 rounds to 2^53), but a count is exact
+// although the model rounds onto the start: the progress at 0.5 s is
+// 2^53 + 0.5, so a mark 0.5 s into an iteration is crossed there, swept
+// on its own or as a parent's child, either way.
 static void TestStartPastTheIntegers(void)
 {
     mtwnTiming held = Timing(1.0, 3.0);
@@ -1190,20 +1192,27 @@ static void TestStartPastTheIntegers(void)
     memset(level, 0, sizeof level);
     level[0].timing = held;
     mtwnPrepareLevels(level, 1, &mid);
-    CHECK(Total(mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, true)) == 0.0 &&
-              Total(mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, false)) == 0.0,
-          "a mark inside it never crossed");
+    mtwnCrossings closed = mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, true);
+    mtwnCrossings open = mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, false);
+    CHECK(closed.same == 1.0 && closed.opposite == 0.0 && open.same == 1.0 && open.opposite == 0.0,
+          "a mark inside it crossed once, at 0.5 s");
     mtwnLevel levels[2];
     memset(levels, 0, sizeof levels);
     levels[0].timing = Timing(1.0, 2.0);
     levels[1].timing = held;
     mtwnPrepareLevels(levels, 2, &mid);
-    CHECK(Total(mtwnCountCrossings(levels, 2, &mid, -1.0, 3.0, true)) == 0.0 &&
-              Total(mtwnCountCrossings(levels, 2, &mid, 0.5, 1.5, false)) == 0.0,
-          "nor as a child, across its parent's iterations");
-    CHECK(Total(mtwnCountCrossings(levels, 2, &mid, 0.25, -1.0, false)) == 0.0 &&
-              Total(mtwnCountCrossings(levels, 2, &mid, 1.5, 0.25, false)) == 0.0,
-          "nor swept back, which reaches the earlier end strictly");
+    // At 0.5 s and 1.5 s, once in each of the parent's iterations; from
+    // 0.5 s, which the strict end leaves out, only at 1.5 s.
+    mtwnCrossings all = mtwnCountCrossings(levels, 2, &mid, -1.0, 3.0, true);
+    mtwnCrossings second = mtwnCountCrossings(levels, 2, &mid, 0.5, 1.5, false);
+    CHECK(all.same == 2.0 && all.opposite == 0.0 && second.same == 1.0 && second.opposite == 0.0,
+          "as a child, once in each of its parent's iterations");
+    // Back from 0.25 s nothing; back from 1.5 s, which the strict end
+    // leaves out, only the crossing at 0.5 s.
+    mtwnCrossings before = mtwnCountCrossings(levels, 2, &mid, 0.25, -1.0, false);
+    mtwnCrossings back = mtwnCountCrossings(levels, 2, &mid, 1.5, 0.25, false);
+    CHECK(Total(before) == 0.0 && back.same == 0.0 && back.opposite == 1.0,
+          "swept back, the earlier end reached strictly");
 }
 
 // An endless child restarts at each of its parent's iterations: a mark at
