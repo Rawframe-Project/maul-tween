@@ -68,8 +68,8 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
 // Whether a player's clip is the sealed clip it was made with, alive while
 // it plays: player.c's mtwnCreateClipPlayer counts it a user, and clip.c's
 // mtwnDestroyClip refuses a clip with users. Only an assertion calls it.
-[[maybe_unused]] static inline bool PlaysItsClip(const mtwnContext* context,
-                                                 const mtwnClipPlay* play)
+MTWN_NODISCARD [[maybe_unused]] static inline bool PlaysItsClip(const mtwnContext* context,
+                                                                const mtwnClipPlay* play)
 {
     const mtwnClipSlot* clip = mtwnClipAt(context, play->clip.index1);
     return clip->header.generation == play->clip.generation && clip->sealed && clip->users >= 1;
@@ -78,7 +78,7 @@ static mtwnResult Seeking(mtwnContext* context, uint32_t player, Control control
 // Whether a clip's end is one its player can hold: its root's children end,
 // never negative or NaN, and a finite one within MTWN_SEEK_LIMIT (clip.c's
 // Raise). Only an assertion calls it.
-[[maybe_unused]] static inline bool IsClipEnd(double end)
+MTWN_NODISCARD [[maybe_unused]] static inline bool IsClipEnd(double end)
 {
     return end >= 0.0 && (end <= MTWN_SEEK_LIMIT || isinf(end));
 }

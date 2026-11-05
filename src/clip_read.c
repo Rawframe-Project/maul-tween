@@ -39,7 +39,8 @@ static mtwnResult Sealed(const mtwnContext* context, mtwnClipId clip, mtwnClipSl
 
 // Whether a node's parent is as clip.c's Attach puts it: none for the
 // root, otherwise a timeline before it. Only an assertion calls it.
-[[maybe_unused]] static inline bool ParentBefore(const mtwnClipSlot* slot, uint32_t node)
+MTWN_NODISCARD [[maybe_unused]] static inline bool ParentBefore(const mtwnClipSlot* slot,
+                                                                uint32_t node)
 {
     uint32_t parent = mtwnClipNodeAt(slot, node)->parent;
     return node == MTWN_ROOT_NODE ? parent == 0 : mtwnClipIsTimeline(slot, parent) && parent < node;

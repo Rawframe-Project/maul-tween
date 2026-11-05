@@ -40,7 +40,7 @@ mtwnRuns mtwnMakeRuns(mtwnBound* entries, uint32_t capacity);
 
 // Takes a run of count entries, count above 0; false when none is long
 // enough.
-bool mtwnTakeRun(mtwnRuns* runs, uint32_t count, uint32_t* startOut);
+MTWN_NODISCARD bool mtwnTakeRun(mtwnRuns* runs, uint32_t count, uint32_t* startOut);
 
 // Gives back a run mtwnTakeRun handed out.
 void mtwnGiveRun(mtwnRuns* runs, uint32_t start, uint32_t count);

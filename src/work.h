@@ -21,7 +21,7 @@
 
 MTWN_NOINLINE mtwnResult mtwnMakeLinearPointsEasingWork(mtwnLinearPoint* points, uint32_t count,
                                                         mtwnEasing* easingOut);
-MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
+MTWN_NODISCARD MTWN_NOINLINE bool mtwnIsEasingMonotonicWork(const mtwnEasing* easing);
 // An easing at a progress. A host function's NaN is taken as the progress
 // it was called with, and sets hostNan, when given, for a context to
 // count as misuse.
@@ -63,7 +63,7 @@ MTWN_NOINLINE mtwnResult mtwnConvertColorToSpaceWork(mtwnColor color, mtwnColorS
                                                      double coordinatesOut[4]);
 // Whether an angle method is one of the five. mtwnMixAngleWork takes any
 // other as raw, so every call that takes one from the host checks it first.
-static inline bool mtwnIsAngleMethod(mtwnAngleMethod method)
+MTWN_NODISCARD static inline bool mtwnIsAngleMethod(mtwnAngleMethod method)
 {
     return (uint32_t)method <= mtwn_angleDecreasing;
 }

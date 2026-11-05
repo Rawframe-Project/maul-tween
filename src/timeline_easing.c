@@ -179,7 +179,7 @@ static double BitsValue(uint64_t bits)
 // Whether y = v is reached at or before the grid's K: v at most 0, or the
 // bisection for y below v ending before K. That bisection's K never
 // decreases in v, so the v reached form a run from 0 up.
-static bool Reached(const mtwnCubic* ys, double v, int64_t k, bool skip)
+MTWN_NODISCARD static bool Reached(const mtwnCubic* ys, double v, int64_t k, bool skip)
 {
     if (v <= 0.0)
     {

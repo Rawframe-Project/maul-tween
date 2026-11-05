@@ -54,13 +54,13 @@ bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2)
 }
 
 // Whether x is strictly between 0 and 1. Only an assertion calls it.
-[[maybe_unused]] static inline bool StrictlyInside(double x)
+MTWN_NODISCARD [[maybe_unused]] static inline bool StrictlyInside(double x)
 {
     return x > 0.0 && x < 1.0;
 }
 
 // Whether t lies in a bracket within [0, 1]. Only an assertion calls it.
-[[maybe_unused]] static inline bool WithinBracket(double low, double t, double high)
+MTWN_NODISCARD [[maybe_unused]] static inline bool WithinBracket(double low, double t, double high)
 {
     return 0.0 <= low && low <= t && t <= high && high <= 1.0;
 }
@@ -313,7 +313,7 @@ double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, dou
 }
 
 // Whether every output is finite and every input finite or not given.
-static bool ArePointsValid(const mtwnLinearPoint* points, uint32_t count)
+MTWN_NODISCARD static bool ArePointsValid(const mtwnLinearPoint* points, uint32_t count)
 {
     for (uint32_t i = 0; i < count; ++i)
     {

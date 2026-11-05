@@ -59,7 +59,7 @@ void mtwnMarkUnwritten(mtwnContext* context, const mtwnClipPlay* play)
 // binding and without a transition.
 // mtwnPoolFind's test, inline: every binding of every grouped player
 // passes here each update.
-static bool IsAlone(const mtwnContext* context, mtwnTargetId id)
+MTWN_NODISCARD static bool IsAlone(const mtwnContext* context, mtwnTargetId id)
 {
     if (id.index1 == 0 || id.index1 > context->targets.high)
     {
@@ -134,7 +134,7 @@ static void MarkChangedIn(mtwnContext* context, mtwnWork* group, uint32_t index1
 
 // Whether a target slot is alone: alive, with one clip binding as its
 // writer and no transition. Only an assertion calls it.
-[[maybe_unused]] static inline bool AloneSlot(const mtwnTargetSlot* slot)
+MTWN_NODISCARD [[maybe_unused]] static inline bool AloneSlot(const mtwnTargetSlot* slot)
 {
     return (slot->header.flags & MTWN_SLOT_ALIVE) != 0 && slot->clipWriters == 1u &&
            slot->header.link == 0;
@@ -357,8 +357,8 @@ static mtwnVec4 TrackVelocity(const mtwnClipNode* node, mtwnVec4 value, double e
 
 // Whether a target's velocity is a clip track's left lazy: the track a
 // node of its clip. Only an assertion calls it.
-[[maybe_unused]] static inline bool LazyTrack(const mtwnClipSlot* clip,
-                                              const mtwnClipVelocity* lazy)
+MTWN_NODISCARD [[maybe_unused]] static inline bool LazyTrack(const mtwnClipSlot* clip,
+                                                             const mtwnClipVelocity* lazy)
 {
     uint32_t node = lazy->node & ~s_backwardsBit;
     return node < clip->nodeCount && clip->nodes[node].kind == mtwn_nodeTrack;
@@ -396,7 +396,8 @@ void mtwnSettleClipVelocities(mtwnContext* context, uint32_t clip)
 // number's, not an integer's (whose target holds its rounded value), the
 // track replacing what is under it at full weight, so the target's value
 // is the track's own and its velocity the track's.
-static bool LeavesVelocity(const mtwnClipNode* node, const mtwnBound* bound, double weight)
+MTWN_NODISCARD static bool LeavesVelocity(const mtwnClipNode* node, const mtwnBound* bound,
+                                          double weight)
 {
     mtwnValueKind kind = node->track.kind;
     bool numbers = kind == mtwn_valueScalar || kind == mtwn_valueVec2 || kind == mtwn_valueVec3 ||
@@ -436,9 +437,9 @@ typedef struct TrackPlace
 // A track's result, which reads no target: false when it has no effect.
 // hostNan is set when its timing's or its keyframe's easing gave a host
 // function's NaN, for the player to count one misuse.
-static MTWN_ALWAYS_INLINE bool TrackResult(const mtwnClipNode* node, const mtwnBound* bound,
-                                           double weight, const TrackPlace* place,
-                                           TrackTimes* times, mtwnTrackOut* out, bool* hostNan)
+MTWN_NODISCARD static MTWN_ALWAYS_INLINE bool
+TrackResult(const mtwnClipNode* node, const mtwnBound* bound, double weight,
+            const TrackPlace* place, TrackTimes* times, mtwnTrackOut* out, bool* hostNan)
 {
     double progress = times->progress;
     *hostNan = false;
@@ -471,7 +472,7 @@ static MTWN_ALWAYS_INLINE bool TrackResult(const mtwnClipNode* node, const mtwnB
 
 // Whether a track's result is one LeavesVelocity left lazy: numbers
 // replacing at full weight. Only an assertion calls it.
-[[maybe_unused]] static inline bool LeftLazy(const mtwnTrackOut* out)
+MTWN_NODISCARD [[maybe_unused]] static inline bool LeftLazy(const mtwnTrackOut* out)
 {
     bool numbers = out->kind == mtwn_valueScalar || out->kind == mtwn_valueVec2 ||
                    out->kind == mtwn_valueVec3 || out->kind == mtwn_valueVec4;
@@ -640,8 +641,9 @@ static void Share(mtwnSharedTrack* shared, const TrackTimes* t, const mtwnNodeTi
 
 // Samples a player in step with the last of its clip in the work from
 // what that one left: false when a track it needs was not worked out.
-static bool SampleShared(mtwnContext* context, mtwnWork* work, const mtwnClipPlay* play,
-                         const mtwnClipSlot* clip, bool moving, bool commit)
+MTWN_NODISCARD static bool SampleShared(mtwnContext* context, mtwnWork* work,
+                                        const mtwnClipPlay* play, const mtwnClipSlot* clip,
+                                        bool moving, bool commit)
 {
     mtwnSharing* sharing = &work->sharing;
     // Kept only for a clip whose nodes the sharing holds, and in step
@@ -712,8 +714,8 @@ static void KeepTracks(const mtwnContext* context, mtwnSharing* sharing, const m
 }
 
 // Whether a player is in step with the last of its clip the work sampled.
-static bool InStep(const mtwnSharing* sharing, const mtwnClipPlay* play, double current,
-                   double rate, bool backwards)
+MTWN_NODISCARD static bool InStep(const mtwnSharing* sharing, const mtwnClipPlay* play,
+                                  double current, double rate, bool backwards)
 {
     return sharing->sampleValid && sharing->sampleClip.index1 == play->clip.index1 &&
            sharing->sampleClip.generation == play->clip.generation &&
@@ -724,8 +726,8 @@ static bool InStep(const mtwnSharing* sharing, const mtwnClipPlay* play, double 
 // Whether node i reads within its player's sample: its parent a node
 // before it, whose times are worked out, and a track's slot one of the
 // player's bindings. Only an assertion calls it.
-[[maybe_unused]] static inline bool NodeWithin(const mtwnClipSlot* clip, uint32_t i,
-                                               const mtwnClipPlay* play)
+MTWN_NODISCARD [[maybe_unused]] static inline bool NodeWithin(const mtwnClipSlot* clip, uint32_t i,
+                                                              const mtwnClipPlay* play)
 {
     const mtwnClipNode* node = &clip->nodes[i];
     return node->parent != 0 && node->parent - 1 < i &&

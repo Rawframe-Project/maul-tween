@@ -116,7 +116,7 @@ static double Sinc(double x)
 }
 
 // Normalizes q into out in double: false for a q not finite or zero.
-static bool Normalize(mtwnQuat q, double out[4])
+MTWN_NODISCARD static bool Normalize(mtwnQuat q, double out[4])
 {
     double v[4] = {(double)q.x, (double)q.y, (double)q.z, (double)q.w};
     double norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);

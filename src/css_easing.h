@@ -16,7 +16,7 @@
 
 // Whether control points are those mtwnMakeCubicBezierEasing takes: both x
 // from 0 to 1, both y at most MTWN_LARGEST_BEZIER_Y in magnitude.
-bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2);
+MTWN_NODISCARD bool mtwnValidCubicBezier(double x1, double y1, double x2, double y2);
 
 // The polynomial a t^3 + b t^2 + c t of one coordinate, from its control
 // values p1 and p2 between 0 and 1: the solver's arithmetic, which
@@ -56,7 +56,7 @@ static inline double mtwnCubicSlope(const mtwnCubic* cubic, double t)
 double mtwnSampleCubicBezier(const double control[4], double x);
 
 // Whether steps(count, position) is one mtwnMakeStepsEasing makes.
-bool mtwnValidSteps(uint32_t count, mtwnStepPosition position);
+MTWN_NODISCARD bool mtwnValidSteps(uint32_t count, mtwnStepPosition position);
 
 // steps(count, position).
 double mtwnSampleSteps(uint32_t count, mtwnStepPosition position, double x, bool before);
@@ -67,7 +67,7 @@ double mtwnSampleLinearPoints(const mtwnLinearPoint* points, uint32_t count, dou
 
 // Whether count points are canonical, as mtwnMakeLinearPointsEasing leaves
 // them: inputs and outputs finite, inputs in order.
-bool mtwnCanonicalLinearPoints(const mtwnLinearPoint* points, uint32_t count);
+MTWN_NODISCARD bool mtwnCanonicalLinearPoints(const mtwnLinearPoint* points, uint32_t count);
 
 // Copies a linear() easing's points to `to`, which holds them, and points
 // the easing at the copy.
@@ -76,6 +76,6 @@ void mtwnCopyLinearPoints(mtwnEasing* easing, mtwnLinearPoint* to);
 // Validates count points (at least 2, finite outputs, inputs finite or
 // NaN) and canonicalizes them in place as CSS does: true, or false with
 // the points untouched.
-bool mtwnCanonicalizeLinearPoints(mtwnLinearPoint* points, uint32_t count);
+MTWN_NODISCARD bool mtwnCanonicalizeLinearPoints(mtwnLinearPoint* points, uint32_t count);
 
 #endif // MAUL_TWEEN_SRC_CSS_EASING_H

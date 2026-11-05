@@ -33,7 +33,8 @@ static const uint32_t s_seedPlayers = 3;
 // Whether a player's staging lies within its group's work, in the order
 // it was made: its records, its results, and its changes before and after
 // its resets. Only an assertion calls it.
-[[maybe_unused]] static inline bool StagedWithin(const mtwnStaged* staged, const mtwnWork* work)
+MTWN_NODISCARD [[maybe_unused]] static inline bool StagedWithin(const mtwnStaged* staged,
+                                                                const mtwnWork* work)
 {
     return staged->recordStart <= staged->recordEnd && staged->recordEnd <= work->recordCapacity &&
            staged->trackStart <= staged->trackEnd && staged->trackEnd <= work->trackCapacity &&
@@ -55,7 +56,8 @@ static void GroupRange(uint32_t count, uint32_t group, uint32_t* first, uint32_t
 // unless records past the staging are dropped as the queue would. Under
 // reduced motion a player not yet swept sweeps twice, to where it was
 // first and then to the end it is finished at.
-static bool Fits(const mtwnContext* context, const mtwnWork* work, const mtwnClipPlay* play)
+MTWN_NODISCARD static bool Fits(const mtwnContext* context, const mtwnWork* work,
+                                const mtwnClipPlay* play)
 {
     uint64_t nodes = mtwnClipAt(context, play->clip.index1)->nodeCount;
     uint64_t sweeps = context->reducedMotion && isnan(play->swept) ? 2u : 1u;

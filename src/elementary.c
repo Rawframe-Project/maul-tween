@@ -20,6 +20,7 @@
 #include "elementary.h"
 
 #include "generated/math_constants.h"
+#include "maul-tween/base.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -252,7 +253,7 @@ double mtwnCbrt(double x)
 
 // pow where x or y is 0, 1 or infinite, or x is negative: true, with the
 // result in *resultOut; false for every other pair.
-static bool PowSpecial(double x, double y, double* resultOut)
+MTWN_NODISCARD static bool PowSpecial(double x, double y, double* resultOut)
 {
     if (y == 0.0 || x == 1.0)
     {
@@ -545,7 +546,7 @@ static double ArctanPair(double z, double zLow, double* lowOut)
 
 // The C standard's atan2 where x or y is zero or infinite: true, with the
 // angle in *angleOut; false for every other pair.
-static bool Atan2Special(double y, double x, double* angleOut)
+MTWN_NODISCARD static bool Atan2Special(double y, double x, double* angleOut)
 {
     double ax = fabs(x);
     double ay = fabs(y);

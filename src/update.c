@@ -66,8 +66,8 @@ static void PathAt(const mtwnPlayerSlot* slot, double progress, double out[4])
 // or decay on channels gives its own velocity and returns true; the
 // others leave the velocity to the caller.
 // hostNan as mtwnSampleEasingNoted's.
-static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double velocity[4],
-                   bool* hostNan)
+MTWN_NODISCARD static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4],
+                                  double velocity[4], bool* hostNan)
 {
     if (slot->transitionKind == mtwn_transitionEasing)
     {
@@ -128,7 +128,7 @@ static bool Sample(const mtwnPlayerSlot* slot, double t, double value[4], double
 }
 
 // Whether two values have the same bits, -0 and 0 apart.
-static bool SameBits(mtwnVec4 a, mtwnVec4 b)
+MTWN_NODISCARD static bool SameBits(mtwnVec4 a, mtwnVec4 b)
 {
     uint32_t x[4];
     uint32_t y[4];
@@ -160,7 +160,7 @@ static inline void WriteTarget(mtwnContext* context, uint32_t index1, mtwnVec4 v
 
 // Whether a transition is eased numbers: its velocity is then computed
 // only when read.
-static bool IsEasedNumbers(const mtwnPlayerSlot* slot)
+MTWN_NODISCARD static bool IsEasedNumbers(const mtwnPlayerSlot* slot)
 {
     return slot->transitionKind == mtwn_transitionEasing && !mtwnIsPathKind(slot->kind) &&
            slot->kind != mtwn_valueDiscrete;
@@ -314,7 +314,8 @@ static void WriteEased(mtwnContext* context, const mtwnPlayerSlot* slot, uint32_
 // Records a transition's start once its delay ends, and ends it at its end:
 // true when it ended. Under reduced motion one not essential ends now, its
 // delay skipped, its records at this time.
-static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t timeNs)
+MTWN_NODISCARD static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t,
+                                      uint64_t timeNs)
 {
     mtwnPlayerSlot* slot = mtwnPlayerAt(context, index1);
     bool reduced = context->reducedMotion && !slot->essential;
@@ -344,8 +345,8 @@ static bool StartOrEnd(mtwnContext* context, uint32_t index1, double t, uint64_t
 }
 
 // Sample at this update's time, its host NaN counted.
-static bool SampleNow(const mtwnContext* context, const mtwnPlayerSlot* slot, double t,
-                      double value[4], double velocity[4])
+MTWN_NODISCARD static bool SampleNow(const mtwnContext* context, const mtwnPlayerSlot* slot,
+                                     double t, double value[4], double velocity[4])
 {
     bool hostNan = false;
     bool sampled = Sample(slot, t, value, velocity, &hostNan);
@@ -396,12 +397,12 @@ static void Advance(mtwnContext* context, uint32_t index1, uint64_t timeNs)
     bool sampledSpeed = SampleNow(context, slot, t, now, speed);
     if (!sampledSpeed)
     {
-        // The change over the curve's last millisecond, from its start
-        // before that; none for a discrete value.
+        // The change over the curve's last millisecond, from the value
+        // before it (no own velocity, as now); none for a discrete value.
         double earlier = t > s_velocitySpan ? t - s_velocitySpan : 0.0;
         double before[4];
         double unused[4];
-        Sample(slot, earlier, before, unused, NULL);
+        (void)Sample(slot, earlier, before, unused, NULL);
         uint8_t channels = slot->kind == mtwn_valueDiscrete ? 0 : mtwnKindChannels(slot->kind);
         speed[0] = speed[1] = speed[2] = speed[3] = 0.0;
         for (uint8_t i = 0; i < channels; ++i)

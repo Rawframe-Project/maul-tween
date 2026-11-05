@@ -57,7 +57,7 @@ void mtwnTestSweep(mtwnContext* context, mtwnPlayerId player, const mtwnTestSwee
 
 // Whether the context is inside a call, so host code called back from it
 // is refused.
-bool mtwnTestIsBusy(const mtwnContext* context);
+MTWN_NODISCARD bool mtwnTestIsBusy(const mtwnContext* context);
 
 // The clips of a context's clip players before an update, in creation
 // order: the order the groups stage them in.
@@ -113,7 +113,7 @@ void mtwnTestEmptyStaging(mtwnContext* context, unsigned kinds);
 
 // Whether a clip player's binding of a slot was its target's alone in the
 // last update with groups, and how many of a live player's were.
-bool mtwnTestIsAlone(const mtwnContext* context, mtwnPlayerId player, uint32_t slot);
+MTWN_NODISCARD bool mtwnTestIsAlone(const mtwnContext* context, mtwnPlayerId player, uint32_t slot);
 uint32_t mtwnTestAloneCount(const mtwnContext* context, mtwnPlayerId player);
 
 // Records staged into the first group's work, one more than it holds.

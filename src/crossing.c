@@ -101,7 +101,7 @@ static double ChildAt(const mtwnTiming* timing, bool forwards, double q)
     return eased * timing->duration;
 }
 
-static bool Forwards(const mtwnTiming* timing, double iteration)
+MTWN_NODISCARD static bool Forwards(const mtwnTiming* timing, double iteration)
 {
     return mtwnIterationForwards(timing->direction, iteration);
 }
@@ -421,8 +421,8 @@ static Shape LevelShape(const mtwnLevel* level)
 
 // The level's own count at a local time into sum: whole, or the whole
 // iterations before the one reached partly, which partial then holds.
-static bool Reaching(const mtwnLevel* level, double x, bool strict, mtwnCrossings* sum,
-                     Partial* partial)
+MTWN_NODISCARD static bool Reaching(const mtwnLevel* level, double x, bool strict,
+                                    mtwnCrossings* sum, Partial* partial)
 {
     const mtwnTiming* timing = &level->timing;
     Shape shape = LevelShape(level);
@@ -657,7 +657,7 @@ static mtwnCrossings Cover(const mtwnLevel* levels, uint32_t count, const mtwnLe
     return down ? (mtwnCrossings){sum.opposite, sum.same} : sum;
 }
 
-static bool SameBits(double a, double b)
+MTWN_NODISCARD static bool SameBits(double a, double b)
 {
     uint64_t x = 0;
     uint64_t y = 0;
@@ -868,7 +868,7 @@ typedef struct Search
 
 // Whether the sweep part a search tests counts a crossing: from the sweep's
 // start to the ordered double t, or from t to its end.
-static bool Found(const Search* search, int64_t t)
+MTWN_NODISCARD static bool Found(const Search* search, int64_t t)
 {
     double at = Unordered(t);
     mtwnCrossings c = search->last ? mtwnCountCrossings(search->levels, search->count, search->leaf,
@@ -893,7 +893,7 @@ static void Test(Search* search, int64_t t)
 }
 
 // Whether ordered b lies strictly beyond a, going up or down.
-static bool Beyond(bool up, int64_t a, int64_t b)
+MTWN_NODISCARD static bool Beyond(bool up, int64_t a, int64_t b)
 {
     return up ? b > a : b < a;
 }

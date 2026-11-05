@@ -14,7 +14,7 @@
 #include <math.h>
 #include <stdbool.h>
 
-static bool IsScale(double scale)
+MTWN_NODISCARD static bool IsScale(double scale)
 {
     return isfinite(scale) && scale > 0.0;
 }

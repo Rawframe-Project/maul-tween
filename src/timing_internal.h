@@ -12,10 +12,10 @@
 
 // Whether an iteration runs forwards under a direction (Web Animations
 // Level 1's directed progress).
-bool mtwnIterationForwards(mtwnDirection direction, double iteration);
+MTWN_NODISCARD bool mtwnIterationForwards(mtwnDirection direction, double iteration);
 
 // Whether a timing has a repeat delay that takes time.
-bool mtwnHasRepeatDelay(const mtwnTiming* timing);
+MTWN_NODISCARD bool mtwnHasRepeatDelay(const mtwnTiming* timing);
 
 // The iteration a scaled time is in, with a repeat delay: its cycles
 // counted from the start's, at least the start's own; and its time into

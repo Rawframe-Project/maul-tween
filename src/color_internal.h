@@ -12,12 +12,12 @@
 #include <math.h>
 #include <stdbool.h>
 
-static inline bool mtwnIsColorSpace(mtwnColorSpace space)
+MTWN_NODISCARD static inline bool mtwnIsColorSpace(mtwnColorSpace space)
 {
     return (uint32_t)space <= mtwn_colorSrgb;
 }
 
-static inline bool mtwnIsColor(mtwnColor color)
+MTWN_NODISCARD static inline bool mtwnIsColor(mtwnColor color)
 {
     return isfinite(color.red) && isfinite(color.green) && isfinite(color.blue) &&
            color.alpha >= 0.0f && color.alpha <= 1.0f;

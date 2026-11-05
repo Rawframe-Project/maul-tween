@@ -321,7 +321,8 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
 // Whether a phase holds no effect for the timing's fill: before or after
 // the active interval, without a fill reaching it. Only an assertion calls
 // it.
-[[maybe_unused]] static inline bool Unfilled(const mtwnTiming* timing, mtwnPhase phase)
+MTWN_NODISCARD [[maybe_unused]] static inline bool Unfilled(const mtwnTiming* timing,
+                                                            mtwnPhase phase)
 {
     bool backwardsFill = timing->fill == mtwn_fillBackwards || timing->fill == mtwn_fillBoth;
     bool forwardsFill = timing->fill == mtwn_fillForwards || timing->fill == mtwn_fillBoth;
@@ -333,8 +334,8 @@ static double SimpleProgress(const mtwnTiming* timing, mtwnTimingResult* result)
 // overall progress kept to the iterations, the simple and directed
 // progress from 0 to 1 and an iteration from the start's, infinity
 // included. Only an assertion calls it.
-[[maybe_unused]] static inline bool Resolved(const mtwnTiming* timing,
-                                             const mtwnTimingResult* result)
+MTWN_NODISCARD [[maybe_unused]] static inline bool Resolved(const mtwnTiming* timing,
+                                                            const mtwnTimingResult* result)
 {
     double start = timing->iterationStart;
     return result->activeTime >= 0.0 && result->overallProgress >= start &&

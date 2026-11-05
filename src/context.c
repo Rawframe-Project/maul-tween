@@ -19,7 +19,7 @@ static_assert(sizeof(mtwnTargetSlot) == 64, "a target slot is 64 bytes");
 // every part of the block starts on.
 static const size_t s_blockAlignment = alignof(max_align_t);
 
-static bool IsCount(uint32_t count)
+MTWN_NODISCARD static bool IsCount(uint32_t count)
 {
     return count <= MTWN_MAX_COUNT;
 }
@@ -80,7 +80,7 @@ typedef struct Layout
 
 // Adds count elements of size bytes at the end, aligned; false on
 // overflow.
-static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offsetOut)
+MTWN_NODISCARD static bool Place(uint64_t* end, uint64_t count, uint64_t size, uint64_t* offsetOut)
 {
     uint64_t bytes = 0;
     uint64_t start = 0;
@@ -127,7 +127,7 @@ static void SetSharing(mtwnWork* work, const mtwnContextDef* def, unsigned char*
     work->sharing.recordCapacity = records;
 }
 
-static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
+MTWN_NODISCARD static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
 {
     if (def->enqueueTask == NULL)
     {
@@ -149,7 +149,7 @@ static bool PlanGroups(const mtwnContextDef* def, uint64_t* end, Layout* layout)
            Place(end, def->playerCapacity, sizeof(mtwnStaged), &layout->staged);
 }
 
-static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
+MTWN_NODISCARD static bool PlanBlock(const mtwnContextDef* def, Layout* layout)
 {
     uint64_t end = sizeof(mtwnContext);
     bool placed = Place(&end, def->targetCapacity, sizeof(mtwnTargetSlot), &layout->targets) &&
@@ -272,13 +272,13 @@ mtwnResult mtwnCreateContext(const mtwnContextDef* def, mtwnContext** contextOut
     return result;
 }
 
-static bool SameAllocator(const mtwnAllocator* a, const mtwnAllocator* b)
+MTWN_NODISCARD static bool SameAllocator(const mtwnAllocator* a, const mtwnAllocator* b)
 {
     return a->alloc == b->alloc && a->free == b->free && a->context == b->context;
 }
 
 // Whether a def holds at least what a context does.
-static bool Holds(const mtwnContextDef* def, const mtwnContext* context)
+MTWN_NODISCARD static bool Holds(const mtwnContextDef* def, const mtwnContext* context)
 {
     const mtwnContextDef* now = &context->def;
     return def->targetCapacity >= now->targetCapacity &&

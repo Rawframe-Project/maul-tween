@@ -42,7 +42,8 @@ mtwnStagger mtwnDefaultStagger(void)
     return stagger;
 }
 
-static bool IsValid(const mtwnStagger* stagger, uint32_t count, const double* offsetsOut)
+MTWN_NODISCARD static bool IsValid(const mtwnStagger* stagger, uint32_t count,
+                                   const double* offsetsOut)
 {
     if (stagger == NULL || (count != 0 && offsetsOut == NULL))
     {
@@ -215,8 +216,8 @@ static MTWN_NOINLINE double Offset(const mtwnStagger* stagger, double distance, 
 // Whether every offset is finite, nothing written: the start plus the
 // spread times an eased distance can pass the doubles though each is
 // finite. A random order's distances are 0 to count - 1, each once.
-static bool OffsetsFinite(const mtwnStagger* stagger, uint32_t count, double least, double range,
-                          double span)
+MTWN_NODISCARD static bool OffsetsFinite(const mtwnStagger* stagger, uint32_t count, double least,
+                                         double range, double span)
 {
     Grid grid = MakeGrid(stagger, count);
     for (uint32_t i = 0; i < count; ++i)

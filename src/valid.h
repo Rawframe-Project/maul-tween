@@ -27,27 +27,27 @@
 // fields), and otherwise in the ranges that keep its sample finite over
 // progress 0 to 1 (an elastic, a spring easing). linear()'s points are
 // the host's and not read; its sampler is finite for any finite points.
-bool mtwnValidEasing(const mtwnEasing* easing);
+MTWN_NODISCARD bool mtwnValidEasing(const mtwnEasing* easing);
 
 // A spring's precomputed fields derived again from its frequency and ratio,
 // bit for bit.
-bool mtwnValidSpring(const mtwnSpring* spring);
+MTWN_NODISCARD bool mtwnValidSpring(const mtwnSpring* spring);
 
 // A decay's rate finite and above 0.
-bool mtwnValidDecay(const mtwnDecay* decay);
+MTWN_NODISCARD bool mtwnValidDecay(const mtwnDecay* decay);
 
 // A bounded decay's decay and spring valid, and its bounds as
 // mtwnMakeBoundedDecay takes them.
-bool mtwnValidBoundedDecay(const mtwnBoundedDecay* bounded);
+MTWN_NODISCARD bool mtwnValidBoundedDecay(const mtwnBoundedDecay* bounded);
 
 // A path's own fields as mtwnMakePath and mtwnMakeTrack set them, and with
 // lengths their first 0 and their total finite. The keyframes are the
 // host's and not read: a sample checks the segment it reads
 // (mtwnPathReadsValid).
-bool mtwnValidPath(const mtwnPath* path);
+MTWN_NODISCARD bool mtwnValidPath(const mtwnPath* path);
 
 // A track's fields and its path's as mtwnMakeTrack sets them.
-bool mtwnValidTrack(const mtwnTrack* track);
+MTWN_NODISCARD bool mtwnValidTrack(const mtwnTrack* track);
 
 // A color mix's fields in the ranges that keep its sample finite, not
 // necessarily a maker's: a known space and its padding 0, both colors as
@@ -55,30 +55,30 @@ bool mtwnValidTrack(const mtwnTrack* track);
 // alpha its color's and an OkLCh hue within the two turns the hue
 // fix-ups reach. Its coordinates are not converted again, nor its hues
 // fixed by a method the mix does not keep.
-bool mtwnValidColorMix(const mtwnColorMix* mix);
+MTWN_NODISCARD bool mtwnValidColorMix(const mtwnColorMix* mix);
 
 // A rotation mix's ends of unit length to within the rounding of their
 // normalization (s_unitTolerance in rotation_check.c), its rotations their ends'
 // floats, and its angle from 0 to pi. The angle is not taken again from
 // the ends, a root and an arctangent a sample does not pay for.
-bool mtwnValidRotationMix(const mtwnRotationMix* mix);
+MTWN_NODISCARD bool mtwnValidRotationMix(const mtwnRotationMix* mix);
 
 // A scale mix's ends finite and above 0, and its logarithms finite; not
 // taken again, two logarithms that would cost as much as the sample.
-bool mtwnValidScaleMix(const mtwnScaleMix* mix);
+MTWN_NODISCARD bool mtwnValidScaleMix(const mtwnScaleMix* mix);
 
 // A zoom mix's views as mtwnMakeZoomMix takes them and their pan finite,
 // rho finite and above 0, its length finite and not below 0, r0 within
 // the exponential's range, cosh r0 finite and at least 1, its pan's scale
 // finite, and without a pan its widths a valid scale mix from one view's
 // width to the other's. The path's parameters are not derived again.
-bool mtwnValidZoomMix(const mtwnZoomMix* mix);
+MTWN_NODISCARD bool mtwnValidZoomMix(const mtwnZoomMix* mix);
 
 // A punch's fields, its maker's arguments, as mtwnMakePunch takes them.
-bool mtwnValidPunch(const mtwnPunch* punch);
+MTWN_NODISCARD bool mtwnValidPunch(const mtwnPunch* punch);
 
 // A shake's fields, its maker's arguments, as mtwnMakeShake takes them:
 // fewer than 2^53 lattice points over its duration.
-bool mtwnValidShake(const mtwnShake* shake);
+MTWN_NODISCARD bool mtwnValidShake(const mtwnShake* shake);
 
 #endif

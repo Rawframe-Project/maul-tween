@@ -254,7 +254,8 @@ void mtwnSetClipRate(mtwnClipPlay* play, double now, double end, double rate)
 
 // Whether a player runs under reduced motion though not essential: one
 // that could not finish.
-static bool PlaysOn(const mtwnContext* context, const mtwnClipPlay* play, mtwnPlayState state)
+MTWN_NODISCARD static bool PlaysOn(const mtwnContext* context, const mtwnClipPlay* play,
+                                   mtwnPlayState state)
 {
     return context->reducedMotion && !play->essential && state == mtwn_playRunning;
 }
@@ -360,8 +361,8 @@ bool mtwnAdvanceClipPlayer(mtwnContext* context, mtwnWork* work, uint32_t player
 // Whether the bindings name slots the clip's tracks use and live targets
 // of their kinds. That no slot is named twice is checked in the player's
 // binding run (MarkBindings), in time linear in their count.
-static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def,
-                        const mtwnClipSlot* clip)
+MTWN_NODISCARD static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def,
+                                       const mtwnClipSlot* clip)
 {
     if (def->bindingCount > 0 && def->bindings == NULL)
     {
@@ -386,7 +387,8 @@ static bool AreBindings(const mtwnContext* context, const mtwnClipPlayerDef* def
 // Writes the bindings into the player's run, one entry per slot, the
 // slots left out unbound: false at the first slot named twice, which a
 // live target already marks, the run then the caller's to give back.
-static bool MarkBindings(mtwnBound* bound, uint32_t slots, const mtwnClipPlayerDef* def)
+MTWN_NODISCARD static bool MarkBindings(mtwnBound* bound, uint32_t slots,
+                                        const mtwnClipPlayerDef* def)
 {
     for (uint32_t s = 0; s < slots; ++s)
     {

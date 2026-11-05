@@ -14,6 +14,6 @@ double mtwnSampleSpringEasing(const mtwnEasing* easing, double p);
 
 // Whether a spring easing's fields are in the ranges its maker gives them,
 // which keep its sample finite on [0, 1].
-bool mtwnValidSpringEasing(const mtwnEasing* easing);
+MTWN_NODISCARD bool mtwnValidSpringEasing(const mtwnEasing* easing);
 
 #endif // MAUL_TWEEN_SRC_SPRING_EASING_H
