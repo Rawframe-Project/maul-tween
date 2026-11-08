@@ -17,7 +17,6 @@
 #include "work.h"
 
 #include <math.h>
-#include <string.h>
 
 // A sweep in progress: its player, its ends, and the host's times.
 typedef struct Sweep
@@ -324,8 +323,39 @@ MTWN_NODISCARD [[maybe_unused]] static bool CountAgrees(const mtwnClipNode* n,
     double offset = 0.0;
     double exact = 0.0;
     return mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact) &&
-           memcmp(&offset, &iteration, sizeof offset) == 0 &&
-           memcmp(&exact, &child, sizeof exact) == 0;
+           mtwnSameBits(offset, iteration) && mtwnSameBits(exact, child);
+}
+
+// In its active interval, the count's own iteration (an offset from the
+// first) and child time at a local time, which round at the time's
+// magnitude, not the iteration start's as the timing model's do: the
+// model's where they are the same (mtwnModelPositions). The offset is kept
+// below 0, so it never matches an end outside, where the model's iteration
+// (0 or more) stays, as it does where the count has none: such a node is
+// not taken as steady.
+static void CountTimes(const mtwnClipNode* n, const mtwnTiming* timing, double local,
+                       const mtwnTimingResult* result, double* iteration, double* child)
+{
+    if (result->phase != mtwn_phaseActive)
+    {
+        return;
+    }
+    double offset = 0.0;
+    double exact = 0.0;
+    if (n->modelPositions && result->activeTime < n->activeDuration)
+    {
+        MTWN_ASSERT(CountAgrees(n, timing, local, result->iteration, *child));
+        *iteration = -1.0 - result->iteration;
+    }
+    else if (!n->hasPositions)
+    {
+        MTWN_ASSERT(!mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact));
+    }
+    else if (mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact))
+    {
+        *iteration = -1.0 - offset;
+        *child = exact;
+    }
 }
 
 // A timeline's child times at the sweep's ends, whether it stayed in one
@@ -350,32 +380,7 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
         children[k] = isinf(timing.duration)
                           ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)
                           : result.transformedProgress * timing.duration;
-        // In its active interval, the count's own iteration (an offset
-        // from the first) and child time, which round at the time's
-        // magnitude, not the iteration start's as the timing model's do:
-        // the model's where they are the same (mtwnModelPositions). The
-        // offset is kept below 0, so it never matches an end outside,
-        // where the model's iteration (0 or more) stays, as it does where
-        // the count has none: such a node is not taken as steady.
-        double offset = 0.0;
-        double child = 0.0;
-        if (n->modelPositions && result.phase == mtwn_phaseActive &&
-            result.activeTime < n->activeDuration)
-        {
-            MTWN_ASSERT(CountAgrees(n, &timing, ends[k] - n->start, result.iteration, children[k]));
-            iterations[k] = -1.0 - result.iteration;
-        }
-        else if (result.phase == mtwn_phaseActive && !n->hasPositions)
-        {
-            MTWN_ASSERT(!mtwnCountPosition(&timing, n->activeDuration, ends[k] - n->start, &offset,
-                                           &child));
-        }
-        else if (result.phase == mtwn_phaseActive &&
-                 mtwnCountPosition(&timing, n->activeDuration, ends[k] - n->start, &offset, &child))
-        {
-            iterations[k] = -1.0 - offset;
-            children[k] = child;
-        }
+        CountTimes(n, &timing, ends[k] - n->start, &result, &iterations[k], &children[k]);
         // Near where a hold meets its time's motion: its active start or
         // end, an iteration's start (also the end of the one before, and
         // of a repeat delay), within the margin Missed leaves, as the
