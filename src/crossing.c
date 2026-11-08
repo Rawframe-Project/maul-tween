@@ -3,7 +3,11 @@
 //
 // Crossings. A level's path: its iterations from the
 // first its rate reaches to the last, each from its start to its end;
-// iteration j at progress q has the child time ChildAt(j, q). A local time
+// iteration j at progress q has the child time ChildAt(j, q). Iterations
+// are offsets from the first, floor(iterationStart): a position is that
+// start's fraction plus the scaled time over the duration, never added to
+// the index, so its rounding is the time's and every index is exact up to
+// 2^53 offsets, however large the start. A local time
 // reaches part of the path: none, all, or every iteration before k and
 // iteration k up to q, q itself in or out. Where two positions share a
 // local time (an iteration's end and the next one's start with no repeat
@@ -40,8 +44,9 @@ typedef struct Reach
     double progress;
 } Reach;
 
-// A path's shape: its iterations, the traversal's direction, and whether
-// it is a single point or runs forever on one iteration.
+// A path's shape: its first iteration, its last as an offset from it, the
+// traversal's direction, and whether it is a single point or runs forever
+// on one iteration.
 typedef struct Shape
 {
     double active;
@@ -53,6 +58,18 @@ typedef struct Shape
     bool point;
     bool unbounded;
 } Shape;
+
+// The sum of two doubles and its rounding error (TwoSum, exact without
+// contraction): a + b is the sum plus the error exactly. No error where
+// the sum is infinite.
+static double SumOf(double a, double b, double* errorOut)
+{
+    double sum = a + b;
+    double bPart = sum - a;
+    double aPart = sum - bPart;
+    *errorOut = isfinite(sum) ? (a - aPart) + (b - bPart) : 0.0;
+    return sum;
+}
 
 static Shape ShapeOf(const mtwnTiming* timing, double active)
 {
@@ -66,16 +83,23 @@ static Shape ShapeOf(const mtwnTiming* timing, double active)
     shape.unbounded = isinf(d) && !shape.point;
     shape.first = floor(s);
     shape.firstProgress = s - shape.first;
-    if (isinf(n))
+    if (isinf(n) || isinf(s + n))
     {
+        // Endless, or ending past the doubles, where the timing model holds
+        // the node at the end of its infinite iteration.
         shape.last = HUGE_VAL;
         shape.lastProgress = 1.0;
     }
     else
     {
-        shape.last = ceil(s + n) - 1.0;
-        shape.lastProgress = s + n - shape.last;
+        // The end from the fraction, as the timing model counts the repeat
+        // delays its active duration holds: never rounded at the
+        // magnitude of the start.
+        double end = shape.firstProgress + n;
+        shape.last = ceil(end) - 1.0;
+        shape.lastProgress = end - shape.last;
     }
+    MTWN_ASSERT((shape.last > 0.0) == mtwnStartsAfterFirst(timing));
     return shape;
 }
 
@@ -101,9 +125,20 @@ static double ChildAt(const mtwnTiming* timing, bool forwards, double q)
     return eased * timing->duration;
 }
 
-MTWN_NODISCARD static bool Forwards(const mtwnTiming* timing, double iteration)
+// Whether an iteration, a finite offset from the first, is odd: the
+// first's parity and the offset's, each exact (halving is, and every
+// double past 2^53 is even).
+MTWN_NODISCARD static bool Odd(const Shape* shape, double k)
 {
-    return mtwnIterationForwards(timing->direction, iteration);
+    return (floor(shape->first * 0.5) * 2.0 != shape->first) != (floor(k * 0.5) * 2.0 != k);
+}
+
+// Whether an iteration, an offset from the first, runs forwards; an
+// infinite one as the timing model takes it.
+MTWN_NODISCARD static bool Forwards(const mtwnTiming* timing, const Shape* shape, double k)
+{
+    double parity = isinf(k) ? k : (Odd(shape, k) ? 1.0 : 0.0);
+    return mtwnIterationForwards(timing->direction, parity);
 }
 
 // The progress an iteration's traversal starts and ends at.
@@ -111,7 +146,7 @@ static double StartProgress(const Shape* shape, double j)
 {
     if (shape->forwardRate)
     {
-        return j == shape->first ? shape->firstProgress : 0.0;
+        return j == 0.0 ? shape->firstProgress : 0.0;
     }
     return j == shape->last ? shape->lastProgress : 1.0;
 }
@@ -122,7 +157,7 @@ static double EndProgress(const Shape* shape, double j)
     {
         return j == shape->last ? shape->lastProgress : 1.0;
     }
-    return j == shape->first ? shape->firstProgress : 0.0;
+    return j == 0.0 ? shape->firstProgress : 0.0;
 }
 
 static Reach Part(double j, double q, bool inclusive)
@@ -135,25 +170,28 @@ static Reach Part(double j, double q, bool inclusive)
 static Reach Position(const mtwnTiming* timing, const Shape* shape, double scaled, bool* inDelay)
 {
     double d = timing->duration;
-    double s = timing->iterationStart;
+    double f = shape->firstProgress;
     double j = 0.0;
     double q = 0.0;
     *inDelay = false;
     if (!mtwnHasRepeatDelay(timing))
     {
-        double overall = scaled / d + s;
+        // The offset is the exact floor of the fraction and the quotient's
+        // sum, whose rounding cannot carry it onto the next integer.
+        double error = 0.0;
+        double overall = SumOf(scaled / d, f, &error);
         j = floor(overall);
-        q = overall - j;
+        j -= overall == j && error < 0.0 ? 1.0 : 0.0;
+        q = (overall - j) + error;
     }
     else
     {
         double cycle = d + timing->repeatDelay;
         double within = 0.0;
-        j = mtwnCycleOf(scaled, s, d, cycle, &within);
-        // As the timing model forms them, so a child time here is the one
-        // Times and the values see, bit for bit: a time below 0 within j
-        // is in the delay before j, and a progress rounded to the end has
-        // reached the delay.
+        j = mtwnCycleOf(scaled, f, d, cycle, &within);
+        // As the timing model forms them from the fraction: a time below
+        // 0 within j is in the delay before j, and a progress rounded to
+        // the end has reached the delay.
         if (within < 0.0)
         {
             j -= 1.0;
@@ -169,19 +207,21 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
             *inDelay = false;
         }
     }
-    // Past the doubles, where only an endless node's iteration goes, the
-    // timing model holds it at the start's fraction, 1 for none: the end of
-    // its infinite iteration, where q would be infinity less infinity.
+    // Past the doubles, where only an endless node's iteration goes (the
+    // first iteration and the offset passing them), the timing model holds
+    // it at the start's fraction, 1 for none: the end of its infinite
+    // iteration, where q would be infinity less infinity.
+    j = isinf(shape->first + j) ? HUGE_VAL : j;
     if (isinf(j))
     {
-        q = s > floor(s) ? s - floor(s) : 1.0;
+        q = f > 0.0 ? f : 1.0;
         *inDelay = false;
     }
     // Rounding at the ends stays on the path.
-    if (j < shape->first || (j == shape->first && q < shape->firstProgress))
+    if (j < 0.0 || (j == 0.0 && q < f))
     {
-        j = shape->first;
-        q = shape->firstProgress;
+        j = 0.0;
+        q = f;
     }
     if (j > shape->last || (j == shape->last && q > shape->lastProgress))
     {
@@ -194,9 +234,15 @@ static Reach Position(const mtwnTiming* timing, const Shape* shape, double scale
 
 // What a local time reaches at an iteration's start: going forwards the
 // previous end shares the time without a delay; going backwards it is
-// reached as the start is left, whatever lies between.
+// reached as the start is left, whatever lies between. Past 2^53 an index
+// less 1 is no double, and the end before a start cannot be told from it,
+// as the timing model cannot: the start is what is reached.
 static Reach AtStart(const mtwnTiming* timing, const Shape* shape, double j, bool strict)
 {
+    if (j > 0x1p53)
+    {
+        return Part(j, 0.0, !strict);
+    }
     if (shape->forwardRate)
     {
         if (!strict)
@@ -217,7 +263,7 @@ static Reach Locate(const mtwnTiming* timing, const Shape* shape, double local, 
     {
         return (Reach){s_none, false, 0.0, 0.0};
     }
-    double startJ = shape->forwardRate ? shape->first : shape->last;
+    double startJ = shape->forwardRate ? 0.0 : shape->last;
     if (a == 0.0)
     {
         return Part(startJ, StartProgress(shape, startJ), true);
@@ -228,7 +274,7 @@ static Reach Locate(const mtwnTiming* timing, const Shape* shape, double local, 
     }
     if (a == shape->active)
     {
-        double endJ = shape->forwardRate ? shape->last : shape->first;
+        double endJ = shape->forwardRate ? shape->last : 0.0;
         return strict ? Part(endJ, EndProgress(shape, endJ), false)
                       : (Reach){s_all, true, 0.0, 0.0};
     }
@@ -243,7 +289,7 @@ static Reach Locate(const mtwnTiming* timing, const Shape* shape, double local, 
         // start; backwards the next start's time is its time too.
         return Part(j, 1.0, true);
     }
-    if (at.progress == 0.0 && j > shape->first)
+    if (at.progress == 0.0 && j > 0.0)
     {
         return AtStart(timing, shape, j, strict);
     }
@@ -283,17 +329,20 @@ MTWN_NOINLINE static mtwnCrossings Less(mtwnCrossings later, mtwnCrossings earli
 }
 
 // The iterations strictly between two that run forwards, and those that
-// run backwards. Up to an endless node's last, past the doubles, there are
-// infinitely many of each parity, where all less even would be infinity
-// less infinity.
-static void Between(const mtwnTiming* timing, double a, double b, double* forwardsOut,
-                    double* backwardsOut)
+// run backwards, from the indices' difference d, exact below 2^53: d - 1,
+// the even ones by the lower's parity. Up to an endless node's last, past
+// the doubles, infinitely many of each parity.
+static void Between(const mtwnTiming* timing, const Shape* shape, double a, double b,
+                    double* forwardsOut, double* backwardsOut)
 {
-    double lo = (a < b ? a : b) + 1.0;
-    double hi = (a < b ? b : a) - 1.0;
-    double all = hi >= lo ? hi - lo + 1.0 : 0.0;
-    double even = hi >= lo ? floor(hi / 2.0) - ceil(lo / 2.0) + 1.0 : 0.0;
-    double odd = isinf(all) ? all : all - even;
+    double lo = a < b ? a : b;
+    double hi = a < b ? b : a;
+    double d = hi > lo ? hi - lo : 1.0;
+    double all = d - 1.0;
+    // From an even index the first between is odd: halving is exact.
+    bool fromEven = isinf(lo) || !Odd(shape, lo);
+    double even = isinf(d) ? d : floor((fromEven ? all : d) * 0.5);
+    double odd = isinf(d) ? d : all - even;
     switch (timing->direction)
     {
     case mtwn_directionNormal:
@@ -331,13 +380,13 @@ static double IterationsReached(const mtwnLeaf* leaf, double local, bool strict)
     }
     if (reach.kind == s_all)
     {
-        return shape.last - shape.first;
+        return shape.last;
     }
     double k = reach.iteration;
-    bool start = reach.progress == 0.0 && k > shape.first;
+    bool start = reach.progress == 0.0 && k > 0.0;
     if (shape.forwardRate)
     {
-        return k > shape.first ? k - shape.first - (start && !reach.inclusive ? 1.0 : 0.0) : 0.0;
+        return k > 0.0 ? k - (start && !reach.inclusive ? 1.0 : 0.0) : 0.0;
     }
     // Backwards a start reached is always followed by the end before it.
     return shape.last - k;
@@ -362,13 +411,13 @@ static double NextStart(const mtwnLevel* levels, uint32_t count, uint32_t i)
 static mtwnCrossings All(const mtwnLevel* level, const Shape* shape)
 {
     mtwnCrossings sum = level->cover[0];
-    double firstJ = shape->forwardRate ? shape->first : shape->last;
-    double lastJ = shape->forwardRate ? shape->last : shape->first;
+    double firstJ = shape->forwardRate ? 0.0 : shape->last;
+    double lastJ = shape->forwardRate ? shape->last : 0.0;
     if (firstJ != lastJ)
     {
         double forwards = 0.0;
         double backwards = 0.0;
-        Between(&level->timing, firstJ, lastJ, &forwards, &backwards);
+        Between(&level->timing, shape, firstJ, lastJ, &forwards, &backwards);
         Add(&sum, false, Scaled(level->cover[1], forwards));
         Add(&sum, false, Scaled(level->cover[2], backwards));
         Add(&sum, false, level->cover[3]);
@@ -380,7 +429,7 @@ static mtwnCrossings All(const mtwnLevel* level, const Shape* shape)
 static mtwnCrossings Prefix(const mtwnLevel* level, const Shape* shape, double k)
 {
     mtwnCrossings sum = {0.0, 0.0};
-    double firstJ = shape->forwardRate ? shape->first : shape->last;
+    double firstJ = shape->forwardRate ? 0.0 : shape->last;
     if (k == firstJ)
     {
         return sum;
@@ -388,7 +437,7 @@ static mtwnCrossings Prefix(const mtwnLevel* level, const Shape* shape, double k
     sum = level->cover[0];
     double forwards = 0.0;
     double backwards = 0.0;
-    Between(&level->timing, firstJ, k, &forwards, &backwards);
+    Between(&level->timing, shape, firstJ, k, &forwards, &backwards);
     Add(&sum, false, Scaled(level->cover[1], forwards));
     Add(&sum, false, Scaled(level->cover[2], backwards));
     return sum;
@@ -414,7 +463,7 @@ typedef struct Partial
 static Shape LevelShape(const mtwnLevel* level)
 {
     Shape shape = {level->activeDuration, level->firstIteration, level->firstProgress,
-                   level->lastIteration,  level->lastProgress,   level->forwardRate,
+                   level->lastOffset,     level->lastProgress,   level->forwardRate,
                    level->point,          level->unbounded};
     return shape;
 }
@@ -439,9 +488,8 @@ MTWN_NODISCARD static bool Reaching(const mtwnLevel* level, double x, bool stric
     if (shape.unbounded)
     {
         // One forward iteration from 0, at the rate; reversed, at infinity.
-        *partial =
-            (Partial){shape.first, 0.0, a * timing->playbackRate, HUGE_VAL, false, !strict, 1, 0};
-        return Forwards(timing, shape.first);
+        *partial = (Partial){0.0, 0.0, a * timing->playbackRate, HUGE_VAL, false, !strict, 1, 0};
+        return Forwards(timing, &shape, 0.0);
     }
     Reach reach = Locate(timing, &shape, x, strict);
     if (reach.kind == s_all)
@@ -451,15 +499,15 @@ MTWN_NODISCARD static bool Reaching(const mtwnLevel* level, double x, bool stric
     }
     double k = reach.iteration;
     *sum = Prefix(level, &shape, k);
-    bool forwards = Forwards(timing, k);
+    bool forwards = Forwards(timing, &shape, k);
     partial->iteration = k;
     partial->from = ChildAt(timing, forwards, StartProgress(&shape, k));
     partial->to = ChildAt(timing, forwards, reach.progress);
     partial->end = ChildAt(timing, forwards, EndProgress(&shape, k));
     partial->down = shape.forwardRate != forwards;
     partial->inclusive = reach.inclusive;
-    double firstJ = shape.forwardRate ? shape.first : shape.last;
-    double lastJ = shape.forwardRate ? shape.last : shape.first;
+    double firstJ = shape.forwardRate ? 0.0 : shape.last;
+    double lastJ = shape.forwardRate ? shape.last : 0.0;
     partial->start = k == firstJ ? 0u : (forwards ? 1u : 2u);
     partial->finish = k == lastJ ? 2u : (forwards ? 0u : 1u);
     return true;
@@ -555,7 +603,8 @@ static mtwnCrossings Among(const mtwnLevel* level, double a, double b)
 {
     double forwards = 0.0;
     double backwards = 0.0;
-    Between(&level->timing, a, b, &forwards, &backwards);
+    Shape shape = LevelShape(level);
+    Between(&level->timing, &shape, a, b, &forwards, &backwards);
     mtwnCrossings sum = Scaled(level->cover[1], forwards);
     Add(&sum, false, Scaled(level->cover[2], backwards));
     return sum;
@@ -622,7 +671,7 @@ static mtwnCrossings Gained(const mtwnLevel* levels, uint32_t count, const mtwnL
                     FromStart(levels, count, leaf, i, &pa, !split, true));
     }
     Shape shape = LevelShape(level);
-    double lastJ = shape.forwardRate ? shape.last : shape.first;
+    double lastJ = shape.forwardRate ? shape.last : 0.0;
     if (!partB)
     {
         // b whole: a's iteration from a on, and every one after it.
@@ -696,15 +745,15 @@ static void PrepareIterations(mtwnLevel* levels, uint32_t count, const mtwnLeaf*
 {
     mtwnLevel* level = &levels[i];
     const mtwnTiming* timing = &level->timing;
-    double firstJ = shape->forwardRate ? shape->first : shape->last;
-    double lastJ = shape->forwardRate ? shape->last : shape->first;
+    double firstJ = shape->forwardRate ? 0.0 : shape->last;
+    double lastJ = shape->forwardRate ? shape->last : 0.0;
     // A whole iteration the direction never runs one way is never read
     // that way (no start or end of it is reached, and Between counts none
     // of it), so its counts stay 0. A count of the same inputs as one
     // worked out is the same bits: it is copied.
     bool runs[3] = {true, level->timing.direction != mtwn_directionReverse,
                     level->timing.direction != mtwn_directionNormal};
-    bool firstForwards = Forwards(timing, firstJ);
+    bool firstForwards = Forwards(timing, shape, firstJ);
     double firstFrom = StartProgress(shape, firstJ);
     double firstTo = EndProgress(shape, firstJ);
     double full0 = shape->forwardRate ? 0.0 : 1.0;
@@ -715,7 +764,7 @@ static void PrepareIterations(mtwnLevel* levels, uint32_t count, const mtwnLeaf*
     bool ends[3] = {runs[1], runs[2], isfinite(lastJ)};
     double finishes[3] = {
         ChildAt(timing, true, 1.0 - full0), ChildAt(timing, false, 1.0 - full0),
-        ends[2] ? ChildAt(timing, Forwards(timing, lastJ), EndProgress(shape, lastJ)) : 0.0};
+        ends[2] ? ChildAt(timing, Forwards(timing, shape, lastJ), EndProgress(shape, lastJ)) : 0.0};
     BelowAt(levels, count, leaf, i, finishes, ends, level->endBelow);
     level->cover[0] = Cover(levels, count, leaf, i, firstForwards, firstFrom, firstTo);
     for (int way = 1; way < 3; ++way)
@@ -732,7 +781,7 @@ static void PrepareIterations(mtwnLevel* levels, uint32_t count, const mtwnLeaf*
     }
     if (isfinite(lastJ))
     {
-        level->cover[3] = Cover(levels, count, leaf, i, Forwards(timing, lastJ),
+        level->cover[3] = Cover(levels, count, leaf, i, Forwards(timing, shape, lastJ),
                                 StartProgress(shape, lastJ), EndProgress(shape, lastJ));
     }
 }
@@ -748,7 +797,7 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
     Shape shape = ShapeOf(timing, level->activeDuration);
     level->firstIteration = shape.first;
     level->firstProgress = shape.firstProgress;
-    level->lastIteration = shape.last;
+    level->lastOffset = shape.last;
     level->lastProgress = shape.lastProgress;
     level->forwardRate = shape.forwardRate;
     level->point = shape.point;
@@ -764,7 +813,7 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
     {
         // An endless one of no iterations gives its children what the
         // values do: its active time, 0, going forwards, infinity reversed.
-        bool forwards = Forwards(timing, shape.first);
+        bool forwards = Forwards(timing, &shape, 0.0);
         double at = timing->duration == 0.0   ? 0.0
                     : isinf(timing->duration) ? (forwards ? 0.0 : HUGE_VAL)
                                               : ChildAt(timing, forwards, shape.firstProgress);
@@ -783,12 +832,31 @@ static void PrepareLevel(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf
     PrepareIterations(levels, count, leaf, i, &shape);
 }
 
+bool mtwnCountPosition(const mtwnTiming* timing, double active, double local, double* iterationOut,
+                       double* childOut)
+{
+    Shape shape = ShapeOf(timing, active);
+    if (shape.point || shape.unbounded)
+    {
+        return false;
+    }
+    Reach reach = Locate(timing, &shape, local, false);
+    if (reach.kind != s_part)
+    {
+        return false;
+    }
+    *iterationOut = reach.iteration;
+    *childOut = ChildAt(timing, Forwards(timing, &shape, reach.iteration), reach.progress);
+    return true;
+}
+
 uint32_t mtwnPassedLevels(const mtwnLevel* levels, uint32_t count)
 {
     const mtwnLevel* top = &levels[0];
     const mtwnCrossings none = top->startBelow[1][1];
     bool passes = count >= 1 && top->unbounded && top->start == 0.0 && top->timing.delay == 0.0 &&
-                  top->timing.playbackRate == 1.0 && Forwards(&top->timing, top->firstIteration);
+                  top->timing.playbackRate == 1.0 &&
+                  mtwnIterationForwards(top->timing.direction, top->firstIteration);
     return passes && none.same == 0.0 && none.opposite == 0.0 ? 1u : 0u;
 }
 
@@ -822,145 +890,6 @@ MTWN_NOINLINE mtwnCrossings mtwnCountCrossings(const mtwnLevel* levels, uint32_t
     MTWN_ASSERT(!(sum.same < 0.0) && !(sum.opposite < 0.0));
     // The sweep runs against the coordinate: the leaf moves the other way.
     return (mtwnCrossings){sum.opposite, sum.same};
-}
-
-static double Of(mtwnCrossings c, mtwnCrossingWay way)
-{
-    return way == mtwn_crossingForwards    ? c.same
-           : way == mtwn_crossingBackwards ? c.opposite
-                                           : c.same + c.opposite;
-}
-
-// The doubles in their order as integers: the bisection below halves the
-// doubles between two times, so it ends exactly, after at most 64 halvings.
-static int64_t Ordered(double x)
-{
-    int64_t bits = 0;
-    memcpy(&bits, &x, sizeof bits);
-    return bits < 0 ? INT64_MIN - bits : bits;
-}
-
-static double Unordered(int64_t ordered)
-{
-    int64_t bits = ordered < 0 ? INT64_MIN - ordered : ordered;
-    double x = 0.0;
-    memcpy(&x, &bits, sizeof x);
-    return x;
-}
-
-// A search: the sweep, the way, which end it is near, and the bracket
-// of ordered doubles it halves. The count does not reach one at near and
-// does at far.
-typedef struct Search
-{
-    const mtwnLevel* levels;
-    uint32_t count;
-    const mtwnLeaf* leaf;
-    double from;
-    double to;
-    bool fromClosed;
-    bool last;
-    bool up;
-    mtwnCrossingWay way;
-    int64_t near;
-    int64_t far;
-} Search;
-
-// Whether the sweep part a search tests counts a crossing: from the sweep's
-// start to the ordered double t, or from t to its end.
-MTWN_NODISCARD static bool Found(const Search* search, int64_t t)
-{
-    double at = Unordered(t);
-    mtwnCrossings c = search->last ? mtwnCountCrossings(search->levels, search->count, search->leaf,
-                                                        at, search->to, true)
-                                   : mtwnCountCrossings(search->levels, search->count, search->leaf,
-                                                        search->from, at, search->fromClosed);
-    return Of(c, search->way) >= 1.0;
-}
-
-// Moves the bracket's end the ordered double t tests: far when it counts,
-// near when not.
-static void Test(Search* search, int64_t t)
-{
-    if (Found(search, t))
-    {
-        search->far = t;
-    }
-    else
-    {
-        search->near = t;
-    }
-}
-
-// Whether ordered b lies strictly beyond a, going up or down.
-MTWN_NODISCARD static bool Beyond(bool up, int64_t a, int64_t b)
-{
-    return up ? b > a : b < a;
-}
-
-// A guess past the near end is tested, and when it counts so is its
-// neighbor toward the near end: a right guess leaves the two neighbors
-// the halving ends with. A guess past the far end is the far end, which
-// counts: an interpolated guess can pass the sweep's end by a double.
-static void TestGuess(Search* search, double guess)
-{
-    int64_t g = isnan(guess) ? search->near : Ordered(guess);
-    if (!Beyond(search->up, search->near, g))
-    {
-        return;
-    }
-    if (Beyond(search->up, search->far, g))
-    {
-        g = search->far;
-    }
-    else
-    {
-        Test(search, g);
-    }
-    int64_t before = search->up ? g - 1 : g + 1;
-    if (search->far == g && Beyond(search->up, search->near, before))
-    {
-        Test(search, before);
-    }
-}
-
-double mtwnFindCrossingFrom(const mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
-                            double from, double to, bool fromClosed, bool last, mtwnCrossingWay way,
-                            double guess)
-{
-    // The point at the near end itself.
-    double end = last ? to : from;
-    if ((last || fromClosed) &&
-        Of(mtwnCountCrossings(levels, count, leaf, end, end, true), way) >= 1.0)
-    {
-        return end;
-    }
-    // The count is not reached at the near end and is at the far one;
-    // halve the doubles between until they are neighbors.
-    Search search = {levels,
-                     count,
-                     leaf,
-                     from,
-                     to,
-                     fromClosed,
-                     last,
-                     false,
-                     way,
-                     Ordered(last ? to : from),
-                     Ordered(last ? from : to)};
-    search.up = search.far > search.near;
-    TestGuess(&search, guess);
-    for (;;)
-    {
-        uint64_t distance = search.up ? (uint64_t)search.far - (uint64_t)search.near
-                                      : (uint64_t)search.near - (uint64_t)search.far;
-        if (distance <= 1)
-        {
-            return Unordered(search.far);
-        }
-        int64_t half = (int64_t)(distance / 2);
-        Test(&search, search.up ? search.near + half : search.near - half);
-    }
 }
 
 double mtwnIterationAt(const mtwnLevel* levels, uint32_t count, double t)

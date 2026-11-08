@@ -65,13 +65,14 @@ PARTS = [
 # costs, and the clips' and the whole library's by what holding an endless
 # node past the doubles in its crossing counts costs, then by what counting
 # a sweep's crossings between its two ends costs, then by what naming an
-# iteration record's iteration across a boundary between doubles costs.
+# iteration record's iteration across a boundary between doubles costs,
+# then by what counting crossings from exact positions costs.
 BUDGETS = {
     "curves": 37600,
     "values": 72800,
     "transitions": 74200,
-    "clips": 176400,
-    "everything": 197100,
+    "clips": 180900,
+    "everything": 201600,
 }
 
 
@@ -121,8 +122,9 @@ RAISED = {
     "progress and counted as misuse for each player's track, 1.1 kB, an Oklab or OkLCh "
     "color far past its ends keeps each channel's sign, 0.8 kB, the crossing count holds "
     "an endless node past the doubles, 0.4 kB, a sweep's crossings are counted between "
-    "its two ends, 2.9 kB, and an iteration record names its iteration across a boundary "
-    "between doubles, 0.6 kB",
+    "its two ends, 2.9 kB, an iteration record names its iteration across a boundary "
+    "between doubles, 0.6 kB, and the crossing count takes exact positions, offsets from "
+    "a timing's first iteration, 4.5 kB",
     "everything": "the raises of the parts above",
 }
 

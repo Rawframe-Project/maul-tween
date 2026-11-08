@@ -221,6 +221,13 @@ typedef struct mtwnClipNode
     // For a track: the node before it is a track of the same parent,
     // start and timing, so its timing results are that track's.
     bool sharesTiming;
+    // From its timing as finished, for the sweep's shortcuts
+    // (src/crossing.h): whether its iterations start after its first,
+    // whether the count has positions in them, and whether the timing
+    // model's are the count's before its active end.
+    bool startsAfterFirst;
+    bool hasPositions;
+    bool modelPositions;
     mtwnVec4 step;
 } mtwnClipNode;
 

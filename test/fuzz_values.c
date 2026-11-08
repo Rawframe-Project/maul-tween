@@ -17,13 +17,19 @@
 // channel at the largest float of its sign, and converts there and back;
 // integers stay between their ends; a timing keeps Web Animations'
 // ranges; a rough easing's points run in order from (0, 0) to (1, 1); and
-// every refusal leaves its output as it was.
+// every refusal leaves its output as it was. A crossing count, of a
+// level's marks or a node's iteration starts from any iteration start,
+// is the exact one or differs within its ends' rounding windows, is
+// never negative, and is the sum of its halves'
+// (test/test_crossing_exact.h).
 //
 // Built with MAUL_TWEEN_FUZZ (Clang) it is a libFuzzer target over a
 // corpus directory; in the test suite it replays its seeds and a fixed
 // set of random inputs. With MTWN_FUZZ_FIT it is fuzz_fit instead: the
 // easings alone, each fitted to CSS linear() at a drawn tolerance, which
 // the other target leaves out as it costs a thousand times the rest.
+
+#include "test_crossing_exact.h"
 
 #include "maul-tween/easing.h"
 #include "maul-tween/interpolate.h"
@@ -1454,6 +1460,91 @@ static double TimePositive(Bytes* in, double scale)
     return in->ordinary && p == p ? fabs(p) : p;
 }
 
+// A time on 2^-60, the grid test_crossing_exact.h counts exactly on: a
+// byte pair in [-scale, scale].
+static double GridParam(Bytes* in, double scale)
+{
+    uint32_t high = Byte(in);
+    uint32_t low = Byte(in);
+    double unit = ((double)(high << 8 | low) - 32768.0) / 32768.0;
+    return ldexp(round(ldexp(unit * scale, 60)), -60);
+}
+
+// A level's marks, or a node's iteration starts, from an iteration start
+// small or past 2^52, every direction, either sign of rate, repeat delays
+// or none, swept between drawn times: each count the exact one or within
+// its ends' windows, none negative, and the sum of its halves'.
+static void Crossings(Bytes* in)
+{
+    static const double durations[4] = {1.0, 0.25, 3.0, 0x1p-10};
+    static const double rates[4] = {1.0, -1.0, 2.0, -0.5};
+    ExactCase c;
+    memset(&c, 0, sizeof c);
+    double d = durations[Below(in, 4)];
+    bool endless = Below(in, 5) == 0;
+    c.timing = mtwnDefaultTiming();
+    c.timing.fill = mtwn_fillBoth;
+    c.timing.duration = d;
+    c.timing.iterations = endless ? HUGE_VAL : fabs(GridParam(in, 40.0));
+    c.timing.iterationStart =
+        Below(in, 2) == 0 ? floor(ldexp(1.0 + fabs(GridParam(in, 1.0)), 52 + (int)Below(in, 4)))
+                          : fabs(GridParam(in, 64.0));
+    // An endless node runs at a positive rate only.
+    uint32_t rate = Below(in, 4);
+    c.timing.playbackRate = endless ? fabs(rates[rate]) : rates[rate];
+    c.timing.direction = (mtwnDirection)Below(in, 4);
+    uint32_t r = Below(in, 3);
+    c.timing.repeatDelay = r == 0 ? 0.0 : (r == 1 ? d / 4.0 : fabs(GridParam(in, d)));
+    c.timing.delay = GridParam(in, 1.0);
+    c.marks = Below(in, 2) == 0;
+    c.mark = ldexp(round(ldexp(d * (0.001 + 0.998 * fabs(GridParam(in, 1.0))), 60)), -60);
+    if (mtwnValidateTiming(&c.timing) != mtwn_success)
+    {
+        return;
+    }
+    mtwnTimingResult result;
+    (void)mtwnComputeTiming(&c.timing, 0.0, false, &result);
+    c.active = result.activeDuration;
+    double span = (isinf(c.active) ? 40.0 * (d + c.timing.repeatDelay) : c.active) + 2.0;
+    mtwnLevel level[1];
+    mtwnLeaf leaf;
+    uint32_t count = 0;
+    ExactSetUp(&c, level, &leaf, &count);
+    double a = c.timing.delay - 1.0 + span * fabs(GridParam(in, 1.0));
+    double b = a + (d + c.timing.repeatDelay) * 6.0 * fabs(GridParam(in, 1.0));
+    double e = b + (d + c.timing.repeatDelay) * 6.0 * fabs(GridParam(in, 1.0));
+    a = ldexp(round(ldexp(a, 60)), -60);
+    b = ldexp(round(ldexp(b, 60)), -60);
+    e = ldexp(round(ldexp(e, 60)), -60);
+    bool closed = Below(in, 2) == 0;
+    const double ends[2][3] = {{a, b, e}, {e, b, a}};
+    for (int w = 0; w < 2; ++w)
+    {
+        mtwnCrossings got;
+        mtwnCrossings exact;
+        ExactVerdict v =
+            ExactCheck(&c, level, count, &leaf, ends[w][0], ends[w][2], closed, &got, &exact);
+        mtwnCrossings first =
+            mtwnCountCrossings(level, count, &leaf, ends[w][0], ends[w][1], closed);
+        mtwnCrossings second =
+            mtwnCountCrossings(level, count, &leaf, ends[w][1], ends[w][2], false);
+        if (v == s_exactWrong)
+        {
+            Fail("a crossing count off the exact one outside its ends' windows",
+                 got.same + got.opposite);
+        }
+        if (got.same < 0.0 || got.opposite < 0.0)
+        {
+            Fail("a negative crossing count", got.same + got.opposite);
+        }
+        if (got.same != first.same + second.same ||
+            got.opposite != first.opposite + second.opposite)
+        {
+            Fail("a crossing count not the sum of its halves'", got.same + got.opposite);
+        }
+    }
+}
+
 // A timing of drawn fields, wild ones included: computed exactly when
 // mtwnValidateTiming takes it and the local time is neither NaN nor
 // negative infinity, leaving the result otherwise; computed, by Web
@@ -1588,6 +1679,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     (void)Staggers;
     (void)Timings;
     (void)Roughs;
+    (void)Crossings;
     // One input in sixteen may run one fit to its limit.
     bool deep = Below(&in, 16) == 0;
     while (in.at < in.size)
@@ -1618,6 +1710,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             Staggers(&in);
             Timings(&in);
             Roughs(&in);
+            Crossings(&in);
             break;
         }
     }

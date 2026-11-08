@@ -78,7 +78,7 @@ mtwnResult swept = mtwnClipPlayer_Sweep(context, reader, (goal + offset) * lengt
 
 ## Events
 
-What a player's time crosses between updates is recorded exactly, however far it moved: a track's or timeline's start and end, each iteration, each mark, and the player's own seeks and cancels. A count of 2^64 or more is `UINT64_MAX`. An endless node whose iteration passes the largest double is held there, as `mtwnComputeTiming` holds it, and its values stand still: between two times past it nothing is crossed. A transition records its start when its delay ends and its end when it commits. Each record says when it happened in host time and in clip time, how many times it was crossed, which way, and in which iterations.
+What a player's time crosses between updates is recorded exactly, however far it moved: a track's or timeline's start and end, each iteration, each mark, and the player's own seeks and cancels. A count of 2^64 or more is `UINT64_MAX`. An endless node whose iteration passes the largest double is held there, as `mtwnComputeTiming` holds it, and its values stand still: between two times past it nothing is crossed. A transition records its start when its delay ends and its end when it commits. Each record says when it happened in host time and in clip time, how many times it was crossed, which way, and in which iterations. The count is exact whatever the iteration start; the iterations it names are what `mtwnComputeTiming` reports, which past 2^53 is the nearest double.
 
 ```c
 mtwnEvent events[32];

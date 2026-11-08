@@ -55,6 +55,7 @@ add_library(maul-tween ${MAUL_LIBRARY_KIND}
     src/color_check.c
     src/context.c
     src/crossing.c
+    src/crossing_search.c
     src/css_easing.c
     src/decay.c
     src/easing.c

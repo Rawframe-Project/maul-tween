@@ -264,13 +264,12 @@ static mtwnLeaf InstantAt(double at)
     return leaf;
 }
 
-// The margin Missed leaves. The child times it compares are worked out by
-// the operations the exact count uses on the same operands (the parent's
-// time less the node's start, scaled / d + s and its integer part, the
-// easing times the duration), so they are its values bit for bit, and the
-// rounding of large operands is common to both (the
-// differential agrees at times to 10^15 s). The margin, relative, keeps
-// Missed off the exact count's special cases at an iteration's ends.
+// The margin Missed leaves. The child times it compares are the exact
+// count's own in an active interval (mtwnCountPosition, from the parent's
+// time less the node's start), so they are its values bit for bit, and
+// the rounding of large operands is common to both (the differential
+// agrees at times to 10^15 s). The margin, relative, keeps Missed off the
+// exact count's special cases at an iteration's ends.
 static const double s_missedMargin = 1e-6;
 
 // Whether the sweep certainly left the parent's child time short of the
@@ -298,13 +297,6 @@ MTWN_NODISCARD static bool Missed(const mtwnNodeTime* parent, double from, doubl
     return to < below || from > above;
 }
 
-// Whether a timing has iteration starts after its first: an integer
-// strictly inside (iterationStart, iterationStart + iterations).
-MTWN_NODISCARD static bool Iterates(const mtwnTiming* timing)
-{
-    return floor(timing->iterationStart) + 1.0 < timing->iterationStart + timing->iterations;
-}
-
 // Whether a child time lies clearly inside an iteration of a duration:
 // off 0 and the duration by more than the margin Missed leaves. False for
 // NaN.
@@ -322,10 +314,56 @@ MTWN_NODISCARD static bool Near(double a, double b)
     return fabs(a - b) <= s_missedMargin * (1.0 + fabs(b));
 }
 
+// Whether the count's own position at a local time is an iteration and a
+// child time, bit for bit. Only an assertion calls it.
+MTWN_NODISCARD [[maybe_unused]] static bool CountAgrees(const mtwnClipNode* n,
+                                                        const mtwnTiming* timing, double local,
+                                                        double iteration, double child)
+{
+    double offset = 0.0;
+    double exact = 0.0;
+    return mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact) &&
+           mtwnSameBits(offset, iteration) && mtwnSameBits(exact, child);
+}
+
+// In its active interval, the count's own iteration (an offset from the
+// first) and child time at a local time, which round at the time's
+// magnitude, not the iteration start's as the timing model's do: the
+// model's where they are the same (mtwnModelPositions). The offset is kept
+// below 0, so it never matches an end outside, where the model's iteration
+// (0 or more) stays, as it does where the count has none: such a node is
+// not taken as steady.
+static void CountTimes(const mtwnClipNode* n, const mtwnTiming* timing, double local,
+                       const mtwnTimingResult* result, double* iteration, double* child)
+{
+    if (result->phase != mtwn_phaseActive)
+    {
+        return;
+    }
+    double offset = 0.0;
+    double exact = 0.0;
+    if (n->modelPositions && result->activeTime < n->activeDuration)
+    {
+        MTWN_ASSERT(CountAgrees(n, timing, local, result->iteration, *child));
+        *iteration = -1.0 - result->iteration;
+    }
+    else if (!n->hasPositions)
+    {
+        MTWN_ASSERT(!mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact));
+    }
+    else if (mtwnCountPosition(timing, n->activeDuration, local, &offset, &exact))
+    {
+        *iteration = -1.0 - offset;
+        *child = exact;
+    }
+}
+
 // A timeline's child times at the sweep's ends, whether it stayed in one
 // iteration, and whether it moved at the sweep's start.
 static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTime* out)
 {
+    MTWN_ASSERT(n->modelPositions == mtwnModelPositions(&n->timing) &&
+                n->hasPositions == mtwnHasPositions(&n->timing));
     bool movingAtStart = false;
     bool atEdge = parent->atEdge;
     mtwnTiming timing = n->timing;
@@ -342,6 +380,7 @@ static void Times(const mtwnClipNode* n, const mtwnNodeTime* parent, mtwnNodeTim
         children[k] = isinf(timing.duration)
                           ? (result.forwards ? result.activeTime * timing.playbackRate : HUGE_VAL)
                           : result.transformedProgress * timing.duration;
+        CountTimes(n, &timing, ends[k] - n->start, &result, &iterations[k], &children[k]);
         // Near where a hold meets its time's motion: its active start or
         // end, an iteration's start (also the end of the one before, and
         // of a repeat delay), within the margin Missed leaves, as the
@@ -491,7 +530,8 @@ static void NodeEvents(Sweep* sweep, const mtwnClipSlot* clip, uint32_t node,
         Record(sweep, count, count + 1, &start, (Kinds){mtwn_eventStart, mtwn_eventEnd}, node, 0,
                n->startIteration);
     }
-    if (Iterates(&n->timing) && !Missed(parent, activeStart, activeEnd) &&
+    MTWN_ASSERT(n->startsAfterFirst == mtwnStartsAfterFirst(&n->timing));
+    if (n->startsAfterFirst && !Missed(parent, activeStart, activeEnd) &&
         !Settled(clip, sweep->times, node, parent))
     {
         mtwnLeaf iterations = {0};

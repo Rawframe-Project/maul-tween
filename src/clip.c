@@ -878,6 +878,9 @@ static MTWN_NOINLINE void SealWorker(mtwnClipSlot* slot)
             node->startIteration = shape.iteration;
             mtwnComputeTimingWork(&held, held.delay + node->activeDuration, false, &shape);
             node->endIteration = shape.iteration;
+            node->startsAfterFirst = mtwnStartsAfterFirst(&node->timing);
+            node->hasPositions = mtwnHasPositions(&node->timing);
+            node->modelPositions = mtwnModelPositions(&node->timing);
         }
         const mtwnClipNode* before = i > 0 ? &slot->nodes[i - 1] : NULL;
         node->sharesTiming = node->kind == mtwn_nodeTrack && before != NULL &&

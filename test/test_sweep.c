@@ -409,6 +409,116 @@ static void TestStartPastTheDoubles(bool countEvery)
     mtwnDestroyContext(context);
 }
 
+// The records of sweeps from 0.5 s to a time and on a second, over a
+// timeline of a timing holding a 0.7 s track, counting every record or
+// taking the shortcuts.
+static uint64_t SweepTimeline(const mtwnTiming* timing, double at, bool countEvery,
+                              uint32_t* records)
+{
+    mtwnContextDef def = mtwnDefaultContextDef();
+    def.eventCapacity = 64;
+    mtwnContext* context = NULL;
+    CHECK(mtwnCreateContext(&def, &context) == mtwn_success, "a context");
+    mtwnTestSetCountEvery(context, countEvery);
+    mtwnClipDef clipDef = mtwnDefaultClipDef();
+    mtwnClipId clip;
+    CHECK(mtwnCreateClip(context, &clipDef, &clip) == mtwn_success, "a clip");
+    mtwnClipTimelineDef group = mtwnDefaultClipTimelineDef();
+    group.autoDuration = false;
+    group.timing = *timing;
+    mtwnNode loop = 0;
+    CHECK(mtwnClip_AddTimeline(context, clip, &group, &loop) == mtwn_success, "a timeline");
+    mtwnKeyframe keys[2];
+    memset(keys, 0, sizeof keys);
+    keys[1].offset = 1.0;
+    keys[1].value.x = 1.0f;
+    keys[0].easing = keys[1].easing = mtwnMakeLinearEasing();
+    mtwnClipTrackDef track = mtwnDefaultClipTrackDef();
+    track.parent = loop;
+    track.keyframes = keys;
+    track.keyframeCount = 2;
+    track.timing.duration = 0.7;
+    track.timing.fill = mtwn_fillBoth;
+    mtwnNode node = 0;
+    CHECK(mtwnClip_AddTrack(context, clip, &track, &node) == mtwn_success &&
+              mtwnClip_Seal(context, clip) == mtwn_success,
+          "a track in it, sealed");
+    mtwnClipPlayerDef player = mtwnDefaultClipPlayerDef();
+    player.clip = clip;
+    player.keep = true;
+    mtwnPlayerId id;
+    CHECK(mtwnCreateClipPlayer(context, &player, &id) == mtwn_success &&
+              mtwnClipPlayer_Pause(context, id) == mtwn_success &&
+              mtwnContext_Update(context, 0, NULL, 0, NULL) == mtwn_success,
+          "a paused player");
+    uint64_t hash = 0;
+    *records = 0;
+    const double times[3] = {0.5, at, at + 1.0};
+    for (int i = 0; i < 3; ++i)
+    {
+        CHECK(mtwnClipPlayer_Sweep(context, id, times[i]) == mtwn_success, "swept");
+        HashRecords(context, &hash, records, NULL);
+    }
+    mtwnDestroyContext(context);
+    return hash;
+}
+
+// Whether sweeps of a timeline to a time give the same records counting
+// every one or taking the shortcuts. Debug builds also check there that
+// the shortcuts' position for the timeline, the timing model's where it
+// is the count's, is the count's own (src/sweep.c).
+static bool SameRecords(const mtwnTiming* timing, double at)
+{
+    uint32_t counted = 0;
+    uint32_t left = 0;
+    uint64_t every = SweepTimeline(timing, at, true, &counted);
+    uint64_t some = SweepTimeline(timing, at, false, &left);
+    return counted > 0 && every == some && counted == left;
+}
+
+// A local time below the active interval's end, the delay plus the
+// active duration rounded, whose time less the delay is the active
+// duration itself: the timing is active there, but the count reaches all
+// of the node, so the sweep's shortcuts take the count's position there,
+// not the timing model's.
+static void TestAtTheActiveEnd(void)
+{
+    double at = nextafter(0.3 + 0.7, 0.0);
+    mtwnTiming timing = mtwnDefaultTiming();
+    timing.delay = 0.3;
+    timing.duration = 0.7;
+    timing.fill = mtwn_fillBoth;
+    mtwnTimingResult result;
+    CHECK(mtwnComputeTiming(&timing, at, false, &result) == mtwn_success &&
+              result.phase == mtwn_phaseActive && result.activeTime == result.activeDuration,
+          "active at an active time of the active duration");
+    CHECK(SameRecords(&timing, at), "at the active end the same records either way");
+}
+
+// Local times before the active end whose quotient by the duration rounds
+// onto the iterations' end, whole (5 of 0.7 s, at 3.4999999999999996 s)
+// and not (2.5 of them, at 1.7499999999999998 s): the timing model holds
+// the end there, and the count clamps its position to the last
+// iteration's end, the same.
+static void TestQuotientAtTheIterationsEnd(void)
+{
+    const double iterations[2] = {5.0, 2.5};
+    for (int i = 0; i < 2; ++i)
+    {
+        mtwnTiming timing = mtwnDefaultTiming();
+        timing.duration = 0.7;
+        timing.iterations = iterations[i];
+        timing.fill = mtwn_fillBoth;
+        double at = nextafter(iterations[i] * 0.7, 0.0);
+        mtwnTimingResult result;
+        CHECK(mtwnComputeTiming(&timing, at, false, &result) == mtwn_success &&
+                  result.phase == mtwn_phaseActive && result.activeTime < result.activeDuration &&
+                  at / 0.7 == iterations[i] && result.overallProgress == iterations[i],
+              "active before its end, the quotient rounded onto the iterations' end");
+        CHECK(SameRecords(&timing, at), "the same records either way");
+    }
+}
+
 // With no argument, the fixed cases; with "twins", the random clips on
 // twin contexts, the nightly run's.
 int main(int argc, char** argv)
@@ -429,6 +539,8 @@ int main(int argc, char** argv)
     else
     {
         TestOffGridFrameEnd();
+        TestAtTheActiveEnd();
+        TestQuotientAtTheIterationsEnd();
         TestStartPastTheDoubles(false);
         TestStartPastTheDoubles(true);
     }

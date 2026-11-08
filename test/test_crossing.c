@@ -9,6 +9,7 @@
 // counting only within the pieces where nothing jumps.
 
 #include "crossing.h"
+#include "test_crossing_exact.h"
 #include "test_harness.h"
 #include "test_values.h"
 #include "timing_internal.h"
@@ -203,6 +204,128 @@ static void TestEndHeldBackwards(void)
           "a sweep from it the same, closed or open");
 }
 
+// Past 2^54 iterations an index less 1 rounds back to itself, so an
+// iteration's start cannot be told from the end before it, as the timing
+// model cannot tell them apart: a time at a start reaches the start, and
+// a sweep of no time there counts what lies at it, never less than none.
+static void TestStartPastTheIndices(void)
+{
+    // Past 2^53 the iteration before a start j is no double: j - 1 rounds
+    // back to j (2^54 + 4) or, a tie, to the even double below (2^53 + 2
+    // less 1 to 2^53).
+    const mtwnDirection directions[2] = {mtwn_directionNormal, mtwn_directionReverse};
+    const double starts[2] = {0x1p53, 0x1p54};
+    const double ats[2] = {2.0, 4.0};
+    int wrong = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        for (int d = 0; d < 2; ++d)
+        {
+            mtwnLevel level[1];
+            memset(level, 0, sizeof level);
+            level[0].timing = Timing(1.0, HUGE_VAL);
+            level[0].timing.iterationStart = starts[i];
+            level[0].timing.direction = directions[d];
+            mtwnTimingResult at = ComputeTiming(&level[0].timing, ats[i], false);
+            // At its start: progress 0 forwards, 1 reversed.
+            wrong +=
+                at.iteration == starts[i] + ats[i] && at.transformedProgress == (double)d ? 0 : 1;
+            mtwnLeaf mid = Instant(0.5);
+            mtwnPrepareLevels(level, 1, &mid);
+            for (int closed = 0; closed < 2; ++closed)
+            {
+                mtwnCrossings none =
+                    mtwnCountCrossings(level, 1, &mid, ats[i], ats[i], closed == 1);
+                wrong += none.same == 0.0 && none.opposite == 0.0 ? 0 : 1;
+            }
+        }
+    }
+    CHECK(wrong == 0, "nothing at a start past 2^53 iterations, the start held there");
+}
+
+// An endless level alternating, its iterations of 2^-1000 s: by 2^24 s
+// its index (2^1024) passes the doubles, and the marks in the middle of
+// its iterations are infinitely many each way.
+static void TestBothWaysPastTheDoubles(void)
+{
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(0x1p-1000, HUGE_VAL);
+    level[0].timing.direction = mtwn_directionAlternate;
+    mtwnLeaf mid = Instant(0x1p-1001);
+    mtwnCrossings c = Count(level, 1, &mid, 0.0, 0x1p24);
+    CHECK(isinf(c.same) && isinf(c.opposite), "infinitely many each way");
+}
+
+// The marks at the middle of each iteration of an endless level from a,
+// swept over (0, b - a] and back: b - a whole iterations, a and b exact
+// starts, so exactly b - a marks, those of even iterations one way and odd
+// ones the other when alternating, counted here as 64-bit integers; none
+// at either start alone.
+static int WholeIterationsWrong(double a, double b)
+{
+    const mtwnDirection directions[2] = {mtwn_directionNormal, mtwn_directionAlternate};
+    uint64_t span = (uint64_t)b - (uint64_t)a;
+    // The even integers in [a, b - 1], a >= 1.
+    uint64_t evens = ((uint64_t)b - 1u) / 2u - ((uint64_t)a - 1u) / 2u;
+    int wrong = 0;
+    for (int d = 0; d < 2; ++d)
+    {
+        mtwnLevel level[1];
+        memset(level, 0, sizeof level);
+        level[0].timing = Timing(1.0, HUGE_VAL);
+        level[0].timing.iterationStart = a;
+        level[0].timing.direction = directions[d];
+        mtwnLeaf mid = Instant(0.5);
+        mtwnPrepareLevels(level, 1, &mid);
+        double t = b - a;
+        mtwnCrossings forwards = mtwnCountCrossings(level, 1, &mid, 0.0, t, false);
+        mtwnCrossings backwards = mtwnCountCrossings(level, 1, &mid, t, 0.0, false);
+        mtwnCrossings atA = mtwnCountCrossings(level, 1, &mid, 0.0, 0.0, true);
+        mtwnCrossings atB = mtwnCountCrossings(level, 1, &mid, t, t, true);
+        double same = d == 0 ? (double)span : (double)evens;
+        double opposite = d == 0 ? 0.0 : (double)(span - evens);
+        wrong += forwards.same == same && forwards.opposite == opposite ? 0 : 1;
+        wrong += backwards.same == opposite && backwards.opposite == same ? 0 : 1;
+        wrong += Total(atA) == 0.0 && Total(atB) == 0.0 ? 0 : 1;
+    }
+    return wrong;
+}
+
+// Every pair of iteration starts up to 24 apart among the doubles around
+// 2^53 and 2^54, both of an index less 1's ties among them (2^53 + 2 and
+// 2^53 + 4): the iterations between each pair, and the starts at its
+// ends, exactly.
+static void TestWholeIterationsPastTheIndices(void)
+{
+    const double centers[2] = {0x1p53, 0x1p54};
+    int wrong = 0;
+    int pairs = 0;
+    for (int c = 0; c < 2; ++c)
+    {
+        double from = centers[c] - 16.0;
+        double last = centers[c] + 48.0;
+        for (double a = from; a <= last; a = nextafter(a, HUGE_VAL))
+        {
+            for (double b = nextafter(a, HUGE_VAL); b <= last && b - a <= 24.0;
+                 b = nextafter(b, HUGE_VAL))
+            {
+                int w = WholeIterationsWrong(a, b);
+                if (w != 0 && wrong < 5)
+                {
+                    printf("  from %.17g to %.17g: %d wrong\n", a, b, w);
+                }
+                wrong += w;
+                ++pairs;
+            }
+        }
+    }
+    // From 2^54 + 4 to 2^54 + 12 eight marks, the two starts' and the six
+    // iterations' strictly between, which no double holds.
+    CHECK(WholeIterationsWrong(0x1p54 + 4.0, 0x1p54 + 12.0) == 0, "eight from 2^54 + 4");
+    CHECK(wrong == 0 && pairs == 599, "every pair's iterations exactly");
+}
+
 static void TestTimes(void)
 {
     mtwnLevel level[1];
@@ -275,6 +398,202 @@ static double ScanTime(void)
     return kind == 0   ? (1 + (int)(Uniform() * 16.0)) / 64.0
            : kind == 1 ? (1 + (int)(Uniform() * 4.0)) / 10.0
                        : 0.02 + 0.3 * Uniform();
+}
+
+// A double on 2^-60: every time, start and mark the exact cases use is,
+// so the fixed point of test_crossing_exact.h holds them exactly.
+static double OnGrid(double x)
+{
+    return ldexp(round(ldexp(x, 60)), -60);
+}
+
+// Tallies of a run of exact cases.
+typedef struct ExactTally
+{
+    int sweeps;
+    int agree;
+    int inWindow;
+    int wrong;
+    int negative;
+    int split;
+} ExactTally;
+
+static void ExactTallyOne(const ExactCase* c, const mtwnLevel* level, uint32_t count,
+                          const mtwnLeaf* leaf, double from, double to, bool closed,
+                          ExactTally* tally)
+{
+    mtwnCrossings got;
+    mtwnCrossings exact;
+    ExactVerdict v = ExactCheck(c, level, count, leaf, from, to, closed, &got, &exact);
+    tally->sweeps++;
+    tally->agree += v == s_exactAgrees;
+    tally->inWindow += v == s_exactInWindow;
+    tally->negative += got.same < 0.0 || got.opposite < 0.0;
+    if (v == s_exactWrong && tally->wrong++ < 5)
+    {
+        const mtwnTiming* t = &c->timing;
+        printf("  start %a, %a iterations of %a, rate %g, direction %d, repeat delay %a, delay "
+               "%a, %s %a: %a to %a%s counts %g/%g, exactly %g/%g\n",
+               t->iterationStart, t->iterations, t->duration, t->playbackRate, (int)t->direction,
+               t->repeatDelay, t->delay, c->marks ? "mark" : "starts", c->mark, from, to,
+               closed ? " closed" : "", got.same, got.opposite, exact.same, exact.opposite);
+    }
+}
+
+// Whether a sweep's count is the sum of its two halves', each way.
+static bool Additive(const mtwnLevel* level, uint32_t count, const mtwnLeaf* leaf, double a,
+                     double b, double c, bool closed)
+{
+    mtwnCrossings whole = mtwnCountCrossings(level, count, leaf, a, c, closed);
+    mtwnCrossings first = mtwnCountCrossings(level, count, leaf, a, b, closed);
+    mtwnCrossings second = mtwnCountCrossings(level, count, leaf, b, c, false);
+    return whole.same == first.same + second.same &&
+           whole.opposite == first.opposite + second.opposite;
+}
+
+// A position is the fraction plus the quotient, floored exactly: from
+// iteration start 0.5 at 1 s iterations, 0.5 - 2^-54 s in sums to 1 -
+// 2^-54, which rounds (a tie) to 1. The next start lies 2^-54 ahead, not
+// reached; and 0.5 + 2^-53 s in sums to 1 + 2^-53, which rounds to 1, and
+// a mark 2^-54 s into iteration 1 lies behind it, reached.
+static void TestPositionRoundedOntoAStart(void)
+{
+    mtwnLeaf starts;
+    memset(&starts, 0, sizeof starts);
+    starts.kind = mtwn_leafIterations;
+    starts.timing = Timing(1.0, 4.0);
+    starts.timing.iterationStart = 0.5;
+    mtwnPrepareLevels(NULL, 0, &starts);
+    mtwnCrossings none = mtwnCountCrossings(NULL, 0, &starts, -1.0, 0.5 - 0x1p-54, false);
+    mtwnCrossings one = mtwnCountCrossings(NULL, 0, &starts, -1.0, 0.5, false);
+    CHECK(none.same == 0.0 && one.same == 1.0, "a start 2^-54 ahead not reached, reached at it");
+    mtwnLevel level[1];
+    memset(level, 0, sizeof level);
+    level[0].timing = Timing(1.0, HUGE_VAL);
+    level[0].timing.iterationStart = 0.5;
+    mtwnLeaf mark = Instant(0x1p-54);
+    mtwnPrepareLevels(level, 1, &mark);
+    mtwnCrossings behind = mtwnCountCrossings(level, 1, &mark, 0.0, 0.5 + 0x1p-53, false);
+    mtwnCrossings before = mtwnCountCrossings(level, 1, &mark, 0.0, 0.5, false);
+    CHECK(behind.same == 1.0 && before.same == 0.0, "a mark 2^-54 behind the position reached");
+}
+
+// The grid the counts past 2^53 were measured on: starts 2^53 + {0, 2, 4}
+// and 2^54 + {0, 4}, sweeps from 0 (an iterations node from -1) to t in
+// 0.25 steps up to 24 and back, marks at 0.25 and 0.5 s in an endless
+// level normal and alternating, nodes of 1, 4 and 24 iterations. Every
+// count exact, and those to t never fall as t grows.
+static void TestExactGrid(void)
+{
+    const double starts[5] = {0x1p53, 0x1p53 + 2.0, 0x1p53 + 4.0, 0x1p54, 0x1p54 + 4.0};
+    ExactTally tally = {0};
+    int falls = 0;
+    for (int si = 0; si < 5; ++si)
+    {
+        for (int config = 0; config < 7; ++config)
+        {
+            ExactCase c;
+            memset(&c, 0, sizeof c);
+            bool marks = config < 4;
+            c.timing = Timing(1.0, marks ? HUGE_VAL
+                                         : (config == 4   ? 1.0
+                                            : config == 5 ? 4.0
+                                                          : 24.0));
+            c.timing.iterationStart = starts[si];
+            c.timing.direction =
+                marks && config >= 2 ? mtwn_directionAlternate : mtwn_directionNormal;
+            c.marks = marks;
+            c.mark = config % 2 == 0 ? 0.25 : 0.5;
+            c.active = ComputeTiming(&c.timing, 0.0, false).activeDuration;
+            mtwnLevel level[1];
+            mtwnLeaf leaf;
+            uint32_t count = 0;
+            ExactSetUp(&c, level, &leaf, &count);
+            double from = marks ? 0.0 : -1.0;
+            double before[2] = {0.0, 0.0};
+            for (int q = 1; q <= 96; ++q)
+            {
+                double t = 0.25 * q;
+                ExactTallyOne(&c, level, count, &leaf, from, t, false, &tally);
+                ExactTallyOne(&c, level, count, &leaf, t, from, false, &tally);
+                mtwnCrossings up = mtwnCountCrossings(level, count, &leaf, from, t, false);
+                mtwnCrossings down = mtwnCountCrossings(level, count, &leaf, t, from, false);
+                double now[2] = {up.same + up.opposite, down.same + down.opposite};
+                falls += now[0] < before[0] || now[1] < before[1];
+                before[0] = now[0];
+                before[1] = now[1];
+            }
+        }
+    }
+    printf("  grid: %d sweeps, %d exact, %d in a window\n", tally.sweeps, tally.agree,
+           tally.inWindow);
+    CHECK(tally.wrong == 0 && tally.inWindow == 0 && tally.negative == 0 && falls == 0 &&
+              tally.sweeps == 6720,
+          "every count on the grid exact, none falling");
+}
+
+// Random cases: starts in [2^52, 2^56] and small fractional ones, every
+// direction, either sign of rate, repeat delays, endless levels, marks and
+// iteration starts; random sweeps open and closed both ways. Each count is
+// exact or differs within its ends' rounding windows, none is negative,
+// and a sweep's count is the sum of its halves'.
+static void TestExactRandom(int cases)
+{
+    s_scan = 88172645463325252u;
+    const double durations[4] = {1.0, 0.25, 3.0, 0x1p-10};
+    const double rates[4] = {1.0, -1.0, 2.0, -0.5};
+    const mtwnDirection directions[4] = {mtwn_directionNormal, mtwn_directionReverse,
+                                         mtwn_directionAlternate, mtwn_directionAlternateReverse};
+    ExactTally tally = {0};
+    int split = 0;
+    int made = 0;
+    for (int n = 0; n < cases; ++n)
+    {
+        ExactCase c;
+        memset(&c, 0, sizeof c);
+        double d = durations[(int)(Uniform() * 4.0)];
+        bool endless = Uniform() < 0.2;
+        c.timing = Timing(
+            d, endless ? HUGE_VAL
+                       : (Uniform() < 0.5 ? floor(Uniform() * 40.0) : OnGrid(Uniform() * 40.0)));
+        c.timing.iterationStart = Uniform() < 0.5
+                                      ? floor(ldexp(1.0 + Uniform(), 52 + (int)(Uniform() * 4.0)))
+                                      : OnGrid(ldexp(Uniform(), (int)(Uniform() * 7.0)));
+        c.timing.playbackRate =
+            endless ? fabs(rates[(int)(Uniform() * 4.0)]) : rates[(int)(Uniform() * 4.0)];
+        c.timing.direction = directions[(int)(Uniform() * 4.0)];
+        double r = Uniform();
+        c.timing.repeatDelay = r < 0.5 ? 0.0 : (r < 0.75 ? d / 4.0 : OnGrid(0.3 * d));
+        c.timing.delay = OnGrid(Uniform() * 2.0 - 1.0);
+        c.marks = Uniform() < 0.6;
+        c.mark = OnGrid(d * (0.001 + 0.998 * Uniform()));
+        if (mtwnValidateTiming(&c.timing) != mtwn_success)
+        {
+            continue;
+        }
+        c.active = ComputeTiming(&c.timing, 0.0, false).activeDuration;
+        double span = (isinf(c.active) ? 40.0 * (d + c.timing.repeatDelay) : c.active) + 2.0;
+        mtwnLevel level[1];
+        mtwnLeaf leaf;
+        uint32_t count = 0;
+        ExactSetUp(&c, level, &leaf, &count);
+        ++made;
+        for (int k = 0; k < 6; ++k)
+        {
+            double a = OnGrid(c.timing.delay - 1.0 + span * Uniform());
+            double b = OnGrid(a + (d + c.timing.repeatDelay) * 6.0 * Uniform());
+            double e = OnGrid(b + (d + c.timing.repeatDelay) * 6.0 * Uniform());
+            bool closed = Uniform() < 0.5;
+            ExactTallyOne(&c, level, count, &leaf, a, e, closed, &tally);
+            ExactTallyOne(&c, level, count, &leaf, e, a, closed, &tally);
+            split += Additive(level, count, &leaf, a, b, e, closed) ? 0 : 1;
+            split += Additive(level, count, &leaf, e, b, a, closed) ? 0 : 1;
+        }
+    }
+    printf("  random: %d cases, %d sweeps, %d exact, %d in a window\n", made, tally.sweeps,
+           tally.agree, tally.inWindow);
+    CHECK(tally.wrong == 0 && tally.negative == 0 && split == 0 && made > cases / 2,
+          "every count exact or within its ends' windows, none negative, halves adding up");
 }
 
 // The iteration starts a local time has reached never fall as it grows,
@@ -851,9 +1170,11 @@ static void TestStartFractionRoundedBelow(void)
           "nor one just below it, either way");
 }
 
-// A start past 2^53 holds every time of the first iteration at its start,
-// as the timing model does (2^53 + 1 rounds to 2^53): a mark inside it is
-// never crossed, swept on its own or as a parent's child, either way.
+// From a start past 2^53 the timing model holds every time of the first
+// iteration at its start (2^53 + 0.5 rounds to 2^53), but a count is exact
+// although the model rounds onto the start: the progress at 0.5 s is
+// 2^53 + 0.5, so a mark 0.5 s into an iteration is crossed there, swept
+// on its own or as a parent's child, either way.
 static void TestStartPastTheIntegers(void)
 {
     mtwnTiming held = Timing(1.0, 3.0);
@@ -871,20 +1192,27 @@ static void TestStartPastTheIntegers(void)
     memset(level, 0, sizeof level);
     level[0].timing = held;
     mtwnPrepareLevels(level, 1, &mid);
-    CHECK(Total(mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, true)) == 0.0 &&
-              Total(mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, false)) == 0.0,
-          "a mark inside it never crossed");
+    mtwnCrossings closed = mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, true);
+    mtwnCrossings open = mtwnCountCrossings(level, 1, &mid, 0.25, 0.75, false);
+    CHECK(closed.same == 1.0 && closed.opposite == 0.0 && open.same == 1.0 && open.opposite == 0.0,
+          "a mark inside it crossed once, at 0.5 s");
     mtwnLevel levels[2];
     memset(levels, 0, sizeof levels);
     levels[0].timing = Timing(1.0, 2.0);
     levels[1].timing = held;
     mtwnPrepareLevels(levels, 2, &mid);
-    CHECK(Total(mtwnCountCrossings(levels, 2, &mid, -1.0, 3.0, true)) == 0.0 &&
-              Total(mtwnCountCrossings(levels, 2, &mid, 0.5, 1.5, false)) == 0.0,
-          "nor as a child, across its parent's iterations");
-    CHECK(Total(mtwnCountCrossings(levels, 2, &mid, 0.25, -1.0, false)) == 0.0 &&
-              Total(mtwnCountCrossings(levels, 2, &mid, 1.5, 0.25, false)) == 0.0,
-          "nor swept back, which reaches the earlier end strictly");
+    // At 0.5 s and 1.5 s, once in each of the parent's iterations; from
+    // 0.5 s, which the strict end leaves out, only at 1.5 s.
+    mtwnCrossings all = mtwnCountCrossings(levels, 2, &mid, -1.0, 3.0, true);
+    mtwnCrossings second = mtwnCountCrossings(levels, 2, &mid, 0.5, 1.5, false);
+    CHECK(all.same == 2.0 && all.opposite == 0.0 && second.same == 1.0 && second.opposite == 0.0,
+          "as a child, once in each of its parent's iterations");
+    // Back from 0.25 s nothing; back from 1.5 s, which the strict end
+    // leaves out, only the crossing at 0.5 s.
+    mtwnCrossings before = mtwnCountCrossings(levels, 2, &mid, 0.25, -1.0, false);
+    mtwnCrossings back = mtwnCountCrossings(levels, 2, &mid, 1.5, 0.25, false);
+    CHECK(Total(before) == 0.0 && back.same == 0.0 && back.opposite == 1.0,
+          "swept back, the earlier end reached strictly");
 }
 
 // An endless child restarts at each of its parent's iterations: a mark at
@@ -973,6 +1301,12 @@ int main(int argc, char** argv)
         TestCyclesPastTheDoubles();
         TestCountNeverFalls();
         TestExactEdges();
+        TestStartPastTheIndices();
+        TestWholeIterationsPastTheIndices();
+        TestBothWaysPastTheDoubles();
+        TestPositionRoundedOntoAStart();
+        TestExactGrid();
+        TestExactRandom(argc == 1 ? 20000 : 4000);
         TestEndHeldBackwards();
         TestTimes();
         TestPassedLevels(argc == 1 ? 2000 : 400);
