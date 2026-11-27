@@ -32,6 +32,24 @@ typedef struct mtwnCrossings
     double opposite;
 } mtwnCrossings;
 
+// A count kept past 2^53: the sum of a double and a smaller one, the
+// first rounded to the nearest double and the second what it left out (a
+// double-double). Counts are integers, and a sum, difference or product
+// of counts below 2^100 is exact as these are kept, so what a sweep gains
+// stays exact however much a level's start reaches before it.
+typedef struct mtwnCount
+{
+    double hi;
+    double lo;
+} mtwnCount;
+
+// Crossings counted that way: what the levels keep and the walks add up.
+typedef struct mtwnCounts
+{
+    mtwnCount same;
+    mtwnCount opposite;
+} mtwnCounts;
+
 // What is counted, in the deepest level's child time: an instant there,
 // or the iteration starts of a node beginning there (its iterations
 // after the first, Level 1's current iteration changing).
@@ -76,14 +94,14 @@ typedef struct mtwnLevel
     double lastProgress;
     // The coverage of the traversal's first iteration, of full forward
     // and reversed ones, and of the last, relative to the local time.
-    mtwnCrossings cover[4];
+    mtwnCounts cover[4];
     // Below at the iteration starts' child times (the first's, a forward
     // one's, a reversed one's) and ends' (a forward one's, a reversed
     // one's, the last's), closed and strict.
-    mtwnCrossings startBelow[3][2];
-    mtwnCrossings endBelow[3][2];
+    mtwnCounts startBelow[3][2];
+    mtwnCounts endBelow[3][2];
     // Below at the single point a zero-length level has.
-    mtwnCrossings pointBelow;
+    mtwnCounts pointBelow;
 } mtwnLevel;
 
 // Whether a timing has iteration starts after its first: its last

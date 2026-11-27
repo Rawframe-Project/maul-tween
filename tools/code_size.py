@@ -66,13 +66,14 @@ PARTS = [
 # node past the doubles in its crossing counts costs, then by what counting
 # a sweep's crossings between its two ends costs, then by what naming an
 # iteration record's iteration across a boundary between doubles costs,
-# then by what counting crossings from exact positions costs.
+# then by what counting crossings from exact positions costs, then by what
+# keeping those counts exact past 2^53 costs.
 BUDGETS = {
     "curves": 37600,
     "values": 72800,
     "transitions": 74200,
-    "clips": 180900,
-    "everything": 201600,
+    "clips": 183900,
+    "everything": 204600,
 }
 
 
@@ -123,8 +124,9 @@ RAISED = {
     "color far past its ends keeps each channel's sign, 0.8 kB, the crossing count holds "
     "an endless node past the doubles, 0.4 kB, a sweep's crossings are counted between "
     "its two ends, 2.9 kB, an iteration record names its iteration across a boundary "
-    "between doubles, 0.6 kB, and the crossing count takes exact positions, offsets from "
-    "a timing's first iteration, 4.5 kB",
+    "between doubles, 0.6 kB, the crossing count takes exact positions, offsets from "
+    "a timing's first iteration, 4.5 kB, and it keeps its counts as double-doubles, exact "
+    "past 2^53, 3.0 kB",
     "everything": "the raises of the parts above",
 }
 
