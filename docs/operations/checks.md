@@ -12,7 +12,7 @@ What verifies a change, locally and in CI, and the time each may take.
 | `pr` | Every rule on every file, the generators and oracles with `--check`, clang-tidy twice (below), the `linux-gcc-14` preset, the code size budgets, the `linux-clang-20-asan` preset, and 10 seconds of fuzzing per target. | under 10 minutes |
 | `full` | Also 60 seconds per fuzz target and every other Linux preset: ThreadSanitizer, MemorySanitizer, the shared library with the package test, 32-bit x86, Clang Release, and `linux-clang-20-nightly`, which runs the nightly scenes too. | under 20 minutes |
 
-Every preset a tier runs has its configured tests checked for a label (`check_test_hygiene.py --ctest`) before it builds. Run `changed` before every push. On the shared development machine, run `pr` and `full` through the workspace's heavy-job wrapper.
+Every preset a tier runs has its configured tests checked for a label (`check_test_hygiene.py --ctest`) before it builds. Run `changed` before every push. In the workspace, run `pr` and `full` through the workspace's heavy-job wrapper.
 
 ## In CI
 

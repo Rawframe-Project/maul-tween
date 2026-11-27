@@ -122,4 +122,4 @@ Always pass `-max_total_time`, and stop what you started. A crash becomes a test
 
 ## Shared family files
 
-The files listed in [AGENTS.md](../../AGENTS.md) are synced from the organization's `.github` repository. A change to one is made there first, then taken here with `python3 /home/rawframe-project/.github/maul/family_sync.py --write maul-tween`; `--check maul-tween` reports any difference.
+The files listed in [AGENTS.md](../../AGENTS.md) are synced from the organization's `.github` repository. A change to one is made there first, then taken here with `python3 ../../.github/maul/family_sync.py --write maul-tween`; `--check maul-tween` reports any difference.
