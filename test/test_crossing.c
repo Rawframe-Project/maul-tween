@@ -1272,6 +1272,49 @@ static void TestCyclesPastTheDoubles(void)
           "every case's cycle and time into it the oracle's, the two kept infinite");
 }
 
+// A sweep whose count is small but whose reaches from a level's start pass
+// 2^53: two outer iterations of 2^-28 s, each running the first
+// 2^-28 s of a 1 s level's second iteration (delayed by -1 s), forwards or
+// reversed, over an endless 2^-30 s repeat of c iterations of 2^-60 s,
+// with an instant in the middle of each. Every step is exact, and over
+// (0, 2^-27] the instant is crossed 8c times. The repeat's reach from its
+// start is about 2^30 c iterations of the deepest level, past 2^53 for
+// the larger c.
+static void TestReachPastTheIntegers(void)
+{
+    const double cs[] = {0x1p23 - 1.0, 3.0 * 0x1p28 + 1.0};
+    for (int k = 0; k < 2; ++k)
+    {
+        for (int reversed = 0; reversed < 2; ++reversed)
+        {
+            for (int closed = 0; closed < 2; ++closed)
+            {
+                double c = cs[k];
+                mtwnLevel levels[4];
+                memset(levels, 0, sizeof levels);
+                levels[0].timing = Timing(0x1p-28, 2.0);
+                levels[1].timing = Timing(1.0, 2.0);
+                levels[1].timing.delay = -1.0;
+                levels[1].timing.direction =
+                    reversed ? mtwn_directionReverse : mtwn_directionNormal;
+                levels[2].timing = Timing(0x1p-30, HUGE_VAL);
+                levels[3].timing = Timing(0x1p-60, c);
+                mtwnLeaf mark = Instant(0x1p-61);
+                mtwnPrepareLevels(levels, 4, &mark);
+                mtwnCrossings got = mtwnCountCrossings(levels, 4, &mark, 0.0, 0x1p-27, closed != 0);
+                char what[96];
+                snprintf(what, sizeof what, "c = %.0f, %s, %s: 8c crossings", c,
+                         reversed ? "reversed" : "forwards", closed ? "closed" : "open");
+                if (Total(got) != 8.0 * c)
+                {
+                    printf("  %s: got %.0f, off by %.0f\n", what, Total(got), Total(got) - 8.0 * c);
+                }
+                CHECK(Total(got) == 8.0 * c, what);
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     bool exact = argc == 1 || (argc == 2 && strcmp(argv[1], "exact") == 0);
@@ -1299,6 +1342,7 @@ int main(int argc, char** argv)
         TestStartPastTheIntegers();
         TestEndlessChildAtItsStart();
         TestCyclesPastTheDoubles();
+        TestReachPastTheIntegers();
         TestCountNeverFalls();
         TestExactEdges();
         TestStartPastTheIndices();
