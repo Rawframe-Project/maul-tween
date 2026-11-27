@@ -20,7 +20,7 @@ cmake --preset linux-clang-20-asan && cmake --build --preset linux-clang-20-asan
 ctest --preset linux-clang-20-asan -L player     # one suite, by label, assertions on
 ```
 
-The server's default `gcc` is 13, which the family refuses; use `gcc-14` or `clang-20`. Run the `pr` and `full` tiers, full builds and fuzzing through the workspace's heavy-job wrapper on the shared machine. Each suite is `test/test_<label>.c`, labeled with its name; the large random scenes also carry `nightly` and run only in the `linux-clang-20-nightly` preset ([checks.md](docs/operations/checks.md)).
+Ubuntu 24.04's default `gcc` is 13, which the family refuses; use `gcc-14` or `clang-20`. Run the `pr` and `full` tiers, full builds and fuzzing through the workspace's heavy-job wrapper (on Windows, in the workspace's WSL distribution through its `tools/linux.sh`). Each suite is `test/test_<label>.c`, labeled with its name; the large random scenes also carry `nightly` and run only in the `linux-clang-20-nightly` preset ([checks.md](docs/operations/checks.md)).
 
 ## Ways to hurt yourself
 
