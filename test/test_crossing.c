@@ -1315,6 +1315,89 @@ static void TestReachPastTheIntegers(void)
     }
 }
 
+// Counts a sweep through a chain of nested levels, the second level
+// delayed by two of its iterations and shift more.
+static mtwnCrossings ShiftedCount(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                  double shift, double from, double to, bool closed)
+{
+    levels[1].timing.delay = -2.0 - shift;
+    mtwnPrepareLevels(levels, count, leaf);
+    return mtwnCountCrossings(levels, count, leaf, from, to, closed);
+}
+
+// A level's reach from its own start, moved past 2^53 with the sweep's
+// count unchanged. Random chains of three or four levels, every step
+// exact: outer iterations of 2^-28 to 2^-20 s, an endless 1 s level, an
+// endless repeat of 2^-32 to 2^-26 s and, below it, up to 2^30 iterations
+// of 2^-62 to 2^-55 s, each level in any direction, with an instant on
+// the deepest level's grid. Delaying the 1 s level by an even number of
+// its iterations leaves every child time below it the same bits and every
+// parity the same, so each count must be the same bits too, while that
+// level's reach from its start grows to about 2^78 crossings. Both start
+// past its first two iterations, so an outer time of 0 is a boundary
+// between two of its iterations either way, the end before it shared, as
+// at its first iteration's start it would not be. An independent exact
+// count of such chains would have to follow every boundary rule; this
+// needs none.
+static void TestShiftedReach(int cases)
+{
+    s_scan = 0x9e3779b97f4a7c15u;
+    const mtwnDirection directions[4] = {mtwn_directionNormal, mtwn_directionReverse,
+                                         mtwn_directionAlternate, mtwn_directionAlternateReverse};
+    int differ = 0;
+    int sweeps = 0;
+    for (int n = 0; n < cases; ++n)
+    {
+        mtwnLevel levels[4];
+        memset(levels, 0, sizeof levels);
+        int a = 20 + (int)(Uniform() * 9.0);
+        double outer = ldexp(1.0, -a);
+        double outerIterations = 1.0 + floor(Uniform() * 3.0);
+        levels[0].timing = Timing(outer, outerIterations);
+        levels[1].timing = Timing(1.0, HUGE_VAL);
+        int b = 26 + (int)(Uniform() * 7.0);
+        levels[2].timing = Timing(ldexp(1.0, -b), HUGE_VAL);
+        int c = 55 + (int)(Uniform() * 8.0);
+        bool deep = Uniform() < 0.75;
+        levels[3].timing = Timing(ldexp(1.0, -c), 1.0 + floor(Uniform() * 0x1p30));
+        for (int i = 0; i < 4; ++i)
+        {
+            levels[i].timing.direction = directions[(int)(Uniform() * 4.0)];
+        }
+        uint32_t count = deep ? 4u : 3u;
+        // On the deepest level's grid, within its first iterations or the
+        // repeat's.
+        double unit = deep ? ldexp(1.0, -c - 1) : ldexp(1.0, -b - 4);
+        mtwnLeaf leaf = Instant(unit * (1.0 + floor(Uniform() * 64.0)));
+        // An even number of the 1 s level's iterations, below 2^17 s, so
+        // its local times, on 2^-34 s, stay exact.
+        double shift = 2.0 * (1.0 + floor(Uniform() * 0x1p15));
+        for (int k = 0; k < 4; ++k)
+        {
+            // Ends on 1/64 of an outer iteration, from one before the
+            // outer level's start to one past its end.
+            double span = 64.0 * (outerIterations + 2.0);
+            double from = (floor(Uniform() * span) - 64.0) * outer / 64.0;
+            double to = (floor(Uniform() * span) - 64.0) * outer / 64.0;
+            bool closed = Uniform() < 0.5;
+            mtwnCrossings base = ShiftedCount(levels, count, &leaf, 0.0, from, to, closed);
+            mtwnCrossings moved = ShiftedCount(levels, count, &leaf, shift, from, to, closed);
+            ++sweeps;
+            if (!SameBits(base.same, moved.same) || !SameBits(base.opposite, moved.opposite))
+            {
+                if (differ++ < 5)
+                {
+                    printf("  case %d: %a %a from 0, %a %a from %a\n", n, base.same, base.opposite,
+                           moved.same, moved.opposite, shift);
+                }
+            }
+        }
+    }
+    printf("  shifted: %d sweeps, %d differ\n", sweeps, differ);
+    CHECK(differ == 0, "a sweep's count the same bits when a level's reach from its start passes "
+                       "2^53");
+}
+
 int main(int argc, char** argv)
 {
     bool exact = argc == 1 || (argc == 2 && strcmp(argv[1], "exact") == 0);
@@ -1343,6 +1426,7 @@ int main(int argc, char** argv)
         TestEndlessChildAtItsStart();
         TestCyclesPastTheDoubles();
         TestReachPastTheIntegers();
+        TestShiftedReach(argc == 1 ? 4000 : 800);
         TestCountNeverFalls();
         TestExactEdges();
         TestStartPastTheIndices();

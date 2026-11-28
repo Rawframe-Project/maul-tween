@@ -1475,6 +1475,75 @@ static double GridParam(Bytes* in, double scale)
     return ldexp(round(ldexp(unit * scale, 60)), -60);
 }
 
+// A level's reach from its own start, moved past 2^53 with the sweep's
+// count unchanged (test_crossing's TestShiftedReach, drawn): a chain of
+// outer iterations of 2^-28 to 2^-20 s, an endless 1 s level, an endless
+// repeat of 2^-32 to 2^-26 s and, below it or not, up to 2^30 iterations
+// of 2^-62 to 2^-55 s, each in any direction, with an instant on the
+// deepest level's grid. The 1 s level starts two of its iterations in, or
+// an even number more below 2^17: every child time below it is the same
+// bits and every parity the same, so each count must be too.
+static mtwnCrossings ShiftedCount(mtwnLevel* levels, uint32_t count, const mtwnLeaf* leaf,
+                                  double shift, double from, double to, bool closed)
+{
+    levels[1].timing.delay = -2.0 - shift;
+    mtwnPrepareLevels(levels, count, leaf);
+    return mtwnCountCrossings(levels, count, leaf, from, to, closed);
+}
+
+static void ShiftedCrossings(Bytes* in)
+{
+    mtwnLevel levels[4];
+    memset(levels, 0, sizeof levels);
+    double outer = ldexp(1.0, -20 - (int)Below(in, 9));
+    double outerIterations = 1.0 + Below(in, 3);
+    const double durations[4] = {outer, 1.0, ldexp(1.0, -26 - (int)Below(in, 7)),
+                                 ldexp(1.0, -55 - (int)Below(in, 8))};
+    // Each byte drawn in turn: the order of a call's operands is unspecified.
+    uint32_t deepest = Byte(in);
+    deepest = deepest << 8 | Byte(in);
+    deepest = deepest << 8 | Byte(in);
+    deepest = deepest << 6 | Below(in, 64);
+    const double iterations[4] = {outerIterations, HUGE_VAL, HUGE_VAL, 1.0 + (double)deepest};
+    for (int i = 0; i < 4; ++i)
+    {
+        levels[i].timing = mtwnDefaultTiming();
+        levels[i].timing.fill = mtwn_fillBoth;
+        levels[i].timing.duration = durations[i];
+        levels[i].timing.iterations = iterations[i];
+        levels[i].timing.direction = (mtwnDirection)Below(in, 4);
+    }
+    bool deep = Below(in, 4) != 0;
+    uint32_t count = deep ? 4u : 3u;
+    mtwnLeaf leaf;
+    memset(&leaf, 0, sizeof leaf);
+    leaf.kind = mtwn_leafInstant;
+    leaf.at = (deep ? durations[3] / 2.0 : durations[2] / 16.0) * (1.0 + Below(in, 64));
+    uint32_t half = Byte(in);
+    half = half << 7 | Below(in, 128);
+    double shift = 2.0 * (1.0 + (double)half);
+    // Ends on 1/64 of an outer iteration, from one before its start to one
+    // past its end.
+    uint32_t span = 64u * (uint32_t)(outerIterations + 2.0);
+    double ends[2];
+    for (int k = 0; k < 2; ++k)
+    {
+        uint32_t at = Byte(in);
+        at = at << 8 | Byte(in);
+        ends[k] = ((double)(at % span) - 64.0) * outer / 64.0;
+    }
+    double from = ends[0];
+    double to = ends[1];
+    bool closed = Below(in, 2) == 0;
+    mtwnCrossings base = ShiftedCount(levels, count, &leaf, 0.0, from, to, closed);
+    mtwnCrossings moved = ShiftedCount(levels, count, &leaf, shift, from, to, closed);
+    if (memcmp(&base, &moved, sizeof base) != 0)
+    {
+        Fail("a crossing count changed by moving a level's reach from its start",
+             (moved.same - base.same) + (moved.opposite - base.opposite));
+    }
+}
+
 // A level's marks, or a node's iteration starts, from an iteration start
 // small or past 2^52, every direction, either sign of rate, repeat delays
 // or none, swept between drawn times: each count the exact one or within
@@ -1693,6 +1762,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     (void)Timings;
     (void)Roughs;
     (void)Crossings;
+    (void)ShiftedCrossings;
     // One input in sixteen may run one fit to its limit.
     bool deep = Below(&in, 16) == 0;
     while (in.at < in.size)
@@ -1724,6 +1794,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             Timings(&in);
             Roughs(&in);
             Crossings(&in);
+            ShiftedCrossings(&in);
             break;
         }
     }
