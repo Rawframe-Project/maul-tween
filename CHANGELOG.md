@@ -7,6 +7,28 @@ Added, Changed, Fixed, Removed and Security. The project uses
 built against another minor version's headers is refused with
 `mtwn_errorVersion`. Before 1.0.0, any release could change both.
 
+## [1.1.1](https://github.com/Rawframe-Project/maul-tween/compare/v1.1.0...v1.1.1) (2026-11-27)
+
+This release corrects event records where they broke what the players guide and `mtwnEvent`'s header already promised. A crossing count is now the exact number of boundaries crossed however large a node's iteration start ([#329](https://github.com/Rawframe-Project/maul-tween/pull/329)) and however much a timeline reached before the sweep ([#335](https://github.com/Rawframe-Project/maul-tween/pull/335)). Past about 2^40 iterations it could be off, negative, or trap an assertion in Debug builds, and past 2^53 crossings within one iteration of a timeline it could be a few short. An iteration record names the iteration entered going forwards and the one left going backwards also where the boundary falls between two doubles ([#328](https://github.com/Rawframe-Project/maul-tween/pull/328)). A GCC 14 build in C23 now warns where a status is dropped, as other compilers did ([#320](https://github.com/Rawframe-Project/maul-tween/pull/320)). No value or velocity changes.
+
+### Changed
+
+- Event records change, each to what the documentation promised, for these hosts only; every other record is the same bits:
+  - a host whose nodes start past about 2^40 iterations gets different crossing counts, now exact ([#329](https://github.com/Rawframe-Project/maul-tween/pull/329));
+  - a host with a node whose iteration start is not 0, or a node nested in such a timeline, can see a crossing's clip and host time move by one double ([#329](https://github.com/Rawframe-Project/maul-tween/pull/329));
+  - a host with more than 2^53 crossings of one point inside one iteration of a timeline gets different counts, now exact, and the first and last crossing times found from them may move with them ([#335](https://github.com/Rawframe-Project/maul-tween/pull/335));
+  - a host whose iteration boundaries fall between two doubles sees a backward iteration record's `firstIteration` and a forward one's `lastIteration` change ([#328](https://github.com/Rawframe-Project/maul-tween/pull/328)).
+- The players guide says a record's count is exact whatever the iteration start, and that the iterations a record names are what `mtwnComputeTiming` reports, the nearest double past 2^53 ([#329](https://github.com/Rawframe-Project/maul-tween/pull/329)).
+
+### Fixed
+
+- Crossing counts are exact however large a node's iteration start ([#329](https://github.com/Rawframe-Project/maul-tween/pull/329)). They were taken from the iteration as the timing model rounds it, at the magnitude of the start, so past 2^52 iterations a position moved by up to half an iteration. Counts changed where the rounded index changed rather than at a boundary, a closed sweep of one time could count a start, a backward sweep at a negative rate could skip one, and a count could fall below 0: it trapped `MTWN_ASSERT` in Debug builds and was reported negative in Release.
+  - With 4 iterations of 1 s from iteration start 2^54, the count read 4 from t = 2.25 s, where exactly 2 iterations had started there and 3 by the end.
+  - With 1 s iterations from iteration start 2, a sweep to 1 - 2^-53 s reached iteration 3's start, which is now reached in the next sweep: the old position rounded the boundary onto a different double than the exact one.
+- Crossing counts stay exact where what a timeline reaches from its own start passes 2^53 within a sweep ([#335](https://github.com/Rawframe-Project/maul-tween/pull/335)). Such a sweep could count a few crossings too few even when its count was small and every time exact: under a 1 s iteration, an endless repeat of 2^-30 s whose every repeat crosses a mark 2^28 times reaches about 2^58 crossings, and a sweep of 2^-27 s across it counted 4 or 8 too few.
+- An iteration record names the right iteration where its boundary falls between two doubles ([#328](https://github.com/Rawframe-Project/maul-tween/pull/328)). Going backwards, `firstIteration` named the iteration entered instead of the one left; going forwards, `lastIteration` named the iteration before the one entered last. On a track of 0.1 s iterations swept back from 0.38 s to 0.25 s, over the start of iteration 3 at 3 * 0.1 s, the record named 2 where it now names 3. Under a parent's reversed iteration the same held. No record's time or count moves, and mark records are unchanged.
+- `MTWN_NODISCARD` is the `[[nodiscard]]` attribute under GCC 14 in C23 too ([#320](https://github.com/Rawframe-Project/maul-tween/pull/320)). GCC 14 reports C23 as `202000L`, below the `202311L` the macro required, so it expanded to nothing and a host built as C23 with GCC got no warning for a dropped status.
+
 ## [1.1.0](https://github.com/Rawframe-Project/maul-tween/compare/v1.0.0...v1.1.0) (2026-11-04)
 
 This release makes `mtwnCreateClipPlayer` check its bindings in time linear in their count, where it compared each binding with every one before it ([#292](https://github.com/Rawframe-Project/maul-tween/pull/292)). A player of 2^20 bindings took 194 s to make at -O2 and now takes 12 ms. At the old rate, the 2^24 slots a clip may have would have taken about 11 hours. Two refusals of a def that binds a slot twice change their status, as below. `MTWN_ABI_VERSION` and a shared library's SOVERSION are now 1.1. A context def stamped by 1.0.0's headers is refused with `mtwn_errorVersion`, so a program built against 1.0.0 is rebuilt; its source builds unchanged. No value, velocity or event record changes.
