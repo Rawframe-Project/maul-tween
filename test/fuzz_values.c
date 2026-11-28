@@ -121,11 +121,16 @@ static mtwnVec4 Vec(Bytes* in, double xy, double z, double w)
 
 static bool s_bad;
 
-static void Fail(const char* what, double value)
+// A broken promise, as the family's one line a fuzz report keeps: where
+// it was checked, the promise and the value that broke it, never the
+// input's bytes. The run goes on and traps at its end.
+static void FailAt(int line, const char* what, double value)
 {
-    fprintf(stderr, "fuzz_values: %s (%.17g)\n", what, value);
+    fprintf(stderr, "test/fuzz_values.c:%d: expectation failed: %s (%.17g)\n", line, what, value);
     s_bad = true;
 }
+
+#define Fail(what, value) FailAt(__LINE__, what, value)
 
 // A sampled result: never NaN from finite parameters, and finite from
 // ordinary ones.
@@ -1526,6 +1531,14 @@ static void Crossings(Bytes* in)
             ExactCheck(&c, level, count, &leaf, ends[w][0], ends[w][2], closed, &got, &exact);
         mtwnCrossings first =
             mtwnCountCrossings(level, count, &leaf, ends[w][0], ends[w][1], closed);
+        if (w == 1 && closed && ends[w][0] == ends[w][1])
+        {
+            // A closed count at one time is a sweep from no time, which
+            // takes its point forwards; the sweep swaps it where its
+            // player runs back (src/sweep.c). Within this sweep back the
+            // point is crossed backwards, as the whole sweep counts it.
+            first = (mtwnCrossings){first.opposite, first.same};
+        }
         mtwnCrossings second =
             mtwnCountCrossings(level, count, &leaf, ends[w][1], ends[w][2], false);
         if (v == s_exactWrong)

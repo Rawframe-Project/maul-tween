@@ -805,10 +805,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     if (alone.bad || tasks.bad || every.bad || grown.bad || alone.hash != tasks.hash ||
         alone.hash != every.hash || alone.hash != grown.hash)
     {
-        fprintf(stderr, "fuzz_api: bad %d %d %d %d, hashes %016llx %016llx %016llx %016llx\n",
-                alone.bad, tasks.bad, every.bad, grown.bad, (unsigned long long)alone.hash,
-                (unsigned long long)tasks.hash, (unsigned long long)every.hash,
-                (unsigned long long)grown.hash);
+        // The family's one line a fuzz report keeps: the promise and the
+        // values that broke it, never the input's bytes.
+        fprintf(stderr,
+                "test/fuzz_api.c:%d: expectation failed: the four runs sound and alike "
+                "(bad %d %d %d %d, hashes %016llx %016llx %016llx %016llx)\n",
+                __LINE__, alone.bad, tasks.bad, every.bad, grown.bad,
+                (unsigned long long)alone.hash, (unsigned long long)tasks.hash,
+                (unsigned long long)every.hash, (unsigned long long)grown.hash);
         __builtin_trap();
     }
     return 0;
